@@ -589,6 +589,30 @@ select.converter-input option {
         <option value="TR">Turkish (Türkçe)</option>
     </select>
 </div>
+                    <div class="mt-4">
+    <label class="block text-xs font-bold mb-1" style="color: var(--accent);">مطابقت با پاسپورت (Passport Alignment):</label>
+    <select id="passportChoice" class="converter-input text-left" dir="ltr" style="width: auto; min-width: 270px;" onchange="togglePassportUIfields()">
+        <option value="3">Skip Passport Alignment (بدون انطباق نام)</option>
+        <option value="1">Upload Passport File (آپلود تصویر پاسپورت)</option>
+        <option value="2">Type Names Manually (وارد کردن دستی نام لاتین)</option>
+    </select>
+</div>
+
+<div id="passportFileGroup" class="mt-4 hidden">
+    <label class="block text-xs font-bold mb-1" style="color: var(--accent);">تصویر پاسپورت:</label>
+    <input type="file" id="passportFile" class="converter-input text-left text-xs" style="width: auto; min-width: 270px;" accept="image/*,application/pdf">
+</div>
+
+<div id="passportManualGroup" class="mt-4 hidden flex gap-2">
+    <div>
+        <label class="block text-xs font-bold mb-1" style="color: var(--accent);">First Name (Latin):</label>
+        <input type="text" id="passportFirst" class="converter-input text-left text-xs" style="width: 130px;" placeholder="e.g. SARA">
+    </div>
+    <div>
+        <label class="block text-xs font-bold mb-1" style="color: var(--accent);">Last Name (Latin):</label>
+        <input type="text" id="passportLast" class="converter-input text-left text-xs" style="width: 130px;" placeholder="e.g. GHASRI">
+    </div>
+</div>
                 </div>
             </div>
 
@@ -1128,7 +1152,22 @@ function handleFileSelection(file) {
     submitBtn.disabled = false;
     submitBtn.style.cursor = 'pointer';
 }
+function togglePassportUIfields() {
+    const choice = document.getElementById('passportChoice').value;
+    const fileGroup = document.getElementById('passportFileGroup');
+    const manualGroup = document.getElementById('passportManualGroup');
 
+    if (choice === '1') {
+        fileGroup.classList.remove('hidden');
+        manualGroup.classList.add('hidden');
+    } else if (choice === '2') {
+        fileGroup.classList.add('hidden');
+        manualGroup.classList.remove('hidden');
+    } else {
+        fileGroup.classList.add('hidden');
+        manualGroup.classList.add('hidden');
+    }
+}
 async function executeTranslationPipeline() {
     if (!selectedFile) return;
     submitBtn.disabled = true;
@@ -1143,22 +1182,34 @@ async function executeTranslationPipeline() {
     let fetchUrl = '';
     
     if (docType === 'police-certificate') {
-        // Point to your specific Police backend routing endpoint
         fetchUrl = `https://deept-police-backend.onrender.com/api/translate/police-certificate`;
         
-        // Grab the value dynamically from your new targetLang dropdown menu
         const selectedLanguage = document.getElementById('targetLang').value;
+        const choice = document.getElementById('passportChoice').value;
         
-        // Map file key to 'document_file' as required by your FastAPI code
         formData.append('document_file', selectedFile);
-        formData.append('target_lang', selectedLanguage); // Dynamically sent!
-        formData.append('passport_choice', '3'); // '3' skips passport step for now
-        formData.append('passport_first_name', '');
-        formData.append('passport_last_name', '');
-    } else {
-        // Fallback or default routing logic for your Vehicle Deed backend
-        fetchUrl = `https://deept-vehicle.onrender.com/${docType}`;
-        formData.append('file', selectedFile);
+        formData.append('target_lang', selectedLanguage);
+        formData.append('passport_choice', choice);
+        
+        // Handle Passport Upload conditional
+        if (choice === '1') {
+            const passFileInput = document.getElementById('passportFile');
+            if (passFileInput.files.length > 0) {
+                formData.append('passport_file', passFileInput.files[0]);
+            }
+            formData.append('passport_first_name', '');
+            formData.append('passport_last_name', '');
+        } 
+        // Handle Manual Input conditional
+        else if (choice === '2') {
+            formData.append('passport_first_name', document.getElementById('passportFirst').value);
+            formData.append('passport_last_name', document.getElementById('passportLast').value);
+        } 
+        // Skip fallback
+        else {
+            formData.append('passport_first_name', '');
+            formData.append('passport_last_name', '');
+        }
     }
     
     try {
