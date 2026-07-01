@@ -431,8 +431,10 @@ select.converter-input option {
 
 <canvas id="bgCanvas"></canvas>
 
+<!-- ─── TOAST ─── -->
 <div id="toast"></div>
 
+<!-- ─── HEADER ─── -->
 <div class="header-bar fixed top-0 left-0 right-0 z-50 px-4 py-3 flex items-center justify-between gap-2">
     <div class="flex items-center gap-2 flex-wrap">
         <button onclick="toggleGlobalTheme()" class="header-btn" id="themeBtn" title="تغییر تم">
@@ -454,17 +456,19 @@ select.converter-input option {
         </button>
     </div>
 
+    <!-- User badge (shown when logged in) -->
     <div id="userBadge" class="hidden items-center gap-2 text-xs">
         <div id="headerAvatarBadge" class="w-7 h-7 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center font-black text-black text-xs">M</div>
         <span id="headerUserName" class="font-bold" style="color: var(--text-main);"></span>
     </div>
 </div>
 
+<!-- ─── LOGOUT CONFIRM ─── -->
 <div id="logoutOverlay" class="modal-overlay fixed inset-0 z-[70] hidden flex items-center justify-center p-4">
     <div id="logoutConfirm" class="w-full max-w-sm p-8 text-center">
         <div class="text-4xl mb-4">👋</div>
         <h3 class="text-xl font-black mb-2" style="color: var(--text-main);">خروج از حساب</h3>
-        <p class="text-sm mb-6" style="color: var(--text-muted);">مطمئن هستید که می‌خواهید از سیستم DeepT خارج شوید?</p>
+        <p class="text-sm mb-6" style="color: var(--text-muted);">مطمئن هستید که می‌خواهید از سیستم DeepT خارج شوید؟</p>
         <div class="flex gap-3 justify-center">
             <button onclick="executeLogout()" class="bg-red-500 hover:bg-red-600 text-white font-bold px-6 py-2.5 rounded-xl text-sm transition">بله، خروج</button>
             <button onclick="closeLogoutConfirm()" class="font-bold px-6 py-2.5 rounded-xl text-sm transition" style="background: var(--bg-secondary); color: var(--text-main); border: 1px solid var(--border-subtle);">انصراف</button>
@@ -472,6 +476,7 @@ select.converter-input option {
     </div>
 </div>
 
+<!-- ─── HERO ─── -->
 <section class="min-h-screen flex flex-col justify-center items-center text-center px-6 pt-20">
     <img src="https://uploadkon.ir/uploads/1a1521_25DEEP-T-BOLD-B.jpg" alt="DeepT Logo" class="mb-6 w-44 rounded-xl shadow-lg">
     <h1 class="glitch mb-5">DeepT</h1>
@@ -482,10 +487,12 @@ select.converter-input option {
     </div>
 </section>
 
+<!-- ─── AUTH MODAL ─── -->
 <div id="authModal" class="modal-overlay fixed inset-0 z-50 hidden flex items-center justify-center p-4">
     <div class="chat-window w-full max-w-md rounded-2xl p-7 relative">
         <button onclick="closeAuthModal()" class="absolute top-4 left-4 text-xs font-bold px-3 py-1 rounded-lg transition" style="color: var(--text-muted); border: 1px solid var(--border-subtle);" onmouseover="this.style.color='var(--text-main)'" onmouseout="this.style.color='var(--text-muted)'">بستن ✕</button>
 
+        <!-- LOGIN -->
         <div id="loginStateBox">
             <h3 class="text-xl font-black mb-1 font-mono" style="color: var(--accent);">// USER_LOGIN</h3>
             <p class="text-right text-xs mb-6" style="color: var(--text-muted);">به سیستم پردازش ترجمه متمرکز DeepT وارد شوید.</p>
@@ -506,6 +513,7 @@ select.converter-input option {
             </div>
         </div>
 
+        <!-- SIGNUP -->
         <div id="signupStateBox" class="hidden">
             <h3 class="text-xl font-black mb-1 font-mono" style="color: var(--accent);">// ACCOUNT_SIGNUP</h3>
             <p class="text-right text-xs mb-6" style="color: var(--text-muted);">ایجاد دسترسی به شبکه DeepT بدون نیاز به شماره همراه.</p>
@@ -525,6 +533,7 @@ select.converter-input option {
             </div>
         </div>
 
+        <!-- FORGOT -->
         <div id="forgotStateBox" class="hidden">
             <h3 class="text-xl font-black mb-1 font-mono" style="color: #f97316;">// PASSWORD_RESET</h3>
             <p class="text-right text-xs mb-6" style="color: var(--text-muted);">لینک بازیابی به آدرس ایمیل شما ارسال خواهد شد.</p>
@@ -542,6 +551,7 @@ select.converter-input option {
     </div>
 </div>
 
+<!-- ─── CHAT MODAL ─── -->
 <div id="chatModal" class="modal-overlay fixed inset-0 z-50 hidden flex items-center justify-center p-4">
     <div class="chat-window w-full max-w-4xl h-[85vh] rounded-2xl flex flex-col overflow-hidden relative">
 
@@ -562,7 +572,6 @@ select.converter-input option {
                         <label class="block text-xs font-bold mb-1" style="color: var(--accent);">نوع سند:</label>
                         <select id="docTemplate" class="converter-input text-left" dir="ltr" style="width: auto; min-width: 270px;">
                             <option value="translate-vehicle-deed">سند مالکیت خودرو (برگ سبز)</option>
-                            <option value="translate-police-certificate">گواهی عدم سوء پیشینه (Police Certificate)</option>
                             <option value="affidavit" disabled>استشهادیه مالی (به زودی)</option>
                             <option value="power-of-attorney" disabled>وکالتنامه رسمی (به زودی)</option>
                         </select>
@@ -603,11 +612,14 @@ select.converter-input option {
     </div>
 </div>
 
+<!-- ─── WORKSPACE DASHBOARD ─── -->
 <div id="workspaceDashboard" class="fixed inset-0 z-40 hidden overflow-y-auto p-4 md:p-8 pt-24" style="background: var(--bg-secondary);">
     <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-6">
 
+        <!-- LEFT SIDEBAR -->
         <div class="space-y-5 lg:col-span-1">
 
+            <!-- Profile Card -->
             <div class="workspace-panel p-6">
                 <div class="flex items-center gap-3 mb-4">
                     <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center font-black text-xl text-black" id="avatarLetter">M</div>
@@ -638,6 +650,7 @@ select.converter-input option {
                 </div>
             </div>
 
+            <!-- Wallet -->
             <div class="workspace-panel p-6 relative overflow-hidden">
                 <div class="absolute top-0 left-0 px-3 py-0.5 text-[9px] font-mono font-black uppercase rounded-br-lg" style="background: var(--accent); color: var(--btn-text-on-accent);">Shaparak Secured</div>
                 <h4 class="text-xs font-bold uppercase tracking-wide mb-2 mt-2" style="color: var(--text-muted);">کیف پول متمرکز (ریال)</h4>
@@ -654,6 +667,7 @@ select.converter-input option {
                 </div>
             </div>
 
+            <!-- Support -->
             <div class="workspace-panel p-4 text-xs space-y-2">
                 <h4 class="font-bold flex items-center gap-1" style="color: var(--text-main);">📌 پشتیبانی مستقیم</h4>
                 <p style="color: var(--text-muted); line-height: 1.7;">ایمیل: <span class="font-mono" style="color: var(--accent);">support@deept.ir</span></p>
@@ -663,6 +677,7 @@ select.converter-input option {
 
         </div>
 
+        <!-- MAIN CONTENT -->
         <div class="lg:col-span-3 space-y-5">
             <div class="workspace-panel p-6">
                 <div class="flex flex-col sm:flex-row sm:items-start justify-between pb-4 mb-4 gap-3" style="border-bottom: 1px solid var(--divider);">
@@ -696,24 +711,543 @@ select.converter-input option {
     </div>
 </div>
 
+<!-- ─── TRANSCRIPT TABLE ─── -->
 <section class="section bg-section my-8">
     <div class="flex justify-center overflow-x-auto px-4 sm:px-0">
         <table class="w-auto border-collapse text-left" dir="ltr">
-            <thead>
-                <tr>
-                    <th class="table-header">Key Details</th>
-                    <th class="table-header">Value / Extracted Data</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td class="table-cell">System Mode</td>
-                    <td class="table-cell">Automated Pipeline Live</td>
-                </tr>
-            </tbody>
+            <tr>
+                <td class="table-header">Course</td>
+                <td class="table-header">Units</td>
+                <td class="table-header">Grade</td>
+                <td class="table-header">Status</td>
+            </tr>
+            <tr><td class="table-cell"><span id="courseName1"></span></td><td class="table-cell"><span id="courseUnits1"></span></td><td class="table-cell"><span id="courseGrade1"></span></td><td class="table-cell"><span id="courseStatus1"></span></td></tr>
+            <tr><td class="table-cell"><span id="courseName2"></span></td><td class="table-cell"><span id="courseUnits2"></span></td><td class="table-cell"><span id="courseGrade2"></span></td><td class="table-cell"><span id="courseStatus2"></span></td></tr>
+            <tr><td class="table-cell"><span id="courseName3"></span></td><td class="table-cell"><span id="courseUnits3"></span></td><td class="table-cell"><span id="courseGrade3"></span></td><td class="table-cell"><span id="courseStatus3"></span></td></tr>
+            <tr><td class="table-cell"><span id="courseName4"></span></td><td class="table-cell"><span id="courseUnits4"></span></td><td class="table-cell"><span id="courseGrade4"></span></td><td class="table-cell"><span id="courseStatus4"></span></td></tr>
+            <tr><td class="table-cell"><span id="courseName5"></span></td><td class="table-cell"><span id="courseUnits5"></span></td><td class="table-cell"><span id="courseGrade5"></span></td><td class="table-cell"><span id="courseStatus5"></span></td></tr>
+            <tr><td class="table-cell"><span id="courseName6"></span></td><td class="table-cell"><span id="courseUnits6"></span></td><td class="table-cell"><span id="courseGrade6"></span></td><td class="table-cell"><span id="courseStatus6"></span></td></tr>
+            <tr><td class="table-cell"><span id="courseName7"></span></td><td class="table-cell"><span id="courseUnits7"></span></td><td class="table-cell"><span id="courseGrade7"></span></td><td class="table-cell"><span id="courseStatus7"></span></td></tr>
+            <tr><td class="table-cell"><span id="courseName8"></span></td><td class="table-cell"><span id="courseUnits8"></span></td><td class="table-cell"><span id="courseGrade8"></span></td><td class="table-cell"><span id="courseStatus8"></span></td></tr>
+            <tr><td class="table-cell"><span id="courseName9"></span></td><td class="table-cell"><span id="courseUnits9"></span></td><td class="table-cell"><span id="courseGrade9"></span></td><td class="table-cell"><span id="courseStatus9"></span></td></tr>
+            <tr><td class="table-cell"><span id="courseName10"></span></td><td class="table-cell"><span id="courseUnits10"></span></td><td class="table-cell"><span id="courseGrade10"></span></td><td class="table-cell"><span id="courseStatus10"></span></td></tr>
         </table>
+    </div>
+    <div class="animated-text" id="certText"></div>
+</section>
+
+<!-- ─── WHY DEEPT ─── -->
+<section class="section bg-section my-8">
+    <h2>چرا DeepT؟</h2>
+    <p>DeepT از مدل‌های هوش مصنوعی پیشرفته برای ارائه ترجمه سریع، دقیق و امن اسناد حقوقی استفاده می‌کند.</p>
+</section>
+
+<section class="section my-8">
+    <div class="feature"><h3>هوش مصنوعی پیشرفته</h3><p>شبکه‌های عصبی آموزش‌دیده روی متون حقوقی برای دقت بی‌نظیر در ترجمه.</p></div>
+    <div class="feature"><h3>امن و محرمانه</h3><p>اسناد شما با رمزگذاری سطح سازمانی و رعایت حریم خصوصی کاملاً امن هستند.</p></div>
+    <div class="feature"><h3>سریع و مقیاس‌پذیر</h3><p>ترجمه صدها صفحه در چند دقیقه بدون افت کیفیت.</p></div>
+</section>
+
+<!-- ─── DATE CONVERTER ─── -->
+<section class="section bg-section my-8 text-center" id="converter">
+    <h2>تبدیل تاریخ شمسی به میلادی</h2>
+    <p class="mb-6" style="color: var(--text-muted);">ابزار کاربردی برای تبدیل دقیق تاریخ تولد یا صدور مدارک</p>
+
+    <div class="max-w-2xl mx-auto rounded-2xl p-6" style="background: var(--bg-main); border: 1px solid var(--border-color);">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div>
+                <label class="block text-sm font-bold mb-2" style="color: var(--accent);">روز</label>
+                <input type="number" id="dayInput" placeholder="DD" min="1" max="31" class="converter-input">
+            </div>
+            <div>
+                <label class="block text-sm font-bold mb-2" style="color: var(--accent);">ماه</label>
+                <select id="monthInput" class="converter-input cursor-pointer appearance-none">
+                    <option value="1">فروردین</option><option value="2">اردیبهشت</option>
+                    <option value="3">خرداد</option><option value="4">تیر</option>
+                    <option value="5">مرداد</option><option value="6">شهریور</option>
+                    <option value="7">مهر</option><option value="8">آبان</option>
+                    <option value="9">آذر</option><option value="10">دی</option>
+                    <option value="11">بهمن</option><option value="12">اسفند</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-bold mb-2" style="color: var(--accent);">سال</label>
+                <input type="number" id="yearInput" placeholder="YYYY" class="converter-input">
+            </div>
+        </div>
+
+        <button onclick="convertDate()" class="btn w-full md:w-auto px-10 py-3 text-lg mb-4">تبدیل تاریخ</button>
+        <div id="errorMsg" class="hidden text-red-400 mt-2 text-sm"></div>
+
+        <div id="resultContainer" class="hidden mt-8 pt-8" style="border-top: 2px dashed var(--border-color);">
+            <div class="flex items-center justify-center gap-2 mb-4" style="color: var(--accent);">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                <span class="font-black text-lg">تبدیل موفقیت‌آمیز بود</span>
+            </div>
+
+            <div class="p-6 rounded-xl" style="background: var(--bg-main); border: 1px solid var(--accent); box-shadow: inset 0 0 20px var(--accent-glow);" dir="ltr">
+                <p class="text-xs uppercase tracking-widest mb-2 font-mono" style="color: var(--text-muted);">Official Gregorian Date</p>
+                <div id="mainDate" class="text-4xl font-black font-mono mb-2" style="color: var(--text-main);"></div>
+
+                <div class="flex items-center justify-center gap-3 mb-6 group cursor-pointer" onclick="copyText(document.getElementById('longDateValue').innerText,'longDate')">
+                    <span id="longDateValue" class="text-xl font-mono group-hover:underline transition" style="color: var(--accent);"></span>
+                    <span id="msg-longDate" class="text-green-400 text-sm hidden font-bold">✅ کپی شد!</span>
+                    <span class="text-sm border px-2 rounded-full hidden sm:inline-block group-hover:opacity-100 opacity-50 transition" style="color: var(--text-muted); border-color: var(--border-color);">Click to Copy</span>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <button onclick="copyText(document.getElementById('fmt1').innerText,'fmt1')" class="border p-3 rounded flex flex-col items-start hover:opacity-80 transition group relative text-left" style="border-color: var(--border-color);">
+                        <span id="msg-fmt1" class="hidden absolute top-[-10px] left-1/2 transform -translate-x-1/2 bg-green-500 text-black text-[10px] px-2 rounded font-black z-10">✅ کپی شد!</span>
+                        <span class="text-[10px] font-bold uppercase" style="color: var(--text-muted);">YYYY-MM-DD</span>
+                        <span id="fmt1" class="font-mono text-lg block mt-1" style="color: var(--accent);"></span>
+                    </button>
+                    <button onclick="copyText(document.getElementById('fmt2').innerText,'fmt2')" class="border p-3 rounded flex flex-col items-start hover:opacity-80 transition group relative text-left" style="border-color: var(--border-color);">
+                        <span id="msg-fmt2" class="hidden absolute top-[-10px] left-1/2 transform -translate-x-1/2 bg-green-500 text-black text-[10px] px-2 rounded font-black z-10">✅ کپی شد!</span>
+                        <span class="text-[10px] font-bold uppercase" style="color: var(--text-muted);">MM/DD/YYYY</span>
+                        <span id="fmt2" class="font-mono text-lg block mt-1" style="color: var(--accent);"></span>
+                    </button>
+                    <button onclick="copyText(document.getElementById('fmt3').innerText,'fmt3')" class="border p-3 rounded flex flex-col items-start hover:opacity-80 transition group relative text-left" style="border-color: var(--border-color);">
+                        <span id="msg-fmt3" class="hidden absolute top-[-10px] left-1/2 transform -translate-x-1/2 bg-green-500 text-black text-[10px] px-2 rounded font-black z-10">✅ کپی شد!</span>
+                        <span class="text-[10px] font-bold uppercase" style="color: var(--text-muted);">DD/MM/YYYY</span>
+                        <span id="fmt3" class="font-mono text-lg block mt-1" style="color: var(--accent);"></span>
+                    </button>
+                    <button onclick="copyText(document.getElementById('fmt4').innerText,'fmt4')" class="border p-3 rounded flex flex-col items-start hover:opacity-80 transition group relative text-left" style="border-color: var(--border-color);">
+                        <span id="msg-fmt4" class="hidden absolute top-[-10px] left-1/2 transform -translate-x-1/2 bg-green-500 text-black text-[10px] px-2 rounded font-black z-10">✅ کپی شد!</span>
+                        <span class="text-[10px] font-bold uppercase" style="color: var(--text-muted);">Month D, YYYY</span>
+                        <span id="fmt4" class="font-mono text-lg block mt-1" style="color: var(--accent);"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 </section>
 
+<!-- ─── FOOTER ─── -->
+<footer class="section bg-section my-8 text-center">
+    <p>&copy; 2026 DeepT. همه حقوق محفوظ است.</p>
+    <p style="color: var(--text-muted);">اتوماسیون ترجمه رسمی | هوش مصنوعی | پیشرفته‌ترین تکنولوژی</p>
+</footer>
+
+<script>
+// ─── STATE ───
+let currentUserSession = JSON.parse(localStorage.getItem('deept_mock_user')) || null;
+let currentWalletBalance = parseInt(localStorage.getItem('deept_mock_wallet')) || 1250000;
+let trackingProjectsDatabase = [
+    { id: "DPT-9804", name: "برگ_سبز_پژو_۲۰۶.jpg", type: "سند خودرو", timestamp: Date.now() - (12 * 3600000) },
+    { id: "DPT-4412", name: "Doc_Ref_Official_Signed.pdf", type: "سند خودرو", timestamp: Date.now() - (46.5 * 3600000) }
+];
+
+// ─── TOAST ───
+function showToast(msg, duration = 2500) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), duration);
+}
+
+// ─── THEME ───
+function toggleGlobalTheme() {
+    const body = document.body;
+    const current = body.getAttribute('data-theme') || 'dark';
+    const next = current === 'dark' ? 'light' : 'dark';
+    body.setAttribute('data-theme', next);
+    document.getElementById('themeBtnIcon').textContent = next === 'light' ? '🌙' : '☀️';
+    document.getElementById('themeBtnText').textContent = next === 'light' ? 'تاریک' : 'روشن';
+    localStorage.setItem('deept_theme', next);
+}
+
+// Restore saved theme
+(function() {
+    const saved = localStorage.getItem('deept_theme');
+    if (saved === 'light') {
+        document.body.setAttribute('data-theme', 'light');
+        document.getElementById('themeBtnIcon').textContent = '🌙';
+        document.getElementById('themeBtnText').textContent = 'تاریک';
+    }
+})();
+
+// ─── AUTH MODAL ───
+function openAuthModal() {
+    document.getElementById('authModal').classList.remove('hidden');
+    switchAuthState('login');
+}
+function closeAuthModal() {
+    document.getElementById('authModal').classList.add('hidden');
+}
+function switchAuthState(state) {
+    ['loginStateBox','signupStateBox','forgotStateBox'].forEach(id => document.getElementById(id).classList.add('hidden'));
+    if (state === 'login')  document.getElementById('loginStateBox').classList.remove('hidden');
+    if (state === 'signup') document.getElementById('signupStateBox').classList.remove('hidden');
+    if (state === 'forgot') document.getElementById('forgotStateBox').classList.remove('hidden');
+}
+
+// ─── AUTH ACTIONS ───
+function simulateAuthAction(type) {
+    if (type === 'login' || type === 'signup') {
+        const emailEl = type === 'login' ? 'loginEmail' : 'signupEmail';
+        const email = document.getElementById(emailEl).value;
+        if (!email || !email.includes('@')) { showToast('لطفا ایمیل معتبری وارد کنید.'); return; }
+        currentUserSession = { email, username: email.split('@')[0], type: 'individual', contact: '', office: '' };
+        localStorage.setItem('deept_mock_user', JSON.stringify(currentUserSession));
+        syncUserSessionDOM();
+        closeAuthModal();
+        showToast('✅ خوش آمدید! وارد شدید.');
+        openWorkspaceDashboard();
+    } else if (type === 'forgot') {
+        const email = document.getElementById('forgotEmail').value;
+        if (!email) { showToast('لطفا ایمیل خود را وارد کنید.'); return; }
+        showToast(`📧 لینک بازیابی به ${email} ارسال شد.`, 3500);
+        switchAuthState('login');
+    }
+}
+
+// ─── SESSION DOM SYNC ───
+function syncUserSessionDOM() {
+    const loggedIn = !!currentUserSession;
+    document.getElementById('authHeaderBtn').classList.toggle('hidden', loggedIn);
+    document.getElementById('mainHeroAuthCall').classList.toggle('hidden', loggedIn);
+    document.getElementById('workspaceHeaderBtn').classList.toggle('hidden', !loggedIn);
+    document.getElementById('logoutHeaderBtn').classList.toggle('hidden', !loggedIn);
+    document.getElementById('userBadge').classList.toggle('hidden', !loggedIn);
+    document.getElementById('userBadge').style.display = loggedIn ? 'flex' : 'none';
+
+    if (loggedIn) {
+        const letter = currentUserSession.username.substring(0,1).toUpperCase();
+        document.getElementById('avatarLetter').textContent = letter;
+        document.getElementById('headerAvatarBadge').textContent = letter;
+        document.getElementById('headerUserName').textContent = currentUserSession.office || currentUserSession.username;
+        document.getElementById('profileDisplayName').textContent = currentUserSession.office || currentUserSession.username;
+        document.getElementById('profileEmailBadge').textContent = currentUserSession.email;
+        document.getElementById('accountTypeToggle').value = currentUserSession.type || 'individual';
+        document.getElementById('profileContactInput').value = currentUserSession.contact || '';
+        document.getElementById('officeNameInput').value = currentUserSession.office || '';
+        toggleProfileAccountType();
+    }
+}
+
+// ─── LOGOUT ───
+function confirmLogout() {
+    document.getElementById('logoutOverlay').classList.remove('hidden');
+}
+function closeLogoutConfirm() {
+    document.getElementById('logoutOverlay').classList.add('hidden');
+}
+function executeLogout() {
+    currentUserSession = null;
+    localStorage.removeItem('deept_mock_user');
+    closeLogoutConfirm();
+    closeWorkspaceDashboard();
+    closeChatInterface();
+    syncUserSessionDOM();
+    showToast('👋 با موفقیت از حساب خارج شدید.');
+}
+
+// Close logout overlay on backdrop click
+document.getElementById('logoutOverlay').addEventListener('click', function(e) {
+    if (e.target === this) closeLogoutConfirm();
+});
+
+// ─── PROFILE ───
+function toggleProfileAccountType() {
+    const v = document.getElementById('accountTypeToggle').value;
+    document.getElementById('officeFieldsBlock').classList.toggle('hidden', v !== 'office');
+}
+function saveProfileConfiguration() {
+    if (!currentUserSession) return;
+    currentUserSession.type = document.getElementById('accountTypeToggle').value;
+    currentUserSession.contact = document.getElementById('profileContactInput').value;
+    currentUserSession.office = currentUserSession.type === 'office' ? document.getElementById('officeNameInput').value : '';
+    localStorage.setItem('deept_mock_user', JSON.stringify(currentUserSession));
+    document.getElementById('profileDisplayName').textContent = currentUserSession.office || currentUserSession.username;
+    document.getElementById('headerUserName').textContent = currentUserSession.office || currentUserSession.username;
+    showToast('✅ پروفایل بروزرسانی شد.');
+}
+
+// ─── WALLET ───
+function triggerShaparakPayment() {
+    const amt = parseInt(document.getElementById('paymentAmountInput').value);
+    if (!amt || amt < 10000) { showToast('حداقل مبلغ ۱۰۰،۰۰۰ ریال می‌باشد.'); return; }
+    if (confirm(`شبیه‌ساز شاپرک\n\nپرداخت ${amt.toLocaleString()} ریال؟`)) {
+        currentWalletBalance += amt;
+        localStorage.setItem('deept_mock_wallet', currentWalletBalance);
+        document.getElementById('walletBalanceDisplay').textContent = currentWalletBalance.toLocaleString();
+        showToast('✅ کیف پول شارژ شد.');
+    }
+}
+function submitSupportTicket() {
+    const text = document.getElementById('supportTicketMsg').value;
+    if (!text) return;
+    showToast('📩 پیام شما ثبت شد.');
+    document.getElementById('supportTicketMsg').value = '';
+}
+
+// ─── WORKSPACE ───
+function openWorkspaceDashboard() {
+    if (!currentUserSession) { openAuthModal(); return; }
+    document.getElementById('workspaceDashboard').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    renderDashboardActiveProjects();
+}
+function closeWorkspaceDashboard() {
+    document.getElementById('workspaceDashboard').classList.add('hidden');
+    document.body.style.overflow = 'auto';
+}
+
+function renderDashboardActiveProjects() {
+    const tbody = document.getElementById('projectDashboardRowsBlock');
+    tbody.innerHTML = '';
+    if (trackingProjectsDatabase.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 font-mono text-sm" style="color: var(--text-muted);">// بدون پروژه فعال</td></tr>`;
+        return;
+    }
+    trackingProjectsDatabase.forEach((project, idx) => {
+        const remaining = (48 * 3600000) - (Date.now() - project.timestamp);
+        let timerHtml = remaining <= 0
+            ? `<span style="color:#f87171; font-weight:700;">پاک شده</span>`
+            : `<span style="color:#fb923c; font-weight:700; font-family:monospace;">⏳ ${Math.floor(remaining/3600000)}h ${Math.floor((remaining%3600000)/60000)}m</span>`;
+        const dateStr = new Date(project.timestamp).toLocaleDateString('fa-IR');
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td class="py-3 text-right">
+                <div class="font-black font-mono" style="color: var(--text-main);">${project.id}</div>
+                <div class="text-[10px] truncate max-w-[170px]" style="color: var(--text-muted);">${project.name}</div>
+            </td>
+            <td class="py-3 text-center font-bold" style="color: var(--accent);">${project.type}</td>
+            <td class="py-3 text-center font-mono" style="color: var(--text-muted);">${dateStr}</td>
+            <td class="py-3 text-center">${timerHtml}</td>
+            <td class="py-3 text-left text-xs">
+                ${remaining > 0 ? `
+                    <button onclick="showToast('فایل DOCX دانلود شد.')" class="font-bold hover:underline ml-3" style="color: var(--accent);">دانلود DOCX</button>
+                    <button onclick="purgeFile(${idx})" class="font-bold hover:underline" style="color: #f87171;">حذف</button>
+                ` : `<span style="color: var(--text-muted); cursor:not-allowed;">منقضی</span>`}
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+function purgeFile(index) {
+    if (confirm('حذف کامل و برگشت‌ناپذیر این فایل؟')) {
+        trackingProjectsDatabase.splice(index, 1);
+        renderDashboardActiveProjects();
+        showToast('🗑️ فایل حذف شد.');
+    }
+}
+setInterval(() => {
+    if (!document.getElementById('workspaceDashboard').classList.contains('hidden')) renderDashboardActiveProjects();
+}, 30000);
+
+// ─── CHAT ───
+function openChatInterface() {
+    document.getElementById('chatModal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+}
+function closeChatInterface() {
+    document.getElementById('chatModal').classList.add('hidden');
+    if (document.getElementById('workspaceDashboard').classList.contains('hidden')) {
+        document.body.style.overflow = 'auto';
+    }
+}
+
+// ─── CANVAS BACKGROUND ───
+const canvas = document.getElementById('bgCanvas');
+const ctx = canvas.getContext('2d');
+let width = canvas.width = window.innerWidth;
+let height = canvas.height = window.innerHeight;
+const nodes = [];
+function initNodes() {
+    nodes.length = 0;
+    for (let i = 0; i < 100; i++) nodes.push({ x: Math.random()*width, y: Math.random()*height, vx:(Math.random()-.5)/4, vy:(Math.random()-.5)/4 });
+}
+initNodes();
+function drawBG() {
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+    ctx.clearRect(0,0,width,height);
+    const isLight = document.body.getAttribute('data-theme') === 'light';
+    for (let i = 0; i < nodes.length; i++) {
+        for (let j = i+1; j < nodes.length; j++) {
+            const dx = nodes[i].x - nodes[j].x, dy = nodes[i].y - nodes[j].y;
+            const d = Math.sqrt(dx*dx + dy*dy);
+            if (d < 160) {
+                ctx.beginPath();
+                ctx.moveTo(nodes[i].x, nodes[i].y);
+                ctx.lineTo(nodes[j].x, nodes[j].y);
+                ctx.strokeStyle = isLight ? `rgba(3,105,161,${(1-d/160)*0.18})` : `rgba(0,255,255,${(1-d/160)*0.7})`;
+                ctx.lineWidth = 0.8;
+                ctx.stroke();
+            }
+        }
+    }
+    nodes.forEach(n => {
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, 1.8, 0, Math.PI*2);
+        ctx.fillStyle = isLight ? '#0369a1' : 'cyan';
+        ctx.fill();
+        n.x += n.vx; n.y += n.vy;
+        if (n.x < 0 || n.x > width) n.vx *= -1;
+        if (n.y < 0 || n.y > height) n.vy *= -1;
+    });
+    requestAnimationFrame(drawBG);
+}
+window.addEventListener('resize', () => { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; });
+drawBG();
+
+// ─── FILE UPLOAD ───
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const fileInfo = document.getElementById('fileInfo');
+const dropZoneText = document.getElementById('dropZoneText');
+const submitBtn = document.getElementById('submitBtn');
+let selectedFile = null;
+
+dropZone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', e => handleFileSelection(e.target.files[0]));
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); if (e.dataTransfer.files.length) handleFileSelection(e.dataTransfer.files[0]); });
+
+function handleFileSelection(file) {
+    if (!file) return;
+    selectedFile = file;
+    fileInfo.textContent = `✅ ${file.name} (${(file.size/1024/1024).toFixed(2)} MB)`;
+    fileInfo.classList.remove('hidden');
+    dropZoneText.classList.add('hidden');
+    submitBtn.disabled = false;
+    submitBtn.style.cursor = 'pointer';
+}
+
+async function executeTranslationPipeline() {
+    if (!selectedFile) return;
+    submitBtn.disabled = true;
+    const statusBubble = document.getElementById('processingStatusBubble');
+    const statusText = document.getElementById('statusMessageText');
+    statusBubble.classList.remove('hidden');
+    statusText.textContent = 'ارتباط با سرور هوش مصنوعی DeepT...';
+    const formData = new FormData();
+    formData.append('file', selectedFile);
+    try {
+        const res = await fetch(`https://deept-vehicle.onrender.com/${document.getElementById('docTemplate').value}`, { method: 'POST', body: formData });
+        if (!res.ok) throw new Error('خطا در پردازش سند.');
+        statusText.textContent = 'ترجمه موفق — آماده‌سازی دانلود...';
+        const blob = await res.blob();
+        trackingProjectsDatabase.unshift({ id: 'DPT-' + Math.floor(1000+Math.random()*9000), name: selectedFile.name, type: 'سند خودرو', timestamp: Date.now() });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = `DeepT_${selectedFile.name.split('.')[0]}.docx`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+        showToast('✅ فایل ترجمه شده دانلود شد.');
+    } catch (err) {
+        showToast(`⚠️ ${err.message}`);
+    } finally {
+        submitBtn.disabled = false;
+        statusBubble.classList.add('hidden');
+    }
+}
+
+// ─── TRANSCRIPT TYPEWRITER ───
+const courses = [
+    {name:"Advanced Math",units:"3",grade:"19",status:"Pass"},
+    {name:"Physics",units:"3",grade:"17.5",status:"Pass"},
+    {name:"Programming",units:"3",grade:"18",status:"Pass"},
+    {name:"Project Management",units:"2",grade:"16.5",status:"Pass"},
+    {name:"Commercial Law",units:"2",grade:"17",status:"Pass"},
+    {name:"Economics",units:"2",grade:"18.25",status:"Pass"},
+    {name:"Technical English",units:"3",grade:"19.5",status:"Pass"},
+    {name:"Software Engineering",units:"3",grade:"18.75",status:"Pass"},
+    {name:"Information Systems",units:"3",grade:"17",status:"Pass"},
+    {name:"Artificial Intelligence",units:"3",grade:"18.5",status:"Pass"}
+];
+function clearAllRows() {
+    for (let i=1; i<=10; i++) ['Name','Units','Grade','Status'].forEach(f => { document.getElementById(`course${f}${i}`).textContent = ''; });
+}
+let rowIndex=0, colIndex=0, charIndex=0, typingCert=false;
+function typeTranscriptRow() {
+    if (rowIndex >= courses.length) { if (!typingCert) typeCertificate(); return; }
+    const fields = [
+        {text:courses[rowIndex].name, display:`courseName${rowIndex+1}`},
+        {text:courses[rowIndex].units, display:`courseUnits${rowIndex+1}`},
+        {text:courses[rowIndex].grade, display:`courseGrade${rowIndex+1}`},
+        {text:courses[rowIndex].status, display:`courseStatus${rowIndex+1}`}
+    ];
+    if (colIndex < fields.length) {
+        const f = fields[colIndex];
+        document.getElementById(f.display).textContent = f.text.substring(0, charIndex);
+        if (charIndex <= f.text.length) { charIndex++; setTimeout(typeTranscriptRow, 90); }
+        else { colIndex++; charIndex=0; setTimeout(typeTranscriptRow, 180); }
+    } else { rowIndex++; colIndex=0; setTimeout(typeTranscriptRow, 350); }
+}
+function typeCertificate() {
+    typingCert = true;
+    const fixedDate = new Date('2026-06-25');
+    const fd = fixedDate.toLocaleDateString('en-US', {day:'numeric',month:'long',year:'numeric'});
+    const text = `Certified to be a true translation from original Persian.\nDate of Translation: ${fd}`;
+    let i = 0;
+    const el = document.getElementById('certText');
+    function typeChar() {
+        el.innerHTML = text.substring(0,i).replace('\n','<br/>');
+        if (i++ <= text.length) { setTimeout(typeChar, 90); }
+        else {
+            setTimeout(() => {
+                el.textContent = '';
+                clearAllRows();
+                rowIndex=0; colIndex=0; charIndex=0; typingCert=false;
+                setTimeout(typeTranscriptRow, 500);
+            }, 3000);
+        }
+    }
+    typeChar();
+}
+
+// ─── DATE CONVERTER ───
+function isJalaaliLeap(jy) { const m=jy%33; return [1,5,9,13,17,22,26,30].includes(m); }
+function jalaaliToGregorian(jy,jm,jd) {
+    jy=parseInt(jy)-979; jm=parseInt(jm)-1; jd=parseInt(jd)-1;
+    let jdn=365*jy+Math.floor(jy/33)*8+Math.floor((jy%33+3)/4);
+    for(let i=0;i<jm;i++) jdn+=(i<6)?31:30;
+    jdn+=jd; let gdn=jdn+79;
+    let gy=1600+400*Math.floor(gdn/146097); gdn%=146097;
+    let leap=true;
+    if(gdn>=36525){gdn--;gy+=100*Math.floor(gdn/36524);gdn%=36524;if(gdn>=365){gdn++;leap=false;}}
+    gy+=4*Math.floor(gdn/1461);gdn%=1461;
+    if(gdn>=366){leap=false;gdn--;gy+=Math.floor(gdn/365);gdn%=365;}
+    let gm,gd;
+    const dim=[31,leap?29:28,31,30,31,30,31,31,30,31,30,31];
+    for(let i=0;i<12;i++){if(gdn<dim[i]){gm=i+1;gd=gdn+1;break;}gdn-=dim[i];}
+    return {gy,gm,gd};
+}
+function convertDate() {
+    const d=document.getElementById('dayInput').value, m=document.getElementById('monthInput').value, y=document.getElementById('yearInput').value;
+    const eEl=document.getElementById('errorMsg'), rEl=document.getElementById('resultContainer');
+    eEl.classList.add('hidden'); rEl.classList.add('hidden');
+    if(!d||!m||!y){showErr('لطفا تمام موارد را پر کنید.');return;}
+    const day=parseInt(d),month=parseInt(m),year=parseInt(y);
+    if(year<1000||year>3000){showErr('سال معتبر وارد کنید (مثلا ۱۴۰۳).');return;}
+    if(day<1||day>31){showErr('روز معتبر وارد کنید.');return;}
+    if(month>6&&month<12&&day===31){showErr('این ماه فقط ۳۰ روز دارد.');return;}
+    if(month===12){if(day>30){showErr('اسفند ۳۰ روز دارد.');return;}if(!isJalaaliLeap(year)&&day===30){showErr(`سال ${year} کبیسه نیست.`);return;}}
+    try {
+        const {gy,gm,gd}=jalaaliToGregorian(year,month,day);
+        const obj=new Date(gy,gm-1,gd);
+        const p=n=>String(n).padStart(2,'0');
+        const f1=`${gy}-${p(gm)}-${p(gd)}`, f2=`${p(gm)}/${p(gd)}/${gy}`, f3=`${p(gd)}/${p(gm)}/${gy}`;
+        const f4=new Intl.DateTimeFormat('en-US',{month:'long',day:'numeric',year:'numeric'}).format(obj);
+        document.getElementById('mainDate').textContent=`${gy} / ${p(gm)} / ${p(gd)}`;
+        document.getElementById('longDateValue').textContent=f4;
+        ['1','2','3','4'].forEach((n,i)=>document.getElementById(`fmt${n}`).textContent=[f1,f2,f3,f4][i]);
+        rEl.classList.remove('hidden');
+    } catch(e){showErr('خطا در تبدیل.');}
+}
+function showErr(msg){const el=document.getElementById('errorMsg');el.textContent=msg;el.classList.remove('hidden');}
+function copyText(text,id){
+    navigator.clipboard.writeText(text).then(()=>{
+        const m=document.getElementById(`msg-${id}`);
+        if(m){m.classList.remove('hidden');setTimeout(()=>m.classList.add('hidden'),2000);}
+    }).catch(()=>showToast('خطا در دسترسی به کلیپ‌بورد.'));
+}
+
+// ─── INIT ───
+document.getElementById('walletBalanceDisplay').textContent = currentWalletBalance.toLocaleString();
+syncUserSessionDOM();
+typeTranscriptRow();
+</script>
 </body>
 </html>
