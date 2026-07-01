@@ -569,14 +569,26 @@ select.converter-input option {
                 <div class="chat-bubble-ai p-4 rounded-2xl rounded-tr-none text-sm leading-relaxed" style="color: var(--text-main);">
                     سلام. من هسته پردازش هوشمند <strong>DeepT</strong> هستم. پروفایل اسناد رسمی مورد نظر را انتخاب کنید.
                     <div class="mt-4">
-                        <label class="block text-xs font-bold mb-1" style="color: var(--accent);">نوع سند:</label>
-<select id="docTemplate" class="converter-input text-left" dir="ltr" style="width: auto; min-width: 270px;">
-    <option value="translate-vehicle-deed">سند مالکیت خودرو (برگ سبز)</option>
-    <option value="police-certificate">گواهی عدم سوء پیشینه (Police Certificate)</option>
-    <option value="affidavit" disabled>استشهادیه مالی (به زودی)</option>
-    <option value="power-of-attorney" disabled>وکالتنامه رسمی (به زودی)</option>
-</select>
-                    </div>
+    <label class="block text-xs font-bold mb-1" style="color: var(--accent);">نوع سند:</label>
+    <select id="docTemplate" class="converter-input text-left" dir="ltr" style="width: auto; min-width: 270px;">
+        <option value="translate-vehicle-deed">سند مالکیت خودرو (برگ سبز)</option>
+        <option value="police-certificate">گواهی عدم سوء پیشینه (Police Certificate)</option>
+        <option value="affidavit" disabled>استشهادیه مالی (به زودی)</option>
+        <option value="power-of-attorney" disabled>وکالتنامه رسمی (به زودی)</option>
+    </select>
+</div>
+
+<div class="mt-4">
+    <label class="block text-xs font-bold mb-1" style="color: var(--accent);">زبان ترجمه (Target Language):</label>
+    <select id="targetLang" class="converter-input text-left" dir="ltr" style="width: auto; min-width: 270px;">
+        <option value="FR">French (Français)</option>
+        <option value="AR">Arabic (العربية)</option>
+        <option value="RU">Russian (Русский)</option>
+        <option value="ES">Spanish (Español)</option>
+        <option value="IT">Italian (Italiano)</option>
+        <option value="TR">Turkish (Türkçe)</option>
+    </select>
+</div>
                 </div>
             </div>
 
@@ -1120,22 +1132,63 @@ function handleFileSelection(file) {
 async function executeTranslationPipeline() {
     if (!selectedFile) return;
     submitBtn.disabled = true;
+    
     const statusBubble = document.getElementById('processingStatusBubble');
     const statusText = document.getElementById('statusMessageText');
     statusBubble.classList.remove('hidden');
     statusText.textContent = 'ارتباط با سرور هوش مصنوعی DeepT...';
+    
+    const docType = document.getElementById('docTemplate').value;
     const formData = new FormData();
-    formData.append('file', selectedFile);
+    let fetchUrl = '';
+    
+    if (docType === 'police-certificate') {
+        // Point to your specific Police backend routing endpoint
+        fetchUrl = `https://deept-police-backend.onrender.com/api/translate/police-certificate`;
+        
+        // Grab the value dynamically from your new targetLang dropdown menu
+        const selectedLanguage = document.getElementById('targetLang').value;
+        
+        // Map file key to 'document_file' as required by your FastAPI code
+        formData.append('document_file', selectedFile);
+        formData.append('target_lang', selectedLanguage); // Dynamically sent!
+        formData.append('passport_choice', '3'); // '3' skips passport step for now
+        formData.append('passport_first_name', '');
+        formData.append('passport_last_name', '');
+    } else {
+        // Fallback or default routing logic for your Vehicle Deed backend
+        fetchUrl = `https://deept-vehicle.onrender.com/${docType}`;
+        formData.append('file', selectedFile);
+    }
+    
     try {
-        const res = await fetch(`https://deept-vehicle.onrender.com/${document.getElementById('docTemplate').value}`, { method: 'POST', body: formData });
+        const res = await fetch(fetchUrl, { method: 'POST', body: formData });
         if (!res.ok) throw new Error('خطا در پردازش سند.');
+        
         statusText.textContent = 'ترجمه موفق — آماده‌سازی دانلود...';
         const blob = await res.blob();
-        trackingProjectsDatabase.unshift({ id: 'DPT-' + Math.floor(1000+Math.random()*9000), name: selectedFile.name, type: 'سند خودرو', timestamp: Date.now() });
+        
+        // Add item to dashboard database log
+        const friendlyTypeName = docType === 'police-certificate' ? 'سوء پیشینه' : 'سند خودرو';
+        trackingProjectsDatabase.unshift({ 
+            id: 'DPT-' + Math.floor(1000 + Math.random() * 9000), 
+            name: selectedFile.name, 
+            type: friendlyTypeName, 
+            timestamp: Date.now() 
+        });
+        
+        // Trigger file download
         const url = URL.createObjectURL(blob);
-        const a = document.createElement('a'); a.href = url; a.download = `DeepT_${selectedFile.name.split('.')[0]}.docx`;
-        document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+        const a = document.createElement('a'); 
+        a.href = url; 
+        a.download = `DeepT_${selectedFile.name.split('.')[0]}.docx`;
+        document.body.appendChild(a); 
+        a.click(); 
+        document.body.removeChild(a); 
+        URL.revokeObjectURL(url);
+        
         showToast('✅ فایل ترجمه شده دانلود شد.');
+        if (typeof renderWorkspaceDashboardProjects === 'function') renderWorkspaceDashboardProjects();
     } catch (err) {
         showToast(`⚠️ ${err.message}`);
     } finally {
@@ -1143,7 +1196,6 @@ async function executeTranslationPipeline() {
         statusBubble.classList.add('hidden');
     }
 }
-
 // ─── TRANSCRIPT TYPEWRITER ───
 const courses = [
     {name:"Advanced Math",units:"3",grade:"19",status:"Pass"},
