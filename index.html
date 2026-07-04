@@ -578,17 +578,6 @@ select.converter-input option {
     </select>
 </div>
 
-<div class="mt-4">
-    <label class="block text-xs font-bold mb-1" style="color: var(--accent);">زبان ترجمه (Target Language):</label>
-    <select id="targetLang" class="converter-input text-left" dir="ltr" style="width: auto; min-width: 270px;">
-        <option value="FR">French (Français)</option>
-        <option value="AR">Arabic (العربية)</option>
-        <option value="RU">Russian (Русский)</option>
-        <option value="ES">Spanish (Español)</option>
-        <option value="IT">Italian (Italiano)</option>
-        <option value="TR">Turkish (Türkçe)</option>
-    </select>
-</div>
                     <div class="mt-4">
     <label class="block text-xs font-bold mb-1" style="color: var(--accent);">مطابقت با پاسپورت (Passport Alignment):</label>
     <select id="passportChoice" class="converter-input text-left" dir="ltr" style="width: auto; min-width: 270px;" onchange="togglePassportUIfields()">
@@ -1171,73 +1160,67 @@ function togglePassportUIfields() {
 async function executeTranslationPipeline() {
     if (!selectedFile) return;
     submitBtn.disabled = true;
-    
+
     const statusBubble = document.getElementById('processingStatusBubble');
     const statusText = document.getElementById('statusMessageText');
     statusBubble.classList.remove('hidden');
     statusText.textContent = 'ارتباط با سرور هوش مصنوعی DeepT...';
-    
+
     const docType = document.getElementById('docTemplate').value;
     const formData = new FormData();
     let fetchUrl = '';
-    
+
     if (docType === 'police-certificate') {
         fetchUrl = `https://deept-police-backend.onrender.com/api/translate/police-certificate`;
-        
-        const selectedLanguage = document.getElementById('targetLang').value;
+
+        // NOTE: target language step removed for now — the backend always
+        // produces the fixed Persian -> English certified translation.
         const choice = document.getElementById('passportChoice').value;
-        
+
         formData.append('document_file', selectedFile);
-        formData.append('target_lang', selectedLanguage);
         formData.append('passport_choice', choice);
-        
+
         // Handle Passport Upload conditional
         if (choice === '1') {
             const passFileInput = document.getElementById('passportFile');
             if (passFileInput.files.length > 0) {
                 formData.append('passport_file', passFileInput.files[0]);
             }
-            formData.append('passport_first_name', '');
-            formData.append('passport_last_name', '');
-        } 
+        }
         // Handle Manual Input conditional
         else if (choice === '2') {
             formData.append('passport_first_name', document.getElementById('passportFirst').value);
             formData.append('passport_last_name', document.getElementById('passportLast').value);
-        } 
-        // Skip fallback
-        else {
-            formData.append('passport_first_name', '');
-            formData.append('passport_last_name', '');
         }
+        // Skip fallback: nothing extra to send.
     }
-    
+
     try {
         const res = await fetch(fetchUrl, { method: 'POST', body: formData });
         if (!res.ok) throw new Error('خطا در پردازش سند.');
-        
+
         statusText.textContent = 'ترجمه موفق — آماده‌سازی دانلود...';
         const blob = await res.blob();
-        
+
         // Add item to dashboard database log
         const friendlyTypeName = docType === 'police-certificate' ? 'سوء پیشینه' : 'سند خودرو';
-        trackingProjectsDatabase.unshift({ 
-            id: 'DPT-' + Math.floor(1000 + Math.random() * 9000), 
-            name: selectedFile.name, 
-            type: friendlyTypeName, 
-            timestamp: Date.now() 
+        trackingProjectsDatabase.unshift({
+            id: 'DPT-' + Math.floor(1000 + Math.random() * 9000),
+            name: selectedFile.name,
+            type: friendlyTypeName,
+            timestamp: Date.now()
         });
-        
+
         // Trigger file download
         const url = URL.createObjectURL(blob);
-        const a = document.createElement('a'); 
-        a.href = url; 
+        const a = document.createElement('a');
+        a.href = url;
         a.download = `DeepT_${selectedFile.name.split('.')[0]}.docx`;
-        document.body.appendChild(a); 
-        a.click(); 
-        document.body.removeChild(a); 
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
         URL.revokeObjectURL(url);
-        
+
         showToast('✅ فایل ترجمه شده دانلود شد.');
         if (typeof renderWorkspaceDashboardProjects === 'function') renderWorkspaceDashboardProjects();
     } catch (err) {
