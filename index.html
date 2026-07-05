@@ -602,6 +602,9 @@ select.converter-input option {
         <input type="text" id="passportLast" class="converter-input text-left text-xs" style="width: 130px;" placeholder="e.g. GHASRI">
     </div>
 </div>
+                    <button type="button" onclick="saveIdentityToMemory()" class="btn-primary">
+    تایید و ادامه به مرحله بارگذاری سند
+</button>
                 </div>
             </div>
 
@@ -855,23 +858,196 @@ select.converter-input option {
 </footer>
 
 <script>
-// ─── STATE ───
+// ─── STATE & MEMORY ───
 let currentUserSession = JSON.parse(localStorage.getItem('deept_mock_user')) || null;
 let currentWalletBalance = parseInt(localStorage.getItem('deept_mock_wallet')) || 1250000;
+
+// Local Memory to store identity data between steps
+let cachedIdentityData = {
+    passportChoice: "3", // Default to 'skip'
+    manualFirst: "",
+    manualLast: "",
+    passportFile: null
+};
+let selectedFile = null; // Main document file to translate
+
 let trackingProjectsDatabase = [
     { id: "DPT-9804", name: "برگ_سبز_پژو_۲۰۶.jpg", type: "سند خودرو", timestamp: Date.now() - (12 * 3600000) },
     { id: "DPT-4412", name: "Doc_Ref_Official_Signed.pdf", type: "سند خودرو", timestamp: Date.now() - (46.5 * 3600000) }
 ];
 
-// ─── TOAST ───
-function showToast(msg, duration = 2500) {
-    const t = document.getElementById('toast');
-    t.textContent = msg;
-    t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), duration);
+// ─── INITIALIZATION ON LOAD ───
+document.addEventListener("DOMContentLoaded", () => {
+    syncUserSessionDOM();
+    document.getElementById('walletBalanceDisplay').textContent = currentWalletBalance.toLocaleString();
+    
+    // Bind Drag & Drop and File Selection Listeners for Main Document Workspace
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('fileInput');
+    
+    if (dropZone && fileInput) {
+        dropZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => handleFileSelection(e.target.files[0]));
+
+        dropZone.addEventListener('dragover', (e) => { 
+            e.preventDefault(); 
+            dropZone.style.borderColor = 'var(--accent)'; 
+        });
+        dropZone.addEventListener('dragleave', () => { 
+            dropZone.style.borderColor = ''; 
+        });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = '';
+            handleFileSelection(e.dataTransfer.files[0]);
+        });
+    }
+
+    // Capture standalone file changes for passport file inputs to store in memory
+    const passInputEl = document.getElementById('passportFile');
+    if (passInputEl) {
+        passInputEl.addEventListener('change', (e) => {
+            cachedIdentityData.passportFile = e.target.files[0];
+        });
+    }
+});
+
+// ─── STEP 1: IDENTITY MANAGMENT (MEMORY CACHING) ───
+function togglePassportUIfields() {
+    const choice = document.getElementById('passportChoice').value;
+    document.getElementById('passportFileGroup').classList.toggle('hidden', choice !== '1');
+    document.getElementById('passportManualGroup').classList.toggle('hidden', choice !== '2');
 }
 
-// ─── THEME ───
+function saveIdentityToMemory() {
+    const choice = document.getElementById('passportChoice').value;
+    const first = document.getElementById('passportFirst').value.trim();
+    const last = document.getElementById('passportLast').value.trim();
+
+    if (choice === '2' && (!first || !last)) {
+        showToast("لطفا نام و نام خانوادگی انگلیسی را به صورت دستی وارد کنید.");
+        return;
+    }
+    if (choice === '1' && !cachedIdentityData.passportFile) {
+        showToast("لطفا تصویر پاسپورت خود را بارگذاری کنید.");
+        return;
+    }
+
+    // Save values directly into browser runtime memory
+    cachedIdentityData.passportChoice = choice;
+    cachedIdentityData.manualFirst = first;
+    cachedIdentityData.manualLast = last;
+
+    showToast("✅ اطلاعات هویتی با موفقیت در حافظه موقت ثبت شد.");
+    
+    // Smooth Transition: Show next step (Document Workspace), hide/collapse current panel if preferred
+    const workspaceSection = document.getElementById('mainWorkspaceBlock');
+    if (workspaceSection) {
+        workspaceSection.classList.remove('hidden');
+        workspaceSection.scrollIntoView({ behavior: 'smooth' });
+    }
+}
+
+// ─── STEP 2: MAIN DOCUMENT HANDLING ───
+function handleFileSelection(file) {
+    if (!file) return;
+    selectedFile = file;
+    
+    document.getElementById('fileInfo').textContent = `📄 ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+    document.getElementById('fileInfo').classList.remove('hidden');
+    document.getElementById('dropZoneText').classList.add('hidden');
+    
+    // Unlock ultimate translation submission action controls
+    const submitBtn = document.getElementById('submitBtn');
+    if (submitBtn) {
+        submitBtn.removeAttribute('disabled');
+        submitBtn.classList.remove('cursor-not-allowed');
+    }
+}
+
+// ─── STEP 3: API TRANSMISSION PIPELINE ───
+async function executeTranslationPipeline() {
+    if (!selectedFile) {
+        showToast("لطفا ابتدا فایل سند اصلی را انتخاب کنید.");
+        return;
+    }
+
+    const submitBtn = document.getElementById('submitBtn');
+    const statusBubble = document.getElementById('processingStatusBubble');
+    const statusText = document.getElementById('statusMessageText');
+
+    // UI Loading indicator adjustments
+    if (submitBtn) submitBtn.disabled = true;
+    if (statusBubble) statusBubble.classList.remove('hidden');
+    if (statusText) statusText.textContent = "در حال ارسال فایل‌ها و پردازش نهایی توسط موتور ترجمه هوش مصنوعی...";
+
+    // Package pipeline payload data out of dynamic system memory
+    const formData = new FormData();
+    formData.append('document_file', selectedFile);
+    formData.append('passport_choice', cachedIdentityData.passportChoice);
+    formData.append('manual_first', cachedIdentityData.manualFirst);
+    formData.append('manual_last', cachedIdentityData.manualLast);
+
+    if (cachedIdentityData.passportChoice === '1' && cachedIdentityData.passportFile) {
+        formData.append('passport_file', cachedIdentityData.passportFile);
+    }
+
+    const BACKEND_URL = "http://127.0.0.1:8000/api/translate/police-certificate";
+
+    try {
+        const response = await fetch(BACKEND_URL, {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({ detail: "خطایی در فرآیند تحلیل هوش مصنوعی رخ داد." }));
+            throw new Error(errData.detail || "سرور قادر به پاسخگویی نبود.");
+        }
+
+        // Catch streamed DOCX file binary chunk arrays
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const anchor = document.createElement('a');
+        anchor.href = downloadUrl;
+        anchor.download = `DeepT_Translation_${selectedFile.name.split('.')[0]}.docx`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        
+        showToast("✅ ترجمه رسمی صادر و دانلود فایل Word با موفقیت آغاز شد!");
+
+        // Push new entry to history component
+        trackingProjectsDatabase.unshift({
+            id: `DPT-${Math.floor(1000 + Math.random() * 9000)}`,
+            name: selectedFile.name,
+            type: "گواهی عدم سوء پیشینه",
+            timestamp: Date.now()
+        });
+        renderDashboardActiveProjects();
+
+    } catch (error) {
+        console.error(error);
+        showToast(`❌ خطا: ${error.message}`);
+    } finally {
+        if (submitBtn) submitBtn.disabled = false;
+        if (statusBubble) statusBubble.classList.add('hidden');
+    }
+}
+
+// ─── UTILITY USER CONTROLS (THEME, AUTH, WALLET) ───
+function openChatInterface() { document.getElementById('chatModal').classList.remove('hidden'); }
+function closeChatInterface() { document.getElementById('chatModal').classList.add('hidden'); }
+
+function showToast(msg, duration = 2500) {
+    const t = document.getElementById('toast');
+    if (t) {
+        t.textContent = msg;
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), duration);
+    } else { alert(msg); }
+}
+
 function toggleGlobalTheme() {
     const body = document.body;
     const current = body.getAttribute('data-theme') || 'dark';
@@ -882,32 +1058,28 @@ function toggleGlobalTheme() {
     localStorage.setItem('deept_theme', next);
 }
 
-// Restore saved theme
 (function() {
     const saved = localStorage.getItem('deept_theme');
     if (saved === 'light') {
         document.body.setAttribute('data-theme', 'light');
-        document.getElementById('themeBtnIcon').textContent = '🌙';
-        document.getElementById('themeBtnText').textContent = 'تاریک';
+        const icon = document.getElementById('themeBtnIcon');
+        const text = document.getElementById('themeBtnText');
+        if (icon) icon.textContent = '🌙';
+        if (text) text.textContent = 'تاریک';
     }
 })();
 
-// ─── AUTH MODAL ───
-function openAuthModal() {
-    document.getElementById('authModal').classList.remove('hidden');
-    switchAuthState('login');
-}
-function closeAuthModal() {
-    document.getElementById('authModal').classList.add('hidden');
-}
+function openAuthModal() { document.getElementById('authModal').classList.remove('hidden'); switchAuthState('login'); }
+function closeAuthModal() { document.getElementById('authModal').classList.add('hidden'); }
 function switchAuthState(state) {
-    ['loginStateBox','signupStateBox','forgotStateBox'].forEach(id => document.getElementById(id).classList.add('hidden'));
+    ['loginStateBox','signupStateBox','forgotStateBox'].forEach(id => {
+        const el = document.getElementById(id); if (el) el.classList.add('hidden');
+    });
     if (state === 'login')  document.getElementById('loginStateBox').classList.remove('hidden');
     if (state === 'signup') document.getElementById('signupStateBox').classList.remove('hidden');
     if (state === 'forgot') document.getElementById('forgotStateBox').classList.remove('hidden');
 }
 
-// ─── AUTH ACTIONS ───
 function simulateAuthAction(type) {
     if (type === 'login' || type === 'signup') {
         const emailEl = type === 'login' ? 'loginEmail' : 'signupEmail';
@@ -927,37 +1099,45 @@ function simulateAuthAction(type) {
     }
 }
 
-// ─── SESSION DOM SYNC ───
 function syncUserSessionDOM() {
     const loggedIn = !!currentUserSession;
-    document.getElementById('authHeaderBtn').classList.toggle('hidden', loggedIn);
-    document.getElementById('mainHeroAuthCall').classList.toggle('hidden', loggedIn);
-    document.getElementById('workspaceHeaderBtn').classList.toggle('hidden', !loggedIn);
-    document.getElementById('logoutHeaderBtn').classList.toggle('hidden', !loggedIn);
-    document.getElementById('userBadge').classList.toggle('hidden', !loggedIn);
-    document.getElementById('userBadge').style.display = loggedIn ? 'flex' : 'none';
+    const hAuth = document.getElementById('authHeaderBtn');
+    const mHero = document.getElementById('mainHeroAuthCall');
+    const wHeader = document.getElementById('workspaceHeaderBtn');
+    const lHeader = document.getElementById('logoutHeaderBtn');
+    const uBadge = document.getElementById('userBadge');
+
+    if (hAuth) hAuth.classList.toggle('hidden', loggedIn);
+    if (mHero) mHero.classList.toggle('hidden', loggedIn);
+    if (wHeader) wHeader.classList.toggle('hidden', !loggedIn);
+    if (lHeader) lHeader.classList.toggle('hidden', !loggedIn);
+    if (uBadge) { uBadge.classList.toggle('hidden', !loggedIn); uBadge.style.display = loggedIn ? 'flex' : 'none'; }
 
     if (loggedIn) {
         const letter = currentUserSession.username.substring(0,1).toUpperCase();
-        document.getElementById('avatarLetter').textContent = letter;
-        document.getElementById('headerAvatarBadge').textContent = letter;
-        document.getElementById('headerUserName').textContent = currentUserSession.office || currentUserSession.username;
-        document.getElementById('profileDisplayName').textContent = currentUserSession.office || currentUserSession.username;
-        document.getElementById('profileEmailBadge').textContent = currentUserSession.email;
-        document.getElementById('accountTypeToggle').value = currentUserSession.type || 'individual';
-        document.getElementById('profileContactInput').value = currentUserSession.contact || '';
-        document.getElementById('officeNameInput').value = currentUserSession.office || '';
+        const avLetter = document.getElementById('avatarLetter');
+        const hAvBadge = document.getElementById('headerAvatarBadge');
+        const hUserName = document.getElementById('headerUserName');
+        const pDispName = document.getElementById('profileDisplayName');
+        const pEmailBdg = document.getElementById('profileEmailBadge');
+        const accToggle = document.getElementById('accountTypeToggle');
+        const pContInput = document.getElementById('profileContactInput');
+        const offNameIn = document.getElementById('officeNameInput');
+
+        if (avLetter) avLetter.textContent = letter;
+        if (hAvBadge) hAvBadge.textContent = letter;
+        if (hUserName) hUserName.textContent = currentUserSession.office || currentUserSession.username;
+        if (pDispName) pDispName.textContent = currentUserSession.office || currentUserSession.username;
+        if (pEmailBdg) pEmailBdg.textContent = currentUserSession.email;
+        if (accToggle) accToggle.value = currentUserSession.type || 'individual';
+        if (pContInput) pContInput.value = currentUserSession.contact || '';
+        if (offNameIn) offNameIn.value = currentUserSession.office || '';
         toggleProfileAccountType();
     }
 }
 
-// ─── LOGOUT ───
-function confirmLogout() {
-    document.getElementById('logoutOverlay').classList.remove('hidden');
-}
-function closeLogoutConfirm() {
-    document.getElementById('logoutOverlay').classList.add('hidden');
-}
+function confirmLogout() { const logOver = document.getElementById('logoutOverlay'); if (logOver) logOver.classList.remove('hidden'); }
+function closeLogoutConfirm() { const logOver = document.getElementById('logoutOverlay'); if (logOver) logOver.classList.add('hidden'); }
 function executeLogout() {
     currentUserSession = null;
     localStorage.removeItem('deept_mock_user');
@@ -968,31 +1148,29 @@ function executeLogout() {
     showToast('👋 با موفقیت از حساب خارج شدید.');
 }
 
-// Close logout overlay on backdrop click
-document.getElementById('logoutOverlay').addEventListener('click', function(e) {
-    if (e.target === this) closeLogoutConfirm();
-});
-
-// ─── PROFILE ───
 function toggleProfileAccountType() {
     const v = document.getElementById('accountTypeToggle').value;
-    document.getElementById('officeFieldsBlock').classList.toggle('hidden', v !== 'office');
+    const offBlock = document.getElementById('officeFieldsBlock');
+    if (offBlock) offBlock.classList.toggle('hidden', v !== 'office');
 }
+
 function saveProfileConfiguration() {
     if (!currentUserSession) return;
     currentUserSession.type = document.getElementById('accountTypeToggle').value;
     currentUserSession.contact = document.getElementById('profileContactInput').value;
     currentUserSession.office = currentUserSession.type === 'office' ? document.getElementById('officeNameInput').value : '';
     localStorage.setItem('deept_mock_user', JSON.stringify(currentUserSession));
-    document.getElementById('profileDisplayName').textContent = currentUserSession.office || currentUserSession.username;
-    document.getElementById('headerUserName').textContent = currentUserSession.office || currentUserSession.username;
+    
+    const pDispName = document.getElementById('profileDisplayName');
+    const hUserName = document.getElementById('headerUserName');
+    if (pDispName) pDispName.textContent = currentUserSession.office || currentUserSession.username;
+    if (hUserName) hUserName.textContent = currentUserSession.office || currentUserSession.username;
     showToast('✅ پروفایل بروزرسانی شد.');
 }
 
-// ─── WALLET ───
 function triggerShaparakPayment() {
     const amt = parseInt(document.getElementById('paymentAmountInput').value);
-    if (!amt || amt < 10000) { showToast('حداقل مبلغ ۱۰۰،۰۰۰ ریال می‌باشد.'); return; }
+    if (!amt || amt < 100000) { showToast('حداقل مبلغ ۱۰۰،۰۰۰ ریال می‌باشد.'); return; }
     if (confirm(`شبیه‌ساز شاپرک\n\nپرداخت ${amt.toLocaleString()} ریال؟`)) {
         currentWalletBalance += amt;
         localStorage.setItem('deept_mock_wallet', currentWalletBalance);
@@ -1000,6 +1178,7 @@ function triggerShaparakPayment() {
         showToast('✅ کیف پول شارژ شد.');
     }
 }
+
 function submitSupportTicket() {
     const text = document.getElementById('supportTicketMsg').value;
     if (!text) return;
@@ -1007,7 +1186,6 @@ function submitSupportTicket() {
     document.getElementById('supportTicketMsg').value = '';
 }
 
-// ─── WORKSPACE ───
 function openWorkspaceDashboard() {
     if (!currentUserSession) { openAuthModal(); return; }
     document.getElementById('workspaceDashboard').classList.remove('hidden');
@@ -1019,13 +1197,22 @@ function closeWorkspaceDashboard() {
     document.body.style.overflow = 'auto';
 }
 
+function purgeFile(idx) {
+    trackingProjectsDatabase.splice(idx, 1);
+    renderDashboardActiveProjects();
+    showToast('سند مشخص شده حذف شد.');
+}
+
 function renderDashboardActiveProjects() {
     const tbody = document.getElementById('projectDashboardRowsBlock');
+    if (!tbody) return;
     tbody.innerHTML = '';
+    
     if (trackingProjectsDatabase.length === 0) {
         tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 font-mono text-sm" style="color: var(--text-muted);">// بدون پروژه فعال</td></tr>`;
         return;
     }
+    
     trackingProjectsDatabase.forEach((project, idx) => {
         const remaining = (48 * 3600000) - (Date.now() - project.timestamp);
         let timerHtml = remaining <= 0
@@ -1043,7 +1230,7 @@ function renderDashboardActiveProjects() {
             <td class="py-3 text-center">${timerHtml}</td>
             <td class="py-3 text-left text-xs">
                 ${remaining > 0 ? `
-                    <button onclick="showToast('فایل DOCX دانلود شد.')" class="font-bold hover:underline ml-3" style="color: var(--accent);">دانلود DOCX</button>
+                    <button onclick="showToast('فایل DOCX مجدداً دانلود شد.')" class="font-bold hover:underline ml-3" style="color: var(--accent);">دانلود DOCX</button>
                     <button onclick="purgeFile(${idx})" class="font-bold hover:underline" style="color: #f87171;">حذف</button>
                 ` : `<span style="color: var(--text-muted); cursor:not-allowed;">منقضی</span>`}
             </td>
@@ -1051,6 +1238,7 @@ function renderDashboardActiveProjects() {
         tbody.appendChild(row);
     });
 }
+</script>
 function purgeFile(index) {
     if (confirm('حذف کامل و برگشت‌ناپذیر این فایل؟')) {
         trackingProjectsDatabase.splice(index, 1);
