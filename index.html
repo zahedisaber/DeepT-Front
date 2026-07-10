@@ -6,7 +6,11 @@
 <title>DeepT - اتوماسیون ترجمه رسمی مبتنی بر هوش مصنوعی</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;900&family=Inter:wght@400;500;600;700;900&display=swap');
+
+/* ─── FONT ROLES ─── */
+/* Vazirmatn  → all Persian/UI text (default body font)    */
+/* Inter      → English-only data: dates, codes, formats   */
 
 /* ─── DARK THEME (default) ─── */
 :root {
@@ -78,6 +82,13 @@ body {
     transition: background-color 0.35s ease, color 0.35s ease;
 }
 
+/* English-only data text (dates, IDs, format codes) */
+.en {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    direction: ltr;
+    unicode-bidi: embed;
+}
+
 canvas {
     position: fixed;
     top: 0; left: 0;
@@ -134,7 +145,7 @@ canvas {
     border: 1px solid var(--accent);
     padding: 0.5rem 0.85rem;
     min-width: 120px;
-    font-family: 'Vazirmatn', monospace;
+    font-family: 'Inter', system-ui, sans-serif;
     color: var(--accent);
     font-size: 1.05rem;
     text-align: left;
@@ -148,10 +159,11 @@ canvas {
     text-align: left;
     direction: ltr;
     padding: 0.5rem 0.85rem;
+    font-family: 'Inter', system-ui, sans-serif;
     opacity: 0.75;
 }
 .animated-text {
-    font-family: 'Vazirmatn', monospace;
+    font-family: 'Inter', system-ui, sans-serif;
     color: var(--accent);
     font-size: 0.95rem;
     margin-top: 1.5rem;
@@ -294,7 +306,7 @@ p {
     border: 1px solid var(--accent);
     color: var(--accent);
     text-align: center;
-    font-family: 'Vazirmatn', monospace;
+    font-family: 'Vazirmatn', sans-serif;
     font-size: 1.15rem;
     transition: box-shadow 0.2s, border-color 0.2s;
     padding: 0.75rem;
@@ -353,8 +365,13 @@ select.converter-input option {
     font-size: 0.9rem;
     color: var(--accent);
     outline: none;
-    font-family: monospace;
+    font-family: 'Vazirmatn', sans-serif;
     transition: border-color 0.2s, box-shadow 0.2s;
+}
+/* Email/password inputs are LTR English — override font there only */
+.auth-input[type="email"],
+.auth-input[type="password"] {
+    font-family: 'Inter', system-ui, sans-serif;
 }
 .auth-input:focus {
     border-color: var(--accent);
@@ -386,6 +403,7 @@ select.converter-input option {
     letter-spacing: 0.07em;
     padding-bottom: 0.75rem;
     padding-top: 0.5rem;
+    font-family: 'Vazirmatn', sans-serif;
 }
 .ws-table tr:not(:last-child) td {
     border-bottom: 1px solid var(--divider);
@@ -478,7 +496,27 @@ select.converter-input option {
 
 <!-- ─── HERO ─── -->
 <section class="min-h-screen flex flex-col justify-center items-center text-center px-6 pt-20">
-    <img src="https://uploadkon.ir/uploads/1a1521_25DEEP-T-BOLD-B.jpg" alt="DeepT Logo" class="mb-6 w-44 rounded-xl shadow-lg">
+    <div class="mb-6 w-44 flex items-center justify-center">
+        <svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg" width="176" height="70">
+            <defs>
+                <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="var(--accent)"/>
+                    <stop offset="100%" stop-color="var(--accent)"/>
+                </linearGradient>
+                <filter id="logoGlow">
+                    <feGaussianBlur stdDeviation="2" result="blur"/>
+                    <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+                </filter>
+            </defs>
+            <!-- D -->
+            <text x="4" y="62" font-family="Inter, system-ui, sans-serif" font-weight="900" font-size="68" fill="var(--accent)" filter="url(#logoGlow)" letter-spacing="-2">Deep</text>
+            <!-- T with accent color block -->
+            <rect x="148" y="8" width="46" height="62" rx="6" fill="var(--accent)" opacity="0.12"/>
+            <text x="150" y="62" font-family="Inter, system-ui, sans-serif" font-weight="900" font-size="68" fill="var(--accent)" filter="url(#logoGlow)">T</text>
+            <!-- dot -->
+            <circle cx="196" cy="64" r="4" fill="var(--accent)" opacity="0.8"/>
+        </svg>
+    </div>
     <h1 class="glitch mb-5">DeepT</h1>
     <p class="text-2xl md:text-3xl mb-8" style="opacity:0.85">اتوماسیون ترجمه رسمی مبتنی بر هوش مصنوعی</p>
     <div class="flex flex-col sm:flex-row gap-4 justify-center items-center mt-6">
@@ -494,7 +532,7 @@ select.converter-input option {
 
         <!-- LOGIN -->
         <div id="loginStateBox">
-            <h3 class="text-xl font-black mb-1 font-mono" style="color: var(--accent);">// USER_LOGIN</h3>
+            <h3 class="text-xl font-black mb-1 en" style="color: var(--accent);">// USER_LOGIN</h3>
             <p class="text-right text-xs mb-6" style="color: var(--text-muted);">به سیستم پردازش ترجمه متمرکز DeepT وارد شوید.</p>
             <div class="space-y-4">
                 <div>
@@ -515,7 +553,7 @@ select.converter-input option {
 
         <!-- SIGNUP -->
         <div id="signupStateBox" class="hidden">
-            <h3 class="text-xl font-black mb-1 font-mono" style="color: var(--accent);">// ACCOUNT_SIGNUP</h3>
+            <h3 class="text-xl font-black mb-1 en" style="color: var(--accent);">// ACCOUNT_SIGNUP</h3>
             <p class="text-right text-xs mb-6" style="color: var(--text-muted);">ایجاد دسترسی به شبکه DeepT بدون نیاز به شماره همراه.</p>
             <div class="space-y-4">
                 <div>
@@ -535,7 +573,7 @@ select.converter-input option {
 
         <!-- FORGOT -->
         <div id="forgotStateBox" class="hidden">
-            <h3 class="text-xl font-black mb-1 font-mono" style="color: #f97316;">// PASSWORD_RESET</h3>
+            <h3 class="text-xl font-black mb-1 en" style="color: #f97316;">// PASSWORD_RESET</h3>
             <p class="text-right text-xs mb-6" style="color: var(--text-muted);">لینک بازیابی به آدرس ایمیل شما ارسال خواهد شد.</p>
             <div class="space-y-4">
                 <div>
@@ -551,94 +589,177 @@ select.converter-input option {
     </div>
 </div>
 
-<!-- ─── CHAT MODAL ─── -->
+<!-- ═══════════════════════════════════════════════════════════
+     TRANSLATION MODAL — Two-step flow
+     Step 1: Passport identity (upload / manual / skip)
+     Step 2: Document upload + translate (repeatable per document)
+     ═══════════════════════════════════════════════════════════ -->
 <div id="chatModal" class="modal-overlay fixed inset-0 z-50 hidden flex items-center justify-center p-4">
-    <div class="chat-window w-full max-w-4xl h-[85vh] rounded-2xl flex flex-col overflow-hidden relative">
+  <div class="chat-window w-full max-w-2xl rounded-2xl flex flex-col overflow-hidden" style="max-height:90vh;">
 
-        <div class="p-4 flex items-center justify-between" style="border-bottom: 1px solid var(--border-color); background: var(--panel-bg);">
-            <div class="flex items-center gap-3">
-                <div class="w-2.5 h-2.5 rounded-full animate-pulse" style="background: var(--accent);"></div>
-                <span class="font-black text-base tracking-wide font-mono" style="color: var(--accent);">DeepT Terminal Engine v1.0</span>
-            </div>
-            <button onclick="closeChatInterface()" class="text-sm font-bold px-3 py-1 rounded-lg transition" style="color: var(--text-muted); border: 1px solid var(--border-subtle);" onmouseover="this.style.color='var(--text-main)'" onmouseout="this.style.color='var(--text-muted)'">خروج ✕</button>
+    <!-- Header -->
+    <div class="flex items-center justify-between px-5 py-3 shrink-0" style="border-bottom:1px solid var(--border-color); background:var(--panel-bg);">
+      <div class="flex items-center gap-3">
+        <div class="w-2 h-2 rounded-full animate-pulse" style="background:var(--accent);"></div>
+        <span class="font-black text-sm en" style="color:var(--accent);">DeepT Engine v2.0</span>
+        <!-- Active client badge -->
+        <div id="activeClientBadge" class="hidden items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-bold" style="background:rgba(74,222,128,0.15); border:1px solid rgba(74,222,128,0.4); color:#4ade80;">
+          <span>🟢</span><span id="activeClientName"></span>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="newClientBtn" onclick="confirmNewClient()" class="hidden text-xs font-bold px-3 py-1 rounded-lg transition" style="color:#fb923c; border:1px solid rgba(251,146,60,0.35);" onmouseover="this.style.borderColor='#fb923c'" onmouseout="this.style.borderColor='rgba(251,146,60,0.35)'">↺ مشتری جدید</button>
+        <button onclick="closeChatInterface()" class="text-xs font-bold px-3 py-1 rounded-lg transition" style="color:var(--text-muted); border:1px solid var(--border-subtle);" onmouseover="this.style.color='var(--text-main)'" onmouseout="this.style.color='var(--text-muted)'">بستن ✕</button>
+      </div>
+    </div>
+
+    <div class="overflow-y-auto flex-1 p-5 space-y-4" dir="rtl">
+
+      <!-- ══ STEP 1: PASSPORT IDENTITY ══ -->
+      <div id="step1Panel">
+        <div class="flex items-center gap-2 mb-4">
+          <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0" style="background:var(--accent); color:var(--btn-text-on-accent);">۱</span>
+          <span class="font-black text-sm" style="color:var(--text-main);">شناسه مشتری — اطلاعات پاسپورت</span>
         </div>
 
-        <div class="flex-1 overflow-y-auto p-6 space-y-6" id="chatStream" dir="rtl">
-            <div class="flex items-start gap-4 max-w-3xl">
-                <div class="w-8 h-8 rounded-full border flex items-center justify-center shrink-0 text-xs" style="background: var(--accent-hover); border-color: var(--border-color); color: var(--accent);">🤖</div>
-                <div class="chat-bubble-ai p-4 rounded-2xl rounded-tr-none text-sm leading-relaxed" style="color: var(--text-main);">
-                    سلام. من هسته پردازش هوشمند <strong>DeepT</strong> هستم. پروفایل اسناد رسمی مورد نظر را انتخاب کنید.
-                    <div class="mt-4">
-    <label class="block text-xs font-bold mb-1" style="color: var(--accent);">نوع سند:</label>
-    <select id="docTemplate" class="converter-input text-left" dir="ltr" style="width: auto; min-width: 270px;">
-        <option value="translate-vehicle-deed">سند مالکیت خودرو (برگ سبز)</option>
-        <option value="police-certificate">گواهی عدم سوء پیشینه (Police Certificate)</option>
-        <option value="affidavit" disabled>استشهادیه مالی (به زودی)</option>
-        <option value="power-of-attorney" disabled>وکالتنامه رسمی (به زودی)</option>
-    </select>
-</div>
-
-                    <div class="mt-4">
-    <label class="block text-xs font-bold mb-1" style="color: var(--accent);">مطابقت با پاسپورت (Passport Alignment):</label>
-    <select id="passportChoice" class="converter-input text-left" dir="ltr" style="width: auto; min-width: 270px;" onchange="togglePassportUIfields()">
-        <option value="3">Skip Passport Alignment (بدون انطباق نام)</option>
-        <option value="1">Upload Passport File (آپلود تصویر پاسپورت)</option>
-        <option value="2">Type Names Manually (وارد کردن دستی نام لاتین)</option>
-    </select>
-</div>
-
-<div id="passportFileGroup" class="mt-4 hidden">
-    <label class="block text-xs font-bold mb-1" style="color: var(--accent);">تصویر پاسپورت:</label>
-    <input type="file" id="passportFile" class="converter-input text-left text-xs" style="width: auto; min-width: 270px;" accept="image/*,application/pdf">
-</div>
-
-<div id="passportManualGroup" class="mt-4 hidden flex gap-2">
-    <div>
-        <label class="block text-xs font-bold mb-1" style="color: var(--accent);">First Name (Latin):</label>
-        <input type="text" id="passportFirst" class="converter-input text-left text-xs" style="width: 130px;" placeholder="e.g. SARA">
-    </div>
-    <div>
-        <label class="block text-xs font-bold mb-1" style="color: var(--accent);">Last Name (Latin):</label>
-        <input type="text" id="passportLast" class="converter-input text-left text-xs" style="width: 130px;" placeholder="e.g. GHASRI">
-    </div>
-</div>
-                    <button type="button" onclick="saveIdentityToMemory()" class="btn-primary">
-    تایید و ادامه به مرحله بارگذاری سند
-</button>
-                </div>
+        <!-- Three mode buttons -->
+        <div class="space-y-2 mb-4">
+          <button onclick="ppSetMode('upload')" id="modeBtn-upload"
+            class="w-full flex items-center gap-3 p-3 rounded-xl border text-right transition"
+            style="border-color:var(--border-color); background:var(--bg-main);"
+            onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border-color)'">
+            <span class="text-xl shrink-0">📤</span>
+            <div>
+              <div class="font-black text-sm" style="color:var(--text-main);">بارگذاری تصویر پاسپورت</div>
+              <div class="text-xs mt-0.5" style="color:var(--text-muted);">هوش مصنوعی اطلاعات را استخراج می‌کند — شما تأیید می‌کنید</div>
             </div>
+          </button>
 
-            <div class="flex items-start gap-4 max-w-3xl" id="uploadMessageBlock">
-                <div class="w-8 h-8 rounded-full border flex items-center justify-center shrink-0 text-xs" style="background: var(--accent-hover); border-color: var(--border-color); color: var(--accent);">🤖</div>
-                <div class="chat-bubble-ai p-4 rounded-2xl rounded-tr-none text-sm w-full">
-                    <p class="text-right text-xs mb-2" style="color: var(--text-muted);">فایل مبدا (تصویر یا PDF) را پیوست کنید:</p>
-                    <div id="dropZone" class="drop-zone-chat p-8 text-center cursor-pointer">
-                        <div class="text-3xl mb-2">📄</div>
-                        <p id="dropZoneText" class="text-xs" style="color: var(--text-muted);">فایل را به این منطقه بکشید یا کلیک کنید</p>
-                        <input type="file" id="fileInput" accept="image/jpeg,image/png,application/pdf" style="display:none;">
-                        <div id="fileInfo" class="text-xs font-bold hidden" style="color: var(--accent);"></div>
-                    </div>
-                </div>
+          <button onclick="ppSetMode('manual')" id="modeBtn-manual"
+            class="w-full flex items-center gap-3 p-3 rounded-xl border text-right transition"
+            style="border-color:var(--border-color); background:var(--bg-main);"
+            onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border-color)'">
+            <span class="text-xl shrink-0">✏️</span>
+            <div>
+              <div class="font-black text-sm" style="color:var(--text-main);">ورود دستی اطلاعات</div>
+              <div class="text-xs mt-0.5" style="color:var(--text-muted);">نام، نام خانوادگی، نام پدر و تاریخ تولد را تایپ کنید</div>
             </div>
+          </button>
 
-            <div class="flex items-start gap-4 max-w-3xl hidden" id="processingStatusBubble">
-                <div class="w-8 h-8 rounded-full border flex items-center justify-center shrink-0 text-xs" style="background: var(--accent-hover); border-color: var(--border-color); color: var(--accent);">🤖</div>
-                <div class="chat-bubble-ai p-4 rounded-2xl rounded-tr-none text-sm flex items-center gap-3">
-                    <span class="animate-spin" style="color: var(--accent);">⏳</span>
-                    <span class="font-mono text-xs tracking-wider" id="statusMessageText" style="color: var(--text-muted);">در حال تحلیل...</span>
-                </div>
+          <button onclick="ppSetMode('skip')"
+            class="w-full flex items-center gap-3 p-3 rounded-xl border text-right transition"
+            style="border-color:var(--border-subtle); background:var(--bg-main);"
+            onmouseover="this.style.borderColor='var(--text-muted)'" onmouseout="this.style.borderColor='var(--border-subtle)'">
+            <span class="text-xl shrink-0">⏭️</span>
+            <div>
+              <div class="font-black text-sm" style="color:var(--text-muted);">رد شدن — بدون پاسپورت</div>
+              <div class="text-xs mt-0.5" style="color:var(--text-muted);">اطلاعات از خود سند استخراج می‌شود</div>
             </div>
+          </button>
         </div>
 
-        <div class="p-4" style="border-top: 1px solid var(--border-color); background: var(--panel-bg);">
-            <div class="max-w-4xl mx-auto flex items-center gap-3 rounded-xl px-4 py-2" style="background: var(--input-bg); border: 1px solid var(--border-color);">
-                <input type="text" placeholder="دستور خود را وارد کنید..." disabled class="bg-transparent flex-1 text-sm outline-none text-right cursor-not-allowed" style="color: var(--text-muted);">
-                <button id="submitBtn" onclick="executeTranslationPipeline()" disabled class="font-bold text-xs px-4 py-2 rounded-lg transition shrink-0 disabled:opacity-30 cursor-not-allowed" style="background: var(--accent); color: var(--btn-text-on-accent);">
-                    ارسال و ترجمه (.DOCX)
-                </button>
-            </div>
+        <!-- Upload zone (shown when upload mode selected) -->
+        <div id="pp-upload-zone" class="hidden mb-4">
+          <div id="pp-drop-zone" onclick="document.getElementById('pp-file-input').click()"
+            class="drop-zone-chat p-6 text-center cursor-pointer">
+            <div class="text-2xl mb-1">🛂</div>
+            <p id="pp-drop-text" class="text-xs" style="color:var(--text-muted);">تصویر یا PDF پاسپورت را اینجا بکشید یا کلیک کنید</p>
+            <div id="pp-file-name" class="text-xs font-bold hidden mt-1" style="color:var(--accent);"></div>
+            <input type="file" id="pp-file-input" accept="image/jpeg,image/png,image/webp,application/pdf" style="display:none" onchange="ppHandleFile(this.files[0])">
+          </div>
+          <button id="pp-extract-btn" onclick="ppRunExtraction()" disabled
+            class="w-full mt-2 py-2.5 rounded-xl text-sm font-black transition disabled:opacity-30"
+            style="background:var(--accent); color:var(--btn-text-on-accent);">
+            استخراج با هوش مصنوعی
+          </button>
         </div>
+
+        <!-- Status bar -->
+        <div id="pp-status" class="hidden text-xs p-3 rounded-lg mb-3 flex items-center gap-2"
+          style="background:var(--accent-hover); border:1px solid var(--border-color);">
+          <span id="pp-status-icon"></span>
+          <span id="pp-status-text" style="color:var(--text-main);"></span>
+        </div>
+
+        <!-- Identity fields (shown for manual + after extract) -->
+        <div id="pp-fields" class="hidden space-y-3 mb-4">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="auth-label">نام (First Name)</label>
+              <input type="text" id="pp-first" class="auth-input en uppercase" dir="ltr" placeholder="ALI" oninput="this.value=this.value.toUpperCase()">
+            </div>
+            <div>
+              <label class="auth-label">نام خانوادگی (Last Name)</label>
+              <input type="text" id="pp-last" class="auth-input en uppercase" dir="ltr" placeholder="MOHAMMADI" oninput="this.value=this.value.toUpperCase()">
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="auth-label">نام پدر (Father's Name)</label>
+              <input type="text" id="pp-father" class="auth-input en uppercase" dir="ltr" placeholder="HASSAN" oninput="this.value=this.value.toUpperCase()">
+            </div>
+            <div>
+              <label class="auth-label">تاریخ تولد — میلادی</label>
+              <input type="text" id="pp-dob" class="auth-input en" dir="ltr" placeholder="April 12, 1985">
+            </div>
+          </div>
+          <button onclick="ppConfirmSession()"
+            class="w-full py-2.5 rounded-xl text-sm font-black transition"
+            style="background:var(--accent); color:var(--btn-text-on-accent);">
+            ✅ تأیید و شروع ترجمه
+          </button>
+        </div>
+      </div>
+
+      <!-- ══ STEP 2: DOCUMENT TRANSLATION ══ -->
+      <div id="step2Panel" class="hidden">
+        <div class="flex items-center gap-2 mb-4">
+          <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0" style="background:var(--accent); color:var(--btn-text-on-accent);">۲</span>
+          <span class="font-black text-sm" style="color:var(--text-main);">بارگذاری و ترجمه سند</span>
+        </div>
+
+        <!-- Document type selector -->
+        <div class="mb-4">
+          <label class="auth-label mb-1">نوع سند:</label>
+          <select id="docTemplate" class="auth-input" style="font-family:'Vazirmatn',sans-serif;">
+            <option value="police-certificate">گواهی عدم سوء پیشینه (Police Certificate)</option>
+            <option value="translate-vehicle-deed" disabled>سند مالکیت خودرو — به زودی</option>
+            <option value="power-of-attorney" disabled>وکالتنامه رسمی — به زودی</option>
+          </select>
+        </div>
+
+        <!-- Document drop zone -->
+        <div id="docDropZone" onclick="document.getElementById('docFileInput').click()"
+          class="drop-zone-chat p-8 text-center cursor-pointer mb-4">
+          <div class="text-3xl mb-2">📄</div>
+          <p id="docDropText" class="text-xs" style="color:var(--text-muted);">فایل سند را اینجا بکشید یا کلیک کنید</p>
+          <input type="file" id="docFileInput" accept="image/jpeg,image/png,application/pdf" style="display:none" onchange="handleDocFileSelection(this.files[0])">
+          <div id="docFileInfo" class="text-xs font-bold hidden mt-1" style="color:var(--accent);"></div>
+        </div>
+
+        <!-- Processing status -->
+        <div id="processingStatusBubble" class="hidden flex items-center gap-3 p-3 rounded-xl mb-3 text-sm"
+          style="background:var(--panel-bg); border:1px solid var(--border-color);">
+          <span class="animate-spin" style="color:var(--accent);">⏳</span>
+          <span id="statusMessageText" style="color:var(--text-muted);">در حال پردازش...</span>
+        </div>
+
+        <!-- Translate button -->
+        <button id="submitBtn" onclick="executeTranslationPipeline()" disabled
+          class="w-full py-3 rounded-xl font-black text-sm transition disabled:opacity-30"
+          style="background:var(--accent); color:var(--btn-text-on-accent);">
+          ترجمه و دانلود (.DOCX)
+        </button>
+
+        <!-- Next document button (shown after successful translation) -->
+        <button id="nextDocBtn" onclick="resetForNextDocument()" class="hidden w-full py-3 rounded-xl font-black text-sm transition mt-3"
+          style="background:var(--bg-main); color:var(--text-main); border:1px solid var(--border-color);">
+          ترجمه مدرک بعدی ←
+        </button>
+      </div>
+
     </div>
+  </div>
 </div>
 
 <!-- ─── WORKSPACE DASHBOARD ─── -->
@@ -654,7 +775,7 @@ select.converter-input option {
                     <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center font-black text-xl text-black" id="avatarLetter">M</div>
                     <div>
                         <h4 class="font-black text-base" id="profileDisplayName" style="color: var(--text-main);">مترجم رسمی</h4>
-                        <span class="text-xs font-mono" id="profileEmailBadge" style="color: var(--text-muted);">user@deept.ir</span>
+                        <span class="text-xs en" id="profileEmailBadge" style="color: var(--text-muted);">user@deept.ir</span>
                     </div>
                 </div>
 
@@ -699,7 +820,7 @@ select.converter-input option {
             <!-- Support -->
             <div class="workspace-panel p-4 text-xs space-y-2">
                 <h4 class="font-bold flex items-center gap-1" style="color: var(--text-main);">📌 پشتیبانی مستقیم</h4>
-                <p style="color: var(--text-muted); line-height: 1.7;">ایمیل: <span class="font-mono" style="color: var(--accent);">support@deept.ir</span></p>
+                <p style="color: var(--text-muted); line-height: 1.7;">ایمیل: <span class="en" style="color: var(--accent);">support@deept.ir</span></p>
                 <textarea id="supportTicketMsg" rows="3" placeholder="متن پیام خود را بنویسید..." class="auth-input resize-none" style="font-family: 'Vazirmatn', sans-serif; font-size: 0.8rem;"></textarea>
                 <button onclick="submitSupportTicket()" class="w-full font-bold py-1.5 rounded-lg transition" style="background: var(--bg-main); color: var(--accent); border: 1px solid var(--border-color);">ارسال تیکت</button>
             </div>
@@ -815,35 +936,35 @@ select.converter-input option {
             </div>
 
             <div class="p-6 rounded-xl" style="background: var(--bg-main); border: 1px solid var(--accent); box-shadow: inset 0 0 20px var(--accent-glow);" dir="ltr">
-                <p class="text-xs uppercase tracking-widest mb-2 font-mono" style="color: var(--text-muted);">Official Gregorian Date</p>
-                <div id="mainDate" class="text-4xl font-black font-mono mb-2" style="color: var(--text-main);"></div>
+                <p class="text-xs uppercase tracking-widest mb-2 en" style="color: var(--text-muted);">Official Gregorian Date</p>
+                <div id="mainDate" class="text-4xl font-black en mb-2" style="color: var(--text-main);"></div>
 
                 <div class="flex items-center justify-center gap-3 mb-6 group cursor-pointer" onclick="copyText(document.getElementById('longDateValue').innerText,'longDate')">
-                    <span id="longDateValue" class="text-xl font-mono group-hover:underline transition" style="color: var(--accent);"></span>
-                    <span id="msg-longDate" class="text-green-400 text-sm hidden font-bold">✅ کپی شد!</span>
-                    <span class="text-sm border px-2 rounded-full hidden sm:inline-block group-hover:opacity-100 opacity-50 transition" style="color: var(--text-muted); border-color: var(--border-color);">Click to Copy</span>
+                    <span id="longDateValue" class="text-xl en group-hover:underline transition" style="color: var(--accent);"></span>
+                    <span id="msg-longDate" class="text-green-400 text-sm hidden font-bold" dir="rtl">✅ کپی شد!</span>
+                    <span class="text-sm border px-2 rounded-full hidden sm:inline-block group-hover:opacity-100 opacity-50 transition" style="color: var(--text-muted); border-color: var(--border-color); font-family: 'Vazirmatn', sans-serif; direction: rtl;">کپی</span>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <button onclick="copyText(document.getElementById('fmt1').innerText,'fmt1')" class="border p-3 rounded flex flex-col items-start hover:opacity-80 transition group relative text-left" style="border-color: var(--border-color);">
-                        <span id="msg-fmt1" class="hidden absolute top-[-10px] left-1/2 transform -translate-x-1/2 bg-green-500 text-black text-[10px] px-2 rounded font-black z-10">✅ کپی شد!</span>
-                        <span class="text-[10px] font-bold uppercase" style="color: var(--text-muted);">YYYY-MM-DD</span>
-                        <span id="fmt1" class="font-mono text-lg block mt-1" style="color: var(--accent);"></span>
+                        <span id="msg-fmt1" class="hidden absolute top-[-10px] left-1/2 transform -translate-x-1/2 bg-green-500 text-black text-[10px] px-2 rounded font-black z-10" dir="rtl">✅ کپی شد!</span>
+                        <span class="text-[10px] font-bold uppercase en" style="color: var(--text-muted);">YYYY-MM-DD</span>
+                        <span id="fmt1" class="en text-lg block mt-1" style="color: var(--accent);"></span>
                     </button>
                     <button onclick="copyText(document.getElementById('fmt2').innerText,'fmt2')" class="border p-3 rounded flex flex-col items-start hover:opacity-80 transition group relative text-left" style="border-color: var(--border-color);">
-                        <span id="msg-fmt2" class="hidden absolute top-[-10px] left-1/2 transform -translate-x-1/2 bg-green-500 text-black text-[10px] px-2 rounded font-black z-10">✅ کپی شد!</span>
-                        <span class="text-[10px] font-bold uppercase" style="color: var(--text-muted);">MM/DD/YYYY</span>
-                        <span id="fmt2" class="font-mono text-lg block mt-1" style="color: var(--accent);"></span>
+                        <span id="msg-fmt2" class="hidden absolute top-[-10px] left-1/2 transform -translate-x-1/2 bg-green-500 text-black text-[10px] px-2 rounded font-black z-10" dir="rtl">✅ کپی شد!</span>
+                        <span class="text-[10px] font-bold uppercase en" style="color: var(--text-muted);">MM/DD/YYYY</span>
+                        <span id="fmt2" class="en text-lg block mt-1" style="color: var(--accent);"></span>
                     </button>
                     <button onclick="copyText(document.getElementById('fmt3').innerText,'fmt3')" class="border p-3 rounded flex flex-col items-start hover:opacity-80 transition group relative text-left" style="border-color: var(--border-color);">
-                        <span id="msg-fmt3" class="hidden absolute top-[-10px] left-1/2 transform -translate-x-1/2 bg-green-500 text-black text-[10px] px-2 rounded font-black z-10">✅ کپی شد!</span>
-                        <span class="text-[10px] font-bold uppercase" style="color: var(--text-muted);">DD/MM/YYYY</span>
-                        <span id="fmt3" class="font-mono text-lg block mt-1" style="color: var(--accent);"></span>
+                        <span id="msg-fmt3" class="hidden absolute top-[-10px] left-1/2 transform -translate-x-1/2 bg-green-500 text-black text-[10px] px-2 rounded font-black z-10" dir="rtl">✅ کپی شد!</span>
+                        <span class="text-[10px] font-bold uppercase en" style="color: var(--text-muted);">DD/MM/YYYY</span>
+                        <span id="fmt3" class="en text-lg block mt-1" style="color: var(--accent);"></span>
                     </button>
                     <button onclick="copyText(document.getElementById('fmt4').innerText,'fmt4')" class="border p-3 rounded flex flex-col items-start hover:opacity-80 transition group relative text-left" style="border-color: var(--border-color);">
-                        <span id="msg-fmt4" class="hidden absolute top-[-10px] left-1/2 transform -translate-x-1/2 bg-green-500 text-black text-[10px] px-2 rounded font-black z-10">✅ کپی شد!</span>
-                        <span class="text-[10px] font-bold uppercase" style="color: var(--text-muted);">Month D, YYYY</span>
-                        <span id="fmt4" class="font-mono text-lg block mt-1" style="color: var(--accent);"></span>
+                        <span id="msg-fmt4" class="hidden absolute top-[-10px] left-1/2 transform -translate-x-1/2 bg-green-500 text-black text-[10px] px-2 rounded font-black z-10" dir="rtl">✅ کپی شد!</span>
+                        <span class="text-[10px] font-bold uppercase en" style="color: var(--text-muted);">Month D, YYYY</span>
+                        <span id="fmt4" class="en text-lg block mt-1" style="color: var(--accent);"></span>
                     </button>
                 </div>
             </div>
@@ -857,241 +978,74 @@ select.converter-input option {
     <p style="color: var(--text-muted);">اتوماسیون ترجمه رسمی | هوش مصنوعی | پیشرفته‌ترین تکنولوژی</p>
 </footer>
 
+
 <script>
-// ─── STATE & MEMORY ───
-let currentUserSession = JSON.parse(localStorage.getItem('deept_mock_user')) || null;
-let currentWalletBalance = parseInt(localStorage.getItem('deept_mock_wallet')) || 1250000;
+const BACKEND = "https://deept-police-backend.onrender.com";
 
-// Local Memory to store identity data between steps
-let cachedIdentityData = {
-    passportChoice: "3", // Default to 'skip'
-    manualFirst: "",
-    manualLast: "",
-    passportFile: null
-};
-let selectedFile = null; // Main document file to translate
-
+// ─── APP STATE ───
+let currentUserSession    = JSON.parse(localStorage.getItem('deept_mock_user')) || null;
+let currentWalletBalance  = parseInt(localStorage.getItem('deept_mock_wallet')) || 1250000;
 let trackingProjectsDatabase = [
-    { id: "DPT-9804", name: "برگ_سبز_پژو_۲۰۶.jpg", type: "سند خودرو", timestamp: Date.now() - (12 * 3600000) },
-    { id: "DPT-4412", name: "Doc_Ref_Official_Signed.pdf", type: "سند خودرو", timestamp: Date.now() - (46.5 * 3600000) }
+    { id:"DPT-9804", name:"برگ_سبز_پژو_۲۰۶.jpg",       type:"سند خودرو", timestamp: Date.now()-(12*3600000) },
+    { id:"DPT-4412", name:"Doc_Ref_Official_Signed.pdf", type:"سند خودرو", timestamp: Date.now()-(46.5*3600000) }
 ];
 
-// ─── INITIALIZATION ON LOAD ───
-document.addEventListener("DOMContentLoaded", () => {
-    syncUserSessionDOM();
-    document.getElementById('walletBalanceDisplay').textContent = currentWalletBalance.toLocaleString();
-    
-    // Bind Drag & Drop and File Selection Listeners for Main Document Workspace
-    const dropZone = document.getElementById('dropZone');
-    const fileInput = document.getElementById('fileInput');
-    
-    if (dropZone && fileInput) {
-        dropZone.addEventListener('click', () => fileInput.click());
-        fileInput.addEventListener('change', (e) => handleFileSelection(e.target.files[0]));
+// ─── PASSPORT SESSION STATE ───
+let passportSession = { session_id:null, first_name:null, last_name:null, father_name:null, date_of_birth:null };
+let ppSelectedFile  = null;
+let ppCurrentMode   = null;   // 'upload' | 'manual' | 'skip'
+let docSelectedFile = null;
 
-        dropZone.addEventListener('dragover', (e) => { 
-            e.preventDefault(); 
-            dropZone.style.borderColor = 'var(--accent)'; 
-        });
-        dropZone.addEventListener('dragleave', () => { 
-            dropZone.style.borderColor = ''; 
-        });
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZone.style.borderColor = '';
-            handleFileSelection(e.dataTransfer.files[0]);
-        });
-    }
-
-    // Capture standalone file changes for passport file inputs to store in memory
-    const passInputEl = document.getElementById('passportFile');
-    if (passInputEl) {
-        passInputEl.addEventListener('change', (e) => {
-            cachedIdentityData.passportFile = e.target.files[0];
-        });
-    }
-});
-
-// ─── STEP 1: IDENTITY MANAGMENT (MEMORY CACHING) ───
-function togglePassportUIfields() {
-    const choice = document.getElementById('passportChoice').value;
-    document.getElementById('passportFileGroup').classList.toggle('hidden', choice !== '1');
-    document.getElementById('passportManualGroup').classList.toggle('hidden', choice !== '2');
-}
-
-function saveIdentityToMemory() {
-    const choice = document.getElementById('passportChoice').value;
-    const first = document.getElementById('passportFirst').value.trim();
-    const last = document.getElementById('passportLast').value.trim();
-
-    if (choice === '2' && (!first || !last)) {
-        showToast("لطفا نام و نام خانوادگی انگلیسی را به صورت دستی وارد کنید.");
-        return;
-    }
-    if (choice === '1' && !cachedIdentityData.passportFile) {
-        showToast("لطفا تصویر پاسپورت خود را بارگذاری کنید.");
-        return;
-    }
-
-    // Save values directly into browser runtime memory
-    cachedIdentityData.passportChoice = choice;
-    cachedIdentityData.manualFirst = first;
-    cachedIdentityData.manualLast = last;
-
-    showToast("✅ اطلاعات هویتی با موفقیت در حافظه موقت ثبت شد.");
-    
-    // Smooth Transition: Show next step (Document Workspace), hide/collapse current panel if preferred
-    const workspaceSection = document.getElementById('mainWorkspaceBlock');
-    if (workspaceSection) {
-        workspaceSection.classList.remove('hidden');
-        workspaceSection.scrollIntoView({ behavior: 'smooth' });
-    }
-}
-
-// ─── STEP 2: MAIN DOCUMENT HANDLING ───
-function handleFileSelection(file) {
-    if (!file) return;
-    selectedFile = file;
-    
-    document.getElementById('fileInfo').textContent = `📄 ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
-    document.getElementById('fileInfo').classList.remove('hidden');
-    document.getElementById('dropZoneText').classList.add('hidden');
-    
-    // Unlock ultimate translation submission action controls
-    const submitBtn = document.getElementById('submitBtn');
-    if (submitBtn) {
-        submitBtn.removeAttribute('disabled');
-        submitBtn.classList.remove('cursor-not-allowed');
-    }
-}
-
-// ─── STEP 3: API TRANSMISSION PIPELINE ───
-async function executeTranslationPipeline() {
-    if (!selectedFile) {
-        showToast("لطفا ابتدا فایل سند اصلی را انتخاب کنید.");
-        return;
-    }
-
-    const submitBtn = document.getElementById('submitBtn');
-    const statusBubble = document.getElementById('processingStatusBubble');
-    const statusText = document.getElementById('statusMessageText');
-
-    // UI Loading indicator adjustments
-    if (submitBtn) submitBtn.disabled = true;
-    if (statusBubble) statusBubble.classList.remove('hidden');
-    if (statusText) statusText.textContent = "در حال ارسال فایل‌ها و پردازش نهایی توسط موتور ترجمه هوش مصنوعی...";
-
-    // Package pipeline payload data out of dynamic system memory
-    const formData = new FormData();
-    formData.append('document_file', selectedFile);
-    formData.append('passport_choice', cachedIdentityData.passportChoice);
-    formData.append('manual_first', cachedIdentityData.manualFirst);
-    formData.append('manual_last', cachedIdentityData.manualLast);
-
-    if (cachedIdentityData.passportChoice === '1' && cachedIdentityData.passportFile) {
-        formData.append('passport_file', cachedIdentityData.passportFile);
-    }
-
-    const BACKEND_URL = "http://127.0.0.1:8000/api/translate/police-certificate";
-
-    try {
-        const response = await fetch(BACKEND_URL, {
-            method: 'POST',
-            body: formData
-        });
-
-        if (!response.ok) {
-            const errData = await response.json().catch(() => ({ detail: "خطایی در فرآیند تحلیل هوش مصنوعی رخ داد." }));
-            throw new Error(errData.detail || "سرور قادر به پاسخگویی نبود.");
-        }
-
-        // Catch streamed DOCX file binary chunk arrays
-        const blob = await response.blob();
-        const downloadUrl = window.URL.createObjectURL(blob);
-        const anchor = document.createElement('a');
-        anchor.href = downloadUrl;
-        anchor.download = `DeepT_Translation_${selectedFile.name.split('.')[0]}.docx`;
-        document.body.appendChild(anchor);
-        anchor.click();
-        anchor.remove();
-        
-        showToast("✅ ترجمه رسمی صادر و دانلود فایل Word با موفقیت آغاز شد!");
-
-        // Push new entry to history component
-        trackingProjectsDatabase.unshift({
-            id: `DPT-${Math.floor(1000 + Math.random() * 9000)}`,
-            name: selectedFile.name,
-            type: "گواهی عدم سوء پیشینه",
-            timestamp: Date.now()
-        });
-        renderDashboardActiveProjects();
-
-    } catch (error) {
-        console.error(error);
-        showToast(`❌ خطا: ${error.message}`);
-    } finally {
-        if (submitBtn) submitBtn.disabled = false;
-        if (statusBubble) statusBubble.classList.add('hidden');
-    }
-}
-
-// ─── UTILITY USER CONTROLS (THEME, AUTH, WALLET) ───
-function openChatInterface() { document.getElementById('chatModal').classList.remove('hidden'); }
-function closeChatInterface() { document.getElementById('chatModal').classList.add('hidden'); }
-
-function showToast(msg, duration = 2500) {
+// ═══════════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════════
+function showToast(msg, duration=2500) {
     const t = document.getElementById('toast');
-    if (t) {
-        t.textContent = msg;
-        t.classList.add('show');
-        setTimeout(() => t.classList.remove('show'), duration);
-    } else { alert(msg); }
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), duration);
 }
 
+// ═══════════════════════════════════════════════════════════
+// THEME
+// ═══════════════════════════════════════════════════════════
 function toggleGlobalTheme() {
     const body = document.body;
-    const current = body.getAttribute('data-theme') || 'dark';
-    const next = current === 'dark' ? 'light' : 'dark';
+    const next = (body.getAttribute('data-theme') || 'dark') === 'dark' ? 'light' : 'dark';
     body.setAttribute('data-theme', next);
     document.getElementById('themeBtnIcon').textContent = next === 'light' ? '🌙' : '☀️';
     document.getElementById('themeBtnText').textContent = next === 'light' ? 'تاریک' : 'روشن';
     localStorage.setItem('deept_theme', next);
 }
-
-(function() {
+(function(){
     const saved = localStorage.getItem('deept_theme');
     if (saved === 'light') {
-        document.body.setAttribute('data-theme', 'light');
-        const icon = document.getElementById('themeBtnIcon');
-        const text = document.getElementById('themeBtnText');
-        if (icon) icon.textContent = '🌙';
-        if (text) text.textContent = 'تاریک';
+        document.body.setAttribute('data-theme','light');
+        document.getElementById('themeBtnIcon').textContent = '🌙';
+        document.getElementById('themeBtnText').textContent = 'تاریک';
     }
 })();
 
-function openAuthModal() { document.getElementById('authModal').classList.remove('hidden'); switchAuthState('login'); }
+// ═══════════════════════════════════════════════════════════
+// AUTH MODAL
+// ═══════════════════════════════════════════════════════════
+function openAuthModal()  { document.getElementById('authModal').classList.remove('hidden'); switchAuthState('login'); }
 function closeAuthModal() { document.getElementById('authModal').classList.add('hidden'); }
 function switchAuthState(state) {
-    ['loginStateBox','signupStateBox','forgotStateBox'].forEach(id => {
-        const el = document.getElementById(id); if (el) el.classList.add('hidden');
-    });
-    if (state === 'login')  document.getElementById('loginStateBox').classList.remove('hidden');
-    if (state === 'signup') document.getElementById('signupStateBox').classList.remove('hidden');
-    if (state === 'forgot') document.getElementById('forgotStateBox').classList.remove('hidden');
+    ['loginStateBox','signupStateBox','forgotStateBox'].forEach(id => document.getElementById(id).classList.add('hidden'));
+    document.getElementById(state === 'login' ? 'loginStateBox' : state === 'signup' ? 'signupStateBox' : 'forgotStateBox').classList.remove('hidden');
 }
-
 function simulateAuthAction(type) {
     if (type === 'login' || type === 'signup') {
-        const emailEl = type === 'login' ? 'loginEmail' : 'signupEmail';
-        const email = document.getElementById(emailEl).value;
+        const email = document.getElementById(type === 'login' ? 'loginEmail' : 'signupEmail').value;
         if (!email || !email.includes('@')) { showToast('لطفا ایمیل معتبری وارد کنید.'); return; }
-        currentUserSession = { email, username: email.split('@')[0], type: 'individual', contact: '', office: '' };
+        currentUserSession = { email, username: email.split('@')[0], type:'individual', contact:'', office:'' };
         localStorage.setItem('deept_mock_user', JSON.stringify(currentUserSession));
         syncUserSessionDOM();
         closeAuthModal();
-        showToast('✅ خوش آمدید! وارد شدید.');
+        showToast('✅ خوش آمدید!');
         openWorkspaceDashboard();
-    } else if (type === 'forgot') {
+    } else {
         const email = document.getElementById('forgotEmail').value;
         if (!email) { showToast('لطفا ایمیل خود را وارد کنید.'); return; }
         showToast(`📧 لینک بازیابی به ${email} ارسال شد.`, 3500);
@@ -1099,45 +1053,37 @@ function simulateAuthAction(type) {
     }
 }
 
+// ═══════════════════════════════════════════════════════════
+// USER SESSION SYNC
+// ═══════════════════════════════════════════════════════════
 function syncUserSessionDOM() {
     const loggedIn = !!currentUserSession;
-    const hAuth = document.getElementById('authHeaderBtn');
-    const mHero = document.getElementById('mainHeroAuthCall');
-    const wHeader = document.getElementById('workspaceHeaderBtn');
-    const lHeader = document.getElementById('logoutHeaderBtn');
-    const uBadge = document.getElementById('userBadge');
-
-    if (hAuth) hAuth.classList.toggle('hidden', loggedIn);
-    if (mHero) mHero.classList.toggle('hidden', loggedIn);
-    if (wHeader) wHeader.classList.toggle('hidden', !loggedIn);
-    if (lHeader) lHeader.classList.toggle('hidden', !loggedIn);
-    if (uBadge) { uBadge.classList.toggle('hidden', !loggedIn); uBadge.style.display = loggedIn ? 'flex' : 'none'; }
-
+    document.getElementById('authHeaderBtn').classList.toggle('hidden', loggedIn);
+    document.getElementById('mainHeroAuthCall').classList.toggle('hidden', loggedIn);
+    document.getElementById('workspaceHeaderBtn').classList.toggle('hidden', !loggedIn);
+    document.getElementById('logoutHeaderBtn').classList.toggle('hidden', !loggedIn);
+    const ub = document.getElementById('userBadge');
+    ub.classList.toggle('hidden', !loggedIn);
+    ub.style.display = loggedIn ? 'flex' : 'none';
     if (loggedIn) {
-        const letter = currentUserSession.username.substring(0,1).toUpperCase();
-        const avLetter = document.getElementById('avatarLetter');
-        const hAvBadge = document.getElementById('headerAvatarBadge');
-        const hUserName = document.getElementById('headerUserName');
-        const pDispName = document.getElementById('profileDisplayName');
-        const pEmailBdg = document.getElementById('profileEmailBadge');
-        const accToggle = document.getElementById('accountTypeToggle');
-        const pContInput = document.getElementById('profileContactInput');
-        const offNameIn = document.getElementById('officeNameInput');
-
-        if (avLetter) avLetter.textContent = letter;
-        if (hAvBadge) hAvBadge.textContent = letter;
-        if (hUserName) hUserName.textContent = currentUserSession.office || currentUserSession.username;
-        if (pDispName) pDispName.textContent = currentUserSession.office || currentUserSession.username;
-        if (pEmailBdg) pEmailBdg.textContent = currentUserSession.email;
-        if (accToggle) accToggle.value = currentUserSession.type || 'individual';
-        if (pContInput) pContInput.value = currentUserSession.contact || '';
-        if (offNameIn) offNameIn.value = currentUserSession.office || '';
+        const l = currentUserSession.username[0].toUpperCase();
+        document.getElementById('avatarLetter').textContent       = l;
+        document.getElementById('headerAvatarBadge').textContent  = l;
+        document.getElementById('headerUserName').textContent     = currentUserSession.office || currentUserSession.username;
+        document.getElementById('profileDisplayName').textContent = currentUserSession.office || currentUserSession.username;
+        document.getElementById('profileEmailBadge').textContent  = currentUserSession.email;
+        document.getElementById('accountTypeToggle').value        = currentUserSession.type || 'individual';
+        document.getElementById('profileContactInput').value      = currentUserSession.contact || '';
+        document.getElementById('officeNameInput').value          = currentUserSession.office || '';
         toggleProfileAccountType();
     }
 }
 
-function confirmLogout() { const logOver = document.getElementById('logoutOverlay'); if (logOver) logOver.classList.remove('hidden'); }
-function closeLogoutConfirm() { const logOver = document.getElementById('logoutOverlay'); if (logOver) logOver.classList.add('hidden'); }
+// ═══════════════════════════════════════════════════════════
+// LOGOUT
+// ═══════════════════════════════════════════════════════════
+function confirmLogout()   { document.getElementById('logoutOverlay').classList.remove('hidden'); }
+function closeLogoutConfirm() { document.getElementById('logoutOverlay').classList.add('hidden'); }
 function executeLogout() {
     currentUserSession = null;
     localStorage.removeItem('deept_mock_user');
@@ -1145,29 +1091,32 @@ function executeLogout() {
     closeWorkspaceDashboard();
     closeChatInterface();
     syncUserSessionDOM();
-    showToast('👋 با موفقیت از حساب خارج شدید.');
+    showToast('👋 با موفقیت خارج شدید.');
 }
+document.getElementById('logoutOverlay').addEventListener('click', function(e) {
+    if (e.target === this) closeLogoutConfirm();
+});
 
+// ═══════════════════════════════════════════════════════════
+// PROFILE
+// ═══════════════════════════════════════════════════════════
 function toggleProfileAccountType() {
-    const v = document.getElementById('accountTypeToggle').value;
-    const offBlock = document.getElementById('officeFieldsBlock');
-    if (offBlock) offBlock.classList.toggle('hidden', v !== 'office');
+    document.getElementById('officeFieldsBlock').classList.toggle('hidden', document.getElementById('accountTypeToggle').value !== 'office');
 }
-
 function saveProfileConfiguration() {
     if (!currentUserSession) return;
-    currentUserSession.type = document.getElementById('accountTypeToggle').value;
+    currentUserSession.type    = document.getElementById('accountTypeToggle').value;
     currentUserSession.contact = document.getElementById('profileContactInput').value;
-    currentUserSession.office = currentUserSession.type === 'office' ? document.getElementById('officeNameInput').value : '';
+    currentUserSession.office  = currentUserSession.type === 'office' ? document.getElementById('officeNameInput').value : '';
     localStorage.setItem('deept_mock_user', JSON.stringify(currentUserSession));
-    
-    const pDispName = document.getElementById('profileDisplayName');
-    const hUserName = document.getElementById('headerUserName');
-    if (pDispName) pDispName.textContent = currentUserSession.office || currentUserSession.username;
-    if (hUserName) hUserName.textContent = currentUserSession.office || currentUserSession.username;
+    document.getElementById('profileDisplayName').textContent = currentUserSession.office || currentUserSession.username;
+    document.getElementById('headerUserName').textContent     = currentUserSession.office || currentUserSession.username;
     showToast('✅ پروفایل بروزرسانی شد.');
 }
 
+// ═══════════════════════════════════════════════════════════
+// WALLET
+// ═══════════════════════════════════════════════════════════
 function triggerShaparakPayment() {
     const amt = parseInt(document.getElementById('paymentAmountInput').value);
     if (!amt || amt < 100000) { showToast('حداقل مبلغ ۱۰۰،۰۰۰ ریال می‌باشد.'); return; }
@@ -1178,7 +1127,6 @@ function triggerShaparakPayment() {
         showToast('✅ کیف پول شارژ شد.');
     }
 }
-
 function submitSupportTicket() {
     const text = document.getElementById('supportTicketMsg').value;
     if (!text) return;
@@ -1186,6 +1134,9 @@ function submitSupportTicket() {
     document.getElementById('supportTicketMsg').value = '';
 }
 
+// ═══════════════════════════════════════════════════════════
+// WORKSPACE DASHBOARD
+// ═══════════════════════════════════════════════════════════
 function openWorkspaceDashboard() {
     if (!currentUserSession) { openAuthModal(); return; }
     document.getElementById('workspaceDashboard').classList.remove('hidden');
@@ -1196,52 +1147,40 @@ function closeWorkspaceDashboard() {
     document.getElementById('workspaceDashboard').classList.add('hidden');
     document.body.style.overflow = 'auto';
 }
-
-function purgeFile(idx) {
-    trackingProjectsDatabase.splice(idx, 1);
-    renderDashboardActiveProjects();
-    showToast('سند مشخص شده حذف شد.');
-}
-
 function renderDashboardActiveProjects() {
     const tbody = document.getElementById('projectDashboardRowsBlock');
-    if (!tbody) return;
     tbody.innerHTML = '';
-    
-    if (trackingProjectsDatabase.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 font-mono text-sm" style="color: var(--text-muted);">// بدون پروژه فعال</td></tr>`;
+    if (!trackingProjectsDatabase.length) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">// بدون پروژه فعال</td></tr>`;
         return;
     }
-    
-    trackingProjectsDatabase.forEach((project, idx) => {
-        const remaining = (48 * 3600000) - (Date.now() - project.timestamp);
-        let timerHtml = remaining <= 0
-            ? `<span style="color:#f87171; font-weight:700;">پاک شده</span>`
-            : `<span style="color:#fb923c; font-weight:700; font-family:monospace;">⏳ ${Math.floor(remaining/3600000)}h ${Math.floor((remaining%3600000)/60000)}m</span>`;
-        const dateStr = new Date(project.timestamp).toLocaleDateString('fa-IR');
+    trackingProjectsDatabase.forEach((p, idx) => {
+        const rem = (48*3600000) - (Date.now() - p.timestamp);
+        const timer = rem <= 0
+            ? `<span style="color:#f87171;font-weight:700;">پاک شده</span>`
+            : `<span style="color:#fb923c;font-weight:700;">⏳ ${Math.floor(rem/3600000)} ساعت و ${Math.floor((rem%3600000)/60000)} دقیقه</span>`;
+        const dateStr = new Date(p.timestamp).toLocaleDateString('fa-IR');
         const row = document.createElement('tr');
         row.innerHTML = `
             <td class="py-3 text-right">
-                <div class="font-black font-mono" style="color: var(--text-main);">${project.id}</div>
-                <div class="text-[10px] truncate max-w-[170px]" style="color: var(--text-muted);">${project.name}</div>
+                <div class="font-black en" style="color:var(--text-main);">${p.id}</div>
+                <div class="text-[10px] truncate max-w-[170px]" style="color:var(--text-muted);">${p.name}</div>
             </td>
-            <td class="py-3 text-center font-bold" style="color: var(--accent);">${project.type}</td>
-            <td class="py-3 text-center font-mono" style="color: var(--text-muted);">${dateStr}</td>
-            <td class="py-3 text-center">${timerHtml}</td>
+            <td class="py-3 text-center font-bold" style="color:var(--accent);">${p.type}</td>
+            <td class="py-3 text-center" style="color:var(--text-muted);">${dateStr}</td>
+            <td class="py-3 text-center">${timer}</td>
             <td class="py-3 text-left text-xs">
-                ${remaining > 0 ? `
-                    <button onclick="showToast('فایل DOCX مجدداً دانلود شد.')" class="font-bold hover:underline ml-3" style="color: var(--accent);">دانلود DOCX</button>
-                    <button onclick="purgeFile(${idx})" class="font-bold hover:underline" style="color: #f87171;">حذف</button>
-                ` : `<span style="color: var(--text-muted); cursor:not-allowed;">منقضی</span>`}
-            </td>
-        `;
+                ${rem > 0
+                    ? `<button onclick="showToast('فایل DOCX دانلود شد.')" class="font-bold hover:underline ml-3" style="color:var(--accent);">دانلود DOCX</button>
+                       <button onclick="purgeFile(${idx})" class="font-bold hover:underline" style="color:#f87171;">حذف</button>`
+                    : `<span style="color:var(--text-muted);">منقضی</span>`}
+            </td>`;
         tbody.appendChild(row);
     });
 }
-</script>
-function purgeFile(index) {
-    if (confirm('حذف کامل و برگشت‌ناپذیر این فایل؟')) {
-        trackingProjectsDatabase.splice(index, 1);
+function purgeFile(idx) {
+    if (confirm('حذف کامل این فایل؟')) {
+        trackingProjectsDatabase.splice(idx, 1);
         renderDashboardActiveProjects();
         showToast('🗑️ فایل حذف شد.');
     }
@@ -1250,10 +1189,18 @@ setInterval(() => {
     if (!document.getElementById('workspaceDashboard').classList.contains('hidden')) renderDashboardActiveProjects();
 }, 30000);
 
-// ─── CHAT ───
+// ═══════════════════════════════════════════════════════════
+// CHAT MODAL — open/close
+// ═══════════════════════════════════════════════════════════
 function openChatInterface() {
     document.getElementById('chatModal').classList.remove('hidden');
     document.body.style.overflow = 'hidden';
+    // If no active session, always start at step 1
+    if (!passportSession.session_id) {
+        showStep(1);
+    } else {
+        showStep(2);
+    }
 }
 function closeChatInterface() {
     document.getElementById('chatModal').classList.add('hidden');
@@ -1261,16 +1208,284 @@ function closeChatInterface() {
         document.body.style.overflow = 'auto';
     }
 }
+function showStep(n) {
+    document.getElementById('step1Panel').classList.toggle('hidden', n !== 1);
+    document.getElementById('step2Panel').classList.toggle('hidden', n !== 2);
+}
 
-// ─── CANVAS BACKGROUND ───
+// ═══════════════════════════════════════════════════════════
+// STEP 1 — PASSPORT SESSION
+// ═══════════════════════════════════════════════════════════
+function ppSetMode(mode) {
+    ppCurrentMode = mode;
+    // Hide all sub-sections first
+    document.getElementById('pp-upload-zone').classList.add('hidden');
+    document.getElementById('pp-fields').classList.add('hidden');
+    ppShowStatus('','');
+
+    if (mode === 'upload') {
+        document.getElementById('pp-upload-zone').classList.remove('hidden');
+    } else if (mode === 'manual') {
+        ppClearFields();
+        document.getElementById('pp-fields').classList.remove('hidden');
+    } else if (mode === 'skip') {
+        ppActivateSkipSession();
+    }
+}
+
+function ppShowStatus(icon, text) {
+    const bar = document.getElementById('pp-status');
+    if (!text) { bar.classList.add('hidden'); return; }
+    bar.classList.remove('hidden');
+    document.getElementById('pp-status-icon').textContent = icon;
+    document.getElementById('pp-status-text').textContent = text;
+}
+
+function ppClearFields() {
+    ['pp-first','pp-last','pp-father','pp-dob'].forEach(id => document.getElementById(id).value = '');
+}
+
+function ppFillFields(data) {
+    document.getElementById('pp-first').value  = data.first_name    || '';
+    document.getElementById('pp-last').value   = data.last_name     || '';
+    document.getElementById('pp-father').value = data.father_name   || '';
+    document.getElementById('pp-dob').value    = data.date_of_birth || '';
+}
+
+function ppHandleFile(file) {
+    if (!file) return;
+    ppSelectedFile = file;
+    document.getElementById('pp-file-name').textContent = `📎 ${file.name}`;
+    document.getElementById('pp-file-name').classList.remove('hidden');
+    document.getElementById('pp-drop-text').classList.add('hidden');
+    document.getElementById('pp-extract-btn').disabled = false;
+}
+
+// Drag and drop on passport zone
+document.getElementById('pp-drop-zone').addEventListener('dragover', e => { e.preventDefault(); document.getElementById('pp-drop-zone').classList.add('drag-over'); });
+document.getElementById('pp-drop-zone').addEventListener('dragleave', () => document.getElementById('pp-drop-zone').classList.remove('drag-over'));
+document.getElementById('pp-drop-zone').addEventListener('drop', e => {
+    e.preventDefault();
+    document.getElementById('pp-drop-zone').classList.remove('drag-over');
+    if (e.dataTransfer.files.length) ppHandleFile(e.dataTransfer.files[0]);
+});
+
+async function ppRunExtraction() {
+    if (!ppSelectedFile) return;
+    const btn = document.getElementById('pp-extract-btn');
+    btn.disabled = true;
+    btn.textContent = 'در حال استخراج...';
+    ppShowStatus('⏳', 'در حال ارسال به Gemini...');
+
+    const fd = new FormData();
+    fd.append('file', ppSelectedFile);
+
+    try {
+        const res = await fetch(`${BACKEND}/passport/extract`, { method:'POST', body:fd });
+        if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'خطای سرور'); }
+        const data = await res.json();
+        // Show fields pre-filled for review
+        document.getElementById('pp-upload-zone').classList.add('hidden');
+        ppFillFields(data);
+        ppShowStatus('✅', 'اطلاعات استخراج شد — بررسی و تأیید کنید.');
+        document.getElementById('pp-fields').classList.remove('hidden');
+    } catch (err) {
+        ppShowStatus('❌', `استخراج ناموفق: ${err.message}`);
+        btn.disabled = false;
+        btn.textContent = 'استخراج با هوش مصنوعی';
+    }
+}
+
+async function ppConfirmSession() {
+    const first  = document.getElementById('pp-first').value.trim().toUpperCase();
+    const last   = document.getElementById('pp-last').value.trim().toUpperCase();
+    const father = document.getElementById('pp-father').value.trim().toUpperCase();
+    const dob    = document.getElementById('pp-dob').value.trim();
+
+    if (!first || !last) { showToast('⚠️ نام و نام خانوادگی الزامی است.'); return; }
+
+    ppShowStatus('⏳', 'در حال ثبت جلسه...');
+
+    try {
+        const res = await fetch(`${BACKEND}/passport/confirm`, {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ first_name:first, last_name:last, father_name:father, date_of_birth:dob })
+        });
+        if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'خطای سرور'); }
+        const data = await res.json();
+
+        passportSession = { session_id:data.session_id, first_name:first, last_name:last, father_name:father, date_of_birth:dob };
+        ppActivateSessionUI();
+        showStep(2);
+        showToast(`✅ جلسه فعال شد — ${first} ${last}`);
+    } catch (err) {
+        ppShowStatus('❌', err.message);
+    }
+}
+
+function ppActivateSkipSession() {
+    passportSession = { session_id:'SKIP', first_name:'—', last_name:'—', father_name:null, date_of_birth:null };
+    ppActivateSessionUI();
+    showStep(2);
+    showToast('⏭️ جلسه بدون پاسپورت شروع شد.');
+}
+
+function ppActivateSessionUI() {
+    const badge = document.getElementById('activeClientBadge');
+    badge.classList.remove('hidden');
+    badge.style.display = 'flex';
+    document.getElementById('activeClientName').textContent = `${passportSession.first_name} ${passportSession.last_name}`;
+    document.getElementById('newClientBtn').classList.remove('hidden');
+}
+
+function confirmNewClient() {
+    if (!confirm(`بستن جلسه ${passportSession.first_name} ${passportSession.last_name}؟\nبرای مشتری جدید باید پاسپورت مجدداً ثبت شود.`)) return;
+
+    // Delete from backend
+    if (passportSession.session_id && passportSession.session_id !== 'SKIP') {
+        fetch(`${BACKEND}/passport/${passportSession.session_id}`, { method:'DELETE' }).catch(()=>{});
+    }
+
+    // Reset everything
+    passportSession = { session_id:null, first_name:null, last_name:null, father_name:null, date_of_birth:null };
+    ppSelectedFile  = null;
+    docSelectedFile = null;
+
+    document.getElementById('activeClientBadge').classList.add('hidden');
+    document.getElementById('newClientBtn').classList.add('hidden');
+    document.getElementById('pp-upload-zone').classList.add('hidden');
+    document.getElementById('pp-fields').classList.add('hidden');
+    ppShowStatus('','');
+
+    // Reset doc zone
+    resetDocZone();
+    showStep(1);
+    showToast('🔄 جلسه بسته شد. آماده مشتری جدید.');
+}
+
+// ═══════════════════════════════════════════════════════════
+// STEP 2 — DOCUMENT UPLOAD & TRANSLATION
+// ═══════════════════════════════════════════════════════════
+function handleDocFileSelection(file) {
+    if (!file) return;
+    docSelectedFile = file;
+    document.getElementById('docFileInfo').textContent = `📄 ${file.name} (${(file.size/1024).toFixed(0)} KB)`;
+    document.getElementById('docFileInfo').classList.remove('hidden');
+    document.getElementById('docDropText').classList.add('hidden');
+    document.getElementById('submitBtn').disabled = false;
+}
+
+// Drag and drop on document zone
+document.getElementById('docDropZone').addEventListener('dragover', e => { e.preventDefault(); document.getElementById('docDropZone').classList.add('drag-over'); });
+document.getElementById('docDropZone').addEventListener('dragleave', () => document.getElementById('docDropZone').classList.remove('drag-over'));
+document.getElementById('docDropZone').addEventListener('drop', e => {
+    e.preventDefault();
+    document.getElementById('docDropZone').classList.remove('drag-over');
+    if (e.dataTransfer.files.length) handleDocFileSelection(e.dataTransfer.files[0]);
+});
+
+async function executeTranslationPipeline() {
+    if (!docSelectedFile) return;
+
+    const submitBtn    = document.getElementById('submitBtn');
+    const statusBubble = document.getElementById('processingStatusBubble');
+    const statusText   = document.getElementById('statusMessageText');
+
+    submitBtn.disabled = true;
+    statusBubble.classList.remove('hidden');
+    statusText.textContent = 'در حال ارسال به سرور...';
+
+    const docType = document.getElementById('docTemplate').value;
+    const fd = new FormData();
+    fd.append('document_file', docSelectedFile);
+
+    // Police certificate uses session_id
+    if (docType === 'police-certificate') {
+        if (!passportSession.session_id || passportSession.session_id === 'SKIP') {
+            // Skip mode — backend needs a session; create a minimal one
+            try {
+                statusText.textContent = 'در حال ایجاد جلسه موقت...';
+                const r = await fetch(`${BACKEND}/passport/confirm`, {
+                    method:'POST',
+                    headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({ first_name:'', last_name:'', father_name:'', date_of_birth:'' })
+                });
+                const d = await r.json();
+                passportSession.session_id = d.session_id;
+            } catch(e) { /* continue without session — backend will use doc fallbacks */ }
+        }
+        if (passportSession.session_id && passportSession.session_id !== 'SKIP') {
+            fd.append('session_id', passportSession.session_id);
+        }
+    }
+
+    const endpointMap = {
+        'police-certificate':   `${BACKEND}/api/translate/police-certificate`,
+        'translate-vehicle-deed': `https://deept-vehicle.onrender.com/translate-vehicle-deed`,
+    };
+    const url = endpointMap[docType];
+    if (!url) { showToast('این نوع سند هنوز پشتیبانی نمی‌شود.'); submitBtn.disabled=false; statusBubble.classList.add('hidden'); return; }
+
+    try {
+        statusText.textContent = 'در حال پردازش با هوش مصنوعی...';
+        const res = await fetch(url, { method:'POST', body:fd });
+        if (!res.ok) {
+            const err = await res.json().catch(()=>({detail:'خطای ناشناخته'}));
+            throw new Error(err.detail);
+        }
+
+        statusText.textContent = 'آماده‌سازی فایل دانلود...';
+        const blob = await res.blob();
+
+        // Add to dashboard log
+        const typeLabel = docType === 'police-certificate' ? 'سوء پیشینه' : 'سند خودرو';
+        trackingProjectsDatabase.unshift({ id:'DPT-'+Math.floor(1000+Math.random()*9000), name:docSelectedFile.name, type:typeLabel, timestamp:Date.now() });
+
+        // Download
+        const dlUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = dlUrl;
+        a.download = `DeepT_${docSelectedFile.name.split('.')[0]}.docx`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(dlUrl);
+
+        showToast('✅ فایل ترجمه شده دانلود شد.');
+        document.getElementById('nextDocBtn').classList.remove('hidden');
+
+    } catch (err) {
+        showToast(`❌ ${err.message}`);
+    } finally {
+        submitBtn.disabled = false;
+        statusBubble.classList.add('hidden');
+    }
+}
+
+function resetDocZone() {
+    docSelectedFile = null;
+    document.getElementById('docFileInfo').classList.add('hidden');
+    document.getElementById('docDropText').classList.remove('hidden');
+    document.getElementById('docFileInput').value = '';
+    document.getElementById('submitBtn').disabled = true;
+    document.getElementById('nextDocBtn').classList.add('hidden');
+}
+
+function resetForNextDocument() {
+    resetDocZone();
+    showToast('آماده بارگذاری سند بعدی.');
+}
+
+// ═══════════════════════════════════════════════════════════
+// CANVAS BACKGROUND
+// ═══════════════════════════════════════════════════════════
 const canvas = document.getElementById('bgCanvas');
-const ctx = canvas.getContext('2d');
+const ctx    = canvas.getContext('2d');
 let width = canvas.width = window.innerWidth;
 let height = canvas.height = window.innerHeight;
 const nodes = [];
 function initNodes() {
     nodes.length = 0;
-    for (let i = 0; i < 100; i++) nodes.push({ x: Math.random()*width, y: Math.random()*height, vx:(Math.random()-.5)/4, vy:(Math.random()-.5)/4 });
+    for (let i=0; i<100; i++) nodes.push({x:Math.random()*width, y:Math.random()*height, vx:(Math.random()-.5)/4, vy:(Math.random()-.5)/4});
 }
 initNodes();
 function drawBG() {
@@ -1278,147 +1493,29 @@ function drawBG() {
     height = canvas.height = window.innerHeight;
     ctx.clearRect(0,0,width,height);
     const isLight = document.body.getAttribute('data-theme') === 'light';
-    for (let i = 0; i < nodes.length; i++) {
-        for (let j = i+1; j < nodes.length; j++) {
-            const dx = nodes[i].x - nodes[j].x, dy = nodes[i].y - nodes[j].y;
-            const d = Math.sqrt(dx*dx + dy*dy);
-            if (d < 160) {
-                ctx.beginPath();
-                ctx.moveTo(nodes[i].x, nodes[i].y);
-                ctx.lineTo(nodes[j].x, nodes[j].y);
-                ctx.strokeStyle = isLight ? `rgba(3,105,161,${(1-d/160)*0.18})` : `rgba(0,255,255,${(1-d/160)*0.7})`;
-                ctx.lineWidth = 0.8;
-                ctx.stroke();
-            }
+    for (let i=0;i<nodes.length;i++) for (let j=i+1;j<nodes.length;j++) {
+        const dx=nodes[i].x-nodes[j].x, dy=nodes[i].y-nodes[j].y, d=Math.sqrt(dx*dx+dy*dy);
+        if (d<160) {
+            ctx.beginPath(); ctx.moveTo(nodes[i].x,nodes[i].y); ctx.lineTo(nodes[j].x,nodes[j].y);
+            ctx.strokeStyle = isLight ? `rgba(3,105,161,${(1-d/160)*0.18})` : `rgba(0,255,255,${(1-d/160)*0.7})`;
+            ctx.lineWidth=0.8; ctx.stroke();
         }
     }
     nodes.forEach(n => {
-        ctx.beginPath();
-        ctx.arc(n.x, n.y, 1.8, 0, Math.PI*2);
-        ctx.fillStyle = isLight ? '#0369a1' : 'cyan';
-        ctx.fill();
-        n.x += n.vx; n.y += n.vy;
-        if (n.x < 0 || n.x > width) n.vx *= -1;
-        if (n.y < 0 || n.y > height) n.vy *= -1;
+        ctx.beginPath(); ctx.arc(n.x,n.y,1.8,0,Math.PI*2);
+        ctx.fillStyle = isLight ? '#0369a1' : 'cyan'; ctx.fill();
+        n.x+=n.vx; n.y+=n.vy;
+        if(n.x<0||n.x>width)  n.vx*=-1;
+        if(n.y<0||n.y>height) n.vy*=-1;
     });
     requestAnimationFrame(drawBG);
 }
-window.addEventListener('resize', () => { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; });
+window.addEventListener('resize', ()=>{ width=canvas.width=window.innerWidth; height=canvas.height=window.innerHeight; });
 drawBG();
 
-// ─── FILE UPLOAD ───
-const dropZone = document.getElementById('dropZone');
-const fileInput = document.getElementById('fileInput');
-const fileInfo = document.getElementById('fileInfo');
-const dropZoneText = document.getElementById('dropZoneText');
-const submitBtn = document.getElementById('submitBtn');
-let selectedFile = null;
-
-dropZone.addEventListener('click', () => fileInput.click());
-fileInput.addEventListener('change', e => handleFileSelection(e.target.files[0]));
-dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
-dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('drag-over'); if (e.dataTransfer.files.length) handleFileSelection(e.dataTransfer.files[0]); });
-
-function handleFileSelection(file) {
-    if (!file) return;
-    selectedFile = file;
-    fileInfo.textContent = `✅ ${file.name} (${(file.size/1024/1024).toFixed(2)} MB)`;
-    fileInfo.classList.remove('hidden');
-    dropZoneText.classList.add('hidden');
-    submitBtn.disabled = false;
-    submitBtn.style.cursor = 'pointer';
-}
-function togglePassportUIfields() {
-    const choice = document.getElementById('passportChoice').value;
-    const fileGroup = document.getElementById('passportFileGroup');
-    const manualGroup = document.getElementById('passportManualGroup');
-
-    if (choice === '1') {
-        fileGroup.classList.remove('hidden');
-        manualGroup.classList.add('hidden');
-    } else if (choice === '2') {
-        fileGroup.classList.add('hidden');
-        manualGroup.classList.remove('hidden');
-    } else {
-        fileGroup.classList.add('hidden');
-        manualGroup.classList.add('hidden');
-    }
-}
-async function executeTranslationPipeline() {
-    if (!selectedFile) return;
-    submitBtn.disabled = true;
-
-    const statusBubble = document.getElementById('processingStatusBubble');
-    const statusText = document.getElementById('statusMessageText');
-    statusBubble.classList.remove('hidden');
-    statusText.textContent = 'ارتباط با سرور هوش مصنوعی DeepT...';
-
-    const docType = document.getElementById('docTemplate').value;
-    const formData = new FormData();
-    let fetchUrl = '';
-
-    if (docType === 'police-certificate') {
-        fetchUrl = `https://deept-police-backend.onrender.com/api/translate/police-certificate`;
-
-        // NOTE: target language step removed for now — the backend always
-        // produces the fixed Persian -> English certified translation.
-        const choice = document.getElementById('passportChoice').value;
-
-        formData.append('document_file', selectedFile);
-        formData.append('passport_choice', choice);
-
-        // Handle Passport Upload conditional
-        if (choice === '1') {
-            const passFileInput = document.getElementById('passportFile');
-            if (passFileInput.files.length > 0) {
-                formData.append('passport_file', passFileInput.files[0]);
-            }
-        }
-        // Handle Manual Input conditional
-        else if (choice === '2') {
-            formData.append('passport_first_name', document.getElementById('passportFirst').value);
-            formData.append('passport_last_name', document.getElementById('passportLast').value);
-        }
-        // Skip fallback: nothing extra to send.
-    }
-
-    try {
-        const res = await fetch(fetchUrl, { method: 'POST', body: formData });
-        if (!res.ok) throw new Error('خطا در پردازش سند.');
-
-        statusText.textContent = 'ترجمه موفق — آماده‌سازی دانلود...';
-        const blob = await res.blob();
-
-        // Add item to dashboard database log
-        const friendlyTypeName = docType === 'police-certificate' ? 'سوء پیشینه' : 'سند خودرو';
-        trackingProjectsDatabase.unshift({
-            id: 'DPT-' + Math.floor(1000 + Math.random() * 9000),
-            name: selectedFile.name,
-            type: friendlyTypeName,
-            timestamp: Date.now()
-        });
-
-        // Trigger file download
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `DeepT_${selectedFile.name.split('.')[0]}.docx`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-
-        showToast('✅ فایل ترجمه شده دانلود شد.');
-        if (typeof renderWorkspaceDashboardProjects === 'function') renderWorkspaceDashboardProjects();
-    } catch (err) {
-        showToast(`⚠️ ${err.message}`);
-    } finally {
-        submitBtn.disabled = false;
-        statusBubble.classList.add('hidden');
-    }
-}
-// ─── TRANSCRIPT TYPEWRITER ───
+// ═══════════════════════════════════════════════════════════
+// TRANSCRIPT TYPEWRITER
+// ═══════════════════════════════════════════════════════════
 const courses = [
     {name:"Advanced Math",units:"3",grade:"19",status:"Pass"},
     {name:"Physics",units:"3",grade:"17.5",status:"Pass"},
@@ -1431,55 +1528,46 @@ const courses = [
     {name:"Information Systems",units:"3",grade:"17",status:"Pass"},
     {name:"Artificial Intelligence",units:"3",grade:"18.5",status:"Pass"}
 ];
-function clearAllRows() {
-    for (let i=1; i<=10; i++) ['Name','Units','Grade','Status'].forEach(f => { document.getElementById(`course${f}${i}`).textContent = ''; });
-}
-let rowIndex=0, colIndex=0, charIndex=0, typingCert=false;
-function typeTranscriptRow() {
-    if (rowIndex >= courses.length) { if (!typingCert) typeCertificate(); return; }
-    const fields = [
-        {text:courses[rowIndex].name, display:`courseName${rowIndex+1}`},
-        {text:courses[rowIndex].units, display:`courseUnits${rowIndex+1}`},
-        {text:courses[rowIndex].grade, display:`courseGrade${rowIndex+1}`},
-        {text:courses[rowIndex].status, display:`courseStatus${rowIndex+1}`}
+function clearAllRows(){for(let i=1;i<=10;i++)['Name','Units','Grade','Status'].forEach(f=>{document.getElementById(`course${f}${i}`).textContent='';})}
+let rowIndex=0,colIndex=0,charIndex=0,typingCert=false;
+function typeTranscriptRow(){
+    if(rowIndex>=courses.length){if(!typingCert)typeCertificate();return;}
+    const fields=[
+        {text:courses[rowIndex].name,display:`courseName${rowIndex+1}`},
+        {text:courses[rowIndex].units,display:`courseUnits${rowIndex+1}`},
+        {text:courses[rowIndex].grade,display:`courseGrade${rowIndex+1}`},
+        {text:courses[rowIndex].status,display:`courseStatus${rowIndex+1}`}
     ];
-    if (colIndex < fields.length) {
-        const f = fields[colIndex];
-        document.getElementById(f.display).textContent = f.text.substring(0, charIndex);
-        if (charIndex <= f.text.length) { charIndex++; setTimeout(typeTranscriptRow, 90); }
-        else { colIndex++; charIndex=0; setTimeout(typeTranscriptRow, 180); }
-    } else { rowIndex++; colIndex=0; setTimeout(typeTranscriptRow, 350); }
+    if(colIndex<fields.length){
+        const f=fields[colIndex];
+        document.getElementById(f.display).textContent=f.text.substring(0,charIndex);
+        if(charIndex<=f.text.length){charIndex++;setTimeout(typeTranscriptRow,90);}
+        else{colIndex++;charIndex=0;setTimeout(typeTranscriptRow,180);}
+    }else{rowIndex++;colIndex=0;setTimeout(typeTranscriptRow,350);}
 }
-function typeCertificate() {
-    typingCert = true;
-    const fixedDate = new Date('2026-06-25');
-    const fd = fixedDate.toLocaleDateString('en-US', {day:'numeric',month:'long',year:'numeric'});
-    const text = `Certified to be a true translation from original Persian.\nDate of Translation: ${fd}`;
-    let i = 0;
-    const el = document.getElementById('certText');
-    function typeChar() {
-        el.innerHTML = text.substring(0,i).replace('\n','<br/>');
-        if (i++ <= text.length) { setTimeout(typeChar, 90); }
-        else {
-            setTimeout(() => {
-                el.textContent = '';
-                clearAllRows();
-                rowIndex=0; colIndex=0; charIndex=0; typingCert=false;
-                setTimeout(typeTranscriptRow, 500);
-            }, 3000);
-        }
+function typeCertificate(){
+    typingCert=true;
+    const fd=new Date('2026-06-25').toLocaleDateString('en-US',{day:'numeric',month:'long',year:'numeric'});
+    const text=`Certified to be a true translation from original Persian.\nDate of Translation: ${fd}`;
+    let i=0; const el=document.getElementById('certText');
+    function typeChar(){
+        el.innerHTML=text.substring(0,i).replace('\n','<br/>');
+        if(i++<=text.length){setTimeout(typeChar,90);}
+        else{setTimeout(()=>{el.textContent='';clearAllRows();rowIndex=0;colIndex=0;charIndex=0;typingCert=false;setTimeout(typeTranscriptRow,500);},3000);}
     }
     typeChar();
 }
 
-// ─── DATE CONVERTER ───
-function isJalaaliLeap(jy) { const m=jy%33; return [1,5,9,13,17,22,26,30].includes(m); }
-function jalaaliToGregorian(jy,jm,jd) {
-    jy=parseInt(jy)-979; jm=parseInt(jm)-1; jd=parseInt(jd)-1;
+// ═══════════════════════════════════════════════════════════
+// DATE CONVERTER
+// ═══════════════════════════════════════════════════════════
+function isJalaaliLeap(jy){const m=jy%33;return[1,5,9,13,17,22,26,30].includes(m);}
+function jalaaliToGregorian(jy,jm,jd){
+    jy=parseInt(jy)-979;jm=parseInt(jm)-1;jd=parseInt(jd)-1;
     let jdn=365*jy+Math.floor(jy/33)*8+Math.floor((jy%33+3)/4);
-    for(let i=0;i<jm;i++) jdn+=(i<6)?31:30;
-    jdn+=jd; let gdn=jdn+79;
-    let gy=1600+400*Math.floor(gdn/146097); gdn%=146097;
+    for(let i=0;i<jm;i++)jdn+=(i<6)?31:30;
+    jdn+=jd;let gdn=jdn+79;
+    let gy=1600+400*Math.floor(gdn/146097);gdn%=146097;
     let leap=true;
     if(gdn>=36525){gdn--;gy+=100*Math.floor(gdn/36524);gdn%=36524;if(gdn>=365){gdn++;leap=false;}}
     gy+=4*Math.floor(gdn/1461);gdn%=1461;
@@ -1487,29 +1575,29 @@ function jalaaliToGregorian(jy,jm,jd) {
     let gm,gd;
     const dim=[31,leap?29:28,31,30,31,30,31,31,30,31,30,31];
     for(let i=0;i<12;i++){if(gdn<dim[i]){gm=i+1;gd=gdn+1;break;}gdn-=dim[i];}
-    return {gy,gm,gd};
+    return{gy,gm,gd};
 }
-function convertDate() {
-    const d=document.getElementById('dayInput').value, m=document.getElementById('monthInput').value, y=document.getElementById('yearInput').value;
-    const eEl=document.getElementById('errorMsg'), rEl=document.getElementById('resultContainer');
-    eEl.classList.add('hidden'); rEl.classList.add('hidden');
+function convertDate(){
+    const d=document.getElementById('dayInput').value,m=document.getElementById('monthInput').value,y=document.getElementById('yearInput').value;
+    const eEl=document.getElementById('errorMsg'),rEl=document.getElementById('resultContainer');
+    eEl.classList.add('hidden');rEl.classList.add('hidden');
     if(!d||!m||!y){showErr('لطفا تمام موارد را پر کنید.');return;}
     const day=parseInt(d),month=parseInt(m),year=parseInt(y);
-    if(year<1000||year>3000){showErr('سال معتبر وارد کنید (مثلا ۱۴۰۳).');return;}
+    if(year<1000||year>3000){showErr('سال معتبر وارد کنید.');return;}
     if(day<1||day>31){showErr('روز معتبر وارد کنید.');return;}
     if(month>6&&month<12&&day===31){showErr('این ماه فقط ۳۰ روز دارد.');return;}
     if(month===12){if(day>30){showErr('اسفند ۳۰ روز دارد.');return;}if(!isJalaaliLeap(year)&&day===30){showErr(`سال ${year} کبیسه نیست.`);return;}}
-    try {
-        const {gy,gm,gd}=jalaaliToGregorian(year,month,day);
+    try{
+        const{gy,gm,gd}=jalaaliToGregorian(year,month,day);
         const obj=new Date(gy,gm-1,gd);
         const p=n=>String(n).padStart(2,'0');
-        const f1=`${gy}-${p(gm)}-${p(gd)}`, f2=`${p(gm)}/${p(gd)}/${gy}`, f3=`${p(gd)}/${p(gm)}/${gy}`;
+        const f1=`${gy}-${p(gm)}-${p(gd)}`,f2=`${p(gm)}/${p(gd)}/${gy}`,f3=`${p(gd)}/${p(gm)}/${gy}`;
         const f4=new Intl.DateTimeFormat('en-US',{month:'long',day:'numeric',year:'numeric'}).format(obj);
         document.getElementById('mainDate').textContent=`${gy} / ${p(gm)} / ${p(gd)}`;
         document.getElementById('longDateValue').textContent=f4;
         ['1','2','3','4'].forEach((n,i)=>document.getElementById(`fmt${n}`).textContent=[f1,f2,f3,f4][i]);
         rEl.classList.remove('hidden');
-    } catch(e){showErr('خطا در تبدیل.');}
+    }catch(e){showErr('خطا در تبدیل.');}
 }
 function showErr(msg){const el=document.getElementById('errorMsg');el.textContent=msg;el.classList.remove('hidden');}
 function copyText(text,id){
@@ -1519,7 +1607,9 @@ function copyText(text,id){
     }).catch(()=>showToast('خطا در دسترسی به کلیپ‌بورد.'));
 }
 
-// ─── INIT ───
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
 document.getElementById('walletBalanceDisplay').textContent = currentWalletBalance.toLocaleString();
 syncUserSessionDOM();
 typeTranscriptRow();
