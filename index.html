@@ -3,88 +3,63 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DeepT - اتوماسیون ترجمه رسمی مبتنی بر هوش مصنوعی</title>
+<title>DeepT — سامانه ترجمه رسمی اسناد</title>
 <script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;700;900&family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;900&family=Inter:wght@400;500;600;700;900&display=swap');
+/* ── FONTS ──
+   Vazirmatn → all Persian UI text
+   Inter     → English data (dates, codes, email addresses)
+*/
 
-/* ─── FONT ROLES ─── */
-/* Vazirmatn  → all Persian/UI text (default body font)    */
-/* Inter      → English-only data: dates, codes, formats   */
-
-/* ─── DARK THEME (default) ─── */
+/* ── DARK THEME (default) ── */
 :root {
-    --bg-main: #000000;
-    --bg-secondary: #0a0a0a;
-    --text-main: #ffffff;
-    --text-muted: #9ca3af;
-    --panel-bg: rgba(0, 0, 0, 0.75);
-    --accent: #00ffff;
-    --accent-glow: rgba(0, 255, 255, 0.25);
-    --accent-hover: rgba(0, 255, 255, 0.15);
-    --card-surface: rgba(18, 18, 18, 0.9);
-    --border-color: rgba(0, 255, 255, 0.28);
-    --border-subtle: rgba(255,255,255,0.07);
-    --input-bg: #000;
-    --input-border: #2a2a2a;
-    --shadow-accent: 0 0 30px rgba(0,255,255,0.15);
-    --node-color: cyan;
-    --node-line: rgba(0,255,255,1);
-    --canvas-opacity: 0.8;
-    --header-bg: rgba(0,0,0,0.85);
-    --table-header-text: rgba(255,255,255,0.5);
-    --row-hover: rgba(0,255,255,0.04);
-    --divider: rgba(255,255,255,0.06);
-    --btn-text-on-accent: #000;
-    --modal-overlay: rgba(0,0,0,0.85);
-    --toast-bg: #111;
-    --toast-border: rgba(0,255,255,0.4);
+    --bg:          #0c0c0e;
+    --bg2:         #111114;
+    --surface:     rgba(255,255,255,0.04);
+    --surface2:    rgba(255,255,255,0.08);
+    --border:      rgba(255,255,255,0.08);
+    --border2:     rgba(255,255,255,0.15);
+    --text:        #f0f0f2;
+    --muted:       #888899;
+    --accent:      #00d4ff;
+    --accent-dim:  rgba(0,212,255,0.12);
+    --accent-btn:  #000000;
+    --modal-bg:    rgba(0,0,0,0.82);
+    --logo-filter: invert(1);
 }
 
-/* ─── LIGHT THEME ─── */
+/* ── LIGHT THEME ── */
 [data-theme="light"] {
-    --bg-main: #f0f4f8;
-    --bg-secondary: #e8edf2;
-    --text-main: #0d1b2a;
-    --text-muted: #5a6a7a;
-    --panel-bg: rgba(255,255,255,0.92);
-    --accent: #0369a1;
-    --accent-glow: rgba(3,105,161,0.18);
-    --accent-hover: rgba(3,105,161,0.08);
-    --card-surface: #ffffff;
-    --border-color: rgba(3,105,161,0.25);
-    --border-subtle: rgba(0,0,0,0.07);
-    --input-bg: #f8fafc;
-    --input-border: #cbd5e1;
-    --shadow-accent: 0 4px 24px rgba(3,105,161,0.12);
-    --node-color: #0369a1;
-    --node-line: rgba(3,105,161,1);
-    --canvas-opacity: 0.12;
-    --header-bg: rgba(240,244,248,0.92);
-    --table-header-text: #64748b;
-    --row-hover: rgba(3,105,161,0.04);
-    --divider: rgba(0,0,0,0.08);
-    --btn-text-on-accent: #fff;
-    --modal-overlay: rgba(15,27,42,0.7);
-    --toast-bg: #fff;
-    --toast-border: rgba(3,105,161,0.35);
+    --bg:          #f4f6fb;
+    --bg2:         #eceef5;
+    --surface:     rgba(0,0,0,0.03);
+    --surface2:    rgba(0,0,0,0.06);
+    --border:      rgba(0,0,0,0.08);
+    --border2:     rgba(0,0,0,0.15);
+    --text:        #0f0f1a;
+    --muted:       #5c5c72;
+    --accent:      #0072a8;
+    --accent-dim:  rgba(0,114,168,0.10);
+    --accent-btn:  #ffffff;
+    --modal-bg:    rgba(15,15,26,0.75);
+    --logo-filter: invert(0);
 }
 
-/* ─── BASE ─── */
-*, *::before, *::after { box-sizing: border-box; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
 
 body {
     font-family: 'Vazirmatn', sans-serif;
-    margin: 0;
-    background-color: var(--bg-main);
-    color: var(--text-main);
+    background: var(--bg);
+    color: var(--text);
     overflow-x: hidden;
-    transition: background-color 0.35s ease, color 0.35s ease;
+    transition: background .3s, color .3s;
+    line-height: 1.75;
 }
 
-/* English-only data text (dates, IDs, format codes) */
 .en {
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    font-family: 'Inter', system-ui, sans-serif;
     direction: ltr;
     unicode-bidi: embed;
 }
@@ -92,1527 +67,1210 @@ body {
 canvas {
     position: fixed;
     top: 0; left: 0;
-    z-index: -1;
+    z-index: 0;
     width: 100%; height: 100%;
-    opacity: var(--canvas-opacity);
-    transition: opacity 0.35s ease;
+    pointer-events: none;
+    opacity: 0.55;
+    transition: opacity .35s;
 }
+[data-theme="light"] canvas { opacity: 0.1; }
 
-/* ─── GLITCH TITLE ─── */
-.glitch {
-    font-size: 4rem;
+/* Everything above canvas */
+header, main, footer, .overlay { position: relative; z-index: 1; }
+
+/* ── HEADER ── */
+header {
+    position: fixed; top: 0; right: 0; left: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 2.5rem; height: 76px;
+    background: rgba(12,12,14,0.88);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(20px);
+    transition: background .3s, border-color .3s;
+}
+[data-theme="light"] header { background: rgba(244,246,251,0.92); }
+
+.header-wordmark {
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 1.25rem;
     font-weight: 900;
-    color: var(--text-main);
-    letter-spacing: 0.05em;
-    animation: glitch 1.4s infinite;
-}
-@keyframes glitch {
-    0%   { text-shadow: 2px 0 red, -2px 0 blue; }
-    20%  { text-shadow: -2px 0 red, 2px 0 blue; }
-    40%  { text-shadow: 2px 2px red, -2px -2px blue; }
-    60%  { text-shadow: -2px 2px red, 2px -2px blue; }
-    80%  { text-shadow: 2px -2px red, -2px 2px blue; }
-    100% { text-shadow: 2px 0 red, -2px 0 blue; }
-}
-[data-theme="light"] .glitch {
-    animation: glitch-light 1.4s infinite;
-}
-@keyframes glitch-light {
-    0%   { text-shadow: 1px 0 rgba(220,38,38,0.5), -1px 0 rgba(37,99,235,0.5); }
-    25%  { text-shadow: -1px 0 rgba(220,38,38,0.5), 1px 0 rgba(37,99,235,0.5); }
-    50%  { text-shadow: 1px 1px rgba(220,38,38,0.4), -1px -1px rgba(37,99,235,0.4); }
-    75%  { text-shadow: -1px 1px rgba(220,38,38,0.4), 1px -1px rgba(37,99,235,0.4); }
-    100% { text-shadow: 1px 0 rgba(220,38,38,0.5), -1px 0 rgba(37,99,235,0.5); }
-}
-
-/* ─── LAYOUT ─── */
-.section {
-    max-width: 920px;
-    margin: 0 auto;
-    padding: 3rem 1.25rem;
-}
-.bg-section {
-    background: var(--panel-bg);
-    border-radius: 1.25rem;
-    border: 1px solid var(--border-color);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    box-shadow: var(--shadow-accent);
-}
-
-/* ─── TABLE ─── */
-.table-cell {
-    border: 1px solid var(--accent);
-    padding: 0.5rem 0.85rem;
-    min-width: 120px;
-    font-family: 'Inter', system-ui, sans-serif;
-    color: var(--accent);
-    font-size: 1.05rem;
-    text-align: left;
-    direction: ltr;
-    transition: color 0.35s, border-color 0.35s;
-}
-.table-header {
-    color: var(--text-main);
-    font-weight: 700;
-    font-size: 1.05rem;
-    text-align: left;
-    direction: ltr;
-    padding: 0.5rem 0.85rem;
-    font-family: 'Inter', system-ui, sans-serif;
-    opacity: 0.75;
-}
-.animated-text {
-    font-family: 'Inter', system-ui, sans-serif;
-    color: var(--accent);
-    font-size: 0.95rem;
-    margin-top: 1.5rem;
-    min-height: 1.6rem;
-    text-align: left;
-    direction: ltr;
-    padding: 0 1.25rem;
-    transition: opacity 1s ease-out;
-}
-
-/* ─── BUTTONS ─── */
-.btn {
-    background: var(--text-main);
-    color: var(--bg-main);
-    padding: 1.1rem 2.75rem;
-    font-size: 1.4rem;
-    border-radius: 999px;
-    font-weight: 700;
-    transition: background 0.25s, box-shadow 0.25s, color 0.25s;
-    cursor: pointer;
-    display: inline-block;
+    letter-spacing: .18em;
+    color: var(--text);
     text-decoration: none;
-    border: none;
-    box-shadow: 0 4px 20px var(--accent-glow);
+    transition: color .2s;
 }
-.btn-primary {
-    font-size: 1.4rem;
-    padding: 1.1rem 3rem;
-    font-weight: 900;
-    box-shadow: 0 0 30px var(--accent-glow);
-}
-.btn-primary:hover, .btn:hover {
-    background: var(--accent);
-    color: var(--btn-text-on-accent);
-    box-shadow: 0 0 40px var(--accent);
-}
-.btn-outline {
-    background: transparent;
-    border: 1.5px solid var(--text-main);
-    color: var(--text-main);
-    padding: 1.1rem 3rem;
-    font-size: 1.3rem;
-    border-radius: 999px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: background 0.25s, color 0.25s, border-color 0.25s;
-}
-.btn-outline:hover {
-    background: var(--accent-hover);
-    border-color: var(--accent);
-    color: var(--accent);
-}
+.header-wordmark:hover { color: var(--accent); }
 
-/* ─── TYPOGRAPHY ─── */
-h2 {
-    font-weight: 700;
-    font-size: 1.9rem;
-    margin-bottom: 0.9rem;
-    text-align: center;
-    color: var(--text-main);
-}
-p {
-    font-size: 1.1rem;
-    line-height: 1.85rem;
-    text-align: center;
-    margin-bottom: 0.9rem;
-    color: var(--text-main);
-}
+.header-nav { display: flex; align-items: center; gap: .6rem; }
 
-/* ─── FEATURE CARDS ─── */
-.feature {
-    background: var(--card-surface);
-    border: 1px solid var(--border-color);
-    padding: 1.6rem;
-    border-radius: 1.1rem;
-    margin: 1rem 0;
-    text-align: center;
-    transition: box-shadow 0.25s;
+.btn-ghost {
+    padding: .42rem .9rem; border-radius: .6rem; font-size: .82rem; font-weight: 600;
+    cursor: pointer; border: 1px solid var(--border2); background: transparent;
+    color: var(--text); transition: .2s; font-family: 'Vazirmatn', sans-serif;
+    text-decoration: none; display: inline-block;
 }
-.feature:hover { box-shadow: var(--shadow-accent); }
-.feature h3 { font-weight: 700; font-size: 1.45rem; margin-bottom: 0.5rem; color: var(--text-main); }
-.feature p  { font-size: 1.05rem; color: var(--text-muted); }
+.btn-ghost:hover { background: var(--surface2); }
 
-/* ─── HEADER BAR ─── */
-.header-bar {
-    background: var(--header-bg);
-    border-bottom: 1px solid var(--border-subtle);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
-    transition: background 0.35s, border-color 0.35s;
+.btn-accent {
+    padding: .45rem 1.1rem; border-radius: .6rem; font-size: .82rem; font-weight: 700;
+    cursor: pointer; border: none; background: var(--accent); color: var(--accent-btn);
+    transition: .2s; font-family: 'Vazirmatn', sans-serif;
 }
-.header-btn {
-    background: var(--card-surface);
-    border: 1px solid var(--border-color);
-    color: var(--accent);
-    padding: 0.45rem 0.85rem;
-    border-radius: 0.75rem;
-    font-size: 0.8rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: border-color 0.2s, background 0.2s, color 0.2s;
-    display: flex; align-items: center; gap: 0.35rem;
-    white-space: nowrap;
-}
-.header-btn:hover {
-    border-color: var(--accent);
-    background: var(--accent-hover);
-}
-.header-btn-auth {
-    color: var(--text-main);
-    border-color: var(--border-subtle);
-}
-.header-btn-auth:hover {
-    border-color: var(--text-main);
-    color: var(--text-main);
-}
-.header-btn-workspace {
-    background: var(--accent);
-    color: var(--btn-text-on-accent);
-    border-color: transparent;
-    font-weight: 900;
-}
-.header-btn-workspace:hover {
-    background: var(--accent);
-    opacity: 0.85;
-}
-.header-btn-logout {
-    color: #f87171;
-    border-color: rgba(248,113,113,0.3);
-}
-.header-btn-logout:hover {
-    border-color: #f87171;
-    background: rgba(248,113,113,0.1);
-    color: #f87171;
-}
+.btn-accent:hover { opacity: .85; }
 
-/* ─── CONVERTER INPUTS ─── */
-.converter-input {
-    background: var(--input-bg);
-    border: 1px solid var(--accent);
-    color: var(--accent);
-    text-align: center;
-    font-family: 'Vazirmatn', sans-serif;
-    font-size: 1.15rem;
-    transition: box-shadow 0.2s, border-color 0.2s;
-    padding: 0.75rem;
-    border-radius: 0.6rem;
-    width: 100%;
+.theme-btn {
+    width: 34px; height: 34px; border-radius: .55rem;
+    border: 1px solid var(--border); background: var(--surface);
+    cursor: pointer; font-size: 1rem;
+    display: flex; align-items: center; justify-content: center;
+    transition: .2s;
 }
-.converter-input:focus {
-    outline: none;
-    box-shadow: 0 0 14px var(--accent-glow);
-    border-color: var(--accent);
-}
-select.converter-input option {
-    background: var(--input-bg);
-    color: var(--text-main);
-}
+.theme-btn:hover { background: var(--surface2); }
 
-/* ─── MODAL & CHAT WINDOW ─── */
-.modal-overlay {
-    background: var(--modal-overlay);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
+/* ── HERO LOGO ── */
+.hero-logo-wrap {
+    margin-bottom: 1.5rem;
 }
-.chat-window {
-    border: 1px solid var(--border-color);
-    box-shadow: 0 24px 48px rgba(0,0,0,0.45), 0 0 32px var(--accent-glow);
-    background: var(--card-surface);
-    transition: background 0.35s, border-color 0.35s;
-}
-.chat-bubble-ai {
-    background: var(--panel-bg);
-    border: 1px solid var(--border-color);
-    transition: background 0.35s, border-color 0.35s;
-}
-.chat-bubble-user {
-    background: var(--accent-glow);
-    border: 1px solid var(--border-color);
-}
-.drop-zone-chat {
-    border: 2px dashed var(--border-color);
-    background: var(--bg-main);
-    transition: all 0.2s ease-in-out;
-    border-radius: 0.75rem;
-}
-.drop-zone-chat.drag-over {
-    border-color: var(--accent);
-    background: var(--accent-hover);
-}
-
-/* ─── AUTH MODAL INPUTS ─── */
-.auth-input {
-    width: 100%;
-    background: var(--input-bg);
-    border: 1px solid var(--input-border);
-    border-radius: 0.6rem;
-    padding: 0.65rem 0.85rem;
-    font-size: 0.9rem;
-    color: var(--accent);
-    outline: none;
-    font-family: 'Vazirmatn', sans-serif;
-    transition: border-color 0.2s, box-shadow 0.2s;
-}
-/* Email/password inputs are LTR English — override font there only */
-.auth-input[type="email"],
-.auth-input[type="password"] {
-    font-family: 'Inter', system-ui, sans-serif;
-}
-.auth-input:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 10px var(--accent-glow);
-}
-.auth-label {
+.hero-logo {
+    width: 160px;
+    height: auto;
+    filter: var(--logo-filter);
+    transition: filter .3s;
     display: block;
-    font-size: 0.72rem;
-    color: var(--text-muted);
-    margin-bottom: 0.3rem;
+    margin: 0 auto;
 }
 
-/* ─── WORKSPACE DASHBOARD ─── */
-.workspace-panel {
-    background: var(--card-surface);
-    border: 1px solid var(--border-subtle);
-    border-radius: 1.2rem;
-    box-shadow: 0 2px 16px rgba(0,0,0,0.1);
-    transition: background 0.35s, border-color 0.35s;
+/* ── HERO ── */
+.hero {
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center;
+    padding: 7rem 1.5rem 5rem;
 }
-.workspace-panel:hover {
-    border-color: var(--border-color);
+
+.hero-badge {
+    display: inline-flex; align-items: center; gap: .45rem;
+    padding: .32rem .9rem; border-radius: 999px;
+    font-size: .78rem; font-weight: 600;
+    background: var(--accent-dim); border: 1px solid rgba(0,212,255,.22);
+    color: var(--accent); margin-bottom: 1.75rem;
 }
-.ws-table th {
-    color: var(--table-header-text);
-    font-size: 0.7rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    padding-bottom: 0.75rem;
-    padding-top: 0.5rem;
+[data-theme="light"] .hero-badge { border-color: rgba(0,114,168,.22); }
+
+.hero h1 {
+    font-size: clamp(2.2rem, 6vw, 4rem);
+    font-weight: 900; line-height: 1.2;
+    letter-spacing: -.02em;
+    color: var(--text); margin-bottom: 1.25rem;
+}
+.hero h1 span { color: var(--accent); }
+
+.hero-sub {
+    font-size: clamp(.95rem, 2vw, 1.15rem);
+    color: var(--muted);
+    max-width: 540px; margin: 0 auto 2.5rem;
+    line-height: 1.85;
+}
+
+.hero-cta { display: flex; gap: .9rem; justify-content: center; flex-wrap: wrap; }
+
+.btn-primary {
+    padding: .8rem 2rem; border-radius: .7rem;
+    font-size: .98rem; font-weight: 700;
+    cursor: pointer; border: none;
+    background: var(--accent); color: var(--accent-btn);
+    transition: .2s; font-family: 'Vazirmatn', sans-serif;
+    text-decoration: none; display: inline-block;
+}
+.btn-primary:hover { opacity: .87; transform: translateY(-1px); }
+
+.btn-secondary {
+    padding: .8rem 2rem; border-radius: .7rem;
+    font-size: .95rem; font-weight: 600;
+    cursor: pointer; border: 1px solid var(--border2);
+    background: transparent; color: var(--text);
+    transition: .2s; font-family: 'Vazirmatn', sans-serif;
+    text-decoration: none; display: inline-block;
+}
+.btn-secondary:hover { background: var(--surface2); }
+
+/* ── SECTIONS ── */
+.section { max-width: 1040px; margin: 0 auto; padding: 5rem 1.5rem; }
+
+.section-label {
+    text-align: center; font-size: .75rem; font-weight: 700;
+    letter-spacing: .12em; text-transform: uppercase;
+    color: var(--accent); margin-bottom: .6rem;
+}
+.section-title {
+    text-align: center; font-size: clamp(1.5rem, 4vw, 2.2rem);
+    font-weight: 900; color: var(--text); margin-bottom: .9rem;
+}
+.section-sub {
+    text-align: center; color: var(--muted); font-size: .97rem;
+    max-width: 480px; margin: 0 auto 3rem; line-height: 1.8;
+}
+
+/* ── STEPS ── */
+.steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px,1fr)); gap: 1.25rem; }
+
+.step-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 1.25rem; padding: 1.75rem 1.5rem;
+    transition: border-color .2s, background .2s;
+}
+.step-card:hover { border-color: var(--border2); background: var(--surface2); }
+
+.step-num {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: var(--accent-dim); border: 1px solid rgba(0,212,255,.3);
+    display: flex; align-items: center; justify-content: center;
+    font-size: .95rem; font-weight: 900; color: var(--accent);
+    margin-bottom: 1.1rem;
+}
+[data-theme="light"] .step-num { border-color: rgba(0,114,168,.3); }
+.step-card h3 { font-size: 1rem; font-weight: 700; color: var(--text); margin-bottom: .45rem; }
+.step-card p  { font-size: .88rem; color: var(--muted); line-height: 1.75; }
+
+/* ── AUDIENCE ── */
+.audience-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px,1fr)); gap: 1rem; }
+
+.audience-card {
+    display: flex; align-items: center; gap: .85rem;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 1rem; padding: 1.1rem 1.25rem; transition: .2s;
+}
+.audience-card:hover { border-color: var(--border2); background: var(--surface2); }
+.audience-card .icon { font-size: 1.6rem; flex-shrink: 0; }
+.audience-card span  { font-size: .9rem; font-weight: 600; color: var(--text); }
+
+/* ── DATE TOOL ── */
+.tool-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 1.5rem; padding: 2.25rem;
+    max-width: 660px; margin: 0 auto;
+}
+.input-row { display: grid; grid-template-columns: 1fr 1.5fr 1.2fr; gap: 1rem; margin-bottom: 1.1rem; }
+
+.field-label { display: block; font-size: .77rem; color: var(--muted); font-weight: 600; margin-bottom: .35rem; }
+
+.field-input {
+    width: 100%; padding: .62rem .85rem; border-radius: .6rem;
+    border: 1px solid var(--border2); background: var(--bg2);
+    color: var(--text); font-family: 'Vazirmatn', sans-serif;
+    font-size: .92rem; outline: none; transition: border-color .2s;
+}
+.field-input:focus { border-color: var(--accent); }
+.field-input option { background: var(--bg2); }
+
+.tool-btn {
+    width: 100%; padding: .72rem; border-radius: .7rem;
+    font-size: .95rem; font-weight: 700; cursor: pointer; border: none;
+    background: var(--accent); color: var(--accent-btn);
+    font-family: 'Vazirmatn', sans-serif; transition: .2s;
+}
+.tool-btn:hover { opacity: .87; }
+
+.result-box {
+    margin-top: 1.4rem; padding: 1.4rem; border-radius: 1rem;
+    border: 1px solid var(--border2); background: var(--bg2); display: none;
+}
+.result-box.show { display: block; }
+.result-main {
+    font-family: 'Inter', sans-serif; font-size: 1.9rem;
+    font-weight: 900; color: var(--accent);
+    direction: ltr; text-align: center; margin-bottom: 1rem;
+}
+.fmt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .65rem; }
+.fmt-btn {
+    padding: .7rem .9rem; border-radius: .7rem;
+    border: 1px solid var(--border2); background: transparent;
+    color: var(--text); cursor: pointer;
+    text-align: left; direction: ltr; transition: .2s;
+    font-family: 'Inter', sans-serif;
+}
+.fmt-btn:hover { background: var(--surface2); border-color: var(--accent); }
+.fmt-label { font-size: .64rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; display: block; margin-bottom: .2rem; }
+.fmt-value { font-size: .95rem; font-weight: 700; color: var(--accent); }
+.error-msg { color: #f87171; font-size: .83rem; margin-top: .65rem; display: none; }
+.error-msg.show { display: block; }
+
+/* ── CTA BAND ── */
+.cta-band {
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 4.5rem 1.5rem; text-align: center;
+    background: var(--accent-dim);
+}
+.cta-band h2 { font-size: clamp(1.5rem,4vw,2.2rem); font-weight: 900; color: var(--text); margin-bottom: .75rem; }
+.cta-band p  { color: var(--muted); margin-bottom: 2rem; font-size: .97rem; }
+
+/* ── FOOTER ── */
+footer {
+    border-top: 1px solid var(--border);
+    padding: 2rem 2rem;
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;
+}
+.copy { font-size: .8rem; color: var(--muted); }
+.footer-links { display: flex; gap: 1.5rem; }
+.footer-links a { font-size: .8rem; color: var(--muted); text-decoration: none; transition: color .2s; }
+.footer-links a:hover { color: var(--text); }
+
+/* ── MODALS ── */
+.overlay {
+    position: fixed; inset: 0; z-index: 200;
+    background: var(--modal-bg); backdrop-filter: blur(14px);
+    display: none; align-items: center; justify-content: center; padding: 1rem;
+}
+.overlay.open { display: flex; }
+
+.modal {
+    background: var(--bg2); border: 1px solid var(--border2);
+    border-radius: 1.5rem; padding: 2.25rem;
+    width: 100%; max-width: 400px; position: relative;
+    box-shadow: 0 32px 64px rgba(0,0,0,.45);
+}
+.modal-close {
+    position: absolute; top: 1.1rem; left: 1.1rem;
+    background: var(--surface2); border: none; border-radius: .5rem;
+    padding: .28rem .6rem; cursor: pointer; color: var(--muted);
+    font-size: .78rem; font-family: 'Vazirmatn', sans-serif; transition: .2s;
+}
+.modal-close:hover { color: var(--text); }
+
+.modal h2 { font-size: 1.25rem; font-weight: 900; color: var(--text); margin-bottom: .3rem; }
+.modal-sub { font-size: .83rem; color: var(--muted); margin-bottom: 1.6rem; }
+
+.modal label { display: block; font-size: .76rem; color: var(--muted); font-weight: 600; margin-bottom: .3rem; }
+
+.modal-input {
+    width: 100%; padding: .65rem .85rem; border-radius: .6rem;
+    border: 1px solid var(--border2); background: var(--bg);
+    color: var(--text); font-size: .9rem; outline: none;
+    transition: border-color .2s; margin-bottom: .9rem;
+    font-family: 'Inter', sans-serif; direction: ltr;
+}
+.modal-input.fa { font-family: 'Vazirmatn', sans-serif; direction: rtl; }
+.modal-input:focus { border-color: var(--accent); }
+
+.modal-btn {
+    width: 100%; padding: .78rem; border-radius: .7rem;
+    font-size: .95rem; font-weight: 700; cursor: pointer; border: none;
+    background: var(--accent); color: var(--accent-btn);
+    font-family: 'Vazirmatn', sans-serif; transition: .2s; margin-top: .2rem;
+}
+.modal-btn:hover { opacity: .87; }
+
+.modal-error { color: #f87171; font-size: .8rem; margin-bottom: .65rem; display: none; }
+.modal-error.show { display: block; }
+
+.modal-success { text-align: center; padding: 1.25rem 0; display: none; }
+.modal-success.show { display: block; }
+.modal-success .icon { font-size: 2.75rem; margin-bottom: .75rem; }
+.modal-success strong { font-size: 1.05rem; color: var(--text); }
+.modal-success p { color: var(--muted); font-size: .85rem; margin-top: .4rem; line-height: 1.7; }
+
+.modal-switch { text-align: center; margin-top: 1.1rem; font-size: .82rem; color: var(--muted); }
+.modal-switch a { color: var(--accent); cursor: pointer; font-weight: 600; }
+.modal-switch a:hover { text-decoration: underline; }
+
+/* ── TOAST ── */
+#toast {
+    position: fixed; bottom: 1.5rem; left: 50%;
+    transform: translateX(-50%) translateY(60px);
+    background: var(--bg2); border: 1px solid var(--border2);
+    color: var(--accent); padding: .62rem 1.4rem; border-radius: 2rem;
+    font-size: .86rem; font-weight: 700; z-index: 999;
+    opacity: 0; transition: .3s; white-space: nowrap;
+    box-shadow: 0 8px 24px rgba(0,0,0,.3);
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+@media (max-width: 640px) {
+    .input-row { grid-template-columns: 1fr; }
+    .fmt-grid  { grid-template-columns: 1fr; }
+    header { padding: 0 1rem; }
+    .nav-links { display: none; }
+    footer { flex-direction: column; text-align: center; }
+    .footer-links { justify-content: center; }
+}
+
+/* ── PRICING / QUICK START ── */
+.pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.25rem;
+    max-width: 860px;
+    margin: 0 auto;
+}
+.pricing-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 1.5rem;
+    padding: 2rem 1.75rem;
+    transition: border-color .2s, background .2s;
+    position: relative;
+}
+.pricing-card:hover { border-color: var(--border2); background: var(--surface2); }
+.pricing-card.featured { border-color: var(--accent); background: var(--accent-dim); }
+.pricing-badge {
+    position: absolute; top: -1px; left: 50%; transform: translateX(-50%);
+    background: var(--accent); color: var(--accent-btn);
+    font-size: .72rem; font-weight: 700; padding: .2rem .9rem;
+    border-radius: 0 0 .6rem .6rem; white-space: nowrap;
+}
+.pricing-title { font-size: 1.1rem; font-weight: 900; color: var(--text); margin-bottom: .4rem; }
+.pricing-price {
+    font-family: 'Inter', sans-serif;
+    font-size: 2.2rem; font-weight: 900; color: var(--accent);
+    margin: .75rem 0 .25rem; direction: ltr; text-align: right;
+}
+.pricing-price span { font-size: .9rem; font-weight: 500; color: var(--muted); }
+.pricing-sub { font-size: .83rem; color: var(--muted); margin-bottom: 1.5rem; line-height: 1.7; }
+.pricing-features { list-style: none; margin-bottom: 1.75rem; }
+.pricing-features li {
+    font-size: .88rem; color: var(--text);
+    padding: .3rem 0; display: flex; align-items: center; gap: .5rem;
+}
+.pricing-features li::before { content: "✓"; color: var(--accent); font-weight: 900; flex-shrink: 0; }
+.pricing-btn {
+    width: 100%; padding: .75rem; border-radius: .75rem;
+    font-size: .95rem; font-weight: 700; cursor: pointer;
+    font-family: 'Vazirmatn', sans-serif; transition: .2s;
+}
+.pricing-btn-primary { border: none; background: var(--accent); color: var(--accent-btn); }
+.pricing-btn-primary:hover { opacity: .87; }
+.pricing-btn-outline { border: 1px solid var(--border2); background: transparent; color: var(--text); }
+.pricing-btn-outline:hover { background: var(--surface2); }
+
+/* ── QUICK START PIPELINE MODAL ── */
+.qs-modal { max-width: 560px; max-height: 90vh; overflow-y: auto; }
+
+/* Pipeline step tabs */
+.qs-progress {
+    display: flex; align-items: center; gap: 0;
+    margin-bottom: 1.75rem;
+}
+.qs-prog-step {
+    display: flex; flex-direction: column; align-items: center; flex: 1;
+}
+.qs-prog-dot {
+    width: 30px; height: 30px; border-radius: 50%;
+    border: 2px solid var(--border2); background: var(--bg2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: .75rem; font-weight: 900; color: var(--muted);
+    transition: .3s; position: relative; z-index: 1;
+}
+.qs-prog-dot.active { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+.qs-prog-dot.done   { border-color: var(--accent); background: var(--accent); color: var(--accent-btn); }
+.qs-prog-label { font-size: .68rem; color: var(--muted); margin-top: .3rem; text-align: center; }
+.qs-prog-line {
+    flex: 1; height: 2px; background: var(--border2);
+    margin-top: -15px; transition: background .3s;
+}
+.qs-prog-line.done { background: var(--accent); }
+
+/* Pipeline panels */
+.qs-panel { display: none; }
+.qs-panel.active { display: block; }
+
+/* Mode selector cards */
+.qs-mode-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .6rem; margin-bottom: 1.1rem; }
+.qs-mode-btn {
+    border: 1px solid var(--border2); border-radius: .85rem;
+    padding: .85rem .6rem; text-align: center; cursor: pointer;
+    background: transparent; color: var(--text); transition: .2s;
     font-family: 'Vazirmatn', sans-serif;
 }
-.ws-table tr:not(:last-child) td {
-    border-bottom: 1px solid var(--divider);
+.qs-mode-btn:hover, .qs-mode-btn.selected {
+    border-color: var(--accent); background: var(--accent-dim);
 }
-.ws-table tr:hover td {
-    background: var(--row-hover);
-}
+.qs-mode-icon { font-size: 1.4rem; display: block; margin-bottom: .3rem; }
+.qs-mode-label { font-size: .78rem; font-weight: 700; color: var(--text); }
+.qs-mode-sub   { font-size: .68rem; color: var(--muted); margin-top: .15rem; }
 
-/* ─── TOAST NOTIFICATION ─── */
-#toast {
-    position: fixed;
-    bottom: 1.5rem;
-    left: 50%;
-    transform: translateX(-50%) translateY(80px);
-    background: var(--toast-bg);
-    border: 1px solid var(--toast-border);
-    color: var(--accent);
-    padding: 0.75rem 1.75rem;
-    border-radius: 2rem;
-    font-size: 0.9rem;
-    font-weight: 700;
-    z-index: 9999;
-    opacity: 0;
-    transition: opacity 0.3s ease, transform 0.3s ease;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
-    white-space: nowrap;
-}
-#toast.show {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-}
+/* Identity fields inside quick start */
+.qs-field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .65rem; margin-bottom: 1rem; }
+.qs-field-full { grid-column: 1 / -1; }
 
-/* ─── LOGOUT CONFIRM POPUP ─── */
-#logoutConfirm {
-    background: var(--card-surface);
-    border: 1px solid var(--border-color);
-    border-radius: 1rem;
-    box-shadow: 0 24px 48px rgba(0,0,0,0.4);
+/* Drop zone inside quick start */
+.qs-drop {
+    border: 2px dashed var(--border2); border-radius: 1rem;
+    padding: 2rem; text-align: center; cursor: pointer;
+    transition: .2s; margin-bottom: 1rem;
 }
+.qs-drop:hover, .qs-drop.over { border-color: var(--accent); background: var(--accent-dim); }
+.qs-drop-icon  { font-size: 2rem; margin-bottom: .4rem; }
+.qs-drop-text  { font-size: .85rem; color: var(--muted); }
+.qs-file-name  { font-size: .82rem; color: var(--accent); font-weight: 700; margin-top: .3rem; display: none; }
+
+/* Payment summary */
+.qs-pay-box {
+    background: var(--accent-dim); border: 1px solid rgba(0,212,255,.25);
+    border-radius: 1rem; padding: 1.25rem; margin-bottom: 1.1rem; text-align: center;
+}
+.qs-pay-amount {
+    font-family: 'Inter', sans-serif; font-size: 2rem; font-weight: 900;
+    color: var(--accent); direction: ltr;
+}
+.qs-pay-label { font-size: .82rem; color: var(--muted); margin-top: .2rem; }
+
+/* Nav buttons */
+.qs-nav { display: flex; gap: .65rem; margin-top: 1.1rem; }
+.qs-btn-back {
+    flex: 1; padding: .7rem; border-radius: .7rem; font-size: .9rem; font-weight: 700;
+    cursor: pointer; border: 1px solid var(--border2); background: transparent;
+    color: var(--text); font-family: 'Vazirmatn', sans-serif; transition: .2s;
+}
+.qs-btn-back:hover { background: var(--surface2); }
+.qs-btn-next {
+    flex: 2; padding: .7rem; border-radius: .7rem; font-size: .9rem; font-weight: 700;
+    cursor: pointer; border: none; background: var(--accent); color: var(--accent-btn);
+    font-family: 'Vazirmatn', sans-serif; transition: .2s;
+}
+.qs-btn-next:hover { opacity: .87; }
+.qs-btn-next:disabled { opacity: .35; cursor: not-allowed; }
+
+/* Processing animation inside quick start */
+.qs-processing {
+    display: none; text-align: center; padding: 1.5rem 0;
+}
+.qs-processing.show { display: block; }
+.qs-proc-svg { width: 72px; height: 72px; margin: 0 auto 1rem; }
+.qs-proc-d-outer {
+    fill: none; stroke: var(--accent); stroke-width: 5;
+    stroke-linecap: round; stroke-linejoin: round;
+    stroke-dasharray: 520; stroke-dashoffset: 520;
+    animation: qsDraw 1.8s cubic-bezier(.4,0,.2,1) infinite;
+    filter: drop-shadow(0 0 5px var(--accent));
+}
+.qs-proc-d-inner {
+    fill: none; stroke: var(--accent); stroke-width: 3.5;
+    stroke-linecap: round; stroke-linejoin: round; opacity: .55;
+    stroke-dasharray: 360; stroke-dashoffset: 360;
+    animation: qsDraw 1.6s cubic-bezier(.4,0,.2,1) .5s infinite;
+}
+@keyframes qsDraw { to { stroke-dashoffset: 0; } }
+.qs-proc-text { font-size: .88rem; color: var(--muted); }
+
+/* Date converter — click-to-copy visual feedback */
+.fmt-btn { cursor: pointer; position: relative; }
+.fmt-btn:active { transform: scale(0.97); }
+.fmt-copied {
+    position: absolute; top: -22px; left: 50%; transform: translateX(-50%);
+    background: var(--accent); color: var(--accent-btn);
+    font-size: .68rem; font-weight: 700; padding: .18rem .5rem;
+    border-radius: .35rem; white-space: nowrap; pointer-events: none;
+    opacity: 0; transition: opacity .2s;
+}
+.fmt-copied.show { opacity: 1; }
 </style>
 </head>
 <body>
 
 <canvas id="bgCanvas"></canvas>
-
-<!-- ─── TOAST ─── -->
 <div id="toast"></div>
 
-<!-- ─── HEADER ─── -->
-<div class="header-bar fixed top-0 left-0 right-0 z-50 px-4 py-3 flex items-center justify-between gap-2">
-    <div class="flex items-center gap-2 flex-wrap">
-        <button onclick="toggleGlobalTheme()" class="header-btn" id="themeBtn" title="تغییر تم">
-            <span id="themeBtnIcon">☀️</span>
-            <span id="themeBtnText">روشن</span>
-        </button>
-
-        <button id="authHeaderBtn" onclick="openAuthModal()" class="header-btn header-btn-auth">
-            ورود / ثبت‌نام مترجمان
-        </button>
-
-        <button id="workspaceHeaderBtn" onclick="openWorkspaceDashboard()" class="header-btn header-btn-workspace hidden">
-            میز کار دیجیتال
-        </button>
-
-        <button id="logoutHeaderBtn" onclick="confirmLogout()" class="header-btn header-btn-logout hidden" title="خروج از حساب">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-            خروج
-        </button>
+<!-- ── AUTH MODALS ── -->
+<div class="overlay" id="loginOverlay">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModals()">بستن ✕</button>
+    <div id="loginForm">
+      <h2>ورود به DeepT</h2>
+      <p class="modal-sub">با ایمیل و رمز عبور وارد شوید</p>
+      <label>ایمیل</label>
+      <input class="modal-input" type="email" id="li-email" placeholder="name@example.com" autocomplete="email">
+      <label>رمز عبور</label>
+      <input class="modal-input" type="password" id="li-pass" placeholder="••••••••" autocomplete="current-password">
+      <p class="modal-error" id="li-error"></p>
+      <button class="modal-btn" onclick="handleLogin()">ورود</button>
     </div>
-
-    <!-- User badge (shown when logged in) -->
-    <div id="userBadge" class="hidden items-center gap-2 text-xs">
-        <div id="headerAvatarBadge" class="w-7 h-7 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center font-black text-black text-xs">M</div>
-        <span id="headerUserName" class="font-bold" style="color: var(--text-main);"></span>
+    <div class="modal-success" id="loginSuccess">
+      <div class="icon">✅</div>
+      <strong>ورود موفق</strong>
+      <p>در حال انتقال به پنل ترجمه...</p>
     </div>
-</div>
-
-<!-- ─── LOGOUT CONFIRM ─── -->
-<div id="logoutOverlay" class="modal-overlay fixed inset-0 z-[70] hidden flex items-center justify-center p-4">
-    <div id="logoutConfirm" class="w-full max-w-sm p-8 text-center">
-        <div class="text-4xl mb-4">👋</div>
-        <h3 class="text-xl font-black mb-2" style="color: var(--text-main);">خروج از حساب</h3>
-        <p class="text-sm mb-6" style="color: var(--text-muted);">مطمئن هستید که می‌خواهید از سیستم DeepT خارج شوید؟</p>
-        <div class="flex gap-3 justify-center">
-            <button onclick="executeLogout()" class="bg-red-500 hover:bg-red-600 text-white font-bold px-6 py-2.5 rounded-xl text-sm transition">بله، خروج</button>
-            <button onclick="closeLogoutConfirm()" class="font-bold px-6 py-2.5 rounded-xl text-sm transition" style="background: var(--bg-secondary); color: var(--text-main); border: 1px solid var(--border-subtle);">انصراف</button>
-        </div>
-    </div>
-</div>
-
-<!-- ─── HERO ─── -->
-<section class="min-h-screen flex flex-col justify-center items-center text-center px-6 pt-20">
-    <div class="mb-6 w-44 flex items-center justify-center">
-        <svg viewBox="0 0 200 80" xmlns="http://www.w3.org/2000/svg" width="176" height="70">
-            <defs>
-                <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stop-color="var(--accent)"/>
-                    <stop offset="100%" stop-color="var(--accent)"/>
-                </linearGradient>
-                <filter id="logoGlow">
-                    <feGaussianBlur stdDeviation="2" result="blur"/>
-                    <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
-                </filter>
-            </defs>
-            <!-- D -->
-            <text x="4" y="62" font-family="Inter, system-ui, sans-serif" font-weight="900" font-size="68" fill="var(--accent)" filter="url(#logoGlow)" letter-spacing="-2">Deep</text>
-            <!-- T with accent color block -->
-            <rect x="148" y="8" width="46" height="62" rx="6" fill="var(--accent)" opacity="0.12"/>
-            <text x="150" y="62" font-family="Inter, system-ui, sans-serif" font-weight="900" font-size="68" fill="var(--accent)" filter="url(#logoGlow)">T</text>
-            <!-- dot -->
-            <circle cx="196" cy="64" r="4" fill="var(--accent)" opacity="0.8"/>
-        </svg>
-    </div>
-    <h1 class="glitch mb-5">DeepT</h1>
-    <p class="text-2xl md:text-3xl mb-8" style="opacity:0.85">اتوماسیون ترجمه رسمی مبتنی بر هوش مصنوعی</p>
-    <div class="flex flex-col sm:flex-row gap-4 justify-center items-center mt-6">
-        <button onclick="openChatInterface()" class="btn btn-primary">شروع به ترجمه فوری</button>
-        <button onclick="openAuthModal()" id="mainHeroAuthCall" class="btn-outline">ایجاد حساب مترجم رسمی</button>
-    </div>
-</section>
-
-<!-- ─── AUTH MODAL ─── -->
-<div id="authModal" class="modal-overlay fixed inset-0 z-50 hidden flex items-center justify-center p-4">
-    <div class="chat-window w-full max-w-md rounded-2xl p-7 relative">
-        <button onclick="closeAuthModal()" class="absolute top-4 left-4 text-xs font-bold px-3 py-1 rounded-lg transition" style="color: var(--text-muted); border: 1px solid var(--border-subtle);" onmouseover="this.style.color='var(--text-main)'" onmouseout="this.style.color='var(--text-muted)'">بستن ✕</button>
-
-        <!-- LOGIN -->
-        <div id="loginStateBox">
-            <h3 class="text-xl font-black mb-1 en" style="color: var(--accent);">// USER_LOGIN</h3>
-            <p class="text-right text-xs mb-6" style="color: var(--text-muted);">به سیستم پردازش ترجمه متمرکز DeepT وارد شوید.</p>
-            <div class="space-y-4">
-                <div>
-                    <label class="auth-label">پست الکترونیکی (Email):</label>
-                    <input type="email" id="loginEmail" class="auth-input" dir="ltr" placeholder="name@domain.com">
-                </div>
-                <div>
-                    <label class="auth-label">رمز عبور (Password):</label>
-                    <input type="password" id="loginPassword" class="auth-input" dir="ltr" placeholder="••••••••">
-                </div>
-                <button onclick="simulateAuthAction('login')" class="w-full font-black py-2.5 rounded-xl text-sm transition mt-1" style="background: var(--accent); color: var(--btn-text-on-accent);">ورود امن به پنل</button>
-            </div>
-            <div class="mt-5 text-center space-y-2 text-xs">
-                <p style="color: var(--text-muted);">حساب ندارید؟ <a href="javascript:void(0)" onclick="switchAuthState('signup')" class="font-bold hover:underline" style="color: var(--accent);">ثبت‌نام سریع</a></p>
-                <p><a href="javascript:void(0)" onclick="switchAuthState('forgot')" class="hover:underline transition" style="color: var(--text-muted);">رمز عبور را فراموش کردید؟</a></p>
-            </div>
-        </div>
-
-        <!-- SIGNUP -->
-        <div id="signupStateBox" class="hidden">
-            <h3 class="text-xl font-black mb-1 en" style="color: var(--accent);">// ACCOUNT_SIGNUP</h3>
-            <p class="text-right text-xs mb-6" style="color: var(--text-muted);">ایجاد دسترسی به شبکه DeepT بدون نیاز به شماره همراه.</p>
-            <div class="space-y-4">
-                <div>
-                    <label class="auth-label">پست الکترونیکی شما:</label>
-                    <input type="email" id="signupEmail" class="auth-input" dir="ltr" placeholder="your@email.com">
-                </div>
-                <div>
-                    <label class="auth-label">رمز عبور دلخواه:</label>
-                    <input type="password" id="signupPassword" class="auth-input" dir="ltr" placeholder="حداقل ۸ کاراکتر">
-                </div>
-                <button onclick="simulateAuthAction('signup')" class="w-full font-black py-2.5 rounded-xl text-sm transition" style="background: var(--text-main); color: var(--bg-main);">تایید و فعال‌سازی اکانت</button>
-            </div>
-            <div class="mt-5 text-center text-xs">
-                <p style="color: var(--text-muted);">قبلاً ثبت‌نام کرده‌اید؟ <a href="javascript:void(0)" onclick="switchAuthState('login')" class="font-bold hover:underline" style="color: var(--accent);">ورود مترجمان</a></p>
-            </div>
-        </div>
-
-        <!-- FORGOT -->
-        <div id="forgotStateBox" class="hidden">
-            <h3 class="text-xl font-black mb-1 en" style="color: #f97316;">// PASSWORD_RESET</h3>
-            <p class="text-right text-xs mb-6" style="color: var(--text-muted);">لینک بازیابی به آدرس ایمیل شما ارسال خواهد شد.</p>
-            <div class="space-y-4">
-                <div>
-                    <label class="auth-label">ایمیل ثبت شده در سیستم:</label>
-                    <input type="email" id="forgotEmail" class="auth-input" dir="ltr" placeholder="registered@email.com">
-                </div>
-                <button onclick="simulateAuthAction('forgot')" class="w-full font-black py-2.5 rounded-xl text-sm text-white transition" style="background: #f97316;">ارسال توکن امنیتی بازیابی</button>
-            </div>
-            <div class="mt-5 text-center text-xs">
-                <a href="javascript:void(0)" onclick="switchAuthState('login')" class="font-bold hover:underline transition" style="color: var(--text-muted);">بازگشت به ورود</a>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- ═══════════════════════════════════════════════════════════
-     TRANSLATION MODAL — Two-step flow
-     Step 1: Passport identity (upload / manual / skip)
-     Step 2: Document upload + translate (repeatable per document)
-     ═══════════════════════════════════════════════════════════ -->
-<div id="chatModal" class="modal-overlay fixed inset-0 z-50 hidden flex items-center justify-center p-4">
-  <div class="chat-window w-full max-w-2xl rounded-2xl flex flex-col overflow-hidden" style="max-height:90vh;">
-
-    <!-- Header -->
-    <div class="flex items-center justify-between px-5 py-3 shrink-0" style="border-bottom:1px solid var(--border-color); background:var(--panel-bg);">
-      <div class="flex items-center gap-3">
-        <div class="w-2 h-2 rounded-full animate-pulse" style="background:var(--accent);"></div>
-        <span class="font-black text-sm en" style="color:var(--accent);">DeepT Engine v2.0</span>
-        <!-- Active client badge -->
-        <div id="activeClientBadge" class="hidden items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-bold" style="background:rgba(74,222,128,0.15); border:1px solid rgba(74,222,128,0.4); color:#4ade80;">
-          <span>🟢</span><span id="activeClientName"></span>
-        </div>
-      </div>
-      <div class="flex items-center gap-2">
-        <button id="newClientBtn" onclick="confirmNewClient()" class="hidden text-xs font-bold px-3 py-1 rounded-lg transition" style="color:#fb923c; border:1px solid rgba(251,146,60,0.35);" onmouseover="this.style.borderColor='#fb923c'" onmouseout="this.style.borderColor='rgba(251,146,60,0.35)'">↺ مشتری جدید</button>
-        <button onclick="closeChatInterface()" class="text-xs font-bold px-3 py-1 rounded-lg transition" style="color:var(--text-muted); border:1px solid var(--border-subtle);" onmouseover="this.style.color='var(--text-main)'" onmouseout="this.style.color='var(--text-muted)'">بستن ✕</button>
-      </div>
-    </div>
-
-    <div class="overflow-y-auto flex-1 p-5 space-y-4" dir="rtl">
-
-      <!-- ══ STEP 1: PASSPORT IDENTITY ══ -->
-      <div id="step1Panel">
-        <div class="flex items-center gap-2 mb-4">
-          <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0" style="background:var(--accent); color:var(--btn-text-on-accent);">۱</span>
-          <span class="font-black text-sm" style="color:var(--text-main);">شناسه مشتری — اطلاعات پاسپورت</span>
-        </div>
-
-        <!-- Three mode buttons -->
-        <div class="space-y-2 mb-4">
-          <button onclick="ppSetMode('upload')" id="modeBtn-upload"
-            class="w-full flex items-center gap-3 p-3 rounded-xl border text-right transition"
-            style="border-color:var(--border-color); background:var(--bg-main);"
-            onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border-color)'">
-            <span class="text-xl shrink-0">📤</span>
-            <div>
-              <div class="font-black text-sm" style="color:var(--text-main);">بارگذاری تصویر پاسپورت</div>
-              <div class="text-xs mt-0.5" style="color:var(--text-muted);">هوش مصنوعی اطلاعات را استخراج می‌کند — شما تأیید می‌کنید</div>
-            </div>
-          </button>
-
-          <button onclick="ppSetMode('manual')" id="modeBtn-manual"
-            class="w-full flex items-center gap-3 p-3 rounded-xl border text-right transition"
-            style="border-color:var(--border-color); background:var(--bg-main);"
-            onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border-color)'">
-            <span class="text-xl shrink-0">✏️</span>
-            <div>
-              <div class="font-black text-sm" style="color:var(--text-main);">ورود دستی اطلاعات</div>
-              <div class="text-xs mt-0.5" style="color:var(--text-muted);">نام، نام خانوادگی، نام پدر و تاریخ تولد را تایپ کنید</div>
-            </div>
-          </button>
-
-          <button onclick="ppSetMode('skip')"
-            class="w-full flex items-center gap-3 p-3 rounded-xl border text-right transition"
-            style="border-color:var(--border-subtle); background:var(--bg-main);"
-            onmouseover="this.style.borderColor='var(--text-muted)'" onmouseout="this.style.borderColor='var(--border-subtle)'">
-            <span class="text-xl shrink-0">⏭️</span>
-            <div>
-              <div class="font-black text-sm" style="color:var(--text-muted);">رد شدن — بدون پاسپورت</div>
-              <div class="text-xs mt-0.5" style="color:var(--text-muted);">اطلاعات از خود سند استخراج می‌شود</div>
-            </div>
-          </button>
-        </div>
-
-        <!-- Upload zone (shown when upload mode selected) -->
-        <div id="pp-upload-zone" class="hidden mb-4">
-          <div id="pp-drop-zone" onclick="document.getElementById('pp-file-input').click()"
-            class="drop-zone-chat p-6 text-center cursor-pointer">
-            <div class="text-2xl mb-1">🛂</div>
-            <p id="pp-drop-text" class="text-xs" style="color:var(--text-muted);">تصویر یا PDF پاسپورت را اینجا بکشید یا کلیک کنید</p>
-            <div id="pp-file-name" class="text-xs font-bold hidden mt-1" style="color:var(--accent);"></div>
-            <input type="file" id="pp-file-input" accept="image/jpeg,image/png,image/webp,application/pdf" style="display:none" onchange="ppHandleFile(this.files[0])">
-          </div>
-          <button id="pp-extract-btn" onclick="ppRunExtraction()" disabled
-            class="w-full mt-2 py-2.5 rounded-xl text-sm font-black transition disabled:opacity-30"
-            style="background:var(--accent); color:var(--btn-text-on-accent);">
-            استخراج با هوش مصنوعی
-          </button>
-        </div>
-
-        <!-- Status bar -->
-        <div id="pp-status" class="hidden text-xs p-3 rounded-lg mb-3 flex items-center gap-2"
-          style="background:var(--accent-hover); border:1px solid var(--border-color);">
-          <span id="pp-status-icon"></span>
-          <span id="pp-status-text" style="color:var(--text-main);"></span>
-        </div>
-
-        <!-- Identity fields (shown for manual + after extract) -->
-        <div id="pp-fields" class="hidden space-y-3 mb-4">
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="auth-label">نام (First Name)</label>
-              <input type="text" id="pp-first" class="auth-input en uppercase" dir="ltr" placeholder="ALI" oninput="this.value=this.value.toUpperCase()">
-            </div>
-            <div>
-              <label class="auth-label">نام خانوادگی (Last Name)</label>
-              <input type="text" id="pp-last" class="auth-input en uppercase" dir="ltr" placeholder="MOHAMMADI" oninput="this.value=this.value.toUpperCase()">
-            </div>
-          </div>
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="auth-label">نام پدر (Father's Name)</label>
-              <input type="text" id="pp-father" class="auth-input en uppercase" dir="ltr" placeholder="HASSAN" oninput="this.value=this.value.toUpperCase()">
-            </div>
-            <div>
-              <label class="auth-label">تاریخ تولد — میلادی</label>
-              <input type="text" id="pp-dob" class="auth-input en" dir="ltr" placeholder="April 12, 1985">
-            </div>
-          </div>
-          <button onclick="ppConfirmSession()"
-            class="w-full py-2.5 rounded-xl text-sm font-black transition"
-            style="background:var(--accent); color:var(--btn-text-on-accent);">
-            ✅ تأیید و شروع ترجمه
-          </button>
-        </div>
-      </div>
-
-      <!-- ══ STEP 2: DOCUMENT TRANSLATION ══ -->
-      <div id="step2Panel" class="hidden">
-        <div class="flex items-center gap-2 mb-4">
-          <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0" style="background:var(--accent); color:var(--btn-text-on-accent);">۲</span>
-          <span class="font-black text-sm" style="color:var(--text-main);">بارگذاری و ترجمه سند</span>
-        </div>
-
-        <!-- Document type selector -->
-        <div class="mb-4">
-          <label class="auth-label mb-1">نوع سند:</label>
-          <select id="docTemplate" class="auth-input" style="font-family:'Vazirmatn',sans-serif;">
-            <option value="police-certificate">گواهی عدم سوء پیشینه (Police Certificate)</option>
-            <option value="translate-vehicle-deed" disabled>سند مالکیت خودرو — به زودی</option>
-            <option value="power-of-attorney" disabled>وکالتنامه رسمی — به زودی</option>
-          </select>
-        </div>
-
-        <!-- Document drop zone -->
-        <div id="docDropZone" onclick="document.getElementById('docFileInput').click()"
-          class="drop-zone-chat p-8 text-center cursor-pointer mb-4">
-          <div class="text-3xl mb-2">📄</div>
-          <p id="docDropText" class="text-xs" style="color:var(--text-muted);">فایل سند را اینجا بکشید یا کلیک کنید</p>
-          <input type="file" id="docFileInput" accept="image/jpeg,image/png,application/pdf" style="display:none" onchange="handleDocFileSelection(this.files[0])">
-          <div id="docFileInfo" class="text-xs font-bold hidden mt-1" style="color:var(--accent);"></div>
-        </div>
-
-        <!-- Processing status -->
-        <div id="processingStatusBubble" class="hidden flex items-center gap-3 p-3 rounded-xl mb-3 text-sm"
-          style="background:var(--panel-bg); border:1px solid var(--border-color);">
-          <span class="animate-spin" style="color:var(--accent);">⏳</span>
-          <span id="statusMessageText" style="color:var(--text-muted);">در حال پردازش...</span>
-        </div>
-
-        <!-- Translate button -->
-        <button id="submitBtn" onclick="executeTranslationPipeline()" disabled
-          class="w-full py-3 rounded-xl font-black text-sm transition disabled:opacity-30"
-          style="background:var(--accent); color:var(--btn-text-on-accent);">
-          ترجمه و دانلود (.DOCX)
-        </button>
-
-        <!-- Next document button (shown after successful translation) -->
-        <button id="nextDocBtn" onclick="resetForNextDocument()" class="hidden w-full py-3 rounded-xl font-black text-sm transition mt-3"
-          style="background:var(--bg-main); color:var(--text-main); border:1px solid var(--border-color);">
-          ترجمه مدرک بعدی ←
-        </button>
-      </div>
-
-    </div>
+    <p class="modal-switch">حساب ندارید؟ <a onclick="switchToSignup()">ثبت‌نام کنید</a></p>
   </div>
 </div>
 
-<!-- ─── WORKSPACE DASHBOARD ─── -->
-<div id="workspaceDashboard" class="fixed inset-0 z-40 hidden overflow-y-auto p-4 md:p-8 pt-24" style="background: var(--bg-secondary);">
-    <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-6">
-
-        <!-- LEFT SIDEBAR -->
-        <div class="space-y-5 lg:col-span-1">
-
-            <!-- Profile Card -->
-            <div class="workspace-panel p-6">
-                <div class="flex items-center gap-3 mb-4">
-                    <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center font-black text-xl text-black" id="avatarLetter">M</div>
-                    <div>
-                        <h4 class="font-black text-base" id="profileDisplayName" style="color: var(--text-main);">مترجم رسمی</h4>
-                        <span class="text-xs en" id="profileEmailBadge" style="color: var(--text-muted);">user@deept.ir</span>
-                    </div>
-                </div>
-
-                <div class="rounded-xl p-2 flex items-center justify-between mb-4" style="background: var(--bg-main); border: 1px solid var(--border-subtle);">
-                    <span class="text-xs" style="color: var(--text-muted);">ساختار پروفایل:</span>
-                    <select id="accountTypeToggle" onchange="toggleProfileAccountType()" class="rounded px-2 py-1 text-xs font-bold outline-none" style="background: var(--card-surface); border: 1px solid var(--border-color); color: var(--accent);">
-                        <option value="individual">مترجم حقیقی</option>
-                        <option value="office">دارالترجمه رسمی</option>
-                    </select>
-                </div>
-
-                <div class="space-y-2 pt-3 border-t text-xs" style="border-color: var(--divider);">
-                    <div>
-                        <span style="color: var(--text-muted);">شماره/پل ارتباطی:</span>
-                        <input type="text" id="profileContactInput" placeholder="آیدی تلگرام یا شماره تماس..." class="auth-input mt-1">
-                    </div>
-                    <div id="officeFieldsBlock" class="hidden space-y-2 pt-2">
-                        <span style="color: var(--text-muted);">نام و شماره پروانه دارالترجمه:</span>
-                        <input type="text" id="officeNameInput" placeholder="دفتر ترجمه شماره..." class="auth-input mt-1">
-                    </div>
-                    <button onclick="saveProfileConfiguration()" class="w-full font-black py-1.5 rounded-lg mt-2 transition text-xs" style="background: var(--bg-main); color: var(--text-main); border: 1px solid var(--border-subtle);">بروزرسانی پروفایل</button>
-                </div>
-            </div>
-
-            <!-- Wallet -->
-            <div class="workspace-panel p-6 relative overflow-hidden">
-                <div class="absolute top-0 left-0 px-3 py-0.5 text-[9px] font-mono font-black uppercase rounded-br-lg" style="background: var(--accent); color: var(--btn-text-on-accent);">Shaparak Secured</div>
-                <h4 class="text-xs font-bold uppercase tracking-wide mb-2 mt-2" style="color: var(--text-muted);">کیف پول متمرکز (ریال)</h4>
-                <div class="text-3xl font-black font-mono my-3 flex items-baseline gap-1" style="color: var(--text-main);">
-                    <span id="walletBalanceDisplay">۱,۲۵۰,۰۰۰</span>
-                    <span class="text-xs font-sans font-bold" style="color: var(--accent);">ریال</span>
-                </div>
-                <div class="space-y-2 mt-4 pt-4" style="border-top: 1px solid var(--divider);">
-                    <label class="block text-[11px]" style="color: var(--text-muted);">مبلغ افزایش اعتبار (ریال):</label>
-                    <div class="flex gap-2">
-                        <input type="number" id="paymentAmountInput" value="500000" step="50000" min="100000" class="converter-input flex-1 text-left" dir="ltr" style="font-size: 0.85rem;">
-                        <button onclick="triggerShaparakPayment()" class="font-black text-xs px-4 rounded-lg transition shrink-0" style="background: var(--accent); color: var(--btn-text-on-accent);">درگاه</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Support -->
-            <div class="workspace-panel p-4 text-xs space-y-2">
-                <h4 class="font-bold flex items-center gap-1" style="color: var(--text-main);">📌 پشتیبانی مستقیم</h4>
-                <p style="color: var(--text-muted); line-height: 1.7;">ایمیل: <span class="en" style="color: var(--accent);">support@deept.ir</span></p>
-                <textarea id="supportTicketMsg" rows="3" placeholder="متن پیام خود را بنویسید..." class="auth-input resize-none" style="font-family: 'Vazirmatn', sans-serif; font-size: 0.8rem;"></textarea>
-                <button onclick="submitSupportTicket()" class="w-full font-bold py-1.5 rounded-lg transition" style="background: var(--bg-main); color: var(--accent); border: 1px solid var(--border-color);">ارسال تیکت</button>
-            </div>
-
-        </div>
-
-        <!-- MAIN CONTENT -->
-        <div class="lg:col-span-3 space-y-5">
-            <div class="workspace-panel p-6">
-                <div class="flex flex-col sm:flex-row sm:items-start justify-between pb-4 mb-4 gap-3" style="border-bottom: 1px solid var(--divider);">
-                    <div>
-                        <h3 class="text-lg font-black flex items-center gap-2" style="color: var(--text-main);">📊 پروژه‌های ترجمه</h3>
-                        <p class="text-xs mt-1 text-right" style="color: var(--text-muted);">مدارک پس از <span style="color: #fb923c; font-weight: 700;">۴۸ ساعت</span> به‌طور کامل و غیرقابل بازگشت پاک می‌شوند.</p>
-                    </div>
-                    <button onclick="openChatInterface()" class="font-black text-xs px-4 py-2 rounded-xl transition shrink-0 self-start" style="background: var(--accent); color: var(--btn-text-on-accent);">+ سند جدید</button>
-                </div>
-
-                <div class="overflow-x-auto">
-                    <table class="w-full text-right text-xs ws-table">
-                        <thead>
-                            <tr>
-                                <th class="text-right">شناسه / نام سند</th>
-                                <th class="text-center">نوع</th>
-                                <th class="text-center">تاریخ</th>
-                                <th class="text-center" style="color: #fb923c;">⏱ تخریب خودکار</th>
-                                <th class="text-left">عملیات</th>
-                            </tr>
-                        </thead>
-                        <tbody id="projectDashboardRowsBlock" style="color: var(--text-main);"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div class="text-center">
-                <button onclick="closeWorkspaceDashboard()" class="text-xs px-6 py-2 rounded-xl transition" style="color: var(--text-muted); border: 1px solid var(--border-subtle); background: var(--card-surface);" onmouseover="this.style.color='var(--text-main)'" onmouseout="this.style.color='var(--text-muted)'">بازگشت به نمای اصلی ↩</button>
-            </div>
-        </div>
+<div class="overlay" id="signupOverlay">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModals()">بستن ✕</button>
+    <div id="signupForm">
+      <h2>ثبت‌نام در DeepT</h2>
+      <p class="modal-sub">یک حساب رایگان بسازید</p>
+      <label>نام و نام خانوادگی</label>
+      <input class="modal-input fa" type="text" id="su-name" placeholder="نام خود را وارد کنید" autocomplete="name">
+      <label>ایمیل</label>
+      <input class="modal-input" type="email" id="su-email" placeholder="name@example.com" autocomplete="email">
+      <label>رمز عبور (حداقل ۸ کاراکتر)</label>
+      <input class="modal-input" type="password" id="su-pass" placeholder="••••••••" autocomplete="new-password">
+      <p class="modal-error" id="su-error"></p>
+      <button class="modal-btn" onclick="handleSignup()">ساخت حساب</button>
     </div>
+    <div class="modal-success" id="signupSuccess">
+      <div class="icon">📧</div>
+      <strong>ایمیل تأیید ارسال شد</strong>
+      <p>لطفاً ایمیل خود را بررسی کنید و روی لینک فعال‌سازی کلیک کنید.</p>
+    </div>
+    <p class="modal-switch">قبلاً ثبت‌نام کردید؟ <a onclick="switchToLogin()">وارد شوید</a></p>
+  </div>
 </div>
 
-<!-- ─── TRANSCRIPT TABLE ─── -->
-<section class="section bg-section my-8">
-    <div class="flex justify-center overflow-x-auto px-4 sm:px-0">
-        <table class="w-auto border-collapse text-left" dir="ltr">
-            <tr>
-                <td class="table-header">Course</td>
-                <td class="table-header">Units</td>
-                <td class="table-header">Grade</td>
-                <td class="table-header">Status</td>
-            </tr>
-            <tr><td class="table-cell"><span id="courseName1"></span></td><td class="table-cell"><span id="courseUnits1"></span></td><td class="table-cell"><span id="courseGrade1"></span></td><td class="table-cell"><span id="courseStatus1"></span></td></tr>
-            <tr><td class="table-cell"><span id="courseName2"></span></td><td class="table-cell"><span id="courseUnits2"></span></td><td class="table-cell"><span id="courseGrade2"></span></td><td class="table-cell"><span id="courseStatus2"></span></td></tr>
-            <tr><td class="table-cell"><span id="courseName3"></span></td><td class="table-cell"><span id="courseUnits3"></span></td><td class="table-cell"><span id="courseGrade3"></span></td><td class="table-cell"><span id="courseStatus3"></span></td></tr>
-            <tr><td class="table-cell"><span id="courseName4"></span></td><td class="table-cell"><span id="courseUnits4"></span></td><td class="table-cell"><span id="courseGrade4"></span></td><td class="table-cell"><span id="courseStatus4"></span></td></tr>
-            <tr><td class="table-cell"><span id="courseName5"></span></td><td class="table-cell"><span id="courseUnits5"></span></td><td class="table-cell"><span id="courseGrade5"></span></td><td class="table-cell"><span id="courseStatus5"></span></td></tr>
-            <tr><td class="table-cell"><span id="courseName6"></span></td><td class="table-cell"><span id="courseUnits6"></span></td><td class="table-cell"><span id="courseGrade6"></span></td><td class="table-cell"><span id="courseStatus6"></span></td></tr>
-            <tr><td class="table-cell"><span id="courseName7"></span></td><td class="table-cell"><span id="courseUnits7"></span></td><td class="table-cell"><span id="courseGrade7"></span></td><td class="table-cell"><span id="courseStatus7"></span></td></tr>
-            <tr><td class="table-cell"><span id="courseName8"></span></td><td class="table-cell"><span id="courseUnits8"></span></td><td class="table-cell"><span id="courseGrade8"></span></td><td class="table-cell"><span id="courseStatus8"></span></td></tr>
-            <tr><td class="table-cell"><span id="courseName9"></span></td><td class="table-cell"><span id="courseUnits9"></span></td><td class="table-cell"><span id="courseGrade9"></span></td><td class="table-cell"><span id="courseStatus9"></span></td></tr>
-            <tr><td class="table-cell"><span id="courseName10"></span></td><td class="table-cell"><span id="courseUnits10"></span></td><td class="table-cell"><span id="courseGrade10"></span></td><td class="table-cell"><span id="courseStatus10"></span></td></tr>
-        </table>
+<!-- ── QUICK START PIPELINE MODAL ── -->
+<div class="overlay" id="quickStartOverlay">
+  <div class="modal qs-modal">
+    <button class="modal-close" onclick="closeModals()">بستن ✕</button>
+    <h2 style="margin-bottom:.3rem;">شروع سریع</h2>
+    <p class="modal-sub">ترجمه بدون ثبت‌نام — پرداخت ۵۰،۰۰۰ تومان پس از پردازش</p>
+
+    <!-- Progress bar -->
+    <div class="qs-progress">
+      <div class="qs-prog-step">
+        <div class="qs-prog-dot active" id="qd1">۱</div>
+        <div class="qs-prog-label">شناسه مشتری</div>
+      </div>
+      <div class="qs-prog-line" id="ql1"></div>
+      <div class="qs-prog-step">
+        <div class="qs-prog-dot" id="qd2">۲</div>
+        <div class="qs-prog-label">بارگذاری سند</div>
+      </div>
+      <div class="qs-prog-line" id="ql2"></div>
+      <div class="qs-prog-step">
+        <div class="qs-prog-dot" id="qd3">۳</div>
+        <div class="qs-prog-label">پرداخت و دانلود</div>
+      </div>
     </div>
-    <div class="animated-text" id="certText"></div>
-</section>
 
-<!-- ─── WHY DEEPT ─── -->
-<section class="section bg-section my-8">
-    <h2>چرا DeepT؟</h2>
-    <p>DeepT از مدل‌های هوش مصنوعی پیشرفته برای ارائه ترجمه سریع، دقیق و امن اسناد حقوقی استفاده می‌کند.</p>
-</section>
+    <!-- ── PANEL 1: Passport / Identity ── -->
+    <div class="qs-panel active" id="qsPanel1">
+      <p style="font-size:.85rem;color:var(--muted);margin-bottom:.9rem;">اطلاعات هویتی مشتری چطور وارد شود؟</p>
+      <div class="qs-mode-grid">
+        <button class="qs-mode-btn" id="qsModeUpload" onclick="qsSelectMode('upload')">
+          <span class="qs-mode-icon">📤</span>
+          <div class="qs-mode-label">آپلود پاسپورت</div>
+          <div class="qs-mode-sub">استخراج خودکار</div>
+        </button>
+        <button class="qs-mode-btn" id="qsModeManual" onclick="qsSelectMode('manual')">
+          <span class="qs-mode-icon">✏️</span>
+          <div class="qs-mode-label">ورود دستی</div>
+          <div class="qs-mode-sub">تایپ اطلاعات</div>
+        </button>
+        <button class="qs-mode-btn" id="qsModeSkip" onclick="qsSelectMode('skip')">
+          <span class="qs-mode-icon">⏭️</span>
+          <div class="qs-mode-label">رد شدن</div>
+          <div class="qs-mode-sub">بدون پاسپورت</div>
+        </button>
+      </div>
 
-<section class="section my-8">
-    <div class="feature"><h3>هوش مصنوعی پیشرفته</h3><p>شبکه‌های عصبی آموزش‌دیده روی متون حقوقی برای دقت بی‌نظیر در ترجمه.</p></div>
-    <div class="feature"><h3>امن و محرمانه</h3><p>اسناد شما با رمزگذاری سطح سازمانی و رعایت حریم خصوصی کاملاً امن هستند.</p></div>
-    <div class="feature"><h3>سریع و مقیاس‌پذیر</h3><p>ترجمه صدها صفحه در چند دقیقه بدون افت کیفیت.</p></div>
-</section>
-
-<!-- ─── DATE CONVERTER ─── -->
-<section class="section bg-section my-8 text-center" id="converter">
-    <h2>تبدیل تاریخ شمسی به میلادی</h2>
-    <p class="mb-6" style="color: var(--text-muted);">ابزار کاربردی برای تبدیل دقیق تاریخ تولد یا صدور مدارک</p>
-
-    <div class="max-w-2xl mx-auto rounded-2xl p-6" style="background: var(--bg-main); border: 1px solid var(--border-color);">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div>
-                <label class="block text-sm font-bold mb-2" style="color: var(--accent);">روز</label>
-                <input type="number" id="dayInput" placeholder="DD" min="1" max="31" class="converter-input">
-            </div>
-            <div>
-                <label class="block text-sm font-bold mb-2" style="color: var(--accent);">ماه</label>
-                <select id="monthInput" class="converter-input cursor-pointer appearance-none">
-                    <option value="1">فروردین</option><option value="2">اردیبهشت</option>
-                    <option value="3">خرداد</option><option value="4">تیر</option>
-                    <option value="5">مرداد</option><option value="6">شهریور</option>
-                    <option value="7">مهر</option><option value="8">آبان</option>
-                    <option value="9">آذر</option><option value="10">دی</option>
-                    <option value="11">بهمن</option><option value="12">اسفند</option>
-                </select>
-            </div>
-            <div>
-                <label class="block text-sm font-bold mb-2" style="color: var(--accent);">سال</label>
-                <input type="number" id="yearInput" placeholder="YYYY" class="converter-input">
-            </div>
+      <!-- Upload passport -->
+      <div id="qsUploadZone" style="display:none;">
+        <div class="qs-drop" id="qsPassDrop" onclick="document.getElementById('qsPassFile').click()">
+          <div class="qs-drop-icon">🛂</div>
+          <div class="qs-drop-text">تصویر یا PDF پاسپورت را اینجا بکشید یا کلیک کنید</div>
+          <div class="qs-file-name" id="qsPassFileName"></div>
+          <input type="file" id="qsPassFile" accept="image/*,application/pdf" style="display:none" onchange="qsHandlePassport(this.files[0])">
         </div>
+      </div>
 
-        <button onclick="convertDate()" class="btn w-full md:w-auto px-10 py-3 text-lg mb-4">تبدیل تاریخ</button>
-        <div id="errorMsg" class="hidden text-red-400 mt-2 text-sm"></div>
-
-        <div id="resultContainer" class="hidden mt-8 pt-8" style="border-top: 2px dashed var(--border-color);">
-            <div class="flex items-center justify-center gap-2 mb-4" style="color: var(--accent);">
-                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                <span class="font-black text-lg">تبدیل موفقیت‌آمیز بود</span>
-            </div>
-
-            <div class="p-6 rounded-xl" style="background: var(--bg-main); border: 1px solid var(--accent); box-shadow: inset 0 0 20px var(--accent-glow);" dir="ltr">
-                <p class="text-xs uppercase tracking-widest mb-2 en" style="color: var(--text-muted);">Official Gregorian Date</p>
-                <div id="mainDate" class="text-4xl font-black en mb-2" style="color: var(--text-main);"></div>
-
-                <div class="flex items-center justify-center gap-3 mb-6 group cursor-pointer" onclick="copyText(document.getElementById('longDateValue').innerText,'longDate')">
-                    <span id="longDateValue" class="text-xl en group-hover:underline transition" style="color: var(--accent);"></span>
-                    <span id="msg-longDate" class="text-green-400 text-sm hidden font-bold" dir="rtl">✅ کپی شد!</span>
-                    <span class="text-sm border px-2 rounded-full hidden sm:inline-block group-hover:opacity-100 opacity-50 transition" style="color: var(--text-muted); border-color: var(--border-color); font-family: 'Vazirmatn', sans-serif; direction: rtl;">کپی</span>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <button onclick="copyText(document.getElementById('fmt1').innerText,'fmt1')" class="border p-3 rounded flex flex-col items-start hover:opacity-80 transition group relative text-left" style="border-color: var(--border-color);">
-                        <span id="msg-fmt1" class="hidden absolute top-[-10px] left-1/2 transform -translate-x-1/2 bg-green-500 text-black text-[10px] px-2 rounded font-black z-10" dir="rtl">✅ کپی شد!</span>
-                        <span class="text-[10px] font-bold uppercase en" style="color: var(--text-muted);">YYYY-MM-DD</span>
-                        <span id="fmt1" class="en text-lg block mt-1" style="color: var(--accent);"></span>
-                    </button>
-                    <button onclick="copyText(document.getElementById('fmt2').innerText,'fmt2')" class="border p-3 rounded flex flex-col items-start hover:opacity-80 transition group relative text-left" style="border-color: var(--border-color);">
-                        <span id="msg-fmt2" class="hidden absolute top-[-10px] left-1/2 transform -translate-x-1/2 bg-green-500 text-black text-[10px] px-2 rounded font-black z-10" dir="rtl">✅ کپی شد!</span>
-                        <span class="text-[10px] font-bold uppercase en" style="color: var(--text-muted);">MM/DD/YYYY</span>
-                        <span id="fmt2" class="en text-lg block mt-1" style="color: var(--accent);"></span>
-                    </button>
-                    <button onclick="copyText(document.getElementById('fmt3').innerText,'fmt3')" class="border p-3 rounded flex flex-col items-start hover:opacity-80 transition group relative text-left" style="border-color: var(--border-color);">
-                        <span id="msg-fmt3" class="hidden absolute top-[-10px] left-1/2 transform -translate-x-1/2 bg-green-500 text-black text-[10px] px-2 rounded font-black z-10" dir="rtl">✅ کپی شد!</span>
-                        <span class="text-[10px] font-bold uppercase en" style="color: var(--text-muted);">DD/MM/YYYY</span>
-                        <span id="fmt3" class="en text-lg block mt-1" style="color: var(--accent);"></span>
-                    </button>
-                    <button onclick="copyText(document.getElementById('fmt4').innerText,'fmt4')" class="border p-3 rounded flex flex-col items-start hover:opacity-80 transition group relative text-left" style="border-color: var(--border-color);">
-                        <span id="msg-fmt4" class="hidden absolute top-[-10px] left-1/2 transform -translate-x-1/2 bg-green-500 text-black text-[10px] px-2 rounded font-black z-10" dir="rtl">✅ کپی شد!</span>
-                        <span class="text-[10px] font-bold uppercase en" style="color: var(--text-muted);">Month D, YYYY</span>
-                        <span id="fmt4" class="en text-lg block mt-1" style="color: var(--accent);"></span>
-                    </button>
-                </div>
-            </div>
+      <!-- Manual entry -->
+      <div id="qsManualZone" style="display:none;">
+        <div class="qs-field-grid">
+          <div>
+            <label class="auth-label">نام (First Name)</label>
+            <input class="modal-input" type="text" id="qsFirst" placeholder="ALI" dir="ltr" style="font-family:'Inter',sans-serif;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
+          </div>
+          <div>
+            <label class="auth-label">نام خانوادگی (Last Name)</label>
+            <input class="modal-input" type="text" id="qsLast" placeholder="MOHAMMADI" dir="ltr" style="font-family:'Inter',sans-serif;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
+          </div>
+          <div>
+            <label class="auth-label">نام پدر (Father's Name)</label>
+            <input class="modal-input" type="text" id="qsFather" placeholder="HASSAN" dir="ltr" style="font-family:'Inter',sans-serif;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
+          </div>
+          <div>
+            <label class="auth-label">تاریخ تولد — میلادی</label>
+            <input class="modal-input" type="text" id="qsDob" placeholder="April 12, 1985" dir="ltr" style="font-family:'Inter',sans-serif;">
+          </div>
         </div>
+      </div>
+
+      <div class="qs-nav">
+        <button class="qs-btn-next" id="qsNext1" onclick="qsGoToPanel(2)" disabled>ادامه — بارگذاری سند ←</button>
+      </div>
     </div>
+
+    <!-- ── PANEL 2: Document upload ── -->
+    <div class="qs-panel" id="qsPanel2">
+      <div style="margin-bottom:.85rem;">
+        <label class="auth-label" style="margin-bottom:.4rem;">نوع سند</label>
+        <select class="modal-input" id="qsDocType" style="font-family:'Vazirmatn',sans-serif;">
+          <option value="police-certificate">گواهی عدم سوء پیشینه</option>
+          <option value="vehicle-deed" disabled>سند مالکیت خودرو — به زودی</option>
+        </select>
+      </div>
+      <div class="qs-drop" id="qsDocDrop" onclick="document.getElementById('qsDocFile').click()">
+        <div class="qs-drop-icon">📄</div>
+        <div class="qs-drop-text">فایل سند (تصویر یا PDF) را اینجا بکشید یا کلیک کنید</div>
+        <div class="qs-file-name" id="qsDocFileName"></div>
+        <input type="file" id="qsDocFile" accept="image/jpeg,image/png,application/pdf" style="display:none" onchange="qsHandleDoc(this.files[0])">
+      </div>
+
+      <!-- Processing animation — shown during backend call -->
+      <div class="qs-processing" id="qsProcessing">
+        <svg class="qs-proc-svg" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+          <path class="qs-proc-d-outer" d="M 28 18 L 28 102 L 58 102 C 92 102 105 84 105 60 C 105 36 92 18 58 18 Z"/>
+          <path class="qs-proc-d-inner" d="M 40 32 L 40 88 L 57 88 C 80 88 90 76 90 60 C 90 44 80 32 57 32 Z"/>
+        </svg>
+        <div class="qs-proc-text">در حال پردازش سند...</div>
+      </div>
+
+      <div class="qs-nav">
+        <button class="qs-btn-back" onclick="qsGoToPanel(1)">← بازگشت</button>
+        <button class="qs-btn-next" id="qsNext2" onclick="qsRunTranslation()" disabled>ترجمه و پرداخت ←</button>
+      </div>
+    </div>
+
+    <!-- ── PANEL 3: Payment & Download ── -->
+    <div class="qs-panel" id="qsPanel3">
+      <div class="qs-pay-box">
+        <div class="qs-pay-amount">۵۰،۰۰۰ تومان</div>
+        <div class="qs-pay-label">هزینه ترجمه یک سند</div>
+      </div>
+      <p style="font-size:.83rem;color:var(--muted);margin-bottom:1.1rem;line-height:1.75;text-align:center;">
+        سند شما پردازش شد. پس از پرداخت از طریق درگاه شاپرک، فایل Word به‌صورت خودکار دانلود می‌شود.
+      </p>
+      <button class="qs-btn-next" onclick="qsSimulatePayment()" style="width:100%;">💳 پرداخت آنلاین از طریق شاپرک</button>
+      <p style="text-align:center;font-size:.78rem;color:var(--muted);margin-top:.75rem;">
+        می‌خواهید تاریخچه داشته باشید؟
+        <a onclick="closeModals();setTimeout(openSignup,80);" style="color:var(--accent);cursor:pointer;font-weight:700;">حساب رایگان بسازید</a>
+      </p>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── HEADER ── -->
+<header>
+  <span class="header-wordmark en">DEEPT</span>
+  <nav class="header-nav">
+    <a href="#how" class="btn-ghost nav-links">نحوه کار</a>
+    <a href="#pricing" class="btn-ghost nav-links">تعرفه</a>
+    <a href="#tool" class="btn-ghost nav-links">تبدیل تاریخ</a>
+    <button class="theme-btn" onclick="toggleTheme()" id="themeBtn">🌙</button>
+    <button class="btn-ghost" onclick="openLogin()">ورود</button>
+    <button class="btn-accent" onclick="openSignup()">ثبت‌نام رایگان</button>
+  </nav>
+</header>
+
+<main>
+
+<!-- ── HERO ── -->
+<section class="hero">
+  <!-- Large hero logo -->
+  <div class="hero-logo-wrap">
+    <img src="data:image/png;base64,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AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACcEmAAgAQSUp2yh2gAAAAASUVORK5CYII=" class="hero-logo" alt="DeepT">
+  </div>
+  <div class="hero-badge">🗂️ سامانه رسمی ترجمه اسناد</div>
+  <h1>ترجمه رسمی اسناد<br><span>سریع، دقیق، حرفه‌ای</span></h1>
+  <p class="hero-sub">
+    DeepT ابزار تخصصی مترجمان رسمی، دارالترجمه‌ها و فرمزن‌ها برای ترجمه اسناد حقوقی است.
+    بارگذاری سند، دریافت خروجی Word — در چند ثانیه.
+  </p>
+  <div class="hero-cta">
+    <button class="btn-primary" onclick="openSignup()">ثبت‌نام رایگان</button>
+    <button class="btn-secondary" onclick="openQuickStart()">⚡ شروع سریع — بدون ثبت‌نام</button>
+  </div>
 </section>
 
-<!-- ─── FOOTER ─── -->
-<footer class="section bg-section my-8 text-center">
-    <p>&copy; 2026 DeepT. همه حقوق محفوظ است.</p>
-    <p style="color: var(--text-muted);">اتوماسیون ترجمه رسمی | هوش مصنوعی | پیشرفته‌ترین تکنولوژی</p>
+<!-- ── HOW IT WORKS ── -->
+<section class="section" id="how">
+  <p class="section-label">نحوه کار</p>
+  <h2 class="section-title">سه مرحله تا دریافت فایل نهایی</h2>
+  <p class="section-sub">از بارگذاری سند تا دریافت فایل Word آماده</p>
+  <div class="steps">
+    <div class="step-card">
+      <div class="step-num">۱</div>
+      <h3>اطلاعات هویتی مشتری</h3>
+      <p>تصویر پاسپورت را بارگذاری کنید تا اطلاعات به‌صورت خودکار استخراج شود — یا آن‌ها را دستی وارد کنید. این مرحله فقط یک بار انجام می‌شود.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">۲</div>
+      <h3>بارگذاری سند</h3>
+      <p>نوع سند را انتخاب کنید و فایل تصویر یا PDF سند رسمی را بارگذاری کنید.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-num">۳</div>
+      <h3>دریافت فایل ترجمه</h3>
+      <p>فایل Word حرفه‌ای آماده دانلود می‌شود. برای مدرک بعدی همان مشتری، فقط فایل سند را عوض کنید.</p>
+    </div>
+  </div>
+</section>
+
+
+<!-- ── DATE TOOL ── -->
+<section class="section" id="tool">
+  <p class="section-label">ابزار رایگان</p>
+  <h2 class="section-title">تبدیل تاریخ شمسی به میلادی</h2>
+  <p class="section-sub">برای درج تاریخ تولد یا صدور مدارک در ترجمه رسمی</p>
+  <div class="tool-box">
+    <div class="input-row">
+      <div>
+        <span class="field-label">روز</span>
+        <input class="field-input" type="number" id="t-day" placeholder="روز" min="1" max="31">
+      </div>
+      <div>
+        <span class="field-label">ماه</span>
+        <select class="field-input" id="t-month">
+          <option value="1">فروردین</option><option value="2">اردیبهشت</option>
+          <option value="3">خرداد</option><option value="4">تیر</option>
+          <option value="5">مرداد</option><option value="6">شهریور</option>
+          <option value="7">مهر</option><option value="8">آبان</option>
+          <option value="9">آذر</option><option value="10">دی</option>
+          <option value="11">بهمن</option><option value="12">اسفند</option>
+        </select>
+      </div>
+      <div>
+        <span class="field-label">سال</span>
+        <input class="field-input" type="number" id="t-year" placeholder="مثلاً ۱۳۷۵">
+      </div>
+    </div>
+    <button class="tool-btn" onclick="convertDate()">تبدیل تاریخ</button>
+    <p class="error-msg" id="t-error"></p>
+    <div class="result-box" id="t-result">
+      <div class="result-main" id="t-main" onclick="copyFmt('t-main')" title="کلیک برای کپی" style="cursor:pointer;position:relative;">
+        <span class="fmt-copied" id="cp-t-main">کپی شد ✓</span>
+      </div>
+      <p style="font-size:.75rem;color:var(--muted);text-align:center;margin-bottom:.85rem;">
+        👆 روی هر فرمت کلیک کنید تا در کلیپ‌بورد کپی شود
+      </p>
+      <div class="fmt-grid">
+        <button class="fmt-btn" onclick="copyFmt('t-f1')">
+          <span class="fmt-copied" id="cp-t-f1">کپی شد ✓</span>
+          <span class="fmt-label">YYYY-MM-DD</span>
+          <span class="fmt-value" id="t-f1"></span>
+        </button>
+        <button class="fmt-btn" onclick="copyFmt('t-f2')">
+          <span class="fmt-copied" id="cp-t-f2">کپی شد ✓</span>
+          <span class="fmt-label">DD/MM/YYYY</span>
+          <span class="fmt-value" id="t-f2"></span>
+        </button>
+        <button class="fmt-btn" onclick="copyFmt('t-f3')">
+          <span class="fmt-copied" id="cp-t-f3">کپی شد ✓</span>
+          <span class="fmt-label">MM/DD/YYYY</span>
+          <span class="fmt-value" id="t-f3"></span>
+        </button>
+        <button class="fmt-btn" onclick="copyFmt('t-f4')">
+          <span class="fmt-copied" id="cp-t-f4">کپی شد ✓</span>
+          <span class="fmt-label">Month D, YYYY</span>
+          <span class="fmt-value" id="t-f4"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── PRICING ── -->
+<section class="section" id="pricing">
+  <p class="section-label">تعرفه</p>
+  <h2 class="section-title">ساده و شفاف</h2>
+  <p class="section-sub">بدون اشتراک اجباری — هر روشی که مناسب شما است</p>
+  <div class="pricing-grid">
+
+    <!-- Pay as you go -->
+    <div class="pricing-card">
+      <div class="pricing-title">پرداخت به‌ازای هر ترجمه</div>
+      <div class="pricing-price">۵۰،۰۰۰ <span>تومان / سند</span></div>
+      <p class="pricing-sub">بدون ثبت‌نام. همین الان شروع کنید، فقط برای همان ترجمه پرداخت کنید.</p>
+      <ul class="pricing-features">
+        <li>بدون نیاز به ایجاد حساب</li>
+        <li>پرداخت آنلاین از طریق شاپرک</li>
+        <li>دانلود فوری فایل Word</li>
+        <li>پشتیبانی از تمام سند‌های فعال</li>
+      </ul>
+      <button class="pricing-btn pricing-btn-outline" onclick="document.getElementById('quickStartOverlay').classList.add('open')">
+        ⚡ شروع سریع
+      </button>
+    </div>
+
+    <!-- Account / subscription -->
+    <div class="pricing-card featured">
+      <div class="pricing-badge">پیشنهادی</div>
+      <div class="pricing-title">حساب کاربری</div>
+      <div class="pricing-price">۳۵،۰۰۰ <span>تومان / سند</span></div>
+      <p class="pricing-sub">ثبت‌نام رایگان، تاریخچه کامل، کیف پول داخلی و قیمت کمتر به‌ازای هر ترجمه.</p>
+      <ul class="pricing-features">
+        <li>ثبت‌نام رایگان — بدون هزینه اولیه</li>
+        <li>تاریخچه تمام ترجمه‌ها</li>
+        <li>کیف پول داخلی و شارژ گروهی</li>
+        <li>پروفایل مترجم / دارالترجمه</li>
+        <li>اولویت در پردازش</li>
+      </ul>
+      <button class="pricing-btn pricing-btn-primary" onclick="openSignup()">
+        ثبت‌نام رایگان
+      </button>
+    </div>
+
+  </div>
+</section>
+
+<!-- ── CTA ── -->
+<div class="cta-band">
+  <h2>آماده شروع هستید؟</h2>
+  <p>ثبت‌نام رایگان است. اولین ترجمه خود را همین الان امتحان کنید.</p>
+  <button class="btn-primary" style="font-size:1rem;padding:.9rem 2.25rem;" onclick="openSignup()">ثبت‌نام رایگان</button>
+</div>
+
+</main>
+
+<!-- ── FOOTER ── -->
+<footer>
+  <span class="copy">© ۱۴۰۵ DeepT</span>
+  <div class="footer-links">
+    <a href="mailto:support@deept.ir" class="en">support@deept.ir</a>
+    <a href="#">حریم خصوصی</a>
+    <a href="#">تماس با ما</a>
+  </div>
 </footer>
 
-
 <script>
-const BACKEND = "https://deept-police-backend.onrender.com";
+// ── LOGO (embedded, theme-aware via CSS filter) ──
+// logo embedded in hero
 
-// ─── APP STATE ───
-let currentUserSession    = JSON.parse(localStorage.getItem('deept_mock_user')) || null;
-let currentWalletBalance  = parseInt(localStorage.getItem('deept_mock_wallet')) || 1250000;
-let trackingProjectsDatabase = [
-    { id:"DPT-9804", name:"برگ_سبز_پژو_۲۰۶.jpg",       type:"سند خودرو", timestamp: Date.now()-(12*3600000) },
-    { id:"DPT-4412", name:"Doc_Ref_Official_Signed.pdf", type:"سند خودرو", timestamp: Date.now()-(46.5*3600000) }
-];
+// ── DEEPT-CORE AUTH ──
+const CORE = 'https://deept-core.onrender.com';
 
-// ─── PASSPORT SESSION STATE ───
-let passportSession = { session_id:null, first_name:null, last_name:null, father_name:null, date_of_birth:null };
-let ppSelectedFile  = null;
-let ppCurrentMode   = null;   // 'upload' | 'manual' | 'skip'
-let docSelectedFile = null;
-
-// ═══════════════════════════════════════════════════════════
-// TOAST
-// ═══════════════════════════════════════════════════════════
-function showToast(msg, duration=2500) {
-    const t = document.getElementById('toast');
-    t.textContent = msg;
-    t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), duration);
+async function corePost(path, body) {
+    const res = await fetch(`${CORE}${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    });
+    return { ok: res.ok, data: await res.json() };
 }
 
-// ═══════════════════════════════════════════════════════════
-// THEME
-// ═══════════════════════════════════════════════════════════
-function toggleGlobalTheme() {
-    const body = document.body;
-    const next = (body.getAttribute('data-theme') || 'dark') === 'dark' ? 'light' : 'dark';
-    body.setAttribute('data-theme', next);
-    document.getElementById('themeBtnIcon').textContent = next === 'light' ? '🌙' : '☀️';
-    document.getElementById('themeBtnText').textContent = next === 'light' ? 'تاریک' : 'روشن';
-    localStorage.setItem('deept_theme', next);
+function saveSession(data) {
+    localStorage.setItem('deept_token',     data.token);
+    localStorage.setItem('deept_user_id',   data.user_id);
+    localStorage.setItem('deept_user_name', data.full_name);
+    localStorage.setItem('deept_user_email',data.email);
 }
-(function(){
-    const saved = localStorage.getItem('deept_theme');
+
+// ── LOGIN ──
+async function handleLogin() {
+    const email = document.getElementById('li-email').value.trim();
+    const pass  = document.getElementById('li-pass').value;
+    const err   = document.getElementById('li-error');
+    err.classList.remove('show');
+    if (!email || !pass) { err.textContent='لطفاً همه فیلدها را پر کنید.'; err.classList.add('show'); return; }
+    try {
+        const { ok, data } = await corePost('/auth/login', { email, password: pass });
+        if (!ok) { err.textContent = data.detail || 'ایمیل یا رمز عبور اشتباه است.'; err.classList.add('show'); return; }
+        saveSession(data);
+        document.getElementById('loginForm').style.display='none';
+        document.getElementById('loginSuccess').classList.add('show');
+        setTimeout(() => { closeModals(); toast('✅ ورود موفق'); window.location.href='DeepT_Enhanced.html'; }, 1400);
+    } catch(e) { err.textContent='خطا در اتصال. دوباره تلاش کنید.'; err.classList.add('show'); }
+}
+
+// ── SIGNUP ──
+async function handleSignup() {
+    const name  = document.getElementById('su-name').value.trim();
+    const email = document.getElementById('su-email').value.trim();
+    const pass  = document.getElementById('su-pass').value;
+    const err   = document.getElementById('su-error');
+    err.classList.remove('show');
+    if (!name||!email||!pass) { err.textContent='لطفاً همه فیلدها را پر کنید.'; err.classList.add('show'); return; }
+    if (pass.length < 8)      { err.textContent='رمز عبور باید حداقل ۸ کاراکتر باشد.'; err.classList.add('show'); return; }
+    if (!email.includes('@')) { err.textContent='یک ایمیل معتبر وارد کنید.'; err.classList.add('show'); return; }
+    try {
+        const { ok, data } = await corePost('/auth/signup', {
+            email,
+            password:     pass,
+            full_name:    name,
+            account_type: 'individual'
+        });
+        if (!ok) { err.textContent = data.detail || 'این ایمیل قبلاً ثبت شده است.'; err.classList.add('show'); return; }
+        saveSession(data);
+        document.getElementById('signupForm').style.display='none';
+        document.getElementById('signupSuccess').classList.add('show');
+        setTimeout(() => { closeModals(); window.location.href='DeepT_Enhanced.html'; }, 1800);
+    } catch(e) { err.textContent='خطا در اتصال. دوباره تلاش کنید.'; err.classList.add('show'); }
+}
+function openLogin()   { document.getElementById('loginOverlay').classList.add('open'); }
+function openSignup()  { document.getElementById('signupOverlay').classList.add('open'); }
+function openQuickStart() {
+    qsReset();
+    document.getElementById('quickStartOverlay').classList.add('open');
+}
+function closeModals() {
+    ['loginOverlay','signupOverlay','quickStartOverlay'].forEach(id =>
+        document.getElementById(id).classList.remove('open')
+    );
+}
+function switchToSignup() { closeModals(); setTimeout(openSignup, 80); }
+function switchToLogin()  { closeModals(); setTimeout(openLogin, 80); }
+
+['loginOverlay','signupOverlay','quickStartOverlay'].forEach(id => {
+    document.getElementById(id).addEventListener('click', e => {
+        if (e.target === document.getElementById(id)) closeModals();
+    });
+});
+
+// ── THEME ──
+(function() {
+    const saved = localStorage.getItem('deept_theme') || 'dark';
     if (saved === 'light') {
-        document.body.setAttribute('data-theme','light');
-        document.getElementById('themeBtnIcon').textContent = '🌙';
-        document.getElementById('themeBtnText').textContent = 'تاریک';
+        document.body.setAttribute('data-theme', 'light');
+        document.getElementById('themeBtn').textContent = '☀️';
     }
 })();
-
-// ═══════════════════════════════════════════════════════════
-// AUTH MODAL
-// ═══════════════════════════════════════════════════════════
-function openAuthModal()  { document.getElementById('authModal').classList.remove('hidden'); switchAuthState('login'); }
-function closeAuthModal() { document.getElementById('authModal').classList.add('hidden'); }
-function switchAuthState(state) {
-    ['loginStateBox','signupStateBox','forgotStateBox'].forEach(id => document.getElementById(id).classList.add('hidden'));
-    document.getElementById(state === 'login' ? 'loginStateBox' : state === 'signup' ? 'signupStateBox' : 'forgotStateBox').classList.remove('hidden');
-}
-function simulateAuthAction(type) {
-    if (type === 'login' || type === 'signup') {
-        const email = document.getElementById(type === 'login' ? 'loginEmail' : 'signupEmail').value;
-        if (!email || !email.includes('@')) { showToast('لطفا ایمیل معتبری وارد کنید.'); return; }
-        currentUserSession = { email, username: email.split('@')[0], type:'individual', contact:'', office:'' };
-        localStorage.setItem('deept_mock_user', JSON.stringify(currentUserSession));
-        syncUserSessionDOM();
-        closeAuthModal();
-        showToast('✅ خوش آمدید!');
-        openWorkspaceDashboard();
-    } else {
-        const email = document.getElementById('forgotEmail').value;
-        if (!email) { showToast('لطفا ایمیل خود را وارد کنید.'); return; }
-        showToast(`📧 لینک بازیابی به ${email} ارسال شد.`, 3500);
-        switchAuthState('login');
-    }
+function toggleTheme() {
+    const curr = document.body.getAttribute('data-theme') || 'dark';
+    const next = curr === 'dark' ? 'light' : 'dark';
+    document.body.setAttribute('data-theme', next);
+    document.getElementById('themeBtn').textContent = next === 'light' ? '☀️' : '🌙';
+    localStorage.setItem('deept_theme', next);
 }
 
-// ═══════════════════════════════════════════════════════════
-// USER SESSION SYNC
-// ═══════════════════════════════════════════════════════════
-function syncUserSessionDOM() {
-    const loggedIn = !!currentUserSession;
-    document.getElementById('authHeaderBtn').classList.toggle('hidden', loggedIn);
-    document.getElementById('mainHeroAuthCall').classList.toggle('hidden', loggedIn);
-    document.getElementById('workspaceHeaderBtn').classList.toggle('hidden', !loggedIn);
-    document.getElementById('logoutHeaderBtn').classList.toggle('hidden', !loggedIn);
-    const ub = document.getElementById('userBadge');
-    ub.classList.toggle('hidden', !loggedIn);
-    ub.style.display = loggedIn ? 'flex' : 'none';
-    if (loggedIn) {
-        const l = currentUserSession.username[0].toUpperCase();
-        document.getElementById('avatarLetter').textContent       = l;
-        document.getElementById('headerAvatarBadge').textContent  = l;
-        document.getElementById('headerUserName').textContent     = currentUserSession.office || currentUserSession.username;
-        document.getElementById('profileDisplayName').textContent = currentUserSession.office || currentUserSession.username;
-        document.getElementById('profileEmailBadge').textContent  = currentUserSession.email;
-        document.getElementById('accountTypeToggle').value        = currentUserSession.type || 'individual';
-        document.getElementById('profileContactInput').value      = currentUserSession.contact || '';
-        document.getElementById('officeNameInput').value          = currentUserSession.office || '';
-        toggleProfileAccountType();
-    }
+// ── TOAST ──
+function toast(msg, dur=2800) {
+    const el = document.getElementById('toast');
+    el.textContent = msg; el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), dur);
 }
 
-// ═══════════════════════════════════════════════════════════
-// LOGOUT
-// ═══════════════════════════════════════════════════════════
-function confirmLogout()   { document.getElementById('logoutOverlay').classList.remove('hidden'); }
-function closeLogoutConfirm() { document.getElementById('logoutOverlay').classList.add('hidden'); }
-function executeLogout() {
-    currentUserSession = null;
-    localStorage.removeItem('deept_mock_user');
-    closeLogoutConfirm();
-    closeWorkspaceDashboard();
-    closeChatInterface();
-    syncUserSessionDOM();
-    showToast('👋 با موفقیت خارج شدید.');
-}
-document.getElementById('logoutOverlay').addEventListener('click', function(e) {
-    if (e.target === this) closeLogoutConfirm();
+// ── MODALS ──
+    if (e.key !== 'Enter') return;
+    if (document.getElementById('loginOverlay').classList.contains('open'))  handleLogin();
+    if (document.getElementById('signupOverlay').classList.contains('open')) handleSignup();
 });
 
-// ═══════════════════════════════════════════════════════════
-// PROFILE
-// ═══════════════════════════════════════════════════════════
-function toggleProfileAccountType() {
-    document.getElementById('officeFieldsBlock').classList.toggle('hidden', document.getElementById('accountTypeToggle').value !== 'office');
-}
-function saveProfileConfiguration() {
-    if (!currentUserSession) return;
-    currentUserSession.type    = document.getElementById('accountTypeToggle').value;
-    currentUserSession.contact = document.getElementById('profileContactInput').value;
-    currentUserSession.office  = currentUserSession.type === 'office' ? document.getElementById('officeNameInput').value : '';
-    localStorage.setItem('deept_mock_user', JSON.stringify(currentUserSession));
-    document.getElementById('profileDisplayName').textContent = currentUserSession.office || currentUserSession.username;
-    document.getElementById('headerUserName').textContent     = currentUserSession.office || currentUserSession.username;
-    showToast('✅ پروفایل بروزرسانی شد.');
-}
-
-// ═══════════════════════════════════════════════════════════
-// WALLET
-// ═══════════════════════════════════════════════════════════
-function triggerShaparakPayment() {
-    const amt = parseInt(document.getElementById('paymentAmountInput').value);
-    if (!amt || amt < 100000) { showToast('حداقل مبلغ ۱۰۰،۰۰۰ ریال می‌باشد.'); return; }
-    if (confirm(`شبیه‌ساز شاپرک\n\nپرداخت ${amt.toLocaleString()} ریال؟`)) {
-        currentWalletBalance += amt;
-        localStorage.setItem('deept_mock_wallet', currentWalletBalance);
-        document.getElementById('walletBalanceDisplay').textContent = currentWalletBalance.toLocaleString();
-        showToast('✅ کیف پول شارژ شد.');
-    }
-}
-function submitSupportTicket() {
-    const text = document.getElementById('supportTicketMsg').value;
-    if (!text) return;
-    showToast('📩 پیام شما ثبت شد.');
-    document.getElementById('supportTicketMsg').value = '';
-}
-
-// ═══════════════════════════════════════════════════════════
-// WORKSPACE DASHBOARD
-// ═══════════════════════════════════════════════════════════
-function openWorkspaceDashboard() {
-    if (!currentUserSession) { openAuthModal(); return; }
-    document.getElementById('workspaceDashboard').classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
-    renderDashboardActiveProjects();
-}
-function closeWorkspaceDashboard() {
-    document.getElementById('workspaceDashboard').classList.add('hidden');
-    document.body.style.overflow = 'auto';
-}
-function renderDashboardActiveProjects() {
-    const tbody = document.getElementById('projectDashboardRowsBlock');
-    tbody.innerHTML = '';
-    if (!trackingProjectsDatabase.length) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">// بدون پروژه فعال</td></tr>`;
-        return;
-    }
-    trackingProjectsDatabase.forEach((p, idx) => {
-        const rem = (48*3600000) - (Date.now() - p.timestamp);
-        const timer = rem <= 0
-            ? `<span style="color:#f87171;font-weight:700;">پاک شده</span>`
-            : `<span style="color:#fb923c;font-weight:700;">⏳ ${Math.floor(rem/3600000)} ساعت و ${Math.floor((rem%3600000)/60000)} دقیقه</span>`;
-        const dateStr = new Date(p.timestamp).toLocaleDateString('fa-IR');
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td class="py-3 text-right">
-                <div class="font-black en" style="color:var(--text-main);">${p.id}</div>
-                <div class="text-[10px] truncate max-w-[170px]" style="color:var(--text-muted);">${p.name}</div>
-            </td>
-            <td class="py-3 text-center font-bold" style="color:var(--accent);">${p.type}</td>
-            <td class="py-3 text-center" style="color:var(--text-muted);">${dateStr}</td>
-            <td class="py-3 text-center">${timer}</td>
-            <td class="py-3 text-left text-xs">
-                ${rem > 0
-                    ? `<button onclick="showToast('فایل DOCX دانلود شد.')" class="font-bold hover:underline ml-3" style="color:var(--accent);">دانلود DOCX</button>
-                       <button onclick="purgeFile(${idx})" class="font-bold hover:underline" style="color:#f87171;">حذف</button>`
-                    : `<span style="color:var(--text-muted);">منقضی</span>`}
-            </td>`;
-        tbody.appendChild(row);
-    });
-}
-function purgeFile(idx) {
-    if (confirm('حذف کامل این فایل؟')) {
-        trackingProjectsDatabase.splice(idx, 1);
-        renderDashboardActiveProjects();
-        showToast('🗑️ فایل حذف شد.');
-    }
-}
-setInterval(() => {
-    if (!document.getElementById('workspaceDashboard').classList.contains('hidden')) renderDashboardActiveProjects();
-}, 30000);
-
-// ═══════════════════════════════════════════════════════════
-// CHAT MODAL — open/close
-// ═══════════════════════════════════════════════════════════
-function openChatInterface() {
-    document.getElementById('chatModal').classList.remove('hidden');
-    document.body.style.overflow = 'hidden';
-    // If no active session, always start at step 1
-    if (!passportSession.session_id) {
-        showStep(1);
-    } else {
-        showStep(2);
-    }
-}
-function closeChatInterface() {
-    document.getElementById('chatModal').classList.add('hidden');
-    if (document.getElementById('workspaceDashboard').classList.contains('hidden')) {
-        document.body.style.overflow = 'auto';
-    }
-}
-function showStep(n) {
-    document.getElementById('step1Panel').classList.toggle('hidden', n !== 1);
-    document.getElementById('step2Panel').classList.toggle('hidden', n !== 2);
-}
-
-// ═══════════════════════════════════════════════════════════
-// STEP 1 — PASSPORT SESSION
-// ═══════════════════════════════════════════════════════════
-function ppSetMode(mode) {
-    ppCurrentMode = mode;
-    // Hide all sub-sections first
-    document.getElementById('pp-upload-zone').classList.add('hidden');
-    document.getElementById('pp-fields').classList.add('hidden');
-    ppShowStatus('','');
-
-    if (mode === 'upload') {
-        document.getElementById('pp-upload-zone').classList.remove('hidden');
-    } else if (mode === 'manual') {
-        ppClearFields();
-        document.getElementById('pp-fields').classList.remove('hidden');
-    } else if (mode === 'skip') {
-        ppActivateSkipSession();
-    }
-}
-
-function ppShowStatus(icon, text) {
-    const bar = document.getElementById('pp-status');
-    if (!text) { bar.classList.add('hidden'); return; }
-    bar.classList.remove('hidden');
-    document.getElementById('pp-status-icon').textContent = icon;
-    document.getElementById('pp-status-text').textContent = text;
-}
-
-function ppClearFields() {
-    ['pp-first','pp-last','pp-father','pp-dob'].forEach(id => document.getElementById(id).value = '');
-}
-
-function ppFillFields(data) {
-    document.getElementById('pp-first').value  = data.first_name    || '';
-    document.getElementById('pp-last').value   = data.last_name     || '';
-    document.getElementById('pp-father').value = data.father_name   || '';
-    document.getElementById('pp-dob').value    = data.date_of_birth || '';
-}
-
-function ppHandleFile(file) {
-    if (!file) return;
-    ppSelectedFile = file;
-    document.getElementById('pp-file-name').textContent = `📎 ${file.name}`;
-    document.getElementById('pp-file-name').classList.remove('hidden');
-    document.getElementById('pp-drop-text').classList.add('hidden');
-    document.getElementById('pp-extract-btn').disabled = false;
-}
-
-// Drag and drop on passport zone
-document.getElementById('pp-drop-zone').addEventListener('dragover', e => { e.preventDefault(); document.getElementById('pp-drop-zone').classList.add('drag-over'); });
-document.getElementById('pp-drop-zone').addEventListener('dragleave', () => document.getElementById('pp-drop-zone').classList.remove('drag-over'));
-document.getElementById('pp-drop-zone').addEventListener('drop', e => {
-    e.preventDefault();
-    document.getElementById('pp-drop-zone').classList.remove('drag-over');
-    if (e.dataTransfer.files.length) ppHandleFile(e.dataTransfer.files[0]);
-});
-
-async function ppRunExtraction() {
-    if (!ppSelectedFile) return;
-    const btn = document.getElementById('pp-extract-btn');
-    btn.disabled = true;
-    btn.textContent = 'در حال استخراج...';
-    ppShowStatus('⏳', 'در حال ارسال به Gemini...');
-
-    const fd = new FormData();
-    fd.append('file', ppSelectedFile);
-
-    try {
-        const res = await fetch(`${BACKEND}/passport/extract`, { method:'POST', body:fd });
-        if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'خطای سرور'); }
-        const data = await res.json();
-        // Show fields pre-filled for review
-        document.getElementById('pp-upload-zone').classList.add('hidden');
-        ppFillFields(data);
-        ppShowStatus('✅', 'اطلاعات استخراج شد — بررسی و تأیید کنید.');
-        document.getElementById('pp-fields').classList.remove('hidden');
-    } catch (err) {
-        ppShowStatus('❌', `استخراج ناموفق: ${err.message}`);
-        btn.disabled = false;
-        btn.textContent = 'استخراج با هوش مصنوعی';
-    }
-}
-
-async function ppConfirmSession() {
-    const first  = document.getElementById('pp-first').value.trim().toUpperCase();
-    const last   = document.getElementById('pp-last').value.trim().toUpperCase();
-    const father = document.getElementById('pp-father').value.trim().toUpperCase();
-    const dob    = document.getElementById('pp-dob').value.trim();
-
-    if (!first || !last) { showToast('⚠️ نام و نام خانوادگی الزامی است.'); return; }
-
-    ppShowStatus('⏳', 'در حال ثبت جلسه...');
-
-    try {
-        const res = await fetch(`${BACKEND}/passport/confirm`, {
-            method: 'POST',
-            headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ first_name:first, last_name:last, father_name:father, date_of_birth:dob })
-        });
-        if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'خطای سرور'); }
-        const data = await res.json();
-
-        passportSession = { session_id:data.session_id, first_name:first, last_name:last, father_name:father, date_of_birth:dob };
-        ppActivateSessionUI();
-        showStep(2);
-        showToast(`✅ جلسه فعال شد — ${first} ${last}`);
-    } catch (err) {
-        ppShowStatus('❌', err.message);
-    }
-}
-
-function ppActivateSkipSession() {
-    passportSession = { session_id:'SKIP', first_name:'—', last_name:'—', father_name:null, date_of_birth:null };
-    ppActivateSessionUI();
-    showStep(2);
-    showToast('⏭️ جلسه بدون پاسپورت شروع شد.');
-}
-
-function ppActivateSessionUI() {
-    const badge = document.getElementById('activeClientBadge');
-    badge.classList.remove('hidden');
-    badge.style.display = 'flex';
-    document.getElementById('activeClientName').textContent = `${passportSession.first_name} ${passportSession.last_name}`;
-    document.getElementById('newClientBtn').classList.remove('hidden');
-}
-
-function confirmNewClient() {
-    if (!confirm(`بستن جلسه ${passportSession.first_name} ${passportSession.last_name}؟\nبرای مشتری جدید باید پاسپورت مجدداً ثبت شود.`)) return;
-
-    // Delete from backend
-    if (passportSession.session_id && passportSession.session_id !== 'SKIP') {
-        fetch(`${BACKEND}/passport/${passportSession.session_id}`, { method:'DELETE' }).catch(()=>{});
-    }
-
-    // Reset everything
-    passportSession = { session_id:null, first_name:null, last_name:null, father_name:null, date_of_birth:null };
-    ppSelectedFile  = null;
-    docSelectedFile = null;
-
-    document.getElementById('activeClientBadge').classList.add('hidden');
-    document.getElementById('newClientBtn').classList.add('hidden');
-    document.getElementById('pp-upload-zone').classList.add('hidden');
-    document.getElementById('pp-fields').classList.add('hidden');
-    ppShowStatus('','');
-
-    // Reset doc zone
-    resetDocZone();
-    showStep(1);
-    showToast('🔄 جلسه بسته شد. آماده مشتری جدید.');
-}
-
-// ═══════════════════════════════════════════════════════════
-// STEP 2 — DOCUMENT UPLOAD & TRANSLATION
-// ═══════════════════════════════════════════════════════════
-function handleDocFileSelection(file) {
-    if (!file) return;
-    docSelectedFile = file;
-    document.getElementById('docFileInfo').textContent = `📄 ${file.name} (${(file.size/1024).toFixed(0)} KB)`;
-    document.getElementById('docFileInfo').classList.remove('hidden');
-    document.getElementById('docDropText').classList.add('hidden');
-    document.getElementById('submitBtn').disabled = false;
-}
-
-// Drag and drop on document zone
-document.getElementById('docDropZone').addEventListener('dragover', e => { e.preventDefault(); document.getElementById('docDropZone').classList.add('drag-over'); });
-document.getElementById('docDropZone').addEventListener('dragleave', () => document.getElementById('docDropZone').classList.remove('drag-over'));
-document.getElementById('docDropZone').addEventListener('drop', e => {
-    e.preventDefault();
-    document.getElementById('docDropZone').classList.remove('drag-over');
-    if (e.dataTransfer.files.length) handleDocFileSelection(e.dataTransfer.files[0]);
-});
-
-async function executeTranslationPipeline() {
-    if (!docSelectedFile) return;
-
-    const submitBtn    = document.getElementById('submitBtn');
-    const statusBubble = document.getElementById('processingStatusBubble');
-    const statusText   = document.getElementById('statusMessageText');
-
-    submitBtn.disabled = true;
-    statusBubble.classList.remove('hidden');
-    statusText.textContent = 'در حال ارسال به سرور...';
-
-    const docType = document.getElementById('docTemplate').value;
-    const fd = new FormData();
-    fd.append('document_file', docSelectedFile);
-
-    // Police certificate uses session_id
-    if (docType === 'police-certificate') {
-        if (!passportSession.session_id || passportSession.session_id === 'SKIP') {
-            // Skip mode — backend needs a session; create a minimal one
-            try {
-                statusText.textContent = 'در حال ایجاد جلسه موقت...';
-                const r = await fetch(`${BACKEND}/passport/confirm`, {
-                    method:'POST',
-                    headers:{'Content-Type':'application/json'},
-                    body: JSON.stringify({ first_name:'', last_name:'', father_name:'', date_of_birth:'' })
-                });
-                const d = await r.json();
-                passportSession.session_id = d.session_id;
-            } catch(e) { /* continue without session — backend will use doc fallbacks */ }
-        }
-        if (passportSession.session_id && passportSession.session_id !== 'SKIP') {
-            fd.append('session_id', passportSession.session_id);
-        }
-    }
-
-    const endpointMap = {
-        'police-certificate':   `${BACKEND}/api/translate/police-certificate`,
-        'translate-vehicle-deed': `https://deept-vehicle.onrender.com/translate-vehicle-deed`,
-    };
-    const url = endpointMap[docType];
-    if (!url) { showToast('این نوع سند هنوز پشتیبانی نمی‌شود.'); submitBtn.disabled=false; statusBubble.classList.add('hidden'); return; }
-
-    try {
-        statusText.textContent = 'در حال پردازش با هوش مصنوعی...';
-        const res = await fetch(url, { method:'POST', body:fd });
-        if (!res.ok) {
-            const err = await res.json().catch(()=>({detail:'خطای ناشناخته'}));
-            throw new Error(err.detail);
-        }
-
-        statusText.textContent = 'آماده‌سازی فایل دانلود...';
-        const blob = await res.blob();
-
-        // Add to dashboard log
-        const typeLabel = docType === 'police-certificate' ? 'سوء پیشینه' : 'سند خودرو';
-        trackingProjectsDatabase.unshift({ id:'DPT-'+Math.floor(1000+Math.random()*9000), name:docSelectedFile.name, type:typeLabel, timestamp:Date.now() });
-
-        // Download
-        const dlUrl = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = dlUrl;
-        a.download = `DeepT_${docSelectedFile.name.split('.')[0]}.docx`;
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        URL.revokeObjectURL(dlUrl);
-
-        showToast('✅ فایل ترجمه شده دانلود شد.');
-        document.getElementById('nextDocBtn').classList.remove('hidden');
-
-    } catch (err) {
-        showToast(`❌ ${err.message}`);
-    } finally {
-        submitBtn.disabled = false;
-        statusBubble.classList.add('hidden');
-    }
-}
-
-function resetDocZone() {
-    docSelectedFile = null;
-    document.getElementById('docFileInfo').classList.add('hidden');
-    document.getElementById('docDropText').classList.remove('hidden');
-    document.getElementById('docFileInput').value = '';
-    document.getElementById('submitBtn').disabled = true;
-    document.getElementById('nextDocBtn').classList.add('hidden');
-}
-
-function resetForNextDocument() {
-    resetDocZone();
-    showToast('آماده بارگذاری سند بعدی.');
-}
-
-// ═══════════════════════════════════════════════════════════
-// CANVAS BACKGROUND
-// ═══════════════════════════════════════════════════════════
+// ── CANVAS NODES ──
 const canvas = document.getElementById('bgCanvas');
-const ctx    = canvas.getContext('2d');
-let width = canvas.width = window.innerWidth;
-let height = canvas.height = window.innerHeight;
+const ctx = canvas.getContext('2d');
+let W = canvas.width = window.innerWidth;
+let H = canvas.height = window.innerHeight;
 const nodes = [];
-function initNodes() {
-    nodes.length = 0;
-    for (let i=0; i<100; i++) nodes.push({x:Math.random()*width, y:Math.random()*height, vx:(Math.random()-.5)/4, vy:(Math.random()-.5)/4});
-}
-initNodes();
-function drawBG() {
-    width = canvas.width = window.innerWidth;
-    height = canvas.height = window.innerHeight;
-    ctx.clearRect(0,0,width,height);
-    const isLight = document.body.getAttribute('data-theme') === 'light';
-    for (let i=0;i<nodes.length;i++) for (let j=i+1;j<nodes.length;j++) {
-        const dx=nodes[i].x-nodes[j].x, dy=nodes[i].y-nodes[j].y, d=Math.sqrt(dx*dx+dy*dy);
-        if (d<160) {
-            ctx.beginPath(); ctx.moveTo(nodes[i].x,nodes[i].y); ctx.lineTo(nodes[j].x,nodes[j].y);
-            ctx.strokeStyle = isLight ? `rgba(3,105,161,${(1-d/160)*0.18})` : `rgba(0,255,255,${(1-d/160)*0.7})`;
-            ctx.lineWidth=0.8; ctx.stroke();
+for (let i=0;i<90;i++) nodes.push({
+    x: Math.random()*W, y: Math.random()*H,
+    vx: (Math.random()-.5)/4, vy: (Math.random()-.5)/4
+});
+function drawNodes() {
+    W = canvas.width = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+    ctx.clearRect(0,0,W,H);
+    const light = document.body.getAttribute('data-theme')==='light';
+    for (let i=0;i<nodes.length;i++) {
+        for (let j=i+1;j<nodes.length;j++) {
+            const dx=nodes[i].x-nodes[j].x, dy=nodes[i].y-nodes[j].y;
+            const d=Math.sqrt(dx*dx+dy*dy);
+            if (d<160) {
+                ctx.beginPath();
+                ctx.moveTo(nodes[i].x,nodes[i].y);
+                ctx.lineTo(nodes[j].x,nodes[j].y);
+                ctx.strokeStyle = light
+                    ? `rgba(0,114,168,${(1-d/160)*.2})`
+                    : `rgba(0,212,255,${(1-d/160)*.65})`;
+                ctx.lineWidth = .8;
+                ctx.stroke();
+            }
         }
+        ctx.beginPath();
+        ctx.arc(nodes[i].x,nodes[i].y,1.7,0,Math.PI*2);
+        ctx.fillStyle = light ? '#0072a8' : '#00d4ff';
+        ctx.fill();
+        nodes[i].x+=nodes[i].vx; nodes[i].y+=nodes[i].vy;
+        if(nodes[i].x<0||nodes[i].x>W) nodes[i].vx*=-1;
+        if(nodes[i].y<0||nodes[i].y>H) nodes[i].vy*=-1;
     }
-    nodes.forEach(n => {
-        ctx.beginPath(); ctx.arc(n.x,n.y,1.8,0,Math.PI*2);
-        ctx.fillStyle = isLight ? '#0369a1' : 'cyan'; ctx.fill();
-        n.x+=n.vx; n.y+=n.vy;
-        if(n.x<0||n.x>width)  n.vx*=-1;
-        if(n.y<0||n.y>height) n.vy*=-1;
-    });
-    requestAnimationFrame(drawBG);
+    requestAnimationFrame(drawNodes);
 }
-window.addEventListener('resize', ()=>{ width=canvas.width=window.innerWidth; height=canvas.height=window.innerHeight; });
-drawBG();
+window.addEventListener('resize',()=>{W=canvas.width=window.innerWidth;H=canvas.height=window.innerHeight;});
+drawNodes();
 
-// ═══════════════════════════════════════════════════════════
-// TRANSCRIPT TYPEWRITER
-// ═══════════════════════════════════════════════════════════
-const courses = [
-    {name:"Advanced Math",units:"3",grade:"19",status:"Pass"},
-    {name:"Physics",units:"3",grade:"17.5",status:"Pass"},
-    {name:"Programming",units:"3",grade:"18",status:"Pass"},
-    {name:"Project Management",units:"2",grade:"16.5",status:"Pass"},
-    {name:"Commercial Law",units:"2",grade:"17",status:"Pass"},
-    {name:"Economics",units:"2",grade:"18.25",status:"Pass"},
-    {name:"Technical English",units:"3",grade:"19.5",status:"Pass"},
-    {name:"Software Engineering",units:"3",grade:"18.75",status:"Pass"},
-    {name:"Information Systems",units:"3",grade:"17",status:"Pass"},
-    {name:"Artificial Intelligence",units:"3",grade:"18.5",status:"Pass"}
-];
-function clearAllRows(){for(let i=1;i<=10;i++)['Name','Units','Grade','Status'].forEach(f=>{document.getElementById(`course${f}${i}`).textContent='';})}
-let rowIndex=0,colIndex=0,charIndex=0,typingCert=false;
-function typeTranscriptRow(){
-    if(rowIndex>=courses.length){if(!typingCert)typeCertificate();return;}
-    const fields=[
-        {text:courses[rowIndex].name,display:`courseName${rowIndex+1}`},
-        {text:courses[rowIndex].units,display:`courseUnits${rowIndex+1}`},
-        {text:courses[rowIndex].grade,display:`courseGrade${rowIndex+1}`},
-        {text:courses[rowIndex].status,display:`courseStatus${rowIndex+1}`}
-    ];
-    if(colIndex<fields.length){
-        const f=fields[colIndex];
-        document.getElementById(f.display).textContent=f.text.substring(0,charIndex);
-        if(charIndex<=f.text.length){charIndex++;setTimeout(typeTranscriptRow,90);}
-        else{colIndex++;charIndex=0;setTimeout(typeTranscriptRow,180);}
-    }else{rowIndex++;colIndex=0;setTimeout(typeTranscriptRow,350);}
-}
-function typeCertificate(){
-    typingCert=true;
-    const fd=new Date('2026-06-25').toLocaleDateString('en-US',{day:'numeric',month:'long',year:'numeric'});
-    const text=`Certified to be a true translation from original Persian.\nDate of Translation: ${fd}`;
-    let i=0; const el=document.getElementById('certText');
-    function typeChar(){
-        el.innerHTML=text.substring(0,i).replace('\n','<br/>');
-        if(i++<=text.length){setTimeout(typeChar,90);}
-        else{setTimeout(()=>{el.textContent='';clearAllRows();rowIndex=0;colIndex=0;charIndex=0;typingCert=false;setTimeout(typeTranscriptRow,500);},3000);}
-    }
-    typeChar();
-}
-
-// ═══════════════════════════════════════════════════════════
-// DATE CONVERTER
-// ═══════════════════════════════════════════════════════════
-function isJalaaliLeap(jy){const m=jy%33;return[1,5,9,13,17,22,26,30].includes(m);}
-function jalaaliToGregorian(jy,jm,jd){
-    jy=parseInt(jy)-979;jm=parseInt(jm)-1;jd=parseInt(jd)-1;
-    let jdn=365*jy+Math.floor(jy/33)*8+Math.floor((jy%33+3)/4);
-    for(let i=0;i<jm;i++)jdn+=(i<6)?31:30;
-    jdn+=jd;let gdn=jdn+79;
-    let gy=1600+400*Math.floor(gdn/146097);gdn%=146097;
-    let leap=true;
-    if(gdn>=36525){gdn--;gy+=100*Math.floor(gdn/36524);gdn%=36524;if(gdn>=365){gdn++;leap=false;}}
-    gy+=4*Math.floor(gdn/1461);gdn%=1461;
-    if(gdn>=366){leap=false;gdn--;gy+=Math.floor(gdn/365);gdn%=365;}
-    let gm,gd;
-    const dim=[31,leap?29:28,31,30,31,30,31,31,30,31,30,31];
-    for(let i=0;i<12;i++){if(gdn<dim[i]){gm=i+1;gd=gdn+1;break;}gdn-=dim[i];}
+// ── DATE CONVERTER ──
+function isLeap(y){return[1,5,9,13,17,22,26,30].includes(y%33);}
+function j2g(jy,jm,jd){
+    jy-=979;jm-=1;jd-=1;
+    let n=365*jy+Math.floor(jy/33)*8+Math.floor((jy%33+3)/4);
+    for(let i=0;i<jm;i++)n+=(i<6)?31:30;
+    n+=jd;let g=n+79;
+    let gy=1600+400*Math.floor(g/146097);g%=146097;
+    let lp=true;
+    if(g>=36525){g--;gy+=100*Math.floor(g/36524);g%=36524;if(g>=365){g++;lp=false;}}
+    gy+=4*Math.floor(g/1461);g%=1461;
+    if(g>=366){lp=false;g--;gy+=Math.floor(g/365);g%=365;}
+    let gm,gd;const d=[31,lp?29:28,31,30,31,30,31,31,30,31,30,31];
+    for(let i=0;i<12;i++){if(g<d[i]){gm=i+1;gd=g+1;break;}g-=d[i];}
     return{gy,gm,gd};
 }
 function convertDate(){
-    const d=document.getElementById('dayInput').value,m=document.getElementById('monthInput').value,y=document.getElementById('yearInput').value;
-    const eEl=document.getElementById('errorMsg'),rEl=document.getElementById('resultContainer');
-    eEl.classList.add('hidden');rEl.classList.add('hidden');
-    if(!d||!m||!y){showErr('لطفا تمام موارد را پر کنید.');return;}
-    const day=parseInt(d),month=parseInt(m),year=parseInt(y);
-    if(year<1000||year>3000){showErr('سال معتبر وارد کنید.');return;}
-    if(day<1||day>31){showErr('روز معتبر وارد کنید.');return;}
-    if(month>6&&month<12&&day===31){showErr('این ماه فقط ۳۰ روز دارد.');return;}
-    if(month===12){if(day>30){showErr('اسفند ۳۰ روز دارد.');return;}if(!isJalaaliLeap(year)&&day===30){showErr(`سال ${year} کبیسه نیست.`);return;}}
+    const day=parseInt(document.getElementById('t-day').value);
+    const mon=parseInt(document.getElementById('t-month').value);
+    const yr=parseInt(document.getElementById('t-year').value);
+    const errEl=document.getElementById('t-error');
+    const resEl=document.getElementById('t-result');
+    errEl.classList.remove('show');resEl.classList.remove('show');
+    if(!day||!mon||!yr){errEl.textContent='همه موارد را وارد کنید.';errEl.classList.add('show');return;}
+    if(yr<1200||yr>1500){errEl.textContent='سال شمسی معتبر وارد کنید (مثلاً ۱۳۸۰).';errEl.classList.add('show');return;}
+    if(day<1||day>31){errEl.textContent='روز معتبر وارد کنید.';errEl.classList.add('show');return;}
     try{
-        const{gy,gm,gd}=jalaaliToGregorian(year,month,day);
+        const{gy,gm,gd}=j2g(yr,mon,day);
         const obj=new Date(gy,gm-1,gd);
         const p=n=>String(n).padStart(2,'0');
-        const f1=`${gy}-${p(gm)}-${p(gd)}`,f2=`${p(gm)}/${p(gd)}/${gy}`,f3=`${p(gd)}/${p(gm)}/${gy}`;
-        const f4=new Intl.DateTimeFormat('en-US',{month:'long',day:'numeric',year:'numeric'}).format(obj);
-        document.getElementById('mainDate').textContent=`${gy} / ${p(gm)} / ${p(gd)}`;
-        document.getElementById('longDateValue').textContent=f4;
-        ['1','2','3','4'].forEach((n,i)=>document.getElementById(`fmt${n}`).textContent=[f1,f2,f3,f4][i]);
-        rEl.classList.remove('hidden');
-    }catch(e){showErr('خطا در تبدیل.');}
+        document.getElementById('t-main').textContent=`${gy} / ${p(gm)} / ${p(gd)}`;
+        document.getElementById('t-f1').textContent=`${gy}-${p(gm)}-${p(gd)}`;
+        document.getElementById('t-f2').textContent=`${p(gd)}/${p(gm)}/${gy}`;
+        document.getElementById('t-f3').textContent=`${p(gm)}/${p(gd)}/${gy}`;
+        document.getElementById('t-f4').textContent=new Intl.DateTimeFormat('en-US',{month:'long',day:'numeric',year:'numeric'}).format(obj);
+        resEl.classList.add('show');
+    }catch(e){errEl.textContent='خطا در تبدیل.';errEl.classList.add('show');}
 }
-function showErr(msg){const el=document.getElementById('errorMsg');el.textContent=msg;el.classList.remove('hidden');}
-function copyText(text,id){
-    navigator.clipboard.writeText(text).then(()=>{
-        const m=document.getElementById(`msg-${id}`);
-        if(m){m.classList.remove('hidden');setTimeout(()=>m.classList.add('hidden'),2000);}
-    }).catch(()=>showToast('خطا در دسترسی به کلیپ‌بورد.'));
+function copyFmt(id){
+    const el = document.getElementById(id);
+    if (!el) return;
+    // Get text from the .fmt-value span if inside a button, or directly
+    const valEl = el.querySelector('.fmt-value') || el;
+    const v = valEl.textContent.trim();
+    if (!v) return;
+    navigator.clipboard.writeText(v).then(() => {
+        const tip = document.getElementById('cp-' + id);
+        if (tip) { tip.classList.add('show'); setTimeout(()=>tip.classList.remove('show'), 1400); }
+        toast('کپی شد: ' + v);
+    });
 }
 
-// ═══════════════════════════════════════════════════════════
-// INIT
-// ═══════════════════════════════════════════════════════════
-document.getElementById('walletBalanceDisplay').textContent = currentWalletBalance.toLocaleString();
-syncUserSessionDOM();
-typeTranscriptRow();
+// ── QUICK START PIPELINE ──
+const QS = { mode:null, passFile:null, docFile:null, sessionId:null, blob:null };
+const QS_BACKEND = 'https://deept-police-backend.onrender.com';
+
+function qsReset() {
+    Object.assign(QS, {mode:null,passFile:null,docFile:null,sessionId:null,blob:null});
+    qsGoToPanel(1);
+    ['qsModeUpload','qsModeManual','qsModeSkip'].forEach(id=>document.getElementById(id).classList.remove('selected'));
+    document.getElementById('qsUploadZone').style.display='none';
+    document.getElementById('qsManualZone').style.display='none';
+    document.getElementById('qsPassFileName').style.display='none';
+    document.getElementById('qsPassFileName').textContent='';
+    document.getElementById('qsDocFileName').style.display='none';
+    document.getElementById('qsDocFileName').textContent='';
+    document.getElementById('qsNext1').disabled=true;
+    document.getElementById('qsNext2').disabled=true;
+    document.getElementById('qsProcessing').classList.remove('show');
+}
+
+function qsGoToPanel(n) {
+    [1,2,3].forEach(i => {
+        document.getElementById('qsPanel'+i).classList.toggle('active', i===n);
+        const dot=document.getElementById('qd'+i);
+        dot.classList.toggle('done', i<n);
+        dot.classList.toggle('active', i===n);
+        if(i<n) dot.textContent='✓';
+        else dot.textContent=String(i);
+    });
+    [1,2].forEach(i => document.getElementById('ql'+i).classList.toggle('done', i<n));
+}
+
+function qsSelectMode(mode) {
+    QS.mode=mode;
+    ['Upload','Manual','Skip'].forEach(m=>
+        document.getElementById('qsMode'+m).classList.toggle('selected', m.toLowerCase()===mode)
+    );
+    document.getElementById('qsUploadZone').style.display = mode==='upload'?'block':'none';
+    document.getElementById('qsManualZone').style.display = mode==='manual'?'block':'none';
+    document.getElementById('qsNext1').disabled = (mode==='upload' && !QS.passFile);
+    if (mode==='skip'||mode==='manual') document.getElementById('qsNext1').disabled=false;
+}
+
+function qsHandlePassport(file) {
+    if (!file) return;
+    QS.passFile=file;
+    const el=document.getElementById('qsPassFileName');
+    el.textContent='📎 '+file.name; el.style.display='block';
+    if (QS.mode==='upload') document.getElementById('qsNext1').disabled=false;
+}
+function qsHandleDoc(file) {
+    if (!file) return;
+    QS.docFile=file;
+    const el=document.getElementById('qsDocFileName');
+    el.textContent='📄 '+file.name; el.style.display='block';
+    document.getElementById('qsNext2').disabled=false;
+}
+
+// Drag-drop passport
+['dragover','dragleave','drop'].forEach(evt => {
+    document.getElementById('qsPassDrop').addEventListener(evt, e => {
+        e.preventDefault();
+        document.getElementById('qsPassDrop').classList.toggle('over', evt==='dragover');
+        if (evt==='drop' && e.dataTransfer.files.length) qsHandlePassport(e.dataTransfer.files[0]);
+    });
+});
+// Drag-drop document
+['dragover','dragleave','drop'].forEach(evt => {
+    document.getElementById('qsDocDrop').addEventListener(evt, e => {
+        e.preventDefault();
+        document.getElementById('qsDocDrop').classList.toggle('over', evt==='dragover');
+        if (evt==='drop' && e.dataTransfer.files.length) qsHandleDoc(e.dataTransfer.files[0]);
+    });
+});
+
+async function qsRunTranslation() {
+    if (!QS.docFile) return;
+    const btn=document.getElementById('qsNext2');
+    btn.disabled=true; btn.textContent='در حال پردازش...';
+    document.getElementById('qsProcessing').classList.add('show');
+    try {
+        // 1. Confirm identity session
+        let identity = { first_name:'', last_name:'', father_name:'', date_of_birth:'' };
+        if (QS.mode==='upload' && QS.passFile) {
+            const pfd=new FormData(); pfd.append('file', QS.passFile);
+            const pRes=await fetch(`${QS_BACKEND}/passport/extract`,{method:'POST',body:pfd});
+            if (pRes.ok) Object.assign(identity, await pRes.json());
+        } else if (QS.mode==='manual') {
+            identity = {
+                first_name:    document.getElementById('qsFirst').value.trim().toUpperCase(),
+                last_name:     document.getElementById('qsLast').value.trim().toUpperCase(),
+                father_name:   document.getElementById('qsFather').value.trim().toUpperCase(),
+                date_of_birth: document.getElementById('qsDob').value.trim()
+            };
+        }
+        const cRes=await fetch(`${QS_BACKEND}/passport/confirm`,{
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify(identity)
+        });
+        const { session_id } = await cRes.json();
+        QS.sessionId = session_id;
+
+        // 2. Translate
+        const docType=document.getElementById('qsDocType').value;
+        const fd=new FormData();
+        fd.append('document_file', QS.docFile);
+        fd.append('session_id', session_id);
+        const tRes=await fetch(`${QS_BACKEND}/api/translate/${docType}`,{method:'POST',body:fd});
+        if (!tRes.ok) { const e=await tRes.json().catch(()=>({detail:'خطا'})); throw new Error(e.detail); }
+        QS.blob = await tRes.blob();
+
+        document.getElementById('qsProcessing').classList.remove('show');
+        qsGoToPanel(3);
+    } catch(err) {
+        document.getElementById('qsProcessing').classList.remove('show');
+        btn.disabled=false; btn.textContent='ترجمه و پرداخت ←';
+        toast('❌ '+err.message);
+    }
+}
+
+function qsSimulatePayment() {
+    if (!QS.blob) { toast('خطا — فایل یافت نشد.'); return; }
+    const url=URL.createObjectURL(QS.blob);
+    const a=document.createElement('a'); a.href=url; a.download='DeepT_Translation.docx';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast('✅ پرداخت موفق — فایل دانلود شد');
+    setTimeout(closeModals, 2000);
+}
 </script>
 </body>
 </html>
