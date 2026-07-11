@@ -91,14 +91,6 @@ body {
     unicode-bidi: embed;
 }
 
-canvas {
-    position: fixed;
-    top: 0; left: 0;
-    z-index: -1;
-    width: 100%; height: 100%;
-    opacity: var(--canvas-opacity);
-    transition: opacity 0.35s ease;
-}
 
 /* ─── GLITCH TITLE ─── */
 .glitch {
@@ -506,16 +498,6 @@ body {
     unicode-bidi: embed;
 }
 
-canvas {
-    position: fixed;
-    top: 0; left: 0;
-    z-index: 0;
-    width: 100%; height: 100%;
-    pointer-events: none;
-    opacity: 0.55;
-    transition: opacity .35s;
-}
-[data-theme="light"] canvas { opacity: 0.1; }
 
 /* Everything above canvas */
 header, main, footer, .overlay { position: relative; z-index: 1; }
@@ -1011,11 +993,28 @@ footer {
 
 /* ── VIEW SWITCHER ── */
 #landingPage { display: block; }
+
+/* ── BACKGROUND ── */
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background-image:
+        linear-gradient(rgba(0,212,255,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,212,255,0.04) 1px, transparent 1px);
+    background-size: 48px 48px;
+    pointer-events: none;
+}
+[data-theme="light"] body::before {
+    background-image:
+        linear-gradient(rgba(0,114,168,0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,114,168,0.05) 1px, transparent 1px);
+}
 </style>
 </head>
 <body>
 
-<canvas id="bgCanvas"></canvas>
 <div id="toast"></div>
 
 <!-- ─── HEADER ─── -->
@@ -1279,7 +1278,6 @@ footer {
 <div id="landingPage">
 
 
-<canvas id="bgCanvas"></canvas>
 <div id="toast"></div>
 
 <!-- ── AUTH MODALS ── -->
@@ -2224,40 +2222,7 @@ function resetForNextDocument() {
 // ═══════════════════════════════════════════════════════════
 // CANVAS BACKGROUND
 // ═══════════════════════════════════════════════════════════
-const canvas = document.getElementById('bgCanvas');
-const ctx    = canvas.getContext('2d');
-let width = canvas.width = window.innerWidth;
-let height = canvas.height = window.innerHeight;
-const nodes = [];
-function initNodes() {
-    nodes.length = 0;
-    for (let i=0; i<100; i++) nodes.push({x:Math.random()*width, y:Math.random()*height, vx:(Math.random()-.5)/6, vy:(Math.random()-.5)/6});
-}
-initNodes();
-function drawBG() {
-    width = canvas.width = window.innerWidth;
-    height = canvas.height = window.innerHeight;
-    ctx.clearRect(0,0,width,height);
-    const isLight = document.body.getAttribute('data-theme') === 'light';
-    for (let i=0;i<nodes.length;i++) for (let j=i+1;j<nodes.length;j++) {
-        const dx=nodes[i].x-nodes[j].x, dy=nodes[i].y-nodes[j].y, d=Math.sqrt(dx*dx+dy*dy);
-        if (d<160) {
-            ctx.beginPath(); ctx.moveTo(nodes[i].x,nodes[i].y); ctx.lineTo(nodes[j].x,nodes[j].y);
-            ctx.strokeStyle = isLight ? `rgba(3,105,161,${(1-d/160)*0.18})` : `rgba(0,255,255,${(1-d/160)*0.7})`;
-            ctx.lineWidth=0.8; ctx.stroke();
-        }
-    }
-    nodes.forEach(n => {
-        ctx.beginPath(); ctx.arc(n.x,n.y,1.8,0,Math.PI*2);
-        ctx.fillStyle = isLight ? '#0369a1' : 'cyan'; ctx.fill();
-        n.x+=n.vx; n.y+=n.vy;
-        if(n.x<0||n.x>width)  n.vx*=-1;
-        if(n.y<0||n.y>height) n.vy*=-1;
-    });
-    requestAnimationFrame(drawBG);
-}
-window.addEventListener('resize', ()=>{ width=canvas.width=window.innerWidth; height=canvas.height=window.innerHeight; });
-drawBG();
+// canvas removed
 
 // ═══════════════════════════════════════════════════════════
 // INIT
@@ -2430,7 +2395,7 @@ function openQuickStart() {
 
 
 // ── MODALS ──
-    
+
 // ── DATE CONVERTER ──
 function isLeap(y){return[1,5,9,13,17,22,26,30].includes(y%33);}
 function j2g(jy,jm,jd){
