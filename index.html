@@ -7,6 +7,448 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;700;900&family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
 <style>
+
+@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;900&family=Inter:wght@400;500;600;700;900&display=swap');
+
+/* ─── FONT ROLES ─── */
+/* Vazirmatn  → all Persian/UI text (default body font)    */
+/* Inter      → English-only data: dates, codes, formats   */
+
+/* ─── DARK THEME (default) ─── */
+:root {
+    --bg-main: #000000;
+    --bg-secondary: #0a0a0a;
+    --text-main: #ffffff;
+    --text-muted: #9ca3af;
+    --panel-bg: rgba(0, 0, 0, 0.75);
+    --accent: #00ffff;
+    --accent-glow: rgba(0, 255, 255, 0.25);
+    --accent-hover: rgba(0, 255, 255, 0.15);
+    --card-surface: rgba(18, 18, 18, 0.9);
+    --border-color: rgba(0, 255, 255, 0.28);
+    --border-subtle: rgba(255,255,255,0.07);
+    --input-bg: #000;
+    --input-border: #2a2a2a;
+    --shadow-accent: 0 0 30px rgba(0,255,255,0.15);
+    --node-color: cyan;
+    --node-line: rgba(0,255,255,1);
+    --canvas-opacity: 0.8;
+    --header-bg: rgba(0,0,0,0.85);
+    --table-header-text: rgba(255,255,255,0.5);
+    --row-hover: rgba(0,255,255,0.04);
+    --divider: rgba(255,255,255,0.06);
+    --btn-text-on-accent: #000;
+    --modal-overlay: rgba(0,0,0,0.85);
+    --toast-bg: #111;
+    --toast-border: rgba(0,255,255,0.4);
+}
+
+/* ─── LIGHT THEME ─── */
+[data-theme="light"] {
+    --bg-main: #f0f4f8;
+    --bg-secondary: #e8edf2;
+    --text-main: #0d1b2a;
+    --text-muted: #5a6a7a;
+    --panel-bg: rgba(255,255,255,0.92);
+    --accent: #0369a1;
+    --accent-glow: rgba(3,105,161,0.18);
+    --accent-hover: rgba(3,105,161,0.08);
+    --card-surface: #ffffff;
+    --border-color: rgba(3,105,161,0.25);
+    --border-subtle: rgba(0,0,0,0.07);
+    --input-bg: #f8fafc;
+    --input-border: #cbd5e1;
+    --shadow-accent: 0 4px 24px rgba(3,105,161,0.12);
+    --node-color: #0369a1;
+    --node-line: rgba(3,105,161,1);
+    --canvas-opacity: 0.12;
+    --header-bg: rgba(240,244,248,0.92);
+    --table-header-text: #64748b;
+    --row-hover: rgba(3,105,161,0.04);
+    --divider: rgba(0,0,0,0.08);
+    --btn-text-on-accent: #fff;
+    --modal-overlay: rgba(15,27,42,0.7);
+    --toast-bg: #fff;
+    --toast-border: rgba(3,105,161,0.35);
+}
+
+/* ─── BASE ─── */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+    font-family: 'Vazirmatn', sans-serif;
+    margin: 0;
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    overflow-x: hidden;
+    transition: background-color 0.35s ease, color 0.35s ease;
+}
+
+/* English-only data text (dates, IDs, format codes) */
+.en {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    direction: ltr;
+    unicode-bidi: embed;
+}
+
+canvas {
+    position: fixed;
+    top: 0; left: 0;
+    z-index: -1;
+    width: 100%; height: 100%;
+    opacity: var(--canvas-opacity);
+    transition: opacity 0.35s ease;
+}
+
+/* ─── GLITCH TITLE ─── */
+.glitch {
+    font-size: 4rem;
+    font-weight: 900;
+    color: var(--text-main);
+    letter-spacing: 0.05em;
+    animation: glitch 1.4s infinite;
+}
+@keyframes glitch {
+    0%   { text-shadow: 2px 0 red, -2px 0 blue; }
+    20%  { text-shadow: -2px 0 red, 2px 0 blue; }
+    40%  { text-shadow: 2px 2px red, -2px -2px blue; }
+    60%  { text-shadow: -2px 2px red, 2px -2px blue; }
+    80%  { text-shadow: 2px -2px red, -2px 2px blue; }
+    100% { text-shadow: 2px 0 red, -2px 0 blue; }
+}
+[data-theme="light"] .glitch {
+    animation: glitch-light 1.4s infinite;
+}
+@keyframes glitch-light {
+    0%   { text-shadow: 1px 0 rgba(220,38,38,0.5), -1px 0 rgba(37,99,235,0.5); }
+    25%  { text-shadow: -1px 0 rgba(220,38,38,0.5), 1px 0 rgba(37,99,235,0.5); }
+    50%  { text-shadow: 1px 1px rgba(220,38,38,0.4), -1px -1px rgba(37,99,235,0.4); }
+    75%  { text-shadow: -1px 1px rgba(220,38,38,0.4), 1px -1px rgba(37,99,235,0.4); }
+    100% { text-shadow: 1px 0 rgba(220,38,38,0.5), -1px 0 rgba(37,99,235,0.5); }
+}
+
+/* ─── LAYOUT ─── */
+.section {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 3rem 1.25rem;
+}
+.bg-section {
+    background: var(--panel-bg);
+    border-radius: 1.25rem;
+    border: 1px solid var(--border-color);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    box-shadow: var(--shadow-accent);
+}
+
+/* ─── TABLE ─── */
+.table-cell {
+    border: 1px solid var(--accent);
+    padding: 0.5rem 0.85rem;
+    min-width: 120px;
+    font-family: 'Inter', system-ui, sans-serif;
+    color: var(--accent);
+    font-size: 1.05rem;
+    text-align: left;
+    direction: ltr;
+    transition: color 0.35s, border-color 0.35s;
+}
+.table-header {
+    color: var(--text-main);
+    font-weight: 700;
+    font-size: 1.05rem;
+    text-align: left;
+    direction: ltr;
+    padding: 0.5rem 0.85rem;
+    font-family: 'Inter', system-ui, sans-serif;
+    opacity: 0.75;
+}
+.animated-text {
+    font-family: 'Inter', system-ui, sans-serif;
+    color: var(--accent);
+    font-size: 0.95rem;
+    margin-top: 1.5rem;
+    min-height: 1.6rem;
+    text-align: left;
+    direction: ltr;
+    padding: 0 1.25rem;
+    transition: opacity 1s ease-out;
+}
+
+/* ─── BUTTONS ─── */
+.btn {
+    background: var(--text-main);
+    color: var(--bg-main);
+    padding: 1.1rem 2.75rem;
+    font-size: 1.4rem;
+    border-radius: 999px;
+    font-weight: 700;
+    transition: background 0.25s, box-shadow 0.25s, color 0.25s;
+    cursor: pointer;
+    display: inline-block;
+    text-decoration: none;
+    border: none;
+    box-shadow: 0 4px 20px var(--accent-glow);
+}
+.btn-primary {
+    font-size: 1.4rem;
+    padding: 1.1rem 3rem;
+    font-weight: 900;
+    box-shadow: 0 0 30px var(--accent-glow);
+}
+.btn-primary:hover, .btn:hover {
+    background: var(--accent);
+    color: var(--btn-text-on-accent);
+    box-shadow: 0 0 40px var(--accent);
+}
+.btn-outline {
+    background: transparent;
+    border: 1.5px solid var(--text-main);
+    color: var(--text-main);
+    padding: 1.1rem 3rem;
+    font-size: 1.3rem;
+    border-radius: 999px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.25s, color 0.25s, border-color 0.25s;
+}
+.btn-outline:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+/* ─── TYPOGRAPHY ─── */
+h2 {
+    font-weight: 700;
+    font-size: 1.9rem;
+    margin-bottom: 0.9rem;
+    text-align: center;
+    color: var(--text-main);
+}
+p {
+    font-size: 1.1rem;
+    line-height: 1.85rem;
+    text-align: center;
+    margin-bottom: 0.9rem;
+    color: var(--text-main);
+}
+
+/* ─── FEATURE CARDS ─── */
+.feature {
+    background: var(--card-surface);
+    border: 1px solid var(--border-color);
+    padding: 1.6rem;
+    border-radius: 1.1rem;
+    margin: 1rem 0;
+    text-align: center;
+    transition: box-shadow 0.25s;
+}
+.feature:hover { box-shadow: var(--shadow-accent); }
+.feature h3 { font-weight: 700; font-size: 1.45rem; margin-bottom: 0.5rem; color: var(--text-main); }
+.feature p  { font-size: 1.05rem; color: var(--text-muted); }
+
+/* ─── HEADER BAR ─── */
+.header-bar {
+    background: var(--header-bg);
+    border-bottom: 1px solid var(--border-subtle);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    transition: background 0.35s, border-color 0.35s;
+}
+.header-btn {
+    background: var(--card-surface);
+    border: 1px solid var(--border-color);
+    color: var(--accent);
+    padding: 0.45rem 0.85rem;
+    border-radius: 0.75rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s, color 0.2s;
+    display: flex; align-items: center; gap: 0.35rem;
+    white-space: nowrap;
+}
+.header-btn:hover {
+    border-color: var(--accent);
+    background: var(--accent-hover);
+}
+.header-btn-auth {
+    color: var(--text-main);
+    border-color: var(--border-subtle);
+}
+.header-btn-auth:hover {
+    border-color: var(--text-main);
+    color: var(--text-main);
+}
+.header-btn-workspace {
+    background: var(--accent);
+    color: var(--btn-text-on-accent);
+    border-color: transparent;
+    font-weight: 900;
+}
+.header-btn-workspace:hover {
+    background: var(--accent);
+    opacity: 0.85;
+}
+.header-btn-logout {
+    color: #f87171;
+    border-color: rgba(248,113,113,0.3);
+}
+.header-btn-logout:hover {
+    border-color: #f87171;
+    background: rgba(248,113,113,0.1);
+    color: #f87171;
+}
+
+/* ─── CONVERTER INPUTS ─── */
+.converter-input {
+    background: var(--input-bg);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    text-align: center;
+    font-family: 'Vazirmatn', sans-serif;
+    font-size: 1.15rem;
+    transition: box-shadow 0.2s, border-color 0.2s;
+    padding: 0.75rem;
+    border-radius: 0.6rem;
+    width: 100%;
+}
+.converter-input:focus {
+    outline: none;
+    box-shadow: 0 0 14px var(--accent-glow);
+    border-color: var(--accent);
+}
+select.converter-input option {
+    background: var(--input-bg);
+    color: var(--text-main);
+}
+
+/* ─── MODAL & CHAT WINDOW ─── */
+.modal-overlay {
+    background: var(--modal-overlay);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+}
+.chat-window {
+    border: 1px solid var(--border-color);
+    box-shadow: 0 24px 48px rgba(0,0,0,0.45), 0 0 32px var(--accent-glow);
+    background: var(--card-surface);
+    transition: background 0.35s, border-color 0.35s;
+}
+.chat-bubble-ai {
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    transition: background 0.35s, border-color 0.35s;
+}
+.chat-bubble-user {
+    background: var(--accent-glow);
+    border: 1px solid var(--border-color);
+}
+.drop-zone-chat {
+    border: 2px dashed var(--border-color);
+    background: var(--bg-main);
+    transition: all 0.2s ease-in-out;
+    border-radius: 0.75rem;
+}
+.drop-zone-chat.drag-over {
+    border-color: var(--accent);
+    background: var(--accent-hover);
+}
+
+/* ─── AUTH MODAL INPUTS ─── */
+.auth-input {
+    width: 100%;
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 0.6rem;
+    padding: 0.65rem 0.85rem;
+    font-size: 0.9rem;
+    color: var(--accent);
+    outline: none;
+    font-family: 'Vazirmatn', sans-serif;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+/* Email/password inputs are LTR English — override font there only */
+.auth-input[type="email"],
+.auth-input[type="password"] {
+    font-family: 'Inter', system-ui, sans-serif;
+}
+.auth-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 10px var(--accent-glow);
+}
+.auth-label {
+    display: block;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-bottom: 0.3rem;
+}
+
+/* ─── WORKSPACE DASHBOARD ─── */
+.workspace-panel {
+    background: var(--card-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 1.2rem;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.1);
+    transition: background 0.35s, border-color 0.35s;
+}
+.workspace-panel:hover {
+    border-color: var(--border-color);
+}
+.ws-table th {
+    color: var(--table-header-text);
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    padding-bottom: 0.75rem;
+    padding-top: 0.5rem;
+    font-family: 'Vazirmatn', sans-serif;
+}
+.ws-table tr:not(:last-child) td {
+    border-bottom: 1px solid var(--divider);
+}
+.ws-table tr:hover td {
+    background: var(--row-hover);
+}
+
+/* ─── TOAST NOTIFICATION ─── */
+#toast {
+    position: fixed;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--toast-bg);
+    border: 1px solid var(--toast-border);
+    color: var(--accent);
+    padding: 0.75rem 1.75rem;
+    border-radius: 2rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    z-index: 9999;
+    opacity: 0;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    white-space: nowrap;
+}
+#toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* ─── LOGOUT CONFIRM POPUP ─── */
+#logoutConfirm {
+    background: var(--card-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 1rem;
+    box-shadow: 0 24px 48px rgba(0,0,0,0.4);
+}
+
+
+/* ── LANDING PAGE STYLES ── */
+
 /* ── FONTS ──
    Vazirmatn → all Persian UI text
    Inter     → English data (dates, codes, email addresses)
@@ -565,206 +1007,78 @@ footer {
     opacity: 0; transition: opacity .2s;
 }
 .fmt-copied.show { opacity: 1; }
+
+
+/* ── LANDING/DASHBOARD VIEW SWITCHER ── */
+#landingPage { display: block; }
+
+/* Header for landing page */
+.header-wordmark {
+    font-family: 'Inter', sans-serif;
+    font-size: 1.1rem; font-weight: 900;
+    letter-spacing: .15em; color: var(--text-main);
+}
 </style>
 </head>
 <body>
 
+
 <canvas id="bgCanvas"></canvas>
 <div id="toast"></div>
 
-<!-- ── AUTH MODALS ── -->
-<div class="overlay" id="loginOverlay">
-  <div class="modal">
-    <button class="modal-close" onclick="closeModals()">بستن ✕</button>
-    <div id="loginForm">
-      <h2>ورود به DeepT</h2>
-      <p class="modal-sub">با ایمیل و رمز عبور وارد شوید</p>
-      <label>ایمیل</label>
-      <input class="modal-input" type="email" id="li-email" placeholder="name@example.com" autocomplete="email">
-      <label>رمز عبور</label>
-      <input class="modal-input" type="password" id="li-pass" placeholder="••••••••" autocomplete="current-password">
-      <p class="modal-error" id="li-error"></p>
-      <button class="modal-btn" onclick="handleLogin()">ورود</button>
+<!-- ─── HEADER ─── -->
+<div class="header-bar fixed top-0 left-0 right-0 z-50 px-4 py-3 flex items-center justify-between gap-2">
+    <div class="flex items-center gap-2 flex-wrap">
+        <button onclick="toggleGlobalTheme()" class="header-btn" id="themeBtn" title="تغییر تم">
+            <span id="themeBtnIcon">☀️</span>
+            <span id="themeBtnText">روشن</span>
+        </button>
+        <button id="authHeaderBtn" onclick="openAuthModal()" class="header-btn header-btn-auth">ورود / ثبت‌نام مترجمان</button>
+        <button id="workspaceHeaderBtn" onclick="openWorkspaceDashboard()" class="header-btn header-btn-workspace hidden">میز کار دیجیتال</button>
+        <button id="logoutHeaderBtn" onclick="confirmLogout()" class="header-btn header-btn-logout hidden">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+            خروج
+        </button>
     </div>
-    <div class="modal-success" id="loginSuccess">
-      <div class="icon">✅</div>
-      <strong>ورود موفق</strong>
-      <p>در حال انتقال به پنل ترجمه...</p>
+    <div id="userBadge" class="hidden items-center gap-2 text-xs">
+        <div id="headerAvatarBadge" class="w-7 h-7 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center font-black text-black text-xs">D</div>
+        <span id="headerUserName" class="font-bold" style="color:var(--text-main);"></span>
     </div>
-    <p class="modal-switch">حساب ندارید؟ <a onclick="switchToSignup()">ثبت‌نام کنید</a></p>
-  </div>
 </div>
 
-<div class="overlay" id="signupOverlay">
-  <div class="modal">
-    <button class="modal-close" onclick="closeModals()">بستن ✕</button>
-    <div id="signupForm">
-      <h2>ثبت‌نام در DeepT</h2>
-      <p class="modal-sub">یک حساب رایگان بسازید</p>
-      <label>نام و نام خانوادگی</label>
-      <input class="modal-input fa" type="text" id="su-name" placeholder="نام خود را وارد کنید" autocomplete="name">
-      <label>ایمیل</label>
-      <input class="modal-input" type="email" id="su-email" placeholder="name@example.com" autocomplete="email">
-      <label>رمز عبور (حداقل ۸ کاراکتر)</label>
-      <input class="modal-input" type="password" id="su-pass" placeholder="••••••••" autocomplete="new-password">
-      <p class="modal-error" id="su-error"></p>
-      <button class="modal-btn" onclick="handleSignup()">ساخت حساب</button>
-    </div>
-    <div class="modal-success" id="signupSuccess">
-      <div class="icon">📧</div>
-      <strong>ایمیل تأیید ارسال شد</strong>
-      <p>لطفاً ایمیل خود را بررسی کنید و روی لینک فعال‌سازی کلیک کنید.</p>
-    </div>
-    <p class="modal-switch">قبلاً ثبت‌نام کردید؟ <a onclick="switchToLogin()">وارد شوید</a></p>
-  </div>
-</div>
-
-<!-- ── QUICK START PIPELINE MODAL ── -->
-<div class="overlay" id="quickStartOverlay">
-  <div class="modal qs-modal">
-    <button class="modal-close" onclick="closeModals()">بستن ✕</button>
-    <h2 style="margin-bottom:.3rem;">شروع سریع</h2>
-    <p class="modal-sub">ترجمه بدون ثبت‌نام — پرداخت ۵۰،۰۰۰ تومان پس از پردازش</p>
-
-    <!-- Progress bar -->
-    <div class="qs-progress">
-      <div class="qs-prog-step">
-        <div class="qs-prog-dot active" id="qd1">۱</div>
-        <div class="qs-prog-label">شناسه مشتری</div>
-      </div>
-      <div class="qs-prog-line" id="ql1"></div>
-      <div class="qs-prog-step">
-        <div class="qs-prog-dot" id="qd2">۲</div>
-        <div class="qs-prog-label">بارگذاری سند</div>
-      </div>
-      <div class="qs-prog-line" id="ql2"></div>
-      <div class="qs-prog-step">
-        <div class="qs-prog-dot" id="qd3">۳</div>
-        <div class="qs-prog-label">پرداخت و دانلود</div>
-      </div>
-    </div>
-
-    <!-- ── PANEL 1: Passport / Identity ── -->
-    <div class="qs-panel active" id="qsPanel1">
-      <p style="font-size:.85rem;color:var(--muted);margin-bottom:.9rem;">اطلاعات هویتی مشتری چطور وارد شود؟</p>
-      <div class="qs-mode-grid">
-        <button class="qs-mode-btn" id="qsModeUpload" onclick="qsSelectMode('upload')">
-          <span class="qs-mode-icon">📤</span>
-          <div class="qs-mode-label">آپلود پاسپورت</div>
-          <div class="qs-mode-sub">استخراج خودکار</div>
-        </button>
-        <button class="qs-mode-btn" id="qsModeManual" onclick="qsSelectMode('manual')">
-          <span class="qs-mode-icon">✏️</span>
-          <div class="qs-mode-label">ورود دستی</div>
-          <div class="qs-mode-sub">تایپ اطلاعات</div>
-        </button>
-        <button class="qs-mode-btn" id="qsModeSkip" onclick="qsSelectMode('skip')">
-          <span class="qs-mode-icon">⏭️</span>
-          <div class="qs-mode-label">رد شدن</div>
-          <div class="qs-mode-sub">بدون پاسپورت</div>
-        </button>
-      </div>
-
-      <!-- Upload passport -->
-      <div id="qsUploadZone" style="display:none;">
-        <div class="qs-drop" id="qsPassDrop" onclick="document.getElementById('qsPassFile').click()">
-          <div class="qs-drop-icon">🛂</div>
-          <div class="qs-drop-text">تصویر یا PDF پاسپورت را اینجا بکشید یا کلیک کنید</div>
-          <div class="qs-file-name" id="qsPassFileName"></div>
-          <input type="file" id="qsPassFile" accept="image/*,application/pdf" style="display:none" onchange="qsHandlePassport(this.files[0])">
+<!-- ─── LOGOUT CONFIRM ─── -->
+<!-- ─── LOGOUT CONFIRM ─── -->
+<div id="logoutOverlay" class="modal-overlay fixed inset-0 z-[70] hidden flex items-center justify-center p-4">
+    <div id="logoutConfirm" class="w-full max-w-sm p-8 text-center">
+        <div class="text-4xl mb-4">👋</div>
+        <h3 class="text-xl font-black mb-2" style="color: var(--text-main);">خروج از حساب</h3>
+        <p class="text-sm mb-6" style="color: var(--text-muted);">مطمئن هستید که می‌خواهید از سیستم DeepT خارج شوید؟</p>
+        <div class="flex gap-3 justify-center">
+            <button onclick="executeLogout()" class="bg-red-500 hover:bg-red-600 text-white font-bold px-6 py-2.5 rounded-xl text-sm transition">بله، خروج</button>
+            <button onclick="closeLogoutConfirm()" class="font-bold px-6 py-2.5 rounded-xl text-sm transition" style="background: var(--bg-secondary); color: var(--text-main); border: 1px solid var(--border-subtle);">انصراف</button>
         </div>
-      </div>
-
-      <!-- Manual entry -->
-      <div id="qsManualZone" style="display:none;">
-        <div class="qs-field-grid">
-          <div>
-            <label class="auth-label">نام (First Name)</label>
-            <input class="modal-input" type="text" id="qsFirst" placeholder="ALI" dir="ltr" style="font-family:'Inter',sans-serif;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
-          </div>
-          <div>
-            <label class="auth-label">نام خانوادگی (Last Name)</label>
-            <input class="modal-input" type="text" id="qsLast" placeholder="MOHAMMADI" dir="ltr" style="font-family:'Inter',sans-serif;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
-          </div>
-          <div>
-            <label class="auth-label">نام پدر (Father's Name)</label>
-            <input class="modal-input" type="text" id="qsFather" placeholder="HASSAN" dir="ltr" style="font-family:'Inter',sans-serif;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
-          </div>
-          <div>
-            <label class="auth-label">تاریخ تولد — میلادی</label>
-            <input class="modal-input" type="text" id="qsDob" placeholder="April 12, 1985" dir="ltr" style="font-family:'Inter',sans-serif;">
-          </div>
-        </div>
-      </div>
-
-      <div class="qs-nav">
-        <button class="qs-btn-next" id="qsNext1" onclick="qsGoToPanel(2)" disabled>ادامه — بارگذاری سند ←</button>
-      </div>
     </div>
-
-    <!-- ── PANEL 2: Document upload ── -->
-    <div class="qs-panel" id="qsPanel2">
-      <div style="margin-bottom:.85rem;">
-        <label class="auth-label" style="margin-bottom:.4rem;">نوع سند</label>
-        <select class="modal-input" id="qsDocType" style="font-family:'Vazirmatn',sans-serif;">
-          <option value="police-certificate">گواهی عدم سوء پیشینه</option>
-          <option value="vehicle-deed" disabled>سند مالکیت خودرو — به زودی</option>
-        </select>
-      </div>
-      <div class="qs-drop" id="qsDocDrop" onclick="document.getElementById('qsDocFile').click()">
-        <div class="qs-drop-icon">📄</div>
-        <div class="qs-drop-text">فایل سند (تصویر یا PDF) را اینجا بکشید یا کلیک کنید</div>
-        <div class="qs-file-name" id="qsDocFileName"></div>
-        <input type="file" id="qsDocFile" accept="image/jpeg,image/png,application/pdf" style="display:none" onchange="qsHandleDoc(this.files[0])">
-      </div>
-
-      <!-- Processing animation — shown during backend call -->
-      <div class="qs-processing" id="qsProcessing">
-        <svg class="qs-proc-svg" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
-          <path class="qs-proc-d-outer" d="M 28 18 L 28 102 L 58 102 C 92 102 105 84 105 60 C 105 36 92 18 58 18 Z"/>
-          <path class="qs-proc-d-inner" d="M 40 32 L 40 88 L 57 88 C 80 88 90 76 90 60 C 90 44 80 32 57 32 Z"/>
-        </svg>
-        <div class="qs-proc-text">در حال پردازش سند...</div>
-      </div>
-
-      <div class="qs-nav">
-        <button class="qs-btn-back" onclick="qsGoToPanel(1)">← بازگشت</button>
-        <button class="qs-btn-next" id="qsNext2" onclick="qsRunTranslation()" disabled>ترجمه و پرداخت ←</button>
-      </div>
-    </div>
-
-    <!-- ── PANEL 3: Payment & Download ── -->
-    <div class="qs-panel" id="qsPanel3">
-      <div class="qs-pay-box">
-        <div class="qs-pay-amount">۵۰،۰۰۰ تومان</div>
-        <div class="qs-pay-label">هزینه ترجمه یک سند</div>
-      </div>
-      <p style="font-size:.83rem;color:var(--muted);margin-bottom:1.1rem;line-height:1.75;text-align:center;">
-        سند شما پردازش شد. پس از پرداخت از طریق درگاه شاپرک، فایل Word به‌صورت خودکار دانلود می‌شود.
-      </p>
-      <button class="qs-btn-next" onclick="qsSimulatePayment()" style="width:100%;">💳 پرداخت آنلاین از طریق شاپرک</button>
-      <p style="text-align:center;font-size:.78rem;color:var(--muted);margin-top:.75rem;">
-        می‌خواهید تاریخچه داشته باشید؟
-        <a onclick="closeModals();setTimeout(openSignup,80);" style="color:var(--accent);cursor:pointer;font-weight:700;">حساب رایگان بسازید</a>
-      </p>
-    </div>
-
-  </div>
 </div>
 
-<!-- ── HEADER ── -->
-<header>
-  <span class="header-wordmark en">DEEPT</span>
-  <nav class="header-nav">
-    <a href="#how" class="btn-ghost nav-links">نحوه کار</a>
-    <a href="#pricing" class="btn-ghost nav-links">تعرفه</a>
-    <a href="#tool" class="btn-ghost nav-links">تبدیل تاریخ</a>
-    <button class="theme-btn" onclick="toggleTheme()" id="themeBtn">🌙</button>
-    <button class="btn-ghost" onclick="openLogin()">ورود</button>
-    <button class="btn-accent" onclick="openSignup()">ثبت‌نام رایگان</button>
-  </nav>
-</header>
 
+
+<!-- ─── AUTH MODAL (login/signup/forgot) ─── -->
+
+
+<!-- ─── QUICK START MODAL ─── -->
+
+
+<!-- ─── TRANSLATION MODAL (passport + document pipeline) ─── -->
+
+
+<!-- ─── WORKSPACE DASHBOARD ─── -->
+
+
+<!-- ══════════════════════════════════════════════════════════
+     LANDING PAGE — shown when NOT logged in
+     Hidden via JS when user is authenticated
+     ══════════════════════════════════════════════════════════ -->
+<div id="landingPage">
 <main>
 
 <!-- ── HERO ── -->
@@ -924,8 +1238,6 @@ footer {
 </div>
 
 </main>
-
-<!-- ── FOOTER ── -->
 <footer>
   <span class="copy">© ۱۴۰۵ DeepT</span>
   <div class="footer-links">
@@ -934,13 +1246,690 @@ footer {
     <a href="#">تماس با ما</a>
   </div>
 </footer>
+</div>
+
 
 <script>
+
+// ═══════════════════════════════════════════════════════════
+// DEEPT — Merged Application JS
+// ═══════════════════════════════════════════════════════════
+
+const CORE    = 'https://deept-core.onrender.com';
+const BACKEND = 'https://deept-police-backend.onrender.com';
+
+
+
+// ═══════════════════════════════════════════════════════════
+// DOCUMENT REGISTRY
+// To add a new document type: add one entry here. Nothing else changes.
+// Fields:
+//   label    → Persian name shown in dropdown
+//   endpoint → full backend URL for this document type
+//   active   → false shows as "به زودی" and is disabled
+//   usePassportSession → true means session_id is sent with the request
+// ═══════════════════════════════════════════════════════════
+const DOCUMENT_REGISTRY = {
+    'police-certificate': {
+        label:               'گواهی عدم سوء پیشینه',
+        endpoint:            'https://deept-police-backend.onrender.com/api/translate/police-certificate',
+        active:              true,
+        usePassportSession:  true,
+    },
+    'vehicle-deed': {
+        label:               'سند مالکیت خودرو (برگ سبز)',
+        endpoint:            'https://deept-vehicle.onrender.com/translate-vehicle-deed',
+        active:              false,
+        usePassportSession:  false,
+    },
+    'power-of-attorney': {
+        label:               'وکالتنامه رسمی',
+        endpoint:            '',
+        active:              false,
+        usePassportSession:  true,
+    },
+    'marriage-certificate': {
+        label:               'سند ازدواج',
+        endpoint:            '',
+        active:              false,
+        usePassportSession:  true,
+    },
+    'birth-certificate': {
+        label:               'شناسنامه',
+        endpoint:            '',
+        active:              false,
+        usePassportSession:  true,
+    },
+};
+
+// Populate dropdown from registry
+(function buildDocDropdown() {
+    const sel = document.getElementById('docTemplate');
+    if (!sel) return;
+    sel.innerHTML = '';
+    Object.entries(DOCUMENT_REGISTRY).forEach(([key, doc]) => {
+        const opt = document.createElement('option');
+        opt.value    = key;
+        opt.textContent = doc.active ? doc.label : `${doc.label} — به زودی`;
+        opt.disabled = !doc.active;
+        sel.appendChild(opt);
+    });
+})();
+
+// ─── APP STATE ───
+// ─── SESSION — reads from real auth (deept_token) or falls back to mock ───
+function loadSession() {
+    // Real auth session (from DeepT-Core login/signup)
+    const token    = localStorage.getItem('deept_token');
+    const userId   = localStorage.getItem('deept_user_id');
+    const userName = localStorage.getItem('deept_user_name');
+    const email    = localStorage.getItem('deept_user_email');
+    if (token && userId) {
+        return {
+            email:    email    || '',
+            username: userName || email.split('@')[0],
+            user_id:  userId,
+            token:    token,
+            type:     'individual',
+            contact:  '',
+            office:   ''
+        };
+    }
+    // Fallback: old mock session (for ?test=1 mode)
+    return JSON.parse(localStorage.getItem('deept_mock_user')) || null;
+}
+
+let currentUserSession = loadSession();
+let currentWalletBalance  = parseInt(localStorage.getItem('deept_mock_wallet')) || 1250000;
+let trackingProjectsDatabase = [];
+
+// ─── PASSPORT SESSION STATE ───
+let passportSession = { session_id:null, first_name:null, last_name:null, father_name:null, date_of_birth:null };
+let ppSelectedFile  = null;
+let ppCurrentMode   = null;   // 'upload' | 'manual' | 'skip'
+let docSelectedFile = null;
+
+// ═══════════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════════
+function showToast(msg, duration=2500) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), duration);
+}
+
+// ═══════════════════════════════════════════════════════════
+// THEME
+// ═══════════════════════════════════════════════════════════
+function toggleGlobalTheme() {
+    const body = document.body;
+    const next = (body.getAttribute('data-theme') || 'dark') === 'dark' ? 'light' : 'dark';
+    body.setAttribute('data-theme', next);
+    document.getElementById('themeBtnIcon').textContent = next === 'light' ? '🌙' : '☀️';
+    document.getElementById('themeBtnText').textContent = next === 'light' ? 'تاریک' : 'روشن';
+    localStorage.setItem('deept_theme', next);
+}
+(function(){
+    const saved = localStorage.getItem('deept_theme');
+    if (saved === 'light') {
+        document.body.setAttribute('data-theme','light');
+        document.getElementById('themeBtnIcon').textContent = '🌙';
+        document.getElementById('themeBtnText').textContent = 'تاریک';
+    }
+})();
+
+// ═══════════════════════════════════════════════════════════
+// AUTH MODAL
+// ═══════════════════════════════════════════════════════════
+function openAuthModal()  { document.getElementById('authModal').classList.remove('hidden'); switchAuthState('login'); }
+function closeAuthModal() { document.getElementById('authModal').classList.add('hidden'); }
+function switchAuthState(state) {
+    ['loginStateBox','signupStateBox','forgotStateBox'].forEach(id => document.getElementById(id).classList.add('hidden'));
+    document.getElementById(state === 'login' ? 'loginStateBox' : state === 'signup' ? 'signupStateBox' : 'forgotStateBox').classList.remove('hidden');
+}
+function simulateAuthAction(type) {
+    if (type === 'login' || type === 'signup') {
+        const email = document.getElementById(type === 'login' ? 'loginEmail' : 'signupEmail').value;
+        if (!email || !email.includes('@')) { showToast('لطفا ایمیل معتبری وارد کنید.'); return; }
+        currentUserSession = { email, username: email.split('@')[0], type:'individual', contact:'', office:'' };
+        localStorage.setItem('deept_mock_user', JSON.stringify(currentUserSession));
+        localStorage.setItem('deept_user_name', email.split('@')[0]);
+        localStorage.setItem('deept_user_email', email);
+        syncUserSessionDOM();
+        closeAuthModal();
+        showToast('✅ خوش آمدید!');
+        openWorkspaceDashboard();
+    } else {
+        const email = document.getElementById('forgotEmail').value;
+        if (!email) { showToast('لطفا ایمیل خود را وارد کنید.'); return; }
+        showToast(`📧 لینک بازیابی به ${email} ارسال شد.`, 3500);
+        switchAuthState('login');
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
+// USER SESSION SYNC
+// ═══════════════════════════════════════════════════════════
+function syncUserSessionDOM() {
+    const loggedIn = !!currentUserSession;
+    document.getElementById('authHeaderBtn').classList.toggle('hidden', loggedIn);
+    document.getElementById('mainHeroAuthCall').classList.toggle('hidden', loggedIn);
+    document.getElementById('workspaceHeaderBtn').classList.toggle('hidden', !loggedIn);
+    document.getElementById('logoutHeaderBtn').classList.toggle('hidden', !loggedIn);
+    const ub = document.getElementById('userBadge');
+    ub.classList.toggle('hidden', !loggedIn);
+    ub.style.display = loggedIn ? 'flex' : 'none';
+    if (loggedIn) {
+        const displayName = currentUserSession.office || currentUserSession.username || currentUserSession.email || '؟';
+        const l = displayName[0].toUpperCase();
+        document.getElementById('avatarLetter').textContent       = l;
+        document.getElementById('headerAvatarBadge').textContent  = l;
+        document.getElementById('headerUserName').textContent     = displayName;
+        document.getElementById('profileDisplayName').textContent = displayName;
+        document.getElementById('profileEmailBadge').textContent  = currentUserSession.email;
+        document.getElementById('accountTypeToggle').value        = currentUserSession.type || 'individual';
+        document.getElementById('profileContactInput').value      = currentUserSession.contact || '';
+        document.getElementById('officeNameInput').value          = currentUserSession.office || '';
+        toggleProfileAccountType();
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
+// LOGOUT
+// ═══════════════════════════════════════════════════════════
+function confirmLogout()   { document.getElementById('logoutOverlay').classList.remove('hidden'); }
+function closeLogoutConfirm() { document.getElementById('logoutOverlay').classList.add('hidden'); }
+function executeLogout() {
+    currentUserSession = null;
+    localStorage.removeItem('deept_mock_user');
+    localStorage.removeItem('deept_token');
+    localStorage.removeItem('deept_user_id');
+    localStorage.removeItem('deept_user_name');
+    localStorage.removeItem('deept_user_email');
+    closeLogoutConfirm();
+    closeWorkspaceDashboard();
+    closeChatInterface();
+    syncUserSessionDOM();
+    showToast('👋 با موفقیت خارج شدید.');
+}
+document.getElementById('logoutOverlay').addEventListener('click', function(e) {
+    if (e.target === this) closeLogoutConfirm();
+});
+
+// ═══════════════════════════════════════════════════════════
+// PROFILE
+// ═══════════════════════════════════════════════════════════
+function toggleProfileAccountType() {
+    document.getElementById('officeFieldsBlock').classList.toggle('hidden', document.getElementById('accountTypeToggle').value !== 'office');
+}
+function saveProfileConfiguration() {
+    if (!currentUserSession) return;
+    currentUserSession.type    = document.getElementById('accountTypeToggle').value;
+    currentUserSession.contact = document.getElementById('profileContactInput').value;
+    currentUserSession.office  = currentUserSession.type === 'office' ? document.getElementById('officeNameInput').value : '';
+    localStorage.setItem('deept_mock_user', JSON.stringify(currentUserSession));
+    document.getElementById('profileDisplayName').textContent = currentUserSession.office || currentUserSession.username;
+    document.getElementById('headerUserName').textContent     = currentUserSession.office || currentUserSession.username;
+    showToast('✅ پروفایل بروزرسانی شد.');
+}
+
+// ═══════════════════════════════════════════════════════════
+// WALLET
+// ═══════════════════════════════════════════════════════════
+function triggerShaparakPayment() {
+    const amt = parseInt(document.getElementById('paymentAmountInput').value);
+    if (!amt || amt < 100000) { showToast('حداقل مبلغ ۱۰۰،۰۰۰ ریال می‌باشد.'); return; }
+    if (confirm(`شبیه‌ساز شاپرک\n\nپرداخت ${amt.toLocaleString()} ریال؟`)) {
+        currentWalletBalance += amt;
+        localStorage.setItem('deept_mock_wallet', currentWalletBalance);
+        document.getElementById('walletBalanceDisplay').textContent = currentWalletBalance.toLocaleString();
+        showToast('✅ کیف پول شارژ شد.');
+    }
+}
+function submitSupportTicket() {
+    const text = document.getElementById('supportTicketMsg').value;
+    if (!text) return;
+    showToast('📩 پیام شما ثبت شد.');
+    document.getElementById('supportTicketMsg').value = '';
+}
+
+// ═══════════════════════════════════════════════════════════
+// WORKSPACE DASHBOARD
+// ═══════════════════════════════════════════════════════════
+function openWorkspaceDashboard() {
+    if (!currentUserSession) { openAuthModal(); return; }
+    document.getElementById('workspaceDashboard').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    renderDashboardActiveProjects();
+}
+function closeWorkspaceDashboard() {
+    document.getElementById('workspaceDashboard').classList.add('hidden');
+    document.body.style.overflow = 'auto';
+}
+function renderDashboardActiveProjects() {
+    const tbody = document.getElementById('projectDashboardRowsBlock');
+    tbody.innerHTML = '';
+    if (!trackingProjectsDatabase.length) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">// بدون پروژه فعال</td></tr>`;
+        return;
+    }
+    trackingProjectsDatabase.forEach((p, idx) => {
+        const rem = (48*3600000) - (Date.now() - p.timestamp);
+        const timer = rem <= 0
+            ? `<span style="color:#f87171;font-weight:700;">پاک شده</span>`
+            : `<span style="color:#fb923c;font-weight:700;">⏳ ${Math.floor(rem/3600000)} ساعت و ${Math.floor((rem%3600000)/60000)} دقیقه</span>`;
+        const dateStr = new Date(p.timestamp).toLocaleDateString('fa-IR');
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td class="py-3 text-right">
+                <div class="font-black en" style="color:var(--text-main);">${p.id}</div>
+                <div class="text-[10px] truncate max-w-[170px]" style="color:var(--text-muted);">${p.name}</div>
+            </td>
+            <td class="py-3 text-center font-bold" style="color:var(--accent);">${p.type}</td>
+            <td class="py-3 text-center" style="color:var(--text-muted);">${dateStr}</td>
+            <td class="py-3 text-center">${timer}</td>
+            <td class="py-3 text-left text-xs">
+                ${rem > 0
+                    ? `<button onclick="showToast('فایل DOCX دانلود شد.')" class="font-bold hover:underline ml-3" style="color:var(--accent);">دانلود DOCX</button>
+                       <button onclick="purgeFile(${idx})" class="font-bold hover:underline" style="color:#f87171;">حذف</button>`
+                    : `<span style="color:var(--text-muted);">منقضی</span>`}
+            </td>`;
+        tbody.appendChild(row);
+    });
+}
+function purgeFile(idx) {
+    if (confirm('حذف کامل این فایل؟')) {
+        trackingProjectsDatabase.splice(idx, 1);
+        renderDashboardActiveProjects();
+        showToast('🗑️ فایل حذف شد.');
+    }
+}
+setInterval(() => {
+    if (!document.getElementById('workspaceDashboard').classList.contains('hidden')) renderDashboardActiveProjects();
+}, 30000);
+
+// ═══════════════════════════════════════════════════════════
+// CHAT MODAL — open/close
+// ═══════════════════════════════════════════════════════════
+function openChatInterface() {
+    document.getElementById('chatModal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    // If no active session, always start at step 1
+    if (!passportSession.session_id) {
+        showStep(1);
+    } else {
+        showStep(2);
+    }
+}
+function closeChatInterface() {
+    document.getElementById('chatModal').classList.add('hidden');
+    if (document.getElementById('workspaceDashboard').classList.contains('hidden')) {
+        document.body.style.overflow = 'auto';
+    }
+}
+function showStep(n) {
+    document.getElementById('step1Panel').classList.toggle('hidden', n !== 1);
+    document.getElementById('step2Panel').classList.toggle('hidden', n !== 2);
+}
+
+// ═══════════════════════════════════════════════════════════
+// STEP 1 — PASSPORT SESSION
+// ═══════════════════════════════════════════════════════════
+function ppSetMode(mode) {
+    ppCurrentMode = mode;
+    // Hide all sub-sections first
+    document.getElementById('pp-upload-zone').classList.add('hidden');
+    document.getElementById('pp-fields').classList.add('hidden');
+    ppShowStatus('','');
+
+    if (mode === 'upload') {
+        document.getElementById('pp-upload-zone').classList.remove('hidden');
+    } else if (mode === 'manual') {
+        ppClearFields();
+        document.getElementById('pp-fields').classList.remove('hidden');
+    } else if (mode === 'skip') {
+        ppActivateSkipSession();
+    }
+}
+
+function ppShowStatus(icon, text) {
+    const bar = document.getElementById('pp-status');
+    if (!text) { bar.classList.add('hidden'); return; }
+    bar.classList.remove('hidden');
+    document.getElementById('pp-status-icon').textContent = icon;
+    document.getElementById('pp-status-text').textContent = text;
+}
+
+function ppClearFields() {
+    ['pp-first','pp-last','pp-father','pp-dob'].forEach(id => document.getElementById(id).value = '');
+}
+
+function ppFillFields(data) {
+    document.getElementById('pp-first').value  = data.first_name    || '';
+    document.getElementById('pp-last').value   = data.last_name     || '';
+    document.getElementById('pp-father').value = data.father_name   || '';
+    document.getElementById('pp-dob').value    = data.date_of_birth || '';
+}
+
+function ppHandleFile(file) {
+    if (!file) return;
+    ppSelectedFile = file;
+    document.getElementById('pp-file-name').textContent = `📎 ${file.name}`;
+    document.getElementById('pp-file-name').classList.remove('hidden');
+    document.getElementById('pp-drop-text').classList.add('hidden');
+    document.getElementById('pp-extract-btn').disabled = false;
+}
+
+// Drag and drop on passport zone
+const ppDropZoneEl = document.getElementById('pp-drop-zone');
+if (ppDropZoneEl) {
+    ppDropZoneEl.addEventListener('dragover', e => { e.preventDefault(); ppDropZoneEl.classList.add('drag-over'); });
+    ppDropZoneEl.addEventListener('dragleave', () => ppDropZoneEl.classList.remove('drag-over'));
+    ppDropZoneEl.addEventListener('drop', e => {
+        e.preventDefault();
+        ppDropZoneEl.classList.remove('drag-over');
+        if (e.dataTransfer.files.length) ppHandleFile(e.dataTransfer.files[0]);
+    });
+}
+
+async function ppRunExtraction() {
+    if (!ppSelectedFile) return;
+    const btn = document.getElementById('pp-extract-btn');
+    btn.disabled = true;
+    btn.textContent = 'در حال استخراج...';
+    ppShowStatus('⏳', 'در حال ارسال به Gemini...');
+
+    const fd = new FormData();
+    fd.append('file', ppSelectedFile);
+
+    try {
+        const res = await fetch(`${BACKEND}/passport/extract`, { method:'POST', body:fd });
+        if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'خطای سرور'); }
+        const data = await res.json();
+        // Show fields pre-filled for review
+        document.getElementById('pp-upload-zone').classList.add('hidden');
+        ppFillFields(data);
+        ppShowStatus('✅', 'اطلاعات استخراج شد — بررسی و تأیید کنید.');
+        document.getElementById('pp-fields').classList.remove('hidden');
+    } catch (err) {
+        ppShowStatus('❌', `استخراج ناموفق: ${err.message}`);
+        btn.disabled = false;
+        btn.textContent = 'استخراج با هوش مصنوعی';
+    }
+}
+
+async function ppConfirmSession() {
+    const first  = document.getElementById('pp-first').value.trim().toUpperCase();
+    const last   = document.getElementById('pp-last').value.trim().toUpperCase();
+    const father = document.getElementById('pp-father').value.trim().toUpperCase();
+    const dob    = document.getElementById('pp-dob').value.trim();
+
+    if (!first || !last) { showToast('⚠️ نام و نام خانوادگی الزامی است.'); return; }
+
+    ppShowStatus('⏳', 'در حال ثبت جلسه...');
+
+    try {
+        const res = await fetch(`${BACKEND}/passport/confirm`, {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ first_name:first, last_name:last, father_name:father, date_of_birth:dob })
+        });
+        if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'خطای سرور'); }
+        const data = await res.json();
+
+        passportSession = { session_id:data.session_id, first_name:first, last_name:last, father_name:father, date_of_birth:dob };
+        ppActivateSessionUI();
+        showStep(2);
+        showToast(`✅ جلسه فعال شد — ${first} ${last}`);
+    } catch (err) {
+        ppShowStatus('❌', err.message);
+    }
+}
+
+function ppActivateSkipSession() {
+    passportSession = { session_id:'SKIP', first_name:'—', last_name:'—', father_name:null, date_of_birth:null };
+    ppActivateSessionUI();
+    showStep(2);
+    showToast('⏭️ جلسه بدون پاسپورت شروع شد.');
+}
+
+function ppActivateSessionUI() {
+    const badge = document.getElementById('activeClientBadge');
+    badge.classList.remove('hidden');
+    badge.style.display = 'flex';
+    document.getElementById('activeClientName').textContent = `${passportSession.first_name} ${passportSession.last_name}`;
+    document.getElementById('newClientBtn').classList.remove('hidden');
+}
+
+function confirmNewClient() {
+    if (!confirm(`بستن جلسه ${passportSession.first_name} ${passportSession.last_name}؟\nبرای مشتری جدید باید پاسپورت مجدداً ثبت شود.`)) return;
+
+    // Delete from backend
+    if (passportSession.session_id && passportSession.session_id !== 'SKIP') {
+        fetch(`${BACKEND}/passport/${passportSession.session_id}`, { method:'DELETE' }).catch(()=>{});
+    }
+
+    // Reset everything
+    passportSession = { session_id:null, first_name:null, last_name:null, father_name:null, date_of_birth:null };
+    ppSelectedFile  = null;
+    docSelectedFile = null;
+
+    document.getElementById('activeClientBadge').classList.add('hidden');
+    document.getElementById('newClientBtn').classList.add('hidden');
+    document.getElementById('pp-upload-zone').classList.add('hidden');
+    document.getElementById('pp-fields').classList.add('hidden');
+    ppShowStatus('','');
+
+    // Reset doc zone
+    resetDocZone();
+    showStep(1);
+    showToast('🔄 جلسه بسته شد. آماده مشتری جدید.');
+}
+
+// ═══════════════════════════════════════════════════════════
+// STEP 2 — DOCUMENT UPLOAD & TRANSLATION
+// ═══════════════════════════════════════════════════════════
+function handleDocFileSelection(file) {
+    if (!file) return;
+    docSelectedFile = file;
+    document.getElementById('docFileInfo').textContent = `📄 ${file.name} (${(file.size/1024).toFixed(0)} KB)`;
+    document.getElementById('docFileInfo').classList.remove('hidden');
+    document.getElementById('docDropText').classList.add('hidden');
+    document.getElementById('submitBtn').disabled = false;
+}
+
+// Drag and drop on document zone
+const docDropZoneEl = document.getElementById('docDropZone');
+if (docDropZoneEl) {
+    docDropZoneEl.addEventListener('dragover', e => { e.preventDefault(); docDropZoneEl.classList.add('drag-over'); });
+    docDropZoneEl.addEventListener('dragleave', () => docDropZoneEl.classList.remove('drag-over'));
+    docDropZoneEl.addEventListener('drop', e => {
+        e.preventDefault();
+        docDropZoneEl.classList.remove('drag-over');
+        if (e.dataTransfer.files.length) handleDocFileSelection(e.dataTransfer.files[0]);
+    });
+}
+
+async function executeTranslationPipeline() {
+    if (!docSelectedFile) return;
+
+    const submitBtn    = document.getElementById('submitBtn');
+    const statusBubble = document.getElementById('processingStatusBubble');
+    const statusText   = document.getElementById('statusMessageText');
+
+    submitBtn.disabled = true;
+    statusBubble.classList.remove('hidden');
+    statusText.textContent = 'در حال ارسال به سرور...';
+
+    const docType = document.getElementById('docTemplate').value;
+    const docDef  = DOCUMENT_REGISTRY[docType];
+
+    if (!docDef || !docDef.active || !docDef.endpoint) {
+        showToast('این نوع سند هنوز پشتیبانی نمی‌شود.');
+        submitBtn.disabled = false;
+        statusBubble.classList.add('hidden');
+        return;
+    }
+
+    const fd = new FormData();
+    fd.append('document_file', docSelectedFile);
+
+    // Passport session — only for document types that need it
+    if (docDef.usePassportSession) {
+        if (!passportSession.session_id || passportSession.session_id === 'SKIP') {
+            try {
+                statusText.textContent = 'در حال ایجاد جلسه موقت...';
+                const r = await fetch(`${BACKEND}/passport/confirm`, {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({ first_name:'', last_name:'', father_name:'', date_of_birth:'' })
+                });
+                const d = await r.json();
+                passportSession.session_id = d.session_id;
+            } catch(e) { /* backend will fall back to doc-extracted identity */ }
+        }
+        if (passportSession.session_id && passportSession.session_id !== 'SKIP') {
+            fd.append('session_id', passportSession.session_id);
+        }
+    }
+
+    const url = docDef.endpoint;
+
+    try {
+        statusText.textContent = 'در حال پردازش با هوش مصنوعی...';
+        const res = await fetch(url, { method:'POST', body:fd });
+        if (!res.ok) {
+            const err = await res.json().catch(()=>({detail:'خطای ناشناخته'}));
+            throw new Error(err.detail);
+        }
+
+        statusText.textContent = 'آماده‌سازی فایل دانلود...';
+        const blob = await res.blob();
+
+        // Add to dashboard log
+        const typeLabel = DOCUMENT_REGISTRY[docType]?.label || docType;
+        trackingProjectsDatabase.unshift({ id:'DPT-'+Math.floor(1000+Math.random()*9000), name:docSelectedFile.name, type:typeLabel, timestamp:Date.now() });
+
+        // Download
+        const dlUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = dlUrl;
+        a.download = `DeepT_${docSelectedFile.name.split('.')[0]}.docx`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(dlUrl);
+
+        showToast('✅ فایل ترجمه شده دانلود شد.');
+        document.getElementById('nextDocBtn').classList.remove('hidden');
+
+    } catch (err) {
+        showToast(`❌ ${err.message}`);
+    } finally {
+        submitBtn.disabled = false;
+        statusBubble.classList.add('hidden');
+    }
+}
+
+function resetDocZone() {
+    docSelectedFile = null;
+    document.getElementById('docFileInfo').classList.add('hidden');
+    document.getElementById('docDropText').classList.remove('hidden');
+    document.getElementById('docFileInput').value = '';
+    document.getElementById('submitBtn').disabled = true;
+    document.getElementById('nextDocBtn').classList.add('hidden');
+}
+
+function resetForNextDocument() {
+    resetDocZone();
+    showToast('آماده بارگذاری سند بعدی.');
+}
+
+// ═══════════════════════════════════════════════════════════
+// CANVAS BACKGROUND
+// ═══════════════════════════════════════════════════════════
+const canvas = document.getElementById('bgCanvas');
+const ctx    = canvas.getContext('2d');
+let width = canvas.width = window.innerWidth;
+let height = canvas.height = window.innerHeight;
+const nodes = [];
+function initNodes() {
+    nodes.length = 0;
+    for (let i=0; i<100; i++) nodes.push({x:Math.random()*width, y:Math.random()*height, vx:(Math.random()-.5)/4, vy:(Math.random()-.5)/4});
+}
+initNodes();
+function drawBG() {
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+    ctx.clearRect(0,0,width,height);
+    const isLight = document.body.getAttribute('data-theme') === 'light';
+    for (let i=0;i<nodes.length;i++) for (let j=i+1;j<nodes.length;j++) {
+        const dx=nodes[i].x-nodes[j].x, dy=nodes[i].y-nodes[j].y, d=Math.sqrt(dx*dx+dy*dy);
+        if (d<160) {
+            ctx.beginPath(); ctx.moveTo(nodes[i].x,nodes[i].y); ctx.lineTo(nodes[j].x,nodes[j].y);
+            ctx.strokeStyle = isLight ? `rgba(3,105,161,${(1-d/160)*0.18})` : `rgba(0,255,255,${(1-d/160)*0.7})`;
+            ctx.lineWidth=0.8; ctx.stroke();
+        }
+    }
+    nodes.forEach(n => {
+        ctx.beginPath(); ctx.arc(n.x,n.y,1.8,0,Math.PI*2);
+        ctx.fillStyle = isLight ? '#0369a1' : 'cyan'; ctx.fill();
+        n.x+=n.vx; n.y+=n.vy;
+        if(n.x<0||n.x>width)  n.vx*=-1;
+        if(n.y<0||n.y>height) n.vy*=-1;
+    });
+    requestAnimationFrame(drawBG);
+}
+window.addEventListener('resize', ()=>{ width=canvas.width=window.innerWidth; height=canvas.height=window.innerHeight; });
+drawBG();
+
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
+document.getElementById('walletBalanceDisplay').textContent = currentWalletBalance.toLocaleString();
+
+(function() {
+    const params = new URLSearchParams(window.location.search);
+
+    // ?test=1 — auto-create a test session and open dashboard
+    if (params.get('test') === '1' && !currentUserSession) {
+        currentUserSession = {
+            email:    'test@deept.ir',
+            username: 'مترجم آزمایشی',
+            type:     'office',
+            contact:  '@deept_test',
+            office:   'دارالترجمه آزمایشی DeepT'
+        };
+        localStorage.setItem('deept_mock_user', JSON.stringify(currentUserSession));
+    }
+
+    syncUserSessionDOM();
+
+    if (currentUserSession) {
+        // Logged in — open dashboard and hide loading screen
+        document.getElementById('dashboardShell').style.display = 'none';
+        openWorkspaceDashboard();
+    } else {
+        // Not logged in — redirect to landing page
+        // If opened as a local file, just show auth modal instead
+        const isLocal = window.location.protocol === 'file:';
+        if (isLocal) {
+            document.getElementById('dashboardShell').innerHTML =
+                '<div class="text-center"><p style="color:var(--text-muted);margin-bottom:1rem;">لطفاً ابتدا وارد شوید.</p>' +
+                '<button onclick="openAuthModal()" style="background:var(--accent);color:#000;padding:.75rem 2rem;border-radius:.75rem;border:none;font-family:Vazirmatn,sans-serif;font-weight:700;cursor:pointer;font-size:1rem;">ورود / ثبت‌نام</button></div>';
+        } else {
+            window.location.href = 'index.html';
+        }
+    }
+})();
+
+
+
+// ── LANDING PAGE FUNCTIONS (auth, date converter, quick start) ──
+
 // ── LOGO (embedded, theme-aware via CSS filter) ──
 // logo embedded in hero
 
 // ── DEEPT-CORE AUTH ──
-const CORE = 'https://deept-core.onrender.com';
 
 async function corePost(path, body) {
     const res = await fetch(`${CORE}${path}`, {
@@ -1073,47 +2062,7 @@ document.addEventListener('keydown', e => {
     if (document.getElementById('signupOverlay').classList.contains('open')) handleSignup();
 });
 
-// ── CANVAS NODES ──
-const canvas = document.getElementById('bgCanvas');
-const ctx = canvas.getContext('2d');
-let W = canvas.width = window.innerWidth;
-let H = canvas.height = window.innerHeight;
-const nodes = [];
-for (let i=0;i<90;i++) nodes.push({
-    x: Math.random()*W, y: Math.random()*H,
-    vx: (Math.random()-.5)/4, vy: (Math.random()-.5)/4
-});
-function drawNodes() {
-    W = canvas.width = window.innerWidth;
-    H = canvas.height = window.innerHeight;
-    ctx.clearRect(0,0,W,H);
-    const light = document.body.getAttribute('data-theme')==='light';
-    for (let i=0;i<nodes.length;i++) {
-        for (let j=i+1;j<nodes.length;j++) {
-            const dx=nodes[i].x-nodes[j].x, dy=nodes[i].y-nodes[j].y;
-            const d=Math.sqrt(dx*dx+dy*dy);
-            if (d<160) {
-                ctx.beginPath();
-                ctx.moveTo(nodes[i].x,nodes[i].y);
-                ctx.lineTo(nodes[j].x,nodes[j].y);
-                ctx.strokeStyle = light
-                    ? `rgba(0,114,168,${(1-d/160)*.2})`
-                    : `rgba(0,212,255,${(1-d/160)*.65})`;
-                ctx.lineWidth = .8;
-                ctx.stroke();
-            }
-        }
-        ctx.beginPath();
-        ctx.arc(nodes[i].x,nodes[i].y,1.7,0,Math.PI*2);
-        ctx.fillStyle = light ? '#0072a8' : '#00d4ff';
-        ctx.fill();
-        nodes[i].x+=nodes[i].vx; nodes[i].y+=nodes[i].vy;
-        if(nodes[i].x<0||nodes[i].x>W) nodes[i].vx*=-1;
-        if(nodes[i].y<0||nodes[i].y>H) nodes[i].vy*=-1;
-    }
-    requestAnimationFrame(drawNodes);
-}
-window.addEventListener('resize',()=>{W=canvas.width=window.innerWidth;H=canvas.height=window.innerHeight;});
+// canvas handled by enhanced JS
 drawNodes();
 
 // ── DATE CONVERTER ──
@@ -1302,6 +2251,61 @@ function qsSimulatePayment() {
     toast('✅ پرداخت موفق — فایل دانلود شد');
     setTimeout(closeModals, 2000);
 }
+
+
+// ── VIEW CONTROLLER — shows landing or dashboard based on auth ──
+function showLandingView() {
+    const lp = document.getElementById('landingPage');
+    if (lp) lp.style.display = 'block';
+    document.body.style.overflow = 'auto';
+}
+
+function showDashboardView() {
+    const lp = document.getElementById('landingPage');
+    if (lp) lp.style.display = 'none';
+    openWorkspaceDashboard();
+}
+
+
+// ── INIT ──────────────────────────────────────────────────
+document.getElementById('walletBalanceDisplay').textContent = currentWalletBalance.toLocaleString();
+
+// Hero logo
+(function() {
+    const heroLogo = document.getElementById('heroLogo');
+    if (heroLogo) heroLogo.src = "data:image/png;base64,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AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACcEmAAgAQSUp2yh2gAAAAASUVORK5CYII=";
+})();
+
+// Theme restore
+(function() {
+    const saved = localStorage.getItem('deept_theme') || 'dark';
+    if (saved === 'light') {
+        document.body.setAttribute('data-theme', 'light');
+        const btn = document.getElementById('themeBtn');
+        if (btn) btn.textContent = '☀️';
+    }
+})();
+
+// ── MAIN ENTRY POINT ──
+(function() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('test') === '1' && !currentUserSession) {
+        currentUserSession = {
+            email: 'test@deept.ir', username: 'مترجم آزمایشی',
+            type: 'office', contact: '', office: 'دارالترجمه آزمایشی DeepT'
+        };
+        localStorage.setItem('deept_mock_user', JSON.stringify(currentUserSession));
+        currentUserSession = loadSession();
+    }
+
+    syncUserSessionDOM();
+
+    if (currentUserSession) {
+        showDashboardView();
+    } else {
+        showLandingView();
+    }
+})();
 </script>
 </body>
 </html>
