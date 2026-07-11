@@ -1785,24 +1785,28 @@ function toggleGlobalTheme() {
 // ═══════════════════════════════════════════════════════════
 function syncUserSessionDOM() {
     const loggedIn = !!currentUserSession;
-    document.getElementById('authHeaderBtn').classList.toggle('hidden', loggedIn);
-    document.getElementById('mainHeroAuthCall').classList.toggle('hidden', loggedIn);
-    document.getElementById('workspaceHeaderBtn').classList.toggle('hidden', !loggedIn);
-    document.getElementById('logoutHeaderBtn').classList.toggle('hidden', !loggedIn);
+    const toggle = (id, hide) => { const el=document.getElementById(id); if(el) el.classList.toggle('hidden', hide); };
+    toggle('authHeaderBtn',      loggedIn);
+    toggle('mainHeroAuthCall',   loggedIn);
+    toggle('workspaceHeaderBtn', !loggedIn);
+    toggle('logoutHeaderBtn',    !loggedIn);
     const ub = document.getElementById('userBadge');
-    ub.classList.toggle('hidden', !loggedIn);
-    ub.style.display = loggedIn ? 'flex' : 'none';
+    if (ub) { ub.classList.toggle('hidden', !loggedIn); ub.style.display = loggedIn ? 'flex' : 'none'; }
     if (loggedIn) {
         const displayName = currentUserSession.office || currentUserSession.username || currentUserSession.email || '؟';
         const l = displayName[0].toUpperCase();
-        document.getElementById('avatarLetter').textContent       = l;
-        document.getElementById('headerAvatarBadge').textContent  = l;
-        document.getElementById('headerUserName').textContent     = displayName;
-        document.getElementById('profileDisplayName').textContent = displayName;
-        document.getElementById('profileEmailBadge').textContent  = currentUserSession.email;
-        document.getElementById('accountTypeToggle').value        = currentUserSession.type || 'individual';
-        document.getElementById('profileContactInput').value      = currentUserSession.contact || '';
-        document.getElementById('officeNameInput').value          = currentUserSession.office || '';
+        const set = (id, val) => { const el=document.getElementById(id); if(el) el.textContent=val; };
+        set('avatarLetter',       l);
+        set('headerAvatarBadge',  l);
+        set('headerUserName',     displayName);
+        set('profileDisplayName', displayName);
+        set('profileEmailBadge',  currentUserSession.email || '');
+        const at = document.getElementById('accountTypeToggle');
+        if (at) at.value = currentUserSession.type || 'individual';
+        const pc = document.getElementById('profileContactInput');
+        if (pc) pc.value = currentUserSession.contact || '';
+        const on = document.getElementById('officeNameInput');
+        if (on) on.value = currentUserSession.office || '';
         toggleProfileAccountType();
     }
 }
