@@ -1014,8 +1014,10 @@ function switchToSignup() { closeModals(); setTimeout(openSignup, 80); }
 function switchToLogin()  { closeModals(); setTimeout(openLogin, 80); }
 
 ['loginOverlay','signupOverlay','quickStartOverlay'].forEach(id => {
-    document.getElementById(id).addEventListener('click', e => {
-        if (e.target === document.getElementById(id)) closeModals();
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('click', e => {
+        if (e.target === el) closeModals();
     });
 });
 
@@ -1043,6 +1045,7 @@ function toast(msg, dur=2800) {
 }
 
 // ── MODALS ──
+document.addEventListener('keydown', e => {
     if (e.key !== 'Enter') return;
     if (document.getElementById('loginOverlay').classList.contains('open'))  handleLogin();
     if (document.getElementById('signupOverlay').classList.contains('open')) handleSignup();
@@ -1201,21 +1204,27 @@ function qsHandleDoc(file) {
 }
 
 // Drag-drop passport
-['dragover','dragleave','drop'].forEach(evt => {
-    document.getElementById('qsPassDrop').addEventListener(evt, e => {
-        e.preventDefault();
-        document.getElementById('qsPassDrop').classList.toggle('over', evt==='dragover');
-        if (evt==='drop' && e.dataTransfer.files.length) qsHandlePassport(e.dataTransfer.files[0]);
+const qsPassDropEl = document.getElementById('qsPassDrop');
+if (qsPassDropEl) {
+    ['dragover','dragleave','drop'].forEach(evt => {
+        qsPassDropEl.addEventListener(evt, e => {
+            e.preventDefault();
+            qsPassDropEl.classList.toggle('over', evt==='dragover');
+            if (evt==='drop' && e.dataTransfer.files.length) qsHandlePassport(e.dataTransfer.files[0]);
+        });
     });
-});
+}
 // Drag-drop document
-['dragover','dragleave','drop'].forEach(evt => {
-    document.getElementById('qsDocDrop').addEventListener(evt, e => {
-        e.preventDefault();
-        document.getElementById('qsDocDrop').classList.toggle('over', evt==='dragover');
-        if (evt==='drop' && e.dataTransfer.files.length) qsHandleDoc(e.dataTransfer.files[0]);
+const qsDocDropEl = document.getElementById('qsDocDrop');
+if (qsDocDropEl) {
+    ['dragover','dragleave','drop'].forEach(evt => {
+        qsDocDropEl.addEventListener(evt, e => {
+            e.preventDefault();
+            qsDocDropEl.classList.toggle('over', evt==='dragover');
+            if (evt==='drop' && e.dataTransfer.files.length) qsHandleDoc(e.dataTransfer.files[0]);
+        });
     });
-});
+}
 
 async function qsRunTranslation() {
     if (!QS.docFile) return;
