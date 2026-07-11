@@ -1009,76 +1009,472 @@ footer {
 .fmt-copied.show { opacity: 1; }
 
 
-/* ── LANDING/DASHBOARD VIEW SWITCHER ── */
+/* ── VIEW SWITCHER ── */
 #landingPage { display: block; }
-
-/* Header for landing page */
-.header-wordmark {
-    font-family: 'Inter', sans-serif;
-    font-size: 1.1rem; font-weight: 900;
-    letter-spacing: .15em; color: var(--text-main);
-}
 </style>
 </head>
 <body>
-
 
 <canvas id="bgCanvas"></canvas>
 <div id="toast"></div>
 
 <!-- ─── HEADER ─── -->
 <div class="header-bar fixed top-0 left-0 right-0 z-50 px-4 py-3 flex items-center justify-between gap-2">
-    <div class="flex items-center gap-2 flex-wrap">
-        <button onclick="toggleGlobalTheme()" class="header-btn" id="themeBtn" title="تغییر تم">
-            <span id="themeBtnIcon">☀️</span>
-            <span id="themeBtnText">روشن</span>
-        </button>
-        <button id="authHeaderBtn" onclick="openAuthModal()" class="header-btn header-btn-auth">ورود / ثبت‌نام مترجمان</button>
-        <button id="workspaceHeaderBtn" onclick="openWorkspaceDashboard()" class="header-btn header-btn-workspace hidden">میز کار دیجیتال</button>
-        <button id="logoutHeaderBtn" onclick="confirmLogout()" class="header-btn header-btn-logout hidden">
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-            خروج
-        </button>
-    </div>
-    <div id="userBadge" class="hidden items-center gap-2 text-xs">
-        <div id="headerAvatarBadge" class="w-7 h-7 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center font-black text-black text-xs">D</div>
-        <span id="headerUserName" class="font-bold" style="color:var(--text-main);"></span>
-    </div>
+  <div class="flex items-center gap-2 flex-wrap">
+    <button onclick="toggleGlobalTheme()" class="header-btn" id="themeBtn">
+      <span id="themeBtnIcon">🌙</span><span id="themeBtnText">روشن</span>
+    </button>
+    <button id="authHeaderBtn" onclick="openLogin()" class="header-btn header-btn-auth">ورود / ثبت‌نام</button>
+    <button id="workspaceHeaderBtn" onclick="openWorkspaceDashboard()" class="header-btn header-btn-workspace hidden">میز کار دیجیتال</button>
+    <button id="logoutHeaderBtn" onclick="confirmLogout()" class="header-btn header-btn-logout hidden">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+      خروج
+    </button>
+  </div>
+  <div id="userBadge" class="hidden items-center gap-2 text-xs">
+    <div id="headerAvatarBadge" class="w-7 h-7 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center font-black text-black text-xs">D</div>
+    <span id="headerUserName" class="font-bold" style="color:var(--text-main);"></span>
+  </div>
 </div>
 
 <!-- ─── LOGOUT CONFIRM ─── -->
-<!-- ─── LOGOUT CONFIRM ─── -->
 <div id="logoutOverlay" class="modal-overlay fixed inset-0 z-[70] hidden flex items-center justify-center p-4">
-    <div id="logoutConfirm" class="w-full max-w-sm p-8 text-center">
-        <div class="text-4xl mb-4">👋</div>
-        <h3 class="text-xl font-black mb-2" style="color: var(--text-main);">خروج از حساب</h3>
-        <p class="text-sm mb-6" style="color: var(--text-muted);">مطمئن هستید که می‌خواهید از سیستم DeepT خارج شوید؟</p>
-        <div class="flex gap-3 justify-center">
-            <button onclick="executeLogout()" class="bg-red-500 hover:bg-red-600 text-white font-bold px-6 py-2.5 rounded-xl text-sm transition">بله، خروج</button>
-            <button onclick="closeLogoutConfirm()" class="font-bold px-6 py-2.5 rounded-xl text-sm transition" style="background: var(--bg-secondary); color: var(--text-main); border: 1px solid var(--border-subtle);">انصراف</button>
+  <div id="logoutConfirm" class="w-full max-w-sm p-8 text-center" style="background:var(--card-surface);border:1px solid var(--border-color);border-radius:1rem;">
+    <div class="text-4xl mb-4">👋</div>
+    <h3 class="text-xl font-black mb-2" style="color:var(--text-main);">خروج از حساب</h3>
+    <p class="text-sm mb-6" style="color:var(--text-muted);">مطمئن هستید که می‌خواهید از سیستم DeepT خارج شوید؟</p>
+    <div class="flex gap-3 justify-center">
+      <button onclick="executeLogout()" class="bg-red-500 text-white font-bold px-6 py-2.5 rounded-xl text-sm">بله، خروج</button>
+      <button onclick="closeLogoutConfirm()" class="font-bold px-6 py-2.5 rounded-xl text-sm" style="background:var(--bg-secondary);color:var(--text-main);border:1px solid var(--border-subtle);">انصراف</button>
+    </div>
+  </div>
+</div>
+
+<!-- ─── AUTH MODALS (login + signup) ─── -->
+<div class="overlay" id="loginOverlay">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModals()">بستن ✕</button>
+    <div id="loginForm">
+      <h2>ورود به DeepT</h2>
+      <p class="modal-sub">با ایمیل و رمز عبور وارد شوید</p>
+      <label>ایمیل</label>
+      <input class="modal-input" type="email" id="li-email" placeholder="name@example.com" autocomplete="email">
+      <label>رمز عبور</label>
+      <input class="modal-input" type="password" id="li-pass" placeholder="••••••••" autocomplete="current-password">
+      <p class="modal-error" id="li-error"></p>
+      <button class="modal-btn" onclick="handleLogin()">ورود</button>
+    </div>
+    <div class="modal-success" id="loginSuccess">
+      <div class="icon">✅</div>
+      <strong>ورود موفق</strong>
+      <p>در حال انتقال به پنل ترجمه...</p>
+    </div>
+    <p class="modal-switch">حساب ندارید؟ <a onclick="switchToSignup()">ثبت‌نام کنید</a></p>
+  </div>
+</div>
+
+<div class="overlay" id="signupOverlay">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModals()">بستن ✕</button>
+    <div id="signupForm">
+      <h2>ثبت‌نام در DeepT</h2>
+      <p class="modal-sub">یک حساب رایگان بسازید</p>
+      <label>نام و نام خانوادگی</label>
+      <input class="modal-input fa" type="text" id="su-name" placeholder="نام خود را وارد کنید" autocomplete="name">
+      <label>ایمیل</label>
+      <input class="modal-input" type="email" id="su-email" placeholder="name@example.com" autocomplete="email">
+      <label>رمز عبور (حداقل ۸ کاراکتر)</label>
+      <input class="modal-input" type="password" id="su-pass" placeholder="••••••••" autocomplete="new-password">
+      <p class="modal-error" id="su-error"></p>
+      <button class="modal-btn" onclick="handleSignup()">ساخت حساب</button>
+    </div>
+    <div class="modal-success" id="signupSuccess">
+      <div class="icon">📧</div>
+      <strong>ثبت‌نام موفق</strong>
+      <p>در حال انتقال به پنل ترجمه...</p>
+    </div>
+    <p class="modal-switch">قبلاً ثبت‌نام کردید؟ <a onclick="switchToLogin()">وارد شوید</a></p>
+  </div>
+</div>
+
+
+<!-- ═══ TRANSLATION MODAL — passport + document pipeline ═══ -->
+<div id="chatModal" class="modal-overlay fixed inset-0 z-50 hidden flex items-center justify-center p-4">
+  <div class="chat-window w-full max-w-2xl rounded-2xl flex flex-col overflow-hidden" style="max-height:90vh;">
+    <div class="flex items-center justify-between px-5 py-3 shrink-0" style="border-bottom:1px solid var(--border-color);background:var(--panel-bg);">
+      <div class="flex items-center gap-3">
+        <div class="w-2 h-2 rounded-full animate-pulse" style="background:var(--accent);"></div>
+        <span class="font-black text-sm en" style="color:var(--accent);">DeepT Engine v1.0</span>
+        <div id="activeClientBadge" class="hidden items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-bold" style="background:rgba(74,222,128,0.15);border:1px solid rgba(74,222,128,0.4);color:#4ade80;">
+          <span>🟢</span><span id="activeClientName"></span>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button id="newClientBtn" onclick="confirmNewClient()" class="hidden text-xs font-bold px-3 py-1 rounded-lg transition" style="color:#fb923c;border:1px solid rgba(251,146,60,0.35);">↺ مشتری جدید</button>
+        <button onclick="closeChatInterface()" class="text-xs font-bold px-3 py-1 rounded-lg transition" style="color:var(--text-muted);border:1px solid var(--border-subtle);">بستن ✕</button>
+      </div>
+    </div>
+    <div class="overflow-y-auto flex-1 p-5 space-y-4" dir="rtl">
+      <!-- STEP 1: PASSPORT -->
+      <div id="step1Panel">
+        <div class="flex items-center gap-2 mb-4">
+          <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0" style="background:var(--accent);color:var(--btn-text-on-accent);">۱</span>
+          <span class="font-black text-sm" style="color:var(--text-main);">شناسه مشتری — اطلاعات پاسپورت</span>
+        </div>
+        <div class="space-y-2 mb-4">
+          <button onclick="ppSetMode('upload')" class="w-full flex items-center gap-3 p-3 rounded-xl border text-right transition" style="border-color:var(--border-color);background:var(--bg-main);" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border-color)'">
+            <span class="text-xl shrink-0">📤</span>
+            <div><div class="font-black text-sm" style="color:var(--text-main);">بارگذاری تصویر پاسپورت</div><div class="text-xs mt-0.5" style="color:var(--text-muted);">اطلاعات به‌صورت خودکار استخراج می‌شود</div></div>
+          </button>
+          <button onclick="ppSetMode('manual')" class="w-full flex items-center gap-3 p-3 rounded-xl border text-right transition" style="border-color:var(--border-color);background:var(--bg-main);" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border-color)'">
+            <span class="text-xl shrink-0">✏️</span>
+            <div><div class="font-black text-sm" style="color:var(--text-main);">ورود دستی اطلاعات</div><div class="text-xs mt-0.5" style="color:var(--text-muted);">نام، نام خانوادگی، نام پدر و تاریخ تولد</div></div>
+          </button>
+          <button onclick="ppSetMode('skip')" class="w-full flex items-center gap-3 p-3 rounded-xl border text-right transition" style="border-color:var(--border-subtle);background:var(--bg-main);" onmouseover="this.style.borderColor='var(--text-muted)'" onmouseout="this.style.borderColor='var(--border-subtle)'">
+            <span class="text-xl shrink-0">⏭️</span>
+            <div><div class="font-black text-sm" style="color:var(--text-muted);">رد شدن</div><div class="text-xs mt-0.5" style="color:var(--text-muted);">اطلاعات از خود سند استخراج می‌شود</div></div>
+          </button>
+        </div>
+        <div id="pp-upload-zone" class="hidden mb-4">
+          <button onclick="ppSetMode(null)" class="flex items-center gap-1.5 text-xs mb-3 font-bold transition" style="color:var(--text-muted);background:none;border:none;cursor:pointer;padding:0;">← بازگشت به انتخاب روش</button>
+          <div id="pp-drop-zone" onclick="document.getElementById('pp-file-input').click()" class="drop-zone-chat p-6 text-center cursor-pointer">
+            <div class="text-2xl mb-1">🛂</div>
+            <p id="pp-drop-text" class="text-xs" style="color:var(--text-muted);">تصویر یا PDF پاسپورت را اینجا بکشید یا کلیک کنید</p>
+            <div id="pp-file-name" class="text-xs font-bold hidden mt-1" style="color:var(--accent);"></div>
+            <input type="file" id="pp-file-input" accept="image/jpeg,image/png,image/webp,application/pdf" style="display:none" onchange="ppHandleFile(this.files[0])">
+          </div>
+          <button id="pp-extract-btn" onclick="ppRunExtraction()" disabled class="w-full mt-2 py-2.5 rounded-xl text-sm font-black transition disabled:opacity-30" style="background:var(--accent);color:var(--btn-text-on-accent);">استخراج اطلاعات از پاسپورت</button>
+        </div>
+        <div id="pp-status" class="hidden text-xs p-3 rounded-lg mb-3 flex items-center gap-2" style="background:var(--accent-hover);border:1px solid var(--border-color);">
+          <span id="pp-status-icon"></span><span id="pp-status-text" style="color:var(--text-main);"></span>
+        </div>
+        <div id="pp-fields" class="hidden space-y-3 mb-4">
+          <button onclick="ppSetMode(null)" class="flex items-center gap-1.5 text-xs mb-1 font-bold transition" style="color:var(--text-muted);background:none;border:none;cursor:pointer;padding:0;">← بازگشت به انتخاب روش</button>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="auth-label">نام (First Name)</label><input type="text" id="pp-first" class="auth-input en uppercase" dir="ltr" placeholder="ALI" oninput="this.value=this.value.toUpperCase()"></div>
+            <div><label class="auth-label">نام خانوادگی (Last Name)</label><input type="text" id="pp-last" class="auth-input en uppercase" dir="ltr" placeholder="MOHAMMADI" oninput="this.value=this.value.toUpperCase()"></div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="auth-label">نام پدر (Father's Name)</label><input type="text" id="pp-father" class="auth-input en uppercase" dir="ltr" placeholder="HASSAN" oninput="this.value=this.value.toUpperCase()"></div>
+            <div><label class="auth-label">تاریخ تولد — میلادی</label><input type="text" id="pp-dob" class="auth-input en" dir="ltr" placeholder="April 12, 1985"></div>
+          </div>
+          <button onclick="ppConfirmSession()" class="w-full py-2.5 rounded-xl text-sm font-black transition" style="background:var(--accent);color:var(--btn-text-on-accent);">✅ تأیید و شروع ترجمه</button>
+        </div>
+      </div>
+      <!-- STEP 2: DOCUMENT -->
+      <div id="step2Panel" class="hidden">
+        <div class="flex items-center gap-2 mb-4">
+          <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0" style="background:var(--accent);color:var(--btn-text-on-accent);">۲</span>
+          <span class="font-black text-sm" style="color:var(--text-main);">بارگذاری و ترجمه سند</span>
+        </div>
+        <div class="mb-4">
+          <label class="auth-label mb-1">نوع سند:</label>
+          <select id="docTemplate" class="auth-input" style="font-family:'Vazirmatn',sans-serif;"></select>
+        </div>
+        <div id="docDropZone" onclick="document.getElementById('docFileInput').click()" class="drop-zone-chat p-8 text-center cursor-pointer mb-4">
+          <div class="text-3xl mb-2">📄</div>
+          <p id="docDropText" class="text-xs" style="color:var(--text-muted);">فایل سند را اینجا بکشید یا کلیک کنید</p>
+          <input type="file" id="docFileInput" accept="image/jpeg,image/png,application/pdf" style="display:none" onchange="handleDocFileSelection(this.files[0])">
+          <div id="docFileInfo" class="text-xs font-bold hidden mt-1" style="color:var(--accent);"></div>
+        </div>
+        <div id="processingStatusBubble" class="hidden flex items-center gap-3 p-3 rounded-xl mb-3 text-sm" style="background:var(--panel-bg);border:1px solid var(--border-color);">
+          <span class="animate-spin" style="color:var(--accent);">⏳</span>
+          <span id="statusMessageText" style="color:var(--text-muted);">در حال پردازش...</span>
+        </div>
+        <button id="submitBtn" onclick="executeTranslationPipeline()" disabled class="w-full py-3 rounded-xl font-black text-sm transition disabled:opacity-30" style="background:var(--accent);color:var(--btn-text-on-accent);">ترجمه و دانلود (.DOCX)</button>
+        <button id="nextDocBtn" onclick="resetForNextDocument()" class="hidden w-full py-3 rounded-xl font-black text-sm transition mt-3" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-color);">ترجمه مدرک بعدی ←</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ─── WORKSPACE DASHBOARD ─── -->
+<div id="workspaceDashboard" class="fixed inset-0 z-40 hidden overflow-y-auto p-4 md:p-8 pt-24" style="background: var(--bg-secondary);">
+    <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-6">
+        <div class="space-y-5 lg:col-span-1">
+            <div class="workspace-panel p-6">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center font-black text-xl text-black" id="avatarLetter">D</div>
+                    <div>
+                        <h4 class="font-black text-base" id="profileDisplayName" style="color:var(--text-main);">مترجم رسمی</h4>
+                        <span class="text-xs en" id="profileEmailBadge" style="color:var(--text-muted);">user@deept.ir</span>
+                    </div>
+                </div>
+                <div class="rounded-xl p-2 flex items-center justify-between mb-4" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
+                    <span class="text-xs" style="color:var(--text-muted);">ساختار پروفایل:</span>
+                    <select id="accountTypeToggle" onchange="toggleProfileAccountType()" class="rounded px-2 py-1 text-xs font-bold outline-none" style="background:var(--card-surface);border:1px solid var(--border-color);color:var(--accent);">
+                        <option value="individual">مترجم حقیقی</option>
+                        <option value="office">دارالترجمه رسمی</option>
+                    </select>
+                </div>
+                <div class="space-y-2 pt-3 border-t text-xs" style="border-color:var(--divider);">
+                    <div>
+                        <span style="color:var(--text-muted);">شماره/پل ارتباطی:</span>
+                        <input type="text" id="profileContactInput" placeholder="آیدی تلگرام یا شماره تماس..." class="auth-input mt-1">
+                    </div>
+                    <div id="officeFieldsBlock" class="hidden space-y-2 pt-2">
+                        <span style="color:var(--text-muted);">نام و شماره پروانه دارالترجمه:</span>
+                        <input type="text" id="officeNameInput" placeholder="دفتر ترجمه شماره..." class="auth-input mt-1">
+                    </div>
+                    <button onclick="saveProfileConfiguration()" class="w-full font-black py-1.5 rounded-lg mt-2 transition text-xs" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">بروزرسانی پروفایل</button>
+                </div>
+            </div>
+            <div class="workspace-panel p-6 relative overflow-hidden">
+                <div class="absolute top-0 left-0 px-3 py-0.5 text-[9px] font-mono font-black uppercase rounded-br-lg" style="background:var(--accent);color:var(--btn-text-on-accent);">Shaparak</div>
+                <h4 class="text-xs font-bold uppercase tracking-wide mb-2 mt-2" style="color:var(--text-muted);">کیف پول (ریال)</h4>
+                <div class="text-3xl font-black font-mono my-3 flex items-baseline gap-1" style="color:var(--text-main);">
+                    <span id="walletBalanceDisplay">۰</span>
+                    <span class="text-xs font-sans font-bold" style="color:var(--accent);">ریال</span>
+                </div>
+                <div class="space-y-2 mt-4 pt-4" style="border-top:1px solid var(--divider);">
+                    <label class="block text-[11px]" style="color:var(--text-muted);">مبلغ افزایش اعتبار (ریال):</label>
+                    <div class="flex gap-2">
+                        <input type="number" id="paymentAmountInput" value="500000" step="50000" min="100000" class="converter-input flex-1 text-left" dir="ltr" style="font-size:.85rem;">
+                        <button onclick="triggerShaparakPayment()" class="font-black text-xs px-4 rounded-lg transition shrink-0" style="background:var(--accent);color:var(--btn-text-on-accent);">درگاه</button>
+                    </div>
+                </div>
+            </div>
+            <div class="workspace-panel p-4 text-xs space-y-2">
+                <h4 class="font-bold" style="color:var(--text-main);">📌 پشتیبانی</h4>
+                <p style="color:var(--text-muted);">ایمیل: <span class="en" style="color:var(--accent);">support@deept.ir</span></p>
+                <textarea id="supportTicketMsg" rows="3" placeholder="متن پیام..." class="auth-input resize-none" style="font-family:'Vazirmatn',sans-serif;font-size:.8rem;"></textarea>
+                <button onclick="submitSupportTicket()" class="w-full font-bold py-1.5 rounded-lg transition" style="background:var(--bg-main);color:var(--accent);border:1px solid var(--border-color);">ارسال تیکت</button>
+            </div>
+        </div>
+        <div class="lg:col-span-3 space-y-5">
+            <div class="workspace-panel p-6">
+                <div class="flex flex-col sm:flex-row sm:items-start justify-between pb-4 mb-4 gap-3" style="border-bottom:1px solid var(--divider);">
+                    <div>
+                        <h3 class="text-lg font-black" style="color:var(--text-main);">📊 پروژه‌های ترجمه</h3>
+                        <p class="text-xs mt-1" style="color:var(--text-muted);">مدارک پس از <span style="color:#fb923c;font-weight:700;">۴۸ ساعت</span> پاک می‌شوند.</p>
+                    </div>
+                    <button onclick="openChatInterface()" class="font-black text-xs px-4 py-2 rounded-xl transition shrink-0 self-start" style="background:var(--accent);color:var(--btn-text-on-accent);">+ سند جدید</button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-right text-xs ws-table">
+                        <thead>
+                            <tr>
+                                <th class="text-right">شناسه / نام سند</th>
+                                <th class="text-center">نوع</th>
+                                <th class="text-center">تاریخ</th>
+                                <th class="text-center" style="color:#fb923c;">⏱ تخریب خودکار</th>
+                                <th class="text-left">عملیات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="projectDashboardRowsBlock" style="color:var(--text-main);"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="text-center">
+                <button onclick="closeWorkspaceDashboard()" class="text-xs px-6 py-2 rounded-xl transition" style="color:var(--text-muted);border:1px solid var(--border-subtle);background:var(--card-surface);">بازگشت به صفحه اصلی ↩</button>
+            </div>
         </div>
     </div>
 </div>
 
-
-
-<!-- ─── AUTH MODAL (login/signup/forgot) ─── -->
-
-
-<!-- ─── QUICK START MODAL ─── -->
-
-
-<!-- ─── TRANSLATION MODAL (passport + document pipeline) ─── -->
-
-
-<!-- ─── WORKSPACE DASHBOARD ─── -->
-
-
-<!-- ══════════════════════════════════════════════════════════
-     LANDING PAGE — shown when NOT logged in
-     Hidden via JS when user is authenticated
-     ══════════════════════════════════════════════════════════ -->
+<!-- ══════════════════════════════════════════
+     LANDING PAGE — hidden when logged in
+     ══════════════════════════════════════════ -->
 <div id="landingPage">
+
+
+<canvas id="bgCanvas"></canvas>
+<div id="toast"></div>
+
+<!-- ── AUTH MODALS ── -->
+<div class="overlay" id="loginOverlay">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModals()">بستن ✕</button>
+    <div id="loginForm">
+      <h2>ورود به DeepT</h2>
+      <p class="modal-sub">با ایمیل و رمز عبور وارد شوید</p>
+      <label>ایمیل</label>
+      <input class="modal-input" type="email" id="li-email" placeholder="name@example.com" autocomplete="email">
+      <label>رمز عبور</label>
+      <input class="modal-input" type="password" id="li-pass" placeholder="••••••••" autocomplete="current-password">
+      <p class="modal-error" id="li-error"></p>
+      <button class="modal-btn" onclick="handleLogin()">ورود</button>
+    </div>
+    <div class="modal-success" id="loginSuccess">
+      <div class="icon">✅</div>
+      <strong>ورود موفق</strong>
+      <p>در حال انتقال به پنل ترجمه...</p>
+    </div>
+    <p class="modal-switch">حساب ندارید؟ <a onclick="switchToSignup()">ثبت‌نام کنید</a></p>
+  </div>
+</div>
+
+<div class="overlay" id="signupOverlay">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModals()">بستن ✕</button>
+    <div id="signupForm">
+      <h2>ثبت‌نام در DeepT</h2>
+      <p class="modal-sub">یک حساب رایگان بسازید</p>
+      <label>نام و نام خانوادگی</label>
+      <input class="modal-input fa" type="text" id="su-name" placeholder="نام خود را وارد کنید" autocomplete="name">
+      <label>ایمیل</label>
+      <input class="modal-input" type="email" id="su-email" placeholder="name@example.com" autocomplete="email">
+      <label>رمز عبور (حداقل ۸ کاراکتر)</label>
+      <input class="modal-input" type="password" id="su-pass" placeholder="••••••••" autocomplete="new-password">
+      <p class="modal-error" id="su-error"></p>
+      <button class="modal-btn" onclick="handleSignup()">ساخت حساب</button>
+    </div>
+    <div class="modal-success" id="signupSuccess">
+      <div class="icon">📧</div>
+      <strong>ایمیل تأیید ارسال شد</strong>
+      <p>لطفاً ایمیل خود را بررسی کنید و روی لینک فعال‌سازی کلیک کنید.</p>
+    </div>
+    <p class="modal-switch">قبلاً ثبت‌نام کردید؟ <a onclick="switchToLogin()">وارد شوید</a></p>
+  </div>
+</div>
+
+<!-- ── QUICK START PIPELINE MODAL ── -->
+<div class="overlay" id="quickStartOverlay">
+  <div class="modal qs-modal">
+    <button class="modal-close" onclick="closeModals()">بستن ✕</button>
+    <h2 style="margin-bottom:.3rem;">شروع سریع</h2>
+    <p class="modal-sub">ترجمه بدون ثبت‌نام — پرداخت ۵۰،۰۰۰ تومان پس از پردازش</p>
+
+    <!-- Progress bar -->
+    <div class="qs-progress">
+      <div class="qs-prog-step">
+        <div class="qs-prog-dot active" id="qd1">۱</div>
+        <div class="qs-prog-label">شناسه مشتری</div>
+      </div>
+      <div class="qs-prog-line" id="ql1"></div>
+      <div class="qs-prog-step">
+        <div class="qs-prog-dot" id="qd2">۲</div>
+        <div class="qs-prog-label">بارگذاری سند</div>
+      </div>
+      <div class="qs-prog-line" id="ql2"></div>
+      <div class="qs-prog-step">
+        <div class="qs-prog-dot" id="qd3">۳</div>
+        <div class="qs-prog-label">پرداخت و دانلود</div>
+      </div>
+    </div>
+
+    <!-- ── PANEL 1: Passport / Identity ── -->
+    <div class="qs-panel active" id="qsPanel1">
+      <p style="font-size:.85rem;color:var(--muted);margin-bottom:.9rem;">اطلاعات هویتی مشتری چطور وارد شود؟</p>
+      <div class="qs-mode-grid">
+        <button class="qs-mode-btn" id="qsModeUpload" onclick="qsSelectMode('upload')">
+          <span class="qs-mode-icon">📤</span>
+          <div class="qs-mode-label">آپلود پاسپورت</div>
+          <div class="qs-mode-sub">استخراج خودکار</div>
+        </button>
+        <button class="qs-mode-btn" id="qsModeManual" onclick="qsSelectMode('manual')">
+          <span class="qs-mode-icon">✏️</span>
+          <div class="qs-mode-label">ورود دستی</div>
+          <div class="qs-mode-sub">تایپ اطلاعات</div>
+        </button>
+        <button class="qs-mode-btn" id="qsModeSkip" onclick="qsSelectMode('skip')">
+          <span class="qs-mode-icon">⏭️</span>
+          <div class="qs-mode-label">رد شدن</div>
+          <div class="qs-mode-sub">بدون پاسپورت</div>
+        </button>
+      </div>
+
+      <!-- Upload passport -->
+      <div id="qsUploadZone" style="display:none;">
+        <div class="qs-drop" id="qsPassDrop" onclick="document.getElementById('qsPassFile').click()">
+          <div class="qs-drop-icon">🛂</div>
+          <div class="qs-drop-text">تصویر یا PDF پاسپورت را اینجا بکشید یا کلیک کنید</div>
+          <div class="qs-file-name" id="qsPassFileName"></div>
+          <input type="file" id="qsPassFile" accept="image/*,application/pdf" style="display:none" onchange="qsHandlePassport(this.files[0])">
+        </div>
+      </div>
+
+      <!-- Manual entry -->
+      <div id="qsManualZone" style="display:none;">
+        <div class="qs-field-grid">
+          <div>
+            <label class="auth-label">نام (First Name)</label>
+            <input class="modal-input" type="text" id="qsFirst" placeholder="ALI" dir="ltr" style="font-family:'Inter',sans-serif;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
+          </div>
+          <div>
+            <label class="auth-label">نام خانوادگی (Last Name)</label>
+            <input class="modal-input" type="text" id="qsLast" placeholder="MOHAMMADI" dir="ltr" style="font-family:'Inter',sans-serif;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
+          </div>
+          <div>
+            <label class="auth-label">نام پدر (Father's Name)</label>
+            <input class="modal-input" type="text" id="qsFather" placeholder="HASSAN" dir="ltr" style="font-family:'Inter',sans-serif;text-transform:uppercase;" oninput="this.value=this.value.toUpperCase()">
+          </div>
+          <div>
+            <label class="auth-label">تاریخ تولد — میلادی</label>
+            <input class="modal-input" type="text" id="qsDob" placeholder="April 12, 1985" dir="ltr" style="font-family:'Inter',sans-serif;">
+          </div>
+        </div>
+      </div>
+
+      <div class="qs-nav">
+        <button class="qs-btn-next" id="qsNext1" onclick="qsGoToPanel(2)" disabled>ادامه — بارگذاری سند ←</button>
+      </div>
+    </div>
+
+    <!-- ── PANEL 2: Document upload ── -->
+    <div class="qs-panel" id="qsPanel2">
+      <div style="margin-bottom:.85rem;">
+        <label class="auth-label" style="margin-bottom:.4rem;">نوع سند</label>
+        <select class="modal-input" id="qsDocType" style="font-family:'Vazirmatn',sans-serif;">
+          <option value="police-certificate">گواهی عدم سوء پیشینه</option>
+          <option value="vehicle-deed" disabled>سند مالکیت خودرو — به زودی</option>
+        </select>
+      </div>
+      <div class="qs-drop" id="qsDocDrop" onclick="document.getElementById('qsDocFile').click()">
+        <div class="qs-drop-icon">📄</div>
+        <div class="qs-drop-text">فایل سند (تصویر یا PDF) را اینجا بکشید یا کلیک کنید</div>
+        <div class="qs-file-name" id="qsDocFileName"></div>
+        <input type="file" id="qsDocFile" accept="image/jpeg,image/png,application/pdf" style="display:none" onchange="qsHandleDoc(this.files[0])">
+      </div>
+
+      <!-- Processing animation — shown during backend call -->
+      <div class="qs-processing" id="qsProcessing">
+        <svg class="qs-proc-svg" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+          <path class="qs-proc-d-outer" d="M 28 18 L 28 102 L 58 102 C 92 102 105 84 105 60 C 105 36 92 18 58 18 Z"/>
+          <path class="qs-proc-d-inner" d="M 40 32 L 40 88 L 57 88 C 80 88 90 76 90 60 C 90 44 80 32 57 32 Z"/>
+        </svg>
+        <div class="qs-proc-text">در حال پردازش سند...</div>
+      </div>
+
+      <div class="qs-nav">
+        <button class="qs-btn-back" onclick="qsGoToPanel(1)">← بازگشت</button>
+        <button class="qs-btn-next" id="qsNext2" onclick="qsRunTranslation()" disabled>ترجمه و پرداخت ←</button>
+      </div>
+    </div>
+
+    <!-- ── PANEL 3: Payment & Download ── -->
+    <div class="qs-panel" id="qsPanel3">
+      <div class="qs-pay-box">
+        <div class="qs-pay-amount">۵۰،۰۰۰ تومان</div>
+        <div class="qs-pay-label">هزینه ترجمه یک سند</div>
+      </div>
+      <p style="font-size:.83rem;color:var(--muted);margin-bottom:1.1rem;line-height:1.75;text-align:center;">
+        سند شما پردازش شد. پس از پرداخت از طریق درگاه شاپرک، فایل Word به‌صورت خودکار دانلود می‌شود.
+      </p>
+      <button class="qs-btn-next" onclick="qsSimulatePayment()" style="width:100%;">💳 پرداخت آنلاین از طریق شاپرک</button>
+      <p style="text-align:center;font-size:.78rem;color:var(--muted);margin-top:.75rem;">
+        می‌خواهید تاریخچه داشته باشید؟
+        <a onclick="closeModals();setTimeout(openSignup,80);" style="color:var(--accent);cursor:pointer;font-weight:700;">حساب رایگان بسازید</a>
+      </p>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── HEADER ── -->
+<header>
+  <span class="header-wordmark en">DEEPT</span>
+  <nav class="header-nav">
+    <a href="#how" class="btn-ghost nav-links">نحوه کار</a>
+    <a href="#pricing" class="btn-ghost nav-links">تعرفه</a>
+    <a href="#tool" class="btn-ghost nav-links">تبدیل تاریخ</a>
+    <button class="theme-btn" onclick="toggleTheme()" id="themeBtn">🌙</button>
+    <button class="btn-ghost" onclick="openLogin()">ورود</button>
+    <button class="btn-accent" onclick="openSignup()">ثبت‌نام رایگان</button>
+  </nav>
+</header>
+
 <main>
 
 <!-- ── HERO ── -->
@@ -1238,6 +1634,8 @@ footer {
 </div>
 
 </main>
+
+<!-- ── FOOTER ── -->
 <footer>
   <span class="copy">© ۱۴۰۵ DeepT</span>
   <div class="footer-links">
@@ -1246,19 +1644,16 @@ footer {
     <a href="#">تماس با ما</a>
   </div>
 </footer>
+
 </div>
 
-
 <script>
-
-// ═══════════════════════════════════════════════════════════
-// DEEPT — Merged Application JS
-// ═══════════════════════════════════════════════════════════
-
 const CORE    = 'https://deept-core.onrender.com';
 const BACKEND = 'https://deept-police-backend.onrender.com';
 
+// ── ENHANCED JS (pipeline, dashboard, passport) ──
 
+const BACKEND = "https://deept-police-backend.onrender.com";
 
 // ═══════════════════════════════════════════════════════════
 // DOCUMENT REGISTRY
@@ -1924,7 +2319,88 @@ document.getElementById('walletBalanceDisplay').textContent = currentWalletBalan
 
 
 
-// ── LANDING PAGE FUNCTIONS (auth, date converter, quick start) ──
+// ── AUTH ──
+async function corePost(path, body) {
+    const res = await fetch(`${CORE}${path}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    });
+    return { ok: res.ok, data: await res.json() };
+}
+
+function saveSession(data) {
+    localStorage.setItem('deept_token',      data.token);
+    localStorage.setItem('deept_user_id',    data.user_id);
+    localStorage.setItem('deept_user_name',  data.full_name);
+    localStorage.setItem('deept_user_email', data.email);
+}
+
+async function handleLogin() {
+    const email = document.getElementById('li-email').value.trim();
+    const pass  = document.getElementById('li-pass').value;
+    const err   = document.getElementById('li-error');
+    const btn   = document.querySelector('#loginForm .modal-btn');
+    err.classList.remove('show');
+    if (!email||!pass) { err.textContent='لطفاً همه فیلدها را پر کنید.'; err.classList.add('show'); return; }
+    btn.textContent='در حال ورود...'; btn.disabled=true;
+    try {
+        const {ok,data} = await corePost('/auth/login', {email, password:pass});
+        if (!ok) { err.textContent=data.detail||'ایمیل یا رمز عبور اشتباه است.'; err.classList.add('show'); btn.textContent='ورود'; btn.disabled=false; return; }
+        saveSession(data);
+        document.getElementById('loginForm').style.display='none';
+        document.getElementById('loginSuccess').classList.add('show');
+        setTimeout(()=>{ closeModals(); currentUserSession=loadSession(); syncUserSessionDOM(); showDashboardView(); }, 1400);
+    } catch(e) { err.textContent='خطا در اتصال.'; err.classList.add('show'); btn.textContent='ورود'; btn.disabled=false; }
+}
+
+async function handleSignup() {
+    const name  = document.getElementById('su-name').value.trim();
+    const email = document.getElementById('su-email').value.trim();
+    const pass  = document.getElementById('su-pass').value;
+    const err   = document.getElementById('su-error');
+    const btn   = document.querySelector('#signupForm .modal-btn');
+    err.classList.remove('show');
+    if (!name||!email||!pass) { err.textContent='لطفاً همه فیلدها را پر کنید.'; err.classList.add('show'); return; }
+    if (pass.length<8)        { err.textContent='رمز عبور باید حداقل ۸ کاراکتر باشد.'; err.classList.add('show'); return; }
+    if (!email.includes('@')) { err.textContent='یک ایمیل معتبر وارد کنید.'; err.classList.add('show'); return; }
+    btn.textContent='در حال ثبت‌نام...'; btn.disabled=true;
+    try {
+        const {ok,data} = await corePost('/auth/signup', {email, password:pass, full_name:name, account_type:'individual'});
+        if (!ok) { err.textContent=data.detail||'این ایمیل قبلاً ثبت شده است.'; err.classList.add('show'); btn.textContent='ساخت حساب'; btn.disabled=false; return; }
+        saveSession(data);
+        document.getElementById('signupForm').style.display='none';
+        document.getElementById('signupSuccess').classList.add('show');
+        setTimeout(()=>{ closeModals(); currentUserSession=loadSession(); syncUserSessionDOM(); showDashboardView(); }, 1800);
+    } catch(e) { err.textContent='خطا در اتصال.'; err.classList.add('show'); btn.textContent='ساخت حساب'; btn.disabled=false; }
+}
+
+// ── MODAL FUNCTIONS ──
+function openLogin()     { document.getElementById('loginOverlay').classList.add('open'); }
+function openSignup()    { document.getElementById('signupOverlay').classList.add('open'); }
+function openAuthModal() { openLogin(); }
+function closeModals()   {
+    ['loginOverlay','signupOverlay','quickStartOverlay'].forEach(id=>{
+        const el=document.getElementById(id); if(el) el.classList.remove('open');
+    });
+}
+function switchToSignup() { closeModals(); setTimeout(openSignup,80); }
+function switchToLogin()  { closeModals(); setTimeout(openLogin,80); }
+function closeAuthModal() { closeModals(); }
+function switchAuthState(s) { if(s==='signup') switchToSignup(); else switchToLogin(); }
+
+document.addEventListener('keydown',e=>{
+    if(e.key!=='Enter') return;
+    if(document.getElementById('loginOverlay').classList.contains('open'))  handleLogin();
+    if(document.getElementById('signupOverlay').classList.contains('open')) handleSignup();
+});
+
+['loginOverlay','signupOverlay'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.addEventListener('click',e=>{ if(e.target===el) closeModals(); });
+});
+
+// ── LANDING JS (date converter, quick start pipeline) ──
 
 // ── LOGO (embedded, theme-aware via CSS filter) ──
 // logo embedded in hero
@@ -1967,7 +2443,7 @@ async function handleLogin() {
         saveSession(data);
         document.getElementById('loginForm').style.display='none';
         document.getElementById('loginSuccess').classList.add('show');
-        setTimeout(() => { closeModals(); toast('✅ ورود موفق'); currentUserSession = loadSession(); syncUserSessionDOM(); showDashboardView(); }, 1400);
+        setTimeout(() => { closeModals(); toast('✅ ورود موفق'); window.location.href='DeepT_Enhanced.html'; }, 1400);
     } catch(e) {
         err.textContent='خطا در اتصال. دوباره تلاش کنید.';
         err.classList.add('show');
@@ -2003,7 +2479,7 @@ async function handleSignup() {
         saveSession(data);
         document.getElementById('signupForm').style.display='none';
         document.getElementById('signupSuccess').classList.add('show');
-        setTimeout(() => { closeModals(); currentUserSession = loadSession(); syncUserSessionDOM(); showDashboardView(); }, 1800);
+        setTimeout(() => { closeModals(); window.location.href='DeepT_Enhanced.html'; }, 1800);
     } catch(e) {
         err.textContent='خطا در اتصال. دوباره تلاش کنید.';
         err.classList.add('show');
@@ -2062,7 +2538,7 @@ document.addEventListener('keydown', e => {
     if (document.getElementById('signupOverlay').classList.contains('open')) handleSignup();
 });
 
-// canvas handled by enhanced JS
+
 drawNodes();
 
 // ── DATE CONVERTER ──
@@ -2253,54 +2729,61 @@ function qsSimulatePayment() {
 }
 
 
-// ── VIEW CONTROLLER — shows landing or dashboard based on auth ──
+// ── VIEW CONTROLLER ──
 function showLandingView() {
-    const lp = document.getElementById('landingPage');
-    if (lp) lp.style.display = 'block';
-    document.body.style.overflow = 'auto';
+    const lp=document.getElementById('landingPage');
+    if(lp) lp.style.display='block';
+    document.body.style.overflow='auto';
 }
-
 function showDashboardView() {
-    const lp = document.getElementById('landingPage');
-    if (lp) lp.style.display = 'none';
+    const lp=document.getElementById('landingPage');
+    if(lp) lp.style.display='none';
     openWorkspaceDashboard();
 }
 
+// ── THEME ──
+function toggleGlobalTheme() {
+    const curr=document.body.getAttribute('data-theme')||'dark';
+    const next=curr==='dark'?'light':'dark';
+    document.body.setAttribute('data-theme',next);
+    document.getElementById('themeBtnIcon').textContent=next==='light'?'☀️':'🌙';
+    document.getElementById('themeBtnText').textContent=next==='light'?'تاریک':'روشن';
+    localStorage.setItem('deept_theme',next);
+}
+// alias for landing page toggle button
+function toggleTheme() { toggleGlobalTheme(); }
 
-// ── INIT ──────────────────────────────────────────────────
-document.getElementById('walletBalanceDisplay').textContent = currentWalletBalance.toLocaleString();
-
-// Hero logo
-(function() {
-    const heroLogo = document.getElementById('heroLogo');
-    if (heroLogo) heroLogo.src = "data:image/png;base64,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AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACcEmAAgAQSUp2yh2gAAAAASUVORK5CYII=";
-})();
-
-// Theme restore
-(function() {
-    const saved = localStorage.getItem('deept_theme') || 'dark';
-    if (saved === 'light') {
-        document.body.setAttribute('data-theme', 'light');
-        const btn = document.getElementById('themeBtn');
-        if (btn) btn.textContent = '☀️';
+// ── INIT ──
+(function(){
+    // Restore theme
+    const saved=localStorage.getItem('deept_theme')||'dark';
+    if(saved==='light'){
+        document.body.setAttribute('data-theme','light');
+        document.getElementById('themeBtnIcon').textContent='☀️';
+        document.getElementById('themeBtnText').textContent='تاریک';
     }
-})();
 
-// ── MAIN ENTRY POINT ──
-(function() {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('test') === '1' && !currentUserSession) {
-        currentUserSession = {
-            email: 'test@deept.ir', username: 'مترجم آزمایشی',
-            type: 'office', contact: '', office: 'دارالترجمه آزمایشی DeepT'
-        };
-        localStorage.setItem('deept_mock_user', JSON.stringify(currentUserSession));
-        currentUserSession = loadSession();
+    // Set hero logo
+    const heroLogo=document.getElementById('heroLogo');
+    if(heroLogo) heroLogo.src="data:image/png;base64,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AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACcEmAAgAQSUp2yh2gAAAAASUVORK5CYII=";
+
+    // Wallet display
+    const wbd=document.getElementById('walletBalanceDisplay');
+    if(wbd) wbd.textContent=currentWalletBalance.toLocaleString();
+
+    // Test mode
+    const params=new URLSearchParams(window.location.search);
+    if(params.get('test')==='1' && !currentUserSession){
+        localStorage.setItem('deept_user_name','مترجم آزمایشی');
+        localStorage.setItem('deept_user_email','test@deept.ir');
+        localStorage.setItem('deept_token','test-token');
+        localStorage.setItem('deept_user_id','test-id');
+        currentUserSession=loadSession();
     }
 
     syncUserSessionDOM();
 
-    if (currentUserSession) {
+    if(currentUserSession){
         showDashboardView();
     } else {
         showLandingView();
