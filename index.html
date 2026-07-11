@@ -1653,7 +1653,6 @@ const BACKEND = 'https://deept-police-backend.onrender.com';
 
 // ── ENHANCED JS (pipeline, dashboard, passport) ──
 
-const BACKEND = "https://deept-police-backend.onrender.com";
 
 // ═══════════════════════════════════════════════════════════
 // DOCUMENT REGISTRY
@@ -1777,31 +1776,9 @@ function toggleGlobalTheme() {
 // ═══════════════════════════════════════════════════════════
 // AUTH MODAL
 // ═══════════════════════════════════════════════════════════
-function openAuthModal()  { document.getElementById('authModal').classList.remove('hidden'); switchAuthState('login'); }
-function closeAuthModal() { document.getElementById('authModal').classList.add('hidden'); }
-function switchAuthState(state) {
-    ['loginStateBox','signupStateBox','forgotStateBox'].forEach(id => document.getElementById(id).classList.add('hidden'));
-    document.getElementById(state === 'login' ? 'loginStateBox' : state === 'signup' ? 'signupStateBox' : 'forgotStateBox').classList.remove('hidden');
-}
-function simulateAuthAction(type) {
-    if (type === 'login' || type === 'signup') {
-        const email = document.getElementById(type === 'login' ? 'loginEmail' : 'signupEmail').value;
-        if (!email || !email.includes('@')) { showToast('لطفا ایمیل معتبری وارد کنید.'); return; }
-        currentUserSession = { email, username: email.split('@')[0], type:'individual', contact:'', office:'' };
-        localStorage.setItem('deept_mock_user', JSON.stringify(currentUserSession));
-        localStorage.setItem('deept_user_name', email.split('@')[0]);
-        localStorage.setItem('deept_user_email', email);
-        syncUserSessionDOM();
-        closeAuthModal();
-        showToast('✅ خوش آمدید!');
-        openWorkspaceDashboard();
-    } else {
-        const email = document.getElementById('forgotEmail').value;
-        if (!email) { showToast('لطفا ایمیل خود را وارد کنید.'); return; }
-        showToast(`📧 لینک بازیابی به ${email} ارسال شد.`, 3500);
-        switchAuthState('login');
-    }
-}
+// openAuthModal defined below
+// closeAuthModal defined below
+// switchAuthState defined below
 
 // ═══════════════════════════════════════════════════════════
 // USER SESSION SYNC
@@ -2407,98 +2384,24 @@ document.addEventListener('keydown',e=>{
 
 // ── DEEPT-CORE AUTH ──
 
-async function corePost(path, body) {
-    const res = await fetch(`${CORE}${path}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-    });
-    return { ok: res.ok, data: await res.json() };
-}
 
-function saveSession(data) {
-    localStorage.setItem('deept_token',     data.token);
-    localStorage.setItem('deept_user_id',   data.user_id);
-    localStorage.setItem('deept_user_name', data.full_name);
-    localStorage.setItem('deept_user_email',data.email);
-}
+
+
 
 // ── LOGIN ──
-async function handleLogin() {
-    const email = document.getElementById('li-email').value.trim();
-    const pass  = document.getElementById('li-pass').value;
-    const err   = document.getElementById('li-error');
-    const btn   = document.querySelector('#loginForm .modal-btn');
-    err.classList.remove('show');
-    if (!email || !pass) { err.textContent='لطفاً همه فیلدها را پر کنید.'; err.classList.add('show'); return; }
-    btn.textContent = 'در حال ورود...'; btn.disabled = true;
-    try {
-        const { ok, data } = await corePost('/auth/login', { email, password: pass });
-        if (!ok) {
-            err.textContent = data.detail || 'ایمیل یا رمز عبور اشتباه است.';
-            err.classList.add('show');
-            btn.textContent = 'ورود'; btn.disabled = false;
-            return;
-        }
-        saveSession(data);
-        document.getElementById('loginForm').style.display='none';
-        document.getElementById('loginSuccess').classList.add('show');
-        setTimeout(() => { closeModals(); toast('✅ ورود موفق'); window.location.href='DeepT_Enhanced.html'; }, 1400);
-    } catch(e) {
-        err.textContent='خطا در اتصال. دوباره تلاش کنید.';
-        err.classList.add('show');
-        btn.textContent = 'ورود'; btn.disabled = false;
-    }
-}
+
 
 // ── SIGNUP ──
-async function handleSignup() {
-    const name  = document.getElementById('su-name').value.trim();
-    const email = document.getElementById('su-email').value.trim();
-    const pass  = document.getElementById('su-pass').value;
-    const err   = document.getElementById('su-error');
-    const btn   = document.querySelector('#signupForm .modal-btn');
-    err.classList.remove('show');
-    if (!name||!email||!pass) { err.textContent='لطفاً همه فیلدها را پر کنید.'; err.classList.add('show'); return; }
-    if (pass.length < 8)      { err.textContent='رمز عبور باید حداقل ۸ کاراکتر باشد.'; err.classList.add('show'); return; }
-    if (!email.includes('@')) { err.textContent='یک ایمیل معتبر وارد کنید.'; err.classList.add('show'); return; }
-    btn.textContent = 'در حال ثبت‌نام...'; btn.disabled = true;
-    try {
-        const { ok, data } = await corePost('/auth/signup', {
-            email,
-            password:     pass,
-            full_name:    name,
-            account_type: 'individual'
-        });
-        if (!ok) {
-            err.textContent = data.detail || 'این ایمیل قبلاً ثبت شده است.';
-            err.classList.add('show');
-            btn.textContent = 'ساخت حساب'; btn.disabled = false;
-            return;
-        }
-        saveSession(data);
-        document.getElementById('signupForm').style.display='none';
-        document.getElementById('signupSuccess').classList.add('show');
-        setTimeout(() => { closeModals(); window.location.href='DeepT_Enhanced.html'; }, 1800);
-    } catch(e) {
-        err.textContent='خطا در اتصال. دوباره تلاش کنید.';
-        err.classList.add('show');
-        btn.textContent = 'ساخت حساب'; btn.disabled = false;
-    }
-}
-function openLogin()   { document.getElementById('loginOverlay').classList.add('open'); }
-function openSignup()  { document.getElementById('signupOverlay').classList.add('open'); }
+
+
+
 function openQuickStart() {
     qsReset();
     document.getElementById('quickStartOverlay').classList.add('open');
 }
-function closeModals() {
-    ['loginOverlay','signupOverlay','quickStartOverlay'].forEach(id =>
-        document.getElementById(id).classList.remove('open')
-    );
-}
-function switchToSignup() { closeModals(); setTimeout(openSignup, 80); }
-function switchToLogin()  { closeModals(); setTimeout(openLogin, 80); }
+
+
+
 
 ['loginOverlay','signupOverlay','quickStartOverlay'].forEach(id => {
     const el = document.getElementById(id);
@@ -2516,29 +2419,12 @@ function switchToLogin()  { closeModals(); setTimeout(openLogin, 80); }
         document.getElementById('themeBtn').textContent = '☀️';
     }
 })();
-function toggleTheme() {
-    const curr = document.body.getAttribute('data-theme') || 'dark';
-    const next = curr === 'dark' ? 'light' : 'dark';
-    document.body.setAttribute('data-theme', next);
-    document.getElementById('themeBtn').textContent = next === 'light' ? '☀️' : '🌙';
-    localStorage.setItem('deept_theme', next);
-}
+
 
 // ── TOAST ──
-function toast(msg, dur=2800) {
-    const el = document.getElementById('toast');
-    el.textContent = msg; el.classList.add('show');
-    setTimeout(() => el.classList.remove('show'), dur);
-}
+
 
 // ── MODALS ──
-document.addEventListener('keydown', e => {
-    if (e.key !== 'Enter') return;
-    if (document.getElementById('loginOverlay').classList.contains('open'))  handleLogin();
-    if (document.getElementById('signupOverlay').classList.contains('open')) handleSignup();
-});
-
-
 drawNodes();
 
 // ── DATE CONVERTER ──
@@ -2742,14 +2628,8 @@ function showDashboardView() {
 }
 
 // ── THEME ──
-function toggleGlobalTheme() {
-    const curr=document.body.getAttribute('data-theme')||'dark';
-    const next=curr==='dark'?'light':'dark';
-    document.body.setAttribute('data-theme',next);
-    document.getElementById('themeBtnIcon').textContent=next==='light'?'☀️':'🌙';
-    document.getElementById('themeBtnText').textContent=next==='light'?'تاریک':'روشن';
-    localStorage.setItem('deept_theme',next);
-}
+// toggleGlobalTheme defined above
+
 // alias for landing page toggle button
 function toggleTheme() { toggleGlobalTheme(); }
 
