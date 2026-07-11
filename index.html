@@ -963,16 +963,27 @@ async function handleLogin() {
     const email = document.getElementById('li-email').value.trim();
     const pass  = document.getElementById('li-pass').value;
     const err   = document.getElementById('li-error');
+    const btn   = document.querySelector('#loginForm .modal-btn');
     err.classList.remove('show');
     if (!email || !pass) { err.textContent='لطفاً همه فیلدها را پر کنید.'; err.classList.add('show'); return; }
+    btn.textContent = 'در حال ورود...'; btn.disabled = true;
     try {
         const { ok, data } = await corePost('/auth/login', { email, password: pass });
-        if (!ok) { err.textContent = data.detail || 'ایمیل یا رمز عبور اشتباه است.'; err.classList.add('show'); return; }
+        if (!ok) {
+            err.textContent = data.detail || 'ایمیل یا رمز عبور اشتباه است.';
+            err.classList.add('show');
+            btn.textContent = 'ورود'; btn.disabled = false;
+            return;
+        }
         saveSession(data);
         document.getElementById('loginForm').style.display='none';
         document.getElementById('loginSuccess').classList.add('show');
         setTimeout(() => { closeModals(); toast('✅ ورود موفق'); window.location.href='DeepT_Enhanced.html'; }, 1400);
-    } catch(e) { err.textContent='خطا در اتصال. دوباره تلاش کنید.'; err.classList.add('show'); }
+    } catch(e) {
+        err.textContent='خطا در اتصال. دوباره تلاش کنید.';
+        err.classList.add('show');
+        btn.textContent = 'ورود'; btn.disabled = false;
+    }
 }
 
 // ── SIGNUP ──
@@ -981,10 +992,12 @@ async function handleSignup() {
     const email = document.getElementById('su-email').value.trim();
     const pass  = document.getElementById('su-pass').value;
     const err   = document.getElementById('su-error');
+    const btn   = document.querySelector('#signupForm .modal-btn');
     err.classList.remove('show');
     if (!name||!email||!pass) { err.textContent='لطفاً همه فیلدها را پر کنید.'; err.classList.add('show'); return; }
     if (pass.length < 8)      { err.textContent='رمز عبور باید حداقل ۸ کاراکتر باشد.'; err.classList.add('show'); return; }
     if (!email.includes('@')) { err.textContent='یک ایمیل معتبر وارد کنید.'; err.classList.add('show'); return; }
+    btn.textContent = 'در حال ثبت‌نام...'; btn.disabled = true;
     try {
         const { ok, data } = await corePost('/auth/signup', {
             email,
@@ -992,12 +1005,21 @@ async function handleSignup() {
             full_name:    name,
             account_type: 'individual'
         });
-        if (!ok) { err.textContent = data.detail || 'این ایمیل قبلاً ثبت شده است.'; err.classList.add('show'); return; }
+        if (!ok) {
+            err.textContent = data.detail || 'این ایمیل قبلاً ثبت شده است.';
+            err.classList.add('show');
+            btn.textContent = 'ساخت حساب'; btn.disabled = false;
+            return;
+        }
         saveSession(data);
         document.getElementById('signupForm').style.display='none';
         document.getElementById('signupSuccess').classList.add('show');
         setTimeout(() => { closeModals(); window.location.href='DeepT_Enhanced.html'; }, 1800);
-    } catch(e) { err.textContent='خطا در اتصال. دوباره تلاش کنید.'; err.classList.add('show'); }
+    } catch(e) {
+        err.textContent='خطا در اتصال. دوباره تلاش کنید.';
+        err.classList.add('show');
+        btn.textContent = 'ساخت حساب'; btn.disabled = false;
+    }
 }
 function openLogin()   { document.getElementById('loginOverlay').classList.add('open'); }
 function openSignup()  { document.getElementById('signupOverlay').classList.add('open'); }
