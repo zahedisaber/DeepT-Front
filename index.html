@@ -1015,6 +1015,7 @@ body::before {
 </head>
 <body>
 
+<canvas id="bgCanvas" style="position:fixed;top:0;left:0;z-index:0;width:100%;height:100%;pointer-events:none;opacity:0.55;transition:opacity .35s;"></canvas>
 <div id="toast"></div>
 
 <!-- ─── HEADER ─── -->
@@ -2316,8 +2317,28 @@ async function handleSignup() {
 }
 
 // ── MODAL FUNCTIONS ──
-function openLogin()     { document.getElementById('loginOverlay').classList.add('open'); }
-function openSignup()    { document.getElementById('signupOverlay').classList.add('open'); }
+function openLogin() {
+    const form = document.getElementById('loginForm');
+    const succ = document.getElementById('loginSuccess');
+    if (form) form.style.display = '';
+    if (succ) succ.classList.remove('show');
+    const err = document.getElementById('li-error');
+    if (err) { err.textContent=''; err.classList.remove('show'); }
+    const btn = document.querySelector('#loginForm .modal-btn');
+    if (btn) { btn.textContent='ورود'; btn.disabled=false; }
+    document.getElementById('loginOverlay').classList.add('open');
+}
+function openSignup() {
+    const form = document.getElementById('signupForm');
+    const succ = document.getElementById('signupSuccess');
+    if (form) form.style.display = '';
+    if (succ) succ.classList.remove('show');
+    const err = document.getElementById('su-error');
+    if (err) { err.textContent=''; err.classList.remove('show'); }
+    const btn = document.querySelector('#signupForm .modal-btn');
+    if (btn) { btn.textContent='ساخت حساب'; btn.disabled=false; }
+    document.getElementById('signupOverlay').classList.add('open');
+}
 function openAuthModal() { openLogin(); }
 function closeModals()   {
     ['loginOverlay','signupOverlay','quickStartOverlay'].forEach(id=>{
@@ -2594,6 +2615,60 @@ function showDashboardView() {
 
 // alias for landing page toggle button
 function toggleTheme() { toggleGlobalTheme(); }
+
+// ── CANVAS NODES ──
+(function() {
+    const canvas = document.getElementById('bgCanvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    let W = canvas.width  = window.innerWidth;
+    let H = canvas.height = window.innerHeight;
+    const nodes = [];
+    for (let i = 0; i < 80; i++) nodes.push({
+        x:  Math.random() * W,
+        y:  Math.random() * H,
+        vx: (Math.random() - .5) / 6,
+        vy: (Math.random() - .5) / 6
+    });
+    function draw() {
+        W = canvas.width  = window.innerWidth;
+        H = canvas.height = window.innerHeight;
+        ctx.clearRect(0, 0, W, H);
+        const light = document.body.getAttribute('data-theme') === 'light';
+        canvas.style.opacity = light ? '0.12' : '0.55';
+        for (let i = 0; i < nodes.length; i++) {
+            for (let j = i + 1; j < nodes.length; j++) {
+                const dx = nodes[i].x - nodes[j].x;
+                const dy = nodes[i].y - nodes[j].y;
+                const d  = Math.sqrt(dx*dx + dy*dy);
+                if (d < 160) {
+                    ctx.beginPath();
+                    ctx.moveTo(nodes[i].x, nodes[i].y);
+                    ctx.lineTo(nodes[j].x, nodes[j].y);
+                    ctx.strokeStyle = light
+                        ? `rgba(0,114,168,${(1-d/160)*.18})`
+                        : `rgba(0,212,255,${(1-d/160)*.65})`;
+                    ctx.lineWidth = .8;
+                    ctx.stroke();
+                }
+            }
+            ctx.beginPath();
+            ctx.arc(nodes[i].x, nodes[i].y, 1.7, 0, Math.PI*2);
+            ctx.fillStyle = light ? '#0072a8' : '#00d4ff';
+            ctx.fill();
+            nodes[i].x += nodes[i].vx;
+            nodes[i].y += nodes[i].vy;
+            if (nodes[i].x < 0 || nodes[i].x > W) nodes[i].vx *= -1;
+            if (nodes[i].y < 0 || nodes[i].y > H) nodes[i].vy *= -1;
+        }
+        requestAnimationFrame(draw);
+    }
+    window.addEventListener('resize', () => {
+        W = canvas.width  = window.innerWidth;
+        H = canvas.height = window.innerHeight;
+    });
+    draw();
+})();
 
 // ── INIT ──
 (function(){
