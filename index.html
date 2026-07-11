@@ -1967,7 +1967,7 @@ async function handleLogin() {
         saveSession(data);
         document.getElementById('loginForm').style.display='none';
         document.getElementById('loginSuccess').classList.add('show');
-        setTimeout(() => { closeModals(); toast('✅ ورود موفق'); window.location.href='DeepT_Enhanced.html'; }, 1400);
+        setTimeout(() => { closeModals(); toast('✅ ورود موفق'); currentUserSession = loadSession(); syncUserSessionDOM(); showDashboardView(); }, 1400);
     } catch(e) {
         err.textContent='خطا در اتصال. دوباره تلاش کنید.';
         err.classList.add('show');
@@ -2003,7 +2003,7 @@ async function handleSignup() {
         saveSession(data);
         document.getElementById('signupForm').style.display='none';
         document.getElementById('signupSuccess').classList.add('show');
-        setTimeout(() => { closeModals(); window.location.href='DeepT_Enhanced.html'; }, 1800);
+        setTimeout(() => { closeModals(); currentUserSession = loadSession(); syncUserSessionDOM(); showDashboardView(); }, 1800);
     } catch(e) {
         err.textContent='خطا در اتصال. دوباره تلاش کنید.';
         err.classList.add('show');
