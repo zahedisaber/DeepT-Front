@@ -565,7 +565,29 @@ const DOCUMENT_REGISTRY = {
 })();
 
 // ─── APP STATE ───
-let currentUserSession    = JSON.parse(localStorage.getItem('deept_mock_user')) || null;
+// ─── SESSION — reads from real auth (deept_token) or falls back to mock ───
+function loadSession() {
+    // Real auth session (from DeepT-Core login/signup)
+    const token    = localStorage.getItem('deept_token');
+    const userId   = localStorage.getItem('deept_user_id');
+    const userName = localStorage.getItem('deept_user_name');
+    const email    = localStorage.getItem('deept_user_email');
+    if (token && userId) {
+        return {
+            email:    email    || '',
+            username: userName || email.split('@')[0],
+            user_id:  userId,
+            token:    token,
+            type:     'individual',
+            contact:  '',
+            office:   ''
+        };
+    }
+    // Fallback: old mock session (for ?test=1 mode)
+    return JSON.parse(localStorage.getItem('deept_mock_user')) || null;
+}
+
+let currentUserSession = loadSession();
 let currentWalletBalance  = parseInt(localStorage.getItem('deept_mock_wallet')) || 1250000;
 let trackingProjectsDatabase = [];
 
@@ -620,6 +642,8 @@ function simulateAuthAction(type) {
         if (!email || !email.includes('@')) { showToast('لطفا ایمیل معتبری وارد کنید.'); return; }
         currentUserSession = { email, username: email.split('@')[0], type:'individual', contact:'', office:'' };
         localStorage.setItem('deept_mock_user', JSON.stringify(currentUserSession));
+        localStorage.setItem('deept_user_name', email.split('@')[0]);
+        localStorage.setItem('deept_user_email', email);
         syncUserSessionDOM();
         closeAuthModal();
         showToast('✅ خوش آمدید!');
@@ -645,11 +669,12 @@ function syncUserSessionDOM() {
     ub.classList.toggle('hidden', !loggedIn);
     ub.style.display = loggedIn ? 'flex' : 'none';
     if (loggedIn) {
-        const l = currentUserSession.username[0].toUpperCase();
+        const displayName = currentUserSession.office || currentUserSession.username || currentUserSession.email || '؟';
+        const l = displayName[0].toUpperCase();
         document.getElementById('avatarLetter').textContent       = l;
         document.getElementById('headerAvatarBadge').textContent  = l;
-        document.getElementById('headerUserName').textContent     = currentUserSession.office || currentUserSession.username;
-        document.getElementById('profileDisplayName').textContent = currentUserSession.office || currentUserSession.username;
+        document.getElementById('headerUserName').textContent     = displayName;
+        document.getElementById('profileDisplayName').textContent = displayName;
         document.getElementById('profileEmailBadge').textContent  = currentUserSession.email;
         document.getElementById('accountTypeToggle').value        = currentUserSession.type || 'individual';
         document.getElementById('profileContactInput').value      = currentUserSession.contact || '';
@@ -666,6 +691,10 @@ function closeLogoutConfirm() { document.getElementById('logoutOverlay').classLi
 function executeLogout() {
     currentUserSession = null;
     localStorage.removeItem('deept_mock_user');
+    localStorage.removeItem('deept_token');
+    localStorage.removeItem('deept_user_id');
+    localStorage.removeItem('deept_user_name');
+    localStorage.removeItem('deept_user_email');
     closeLogoutConfirm();
     closeWorkspaceDashboard();
     closeChatInterface();
