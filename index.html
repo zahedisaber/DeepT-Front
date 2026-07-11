@@ -1827,6 +1827,7 @@ function executeLogout() {
     closeWorkspaceDashboard();
     closeChatInterface();
     syncUserSessionDOM();
+    showLandingView();
     showToast('👋 با موفقیت خارج شدید.');
 }
 document.getElementById('logoutOverlay').addEventListener('click', function(e) {
@@ -2230,7 +2231,7 @@ let height = canvas.height = window.innerHeight;
 const nodes = [];
 function initNodes() {
     nodes.length = 0;
-    for (let i=0; i<100; i++) nodes.push({x:Math.random()*width, y:Math.random()*height, vx:(Math.random()-.5)/4, vy:(Math.random()-.5)/4});
+    for (let i=0; i<100; i++) nodes.push({x:Math.random()*width, y:Math.random()*height, vx:(Math.random()-.5)/6, vy:(Math.random()-.5)/6});
 }
 initNodes();
 function drawBG() {
