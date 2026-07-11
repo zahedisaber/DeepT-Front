@@ -870,13 +870,16 @@ function ppHandleFile(file) {
 }
 
 // Drag and drop on passport zone
-document.getElementById('pp-drop-zone').addEventListener('dragover', e => { e.preventDefault(); document.getElementById('pp-drop-zone').classList.add('drag-over'); });
-document.getElementById('pp-drop-zone').addEventListener('dragleave', () => document.getElementById('pp-drop-zone').classList.remove('drag-over'));
-document.getElementById('pp-drop-zone').addEventListener('drop', e => {
-    e.preventDefault();
-    document.getElementById('pp-drop-zone').classList.remove('drag-over');
-    if (e.dataTransfer.files.length) ppHandleFile(e.dataTransfer.files[0]);
-});
+const ppDropZoneEl = document.getElementById('pp-drop-zone');
+if (ppDropZoneEl) {
+    ppDropZoneEl.addEventListener('dragover', e => { e.preventDefault(); ppDropZoneEl.classList.add('drag-over'); });
+    ppDropZoneEl.addEventListener('dragleave', () => ppDropZoneEl.classList.remove('drag-over'));
+    ppDropZoneEl.addEventListener('drop', e => {
+        e.preventDefault();
+        ppDropZoneEl.classList.remove('drag-over');
+        if (e.dataTransfer.files.length) ppHandleFile(e.dataTransfer.files[0]);
+    });
+}
 
 async function ppRunExtraction() {
     if (!ppSelectedFile) return;
@@ -985,13 +988,16 @@ function handleDocFileSelection(file) {
 }
 
 // Drag and drop on document zone
-document.getElementById('docDropZone').addEventListener('dragover', e => { e.preventDefault(); document.getElementById('docDropZone').classList.add('drag-over'); });
-document.getElementById('docDropZone').addEventListener('dragleave', () => document.getElementById('docDropZone').classList.remove('drag-over'));
-document.getElementById('docDropZone').addEventListener('drop', e => {
-    e.preventDefault();
-    document.getElementById('docDropZone').classList.remove('drag-over');
-    if (e.dataTransfer.files.length) handleDocFileSelection(e.dataTransfer.files[0]);
-});
+const docDropZoneEl = document.getElementById('docDropZone');
+if (docDropZoneEl) {
+    docDropZoneEl.addEventListener('dragover', e => { e.preventDefault(); docDropZoneEl.classList.add('drag-over'); });
+    docDropZoneEl.addEventListener('dragleave', () => docDropZoneEl.classList.remove('drag-over'));
+    docDropZoneEl.addEventListener('drop', e => {
+        e.preventDefault();
+        docDropZoneEl.classList.remove('drag-over');
+        if (e.dataTransfer.files.length) handleDocFileSelection(e.dataTransfer.files[0]);
+    });
+}
 
 async function executeTranslationPipeline() {
     if (!docSelectedFile) return;
