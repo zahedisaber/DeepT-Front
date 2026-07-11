@@ -994,6 +994,19 @@ footer {
 /* ── VIEW SWITCHER ── */
 #landingPage { display: block; }
 
+/* ── SPINNING DEEPT LOGO ── */
+.deept-spinner {
+    display: inline-block;
+    width: 20px; height: 20px;
+    animation: spinLogo 1.2s linear infinite;
+    vertical-align: middle;
+    flex-shrink: 0;
+}
+@keyframes spinLogo {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+}
+
 /* ── BACKGROUND ── */
 body::before {
     content: '';
@@ -1178,7 +1191,12 @@ body::before {
           <div id="docFileInfo" class="text-xs font-bold hidden mt-1" style="color:var(--accent);"></div>
         </div>
         <div id="processingStatusBubble" class="hidden flex items-center gap-3 p-3 rounded-xl mb-3 text-sm" style="background:var(--panel-bg);border:1px solid var(--border-color);">
-          <span class="animate-spin" style="color:var(--accent);">⏳</span>
+          <svg class="deept-spinner" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+  <path fill="none" stroke="var(--accent)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"
+    d="M 28 18 L 28 102 L 58 102 C 92 102 105 84 105 60 C 105 36 92 18 58 18 Z"/>
+  <path fill="none" stroke="var(--accent)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"
+    d="M 40 32 L 40 88 L 57 88 C 80 88 90 76 90 60 C 90 44 80 32 57 32 Z"/>
+</svg>
           <span id="statusMessageText" style="color:var(--text-muted);">در حال پردازش...</span>
         </div>
         <button id="submitBtn" onclick="executeTranslationPipeline()" disabled class="w-full py-3 rounded-xl font-black text-sm transition disabled:opacity-30" style="background:var(--accent);color:var(--btn-text-on-accent);">ترجمه و دانلود (.DOCX)</button>
@@ -1429,7 +1447,7 @@ body::before {
 
       <!-- Processing animation — shown during backend call -->
       <div class="qs-processing" id="qsProcessing">
-        <svg class="qs-proc-svg" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+        <svg class="qs-proc-svg deept-spinner" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
           <path class="qs-proc-d-outer" d="M 28 18 L 28 102 L 58 102 C 92 102 105 84 105 60 C 105 36 92 18 58 18 Z"/>
           <path class="qs-proc-d-inner" d="M 40 32 L 40 88 L 57 88 C 80 88 90 76 90 60 C 90 44 80 32 57 32 Z"/>
         </svg>
@@ -1892,9 +1910,13 @@ function renderDashboardActiveProjects() {
     }
     trackingProjectsDatabase.forEach((p, idx) => {
         const rem = (48*3600000) - (Date.now() - p.timestamp);
+        const rem = (48*3600000) - (Date.now() - p.timestamp);
+        const hrs = Math.floor(rem/3600000);
+        const mins = Math.floor((rem%3600000)/60000);
+        const secs = Math.floor((rem%60000)/1000);
         const timer = rem <= 0
             ? `<span style="color:#f87171;font-weight:700;">پاک شده</span>`
-            : `<span style="color:#fb923c;font-weight:700;">⏳ ${Math.floor(rem/3600000)} ساعت و ${Math.floor((rem%3600000)/60000)} دقیقه</span>`;
+            : `<span style="color:#fb923c;font-weight:700;">${hrs} ساعت ${mins} دقیقه ${secs} ثانیه</span>`;
         const dateStr = new Date(p.timestamp).toLocaleDateString('fa-IR');
         const row = document.createElement('tr');
         row.innerHTML = `
@@ -1907,12 +1929,24 @@ function renderDashboardActiveProjects() {
             <td class="py-3 text-center">${timer}</td>
             <td class="py-3 text-left text-xs">
                 ${rem > 0
-                    ? `<button onclick="showToast('فایل DOCX دانلود شد.')" class="font-bold hover:underline ml-3" style="color:var(--accent);">دانلود DOCX</button>
+                    ? `<button onclick="downloadProject(${idx})" class="font-bold hover:underline ml-3" style="color:var(--accent);">دانلود DOCX</button>
                        <button onclick="purgeFile(${idx})" class="font-bold hover:underline" style="color:#f87171;">حذف</button>`
                     : `<span style="color:var(--text-muted);">منقضی</span>`}
             </td>`;
         tbody.appendChild(row);
     });
+}
+function downloadProject(idx) {
+    const p = trackingProjectsDatabase[idx];
+    if (!p || !p.blob) { showToast('فایل در این جلسه موجود نیست — لطفاً سند را مجدداً ترجمه کنید.'); return; }
+    const url = URL.createObjectURL(p.blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `DeepT_${p.name.split('.')[0]}.docx`;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('✅ فایل دانلود شد.');
 }
 function purgeFile(idx) {
     if (confirm('حذف کامل این فایل؟')) {
@@ -1921,9 +1955,10 @@ function purgeFile(idx) {
         showToast('🗑️ فایل حذف شد.');
     }
 }
+// Refresh every second for precise countdown
 setInterval(() => {
     if (!document.getElementById('workspaceDashboard').classList.contains('hidden')) renderDashboardActiveProjects();
-}, 30000);
+}, 1000);
 
 // ═══════════════════════════════════════════════════════════
 // CHAT MODAL — open/close
@@ -2014,7 +2049,7 @@ async function ppRunExtraction() {
     const btn = document.getElementById('pp-extract-btn');
     btn.disabled = true;
     btn.textContent = 'در حال استخراج...';
-    ppShowStatus('⏳', 'در حال ارسال به Gemini...');
+    ppShowStatus('__SPINNER__', 'در حال ارسال به Gemini...');
 
     const fd = new FormData();
     fd.append('file', ppSelectedFile);
@@ -2043,7 +2078,7 @@ async function ppConfirmSession() {
 
     if (!first || !last) { showToast('⚠️ نام و نام خانوادگی الزامی است.'); return; }
 
-    ppShowStatus('⏳', 'در حال ثبت جلسه...');
+    ppShowStatus('__SPINNER__', 'در حال ثبت جلسه...');
 
     try {
         const res = await fetch(`${BACKEND}/passport/confirm`, {
@@ -2185,7 +2220,7 @@ async function executeTranslationPipeline() {
 
         // Add to dashboard log
         const typeLabel = DOCUMENT_REGISTRY[docType]?.label || docType;
-        trackingProjectsDatabase.unshift({ id:'DPT-'+Math.floor(1000+Math.random()*9000), name:docSelectedFile.name, type:typeLabel, timestamp:Date.now() });
+        trackingProjectsDatabase.unshift({ id:'DPT-'+Math.floor(1000+Math.random()*9000), name:docSelectedFile.name, type:typeLabel, timestamp:Date.now(), blob:blob });
 
         // Download
         const dlUrl = URL.createObjectURL(blob);
