@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DeepT - اتوماسیون ترجمه رسمی مبتنی بر هوش مصنوعی</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@400;500;700;900&family=Inter:wght@400;500;600;700;900&display=swap');
+
+/* ─── FONT ROLES ─── */
+/* Vazirmatn  → all Persian/UI text (default body font)    */
+/* Inter      → English-only data: dates, codes, formats   */
+
+/* ─── DARK THEME (default) ─── */
+:root {
+    --bg-main: #000000;
+    --bg-secondary: #0a0a0a;
+    --text-main: #ffffff;
+    --text-muted: #9ca3af;
+    --panel-bg: rgba(0, 0, 0, 0.75);
+    --accent: #00ffff;
+    --accent-glow: rgba(0, 255, 255, 0.25);
+    --accent-hover: rgba(0, 255, 255, 0.15);
+    --card-surface: rgba(18, 18, 18, 0.9);
+    --border-color: rgba(0, 255, 255, 0.28);
+    --border-subtle: rgba(255,255,255,0.07);
+    --input-bg: #000;
+    --input-border: #2a2a2a;
+    --shadow-accent: 0 0 30px rgba(0,255,255,0.15);
+    --node-color: cyan;
+    --node-line: rgba(0,255,255,1);
+    --canvas-opacity: 0.8;
+    --header-bg: rgba(0,0,0,0.85);
+    --table-header-text: rgba(255,255,255,0.5);
+    --row-hover: rgba(0,255,255,0.04);
+    --divider: rgba(255,255,255,0.06);
+    --btn-text-on-accent: #000;
+    --modal-overlay: rgba(0,0,0,0.85);
+    --toast-bg: #111;
+    --toast-border: rgba(0,255,255,0.4);
+}
+
+/* ─── LIGHT THEME ─── */
+[data-theme="light"] {
+    --bg-main: #f0f4f8;
+    --bg-secondary: #e8edf2;
+    --text-main: #0d1b2a;
+    --text-muted: #5a6a7a;
+    --panel-bg: rgba(255,255,255,0.92);
+    --accent: #0369a1;
+    --accent-glow: rgba(3,105,161,0.18);
+    --accent-hover: rgba(3,105,161,0.08);
+    --card-surface: #ffffff;
+    --border-color: rgba(3,105,161,0.25);
+    --border-subtle: rgba(0,0,0,0.07);
+    --input-bg: #f8fafc;
+    --input-border: #cbd5e1;
+    --shadow-accent: 0 4px 24px rgba(3,105,161,0.12);
+    --node-color: #0369a1;
+    --node-line: rgba(3,105,161,1);
+    --canvas-opacity: 0.12;
+    --header-bg: rgba(240,244,248,0.92);
+    --table-header-text: #64748b;
+    --row-hover: rgba(3,105,161,0.04);
+    --divider: rgba(0,0,0,0.08);
+    --btn-text-on-accent: #fff;
+    --modal-overlay: rgba(15,27,42,0.7);
+    --toast-bg: #fff;
+    --toast-border: rgba(3,105,161,0.35);
+}
+
+/* ─── BASE ─── */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+    font-family: 'Vazirmatn', sans-serif;
+    margin: 0;
+    background-color: var(--bg-main);
+    color: var(--text-main);
+    overflow-x: hidden;
+    transition: background-color 0.35s ease, color 0.35s ease;
+}
+
+/* English-only data text (dates, IDs, format codes) */
+.en {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    direction: ltr;
+    unicode-bidi: embed;
+}
+
+canvas {
+    position: fixed;
+    top: 0; left: 0;
+    z-index: -1;
+    width: 100%; height: 100%;
+    opacity: var(--canvas-opacity);
+    transition: opacity 0.35s ease;
+}
+
+/* ─── GLITCH TITLE ─── */
+.glitch {
+    font-size: 4rem;
+    font-weight: 900;
+    color: var(--text-main);
+    letter-spacing: 0.05em;
+    animation: glitch 1.4s infinite;
+}
+@keyframes glitch {
+    0%   { text-shadow: 2px 0 red, -2px 0 blue; }
+    20%  { text-shadow: -2px 0 red, 2px 0 blue; }
+    40%  { text-shadow: 2px 2px red, -2px -2px blue; }
+    60%  { text-shadow: -2px 2px red, 2px -2px blue; }
+    80%  { text-shadow: 2px -2px red, -2px 2px blue; }
+    100% { text-shadow: 2px 0 red, -2px 0 blue; }
+}
+[data-theme="light"] .glitch {
+    animation: glitch-light 1.4s infinite;
+}
+@keyframes glitch-light {
+    0%   { text-shadow: 1px 0 rgba(220,38,38,0.5), -1px 0 rgba(37,99,235,0.5); }
+    25%  { text-shadow: -1px 0 rgba(220,38,38,0.5), 1px 0 rgba(37,99,235,0.5); }
+    50%  { text-shadow: 1px 1px rgba(220,38,38,0.4), -1px -1px rgba(37,99,235,0.4); }
+    75%  { text-shadow: -1px 1px rgba(220,38,38,0.4), 1px -1px rgba(37,99,235,0.4); }
+    100% { text-shadow: 1px 0 rgba(220,38,38,0.5), -1px 0 rgba(37,99,235,0.5); }
+}
+
+/* ─── LAYOUT ─── */
+.section {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 3rem 1.25rem;
+}
+.bg-section {
+    background: var(--panel-bg);
+    border-radius: 1.25rem;
+    border: 1px solid var(--border-color);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    box-shadow: var(--shadow-accent);
+}
+
+/* ─── TABLE ─── */
+.table-cell {
+    border: 1px solid var(--accent);
+    padding: 0.5rem 0.85rem;
+    min-width: 120px;
+    font-family: 'Inter', system-ui, sans-serif;
+    color: var(--accent);
+    font-size: 1.05rem;
+    text-align: left;
+    direction: ltr;
+    transition: color 0.35s, border-color 0.35s;
+}
+.table-header {
+    color: var(--text-main);
+    font-weight: 700;
+    font-size: 1.05rem;
+    text-align: left;
+    direction: ltr;
+    padding: 0.5rem 0.85rem;
+    font-family: 'Inter', system-ui, sans-serif;
+    opacity: 0.75;
+}
+.animated-text {
+    font-family: 'Inter', system-ui, sans-serif;
+    color: var(--accent);
+    font-size: 0.95rem;
+    margin-top: 1.5rem;
+    min-height: 1.6rem;
+    text-align: left;
+    direction: ltr;
+    padding: 0 1.25rem;
+    transition: opacity 1s ease-out;
+}
+
+/* ─── BUTTONS ─── */
+.btn {
+    background: var(--text-main);
+    color: var(--bg-main);
+    padding: 1.1rem 2.75rem;
+    font-size: 1.4rem;
+    border-radius: 999px;
+    font-weight: 700;
+    transition: background 0.25s, box-shadow 0.25s, color 0.25s;
+    cursor: pointer;
+    display: inline-block;
+    text-decoration: none;
+    border: none;
+    box-shadow: 0 4px 20px var(--accent-glow);
+}
+.btn-primary {
+    font-size: 1.4rem;
+    padding: 1.1rem 3rem;
+    font-weight: 900;
+    box-shadow: 0 0 30px var(--accent-glow);
+}
+.btn-primary:hover, .btn:hover {
+    background: var(--accent);
+    color: var(--btn-text-on-accent);
+    box-shadow: 0 0 40px var(--accent);
+}
+.btn-outline {
+    background: transparent;
+    border: 1.5px solid var(--text-main);
+    color: var(--text-main);
+    padding: 1.1rem 3rem;
+    font-size: 1.3rem;
+    border-radius: 999px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.25s, color 0.25s, border-color 0.25s;
+}
+.btn-outline:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+/* ─── TYPOGRAPHY ─── */
+h2 {
+    font-weight: 700;
+    font-size: 1.9rem;
+    margin-bottom: 0.9rem;
+    text-align: center;
+    color: var(--text-main);
+}
+p {
+    font-size: 1.1rem;
+    line-height: 1.85rem;
+    text-align: center;
+    margin-bottom: 0.9rem;
+    color: var(--text-main);
+}
+
+/* ─── FEATURE CARDS ─── */
+.feature {
+    background: var(--card-surface);
+    border: 1px solid var(--border-color);
+    padding: 1.6rem;
+    border-radius: 1.1rem;
+    margin: 1rem 0;
+    text-align: center;
+    transition: box-shadow 0.25s;
+}
+.feature:hover { box-shadow: var(--shadow-accent); }
+.feature h3 { font-weight: 700; font-size: 1.45rem; margin-bottom: 0.5rem; color: var(--text-main); }
+.feature p  { font-size: 1.05rem; color: var(--text-muted); }
+
+/* ─── HEADER BAR ─── */
+.header-bar {
+    background: var(--header-bg);
+    border-bottom: 1px solid var(--border-subtle);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    transition: background 0.35s, border-color 0.35s;
+}
+.header-btn {
+    background: var(--card-surface);
+    border: 1px solid var(--border-color);
+    color: var(--accent);
+    padding: 0.45rem 0.85rem;
+    border-radius: 0.75rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s, color 0.2s;
+    display: flex; align-items: center; gap: 0.35rem;
+    white-space: nowrap;
+}
+.header-btn:hover {
+    border-color: var(--accent);
+    background: var(--accent-hover);
+}
+.header-btn-auth {
+    color: var(--text-main);
+    border-color: var(--border-subtle);
+}
+.header-btn-auth:hover {
+    border-color: var(--text-main);
+    color: var(--text-main);
+}
+.header-btn-workspace {
+    background: var(--accent);
+    color: var(--btn-text-on-accent);
+    border-color: transparent;
+    font-weight: 900;
+}
+.header-btn-workspace:hover {
+    background: var(--accent);
+    opacity: 0.85;
+}
+.header-btn-logout {
+    color: #f87171;
+    border-color: rgba(248,113,113,0.3);
+}
+.header-btn-logout:hover {
+    border-color: #f87171;
+    background: rgba(248,113,113,0.1);
+    color: #f87171;
+}
+
+/* ─── CONVERTER INPUTS ─── */
+.converter-input {
+    background: var(--input-bg);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    text-align: center;
+    font-family: 'Vazirmatn', sans-serif;
+    font-size: 1.15rem;
+    transition: box-shadow 0.2s, border-color 0.2s;
+    padding: 0.75rem;
+    border-radius: 0.6rem;
+    width: 100%;
+}
+.converter-input:focus {
+    outline: none;
+    box-shadow: 0 0 14px var(--accent-glow);
+    border-color: var(--accent);
+}
+select.converter-input option {
+    background: var(--input-bg);
+    color: var(--text-main);
+}
+
+/* ─── MODAL & CHAT WINDOW ─── */
+.modal-overlay {
+    background: var(--modal-overlay);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+}
+.chat-window {
+    border: 1px solid var(--border-color);
+    box-shadow: 0 24px 48px rgba(0,0,0,0.45), 0 0 32px var(--accent-glow);
+    background: var(--card-surface);
+    transition: background 0.35s, border-color 0.35s;
+}
+.chat-bubble-ai {
+    background: var(--panel-bg);
+    border: 1px solid var(--border-color);
+    transition: background 0.35s, border-color 0.35s;
+}
+.chat-bubble-user {
+    background: var(--accent-glow);
+    border: 1px solid var(--border-color);
+}
+.drop-zone-chat {
+    border: 2px dashed var(--border-color);
+    background: var(--bg-main);
+    transition: all 0.2s ease-in-out;
+    border-radius: 0.75rem;
+}
+.drop-zone-chat.drag-over {
+    border-color: var(--accent);
+    background: var(--accent-hover);
+}
+
+/* ─── AUTH MODAL INPUTS ─── */
+.auth-input {
+    width: 100%;
+    background: var(--input-bg);
+    border: 1px solid var(--input-border);
+    border-radius: 0.6rem;
+    padding: 0.65rem 0.85rem;
+    font-size: 0.9rem;
+    color: var(--accent);
+    outline: none;
+    font-family: 'Vazirmatn', sans-serif;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+/* Email/password inputs are LTR English — override font there only */
+.auth-input[type="email"],
+.auth-input[type="password"] {
+    font-family: 'Inter', system-ui, sans-serif;
+}
+.auth-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 10px var(--accent-glow);
+}
+.auth-label {
+    display: block;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-bottom: 0.3rem;
+}
+
+/* ─── WORKSPACE DASHBOARD ─── */
+.workspace-panel {
+    background: var(--card-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 1.2rem;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.1);
+    transition: background 0.35s, border-color 0.35s;
+}
+.workspace-panel:hover {
+    border-color: var(--border-color);
+}
+.ws-table th {
+    color: var(--table-header-text);
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    padding-bottom: 0.75rem;
+    padding-top: 0.5rem;
+    font-family: 'Vazirmatn', sans-serif;
+}
+.ws-table tr:not(:last-child) td {
+    border-bottom: 1px solid var(--divider);
+}
+.ws-table tr:hover td {
+    background: var(--row-hover);
+}
+
+/* ─── TOAST NOTIFICATION ─── */
+#toast {
+    position: fixed;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--toast-bg);
+    border: 1px solid var(--toast-border);
+    color: var(--accent);
+    padding: 0.75rem 1.75rem;
+    border-radius: 2rem;
+    font-size: 0.9rem;
+    font-weight: 700;
+    z-index: 9999;
+    opacity: 0;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+    white-space: nowrap;
+}
+#toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* ─── LOGOUT CONFIRM POPUP ─── */
+#logoutConfirm {
+    background: var(--card-surface);
+    border: 1px solid var(--border-color);
+    border-radius: 1rem;
+    box-shadow: 0 24px 48px rgba(0,0,0,0.4);
+}
+</style>
+</head>
+<body>
+
+<canvas id="bgCanvas"></canvas>
+
+<!-- ─── TOAST ─── -->
+<div id="toast"></div>
+
+<!-- ─── HEADER ─── -->
+<div class="header-bar fixed top-0 left-0 right-0 z-50 px-4 py-3 flex items-center justify-between gap-2">
+    <div class="flex items-center gap-2 flex-wrap">
+        <button onclick="toggleGlobalTheme()" class="header-btn" id="themeBtn" title="تغییر تم">
+            <span id="themeBtnIcon">☀️</span>
+            <span id="themeBtnText">روشن</span>
+        </button>
+
+        <button id="authHeaderBtn" onclick="openAuthModal()" class="header-btn header-btn-auth">
+            ورود / ثبت‌نام مترجمان
+        </button>
+
+        <button id="workspaceHeaderBtn" onclick="openWorkspaceDashboard()" class="header-btn header-btn-workspace hidden">
+            میز کار دیجیتال
+        </button>
+
+        <button id="logoutHeaderBtn" onclick="confirmLogout()" class="header-btn header-btn-logout hidden" title="خروج از حساب">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+            خروج
+        </button>
+    </div>
+
+    <!-- User badge (shown when logged in) -->
+    <div id="userBadge" class="hidden items-center gap-2 text-xs">
+        <div id="headerAvatarBadge" class="w-7 h-7 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center font-black text-black text-xs">M</div>
+        <span id="headerUserName" class="font-bold" style="color: var(--text-main);"></span>
+    </div>
+</div>
+
+<!-- ─── LOGOUT CONFIRM ─── -->
+<div id="logoutOverlay" class="modal-overlay fixed inset-0 z-[70] hidden flex items-center justify-center p-4">
+    <div id="logoutConfirm" class="w-full max-w-sm p-8 text-center">
+        <div class="text-4xl mb-4">👋</div>
+        <h3 class="text-xl font-black mb-2" style="color: var(--text-main);">خروج از حساب</h3>
+        <p class="text-sm mb-6" style="color: var(--text-muted);">مطمئن هستید که می‌خواهید از سیستم DeepT خارج شوید؟</p>
+        <div class="flex gap-3 justify-center">
+            <button onclick="executeLogout()" class="bg-red-500 hover:bg-red-600 text-white font-bold px-6 py-2.5 rounded-xl text-sm transition">بله، خروج</button>
+            <button onclick="closeLogoutConfirm()" class="font-bold px-6 py-2.5 rounded-xl text-sm transition" style="background: var(--bg-secondary); color: var(--text-main); border: 1px solid var(--border-subtle);">انصراف</button>
+        </div>
+    </div>
+</div>
+
+<!-- ─── DASHBOARD SHELL ─── -->
+<!-- All UI is rendered via modals and workspace overlay -->
+<!-- This page opens the dashboard automatically on load -->
+<div id="dashboardShell" class="min-h-screen flex flex-col items-center justify-center" style="color: var(--text-main);">
+    <div class="text-center">
+        <div class="text-4xl mb-4">⏳</div>
+        <p style="color: var(--text-muted); font-size: 0.95rem;">در حال بارگذاری پنل ترجمه...</p>
+    </div>
+</div>
+
+
+<script>
+const BACKEND = "https://deept-police-backend.onrender.com";
+
+// ═══════════════════════════════════════════════════════════
+// DOCUMENT REGISTRY
+// To add a new document type: add one entry here. Nothing else changes.
+// Fields:
+//   label    → Persian name shown in dropdown
+//   endpoint → full backend URL for this document type
+//   active   → false shows as "به زودی" and is disabled
+//   usePassportSession → true means session_id is sent with the request
+// ═══════════════════════════════════════════════════════════
+const DOCUMENT_REGISTRY = {
+    'police-certificate': {
+        label:               'گواهی عدم سوء پیشینه',
+        endpoint:            'https://deept-police-backend.onrender.com/api/translate/police-certificate',
+        active:              true,
+        usePassportSession:  true,
+    },
+    'vehicle-deed': {
+        label:               'سند مالکیت خودرو (برگ سبز)',
+        endpoint:            'https://deept-vehicle.onrender.com/translate-vehicle-deed',
+        active:              false,
+        usePassportSession:  false,
+    },
+    'power-of-attorney': {
+        label:               'وکالتنامه رسمی',
+        endpoint:            '',
+        active:              false,
+        usePassportSession:  true,
+    },
+    'marriage-certificate': {
+        label:               'سند ازدواج',
+        endpoint:            '',
+        active:              false,
+        usePassportSession:  true,
+    },
+    'birth-certificate': {
+        label:               'شناسنامه',
+        endpoint:            '',
+        active:              false,
+        usePassportSession:  true,
+    },
+};
+
+// Populate dropdown from registry
+(function buildDocDropdown() {
+    const sel = document.getElementById('docTemplate');
+    if (!sel) return;
+    sel.innerHTML = '';
+    Object.entries(DOCUMENT_REGISTRY).forEach(([key, doc]) => {
+        const opt = document.createElement('option');
+        opt.value    = key;
+        opt.textContent = doc.active ? doc.label : `${doc.label} — به زودی`;
+        opt.disabled = !doc.active;
+        sel.appendChild(opt);
+    });
+})();
+
+// ─── APP STATE ───
+let currentUserSession    = JSON.parse(localStorage.getItem('deept_mock_user')) || null;
+let currentWalletBalance  = parseInt(localStorage.getItem('deept_mock_wallet')) || 1250000;
+let trackingProjectsDatabase = [];
+
+// ─── PASSPORT SESSION STATE ───
+let passportSession = { session_id:null, first_name:null, last_name:null, father_name:null, date_of_birth:null };
+let ppSelectedFile  = null;
+let ppCurrentMode   = null;   // 'upload' | 'manual' | 'skip'
+let docSelectedFile = null;
+
+// ═══════════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════════
+function showToast(msg, duration=2500) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), duration);
+}
+
+// ═══════════════════════════════════════════════════════════
+// THEME
+// ═══════════════════════════════════════════════════════════
+function toggleGlobalTheme() {
+    const body = document.body;
+    const next = (body.getAttribute('data-theme') || 'dark') === 'dark' ? 'light' : 'dark';
+    body.setAttribute('data-theme', next);
+    document.getElementById('themeBtnIcon').textContent = next === 'light' ? '🌙' : '☀️';
+    document.getElementById('themeBtnText').textContent = next === 'light' ? 'تاریک' : 'روشن';
+    localStorage.setItem('deept_theme', next);
+}
+(function(){
+    const saved = localStorage.getItem('deept_theme');
+    if (saved === 'light') {
+        document.body.setAttribute('data-theme','light');
+        document.getElementById('themeBtnIcon').textContent = '🌙';
+        document.getElementById('themeBtnText').textContent = 'تاریک';
+    }
+})();
+
+// ═══════════════════════════════════════════════════════════
+// AUTH MODAL
+// ═══════════════════════════════════════════════════════════
+function openAuthModal()  { document.getElementById('authModal').classList.remove('hidden'); switchAuthState('login'); }
+function closeAuthModal() { document.getElementById('authModal').classList.add('hidden'); }
+function switchAuthState(state) {
+    ['loginStateBox','signupStateBox','forgotStateBox'].forEach(id => document.getElementById(id).classList.add('hidden'));
+    document.getElementById(state === 'login' ? 'loginStateBox' : state === 'signup' ? 'signupStateBox' : 'forgotStateBox').classList.remove('hidden');
+}
+function simulateAuthAction(type) {
+    if (type === 'login' || type === 'signup') {
+        const email = document.getElementById(type === 'login' ? 'loginEmail' : 'signupEmail').value;
+        if (!email || !email.includes('@')) { showToast('لطفا ایمیل معتبری وارد کنید.'); return; }
+        currentUserSession = { email, username: email.split('@')[0], type:'individual', contact:'', office:'' };
+        localStorage.setItem('deept_mock_user', JSON.stringify(currentUserSession));
+        syncUserSessionDOM();
+        closeAuthModal();
+        showToast('✅ خوش آمدید!');
+        openWorkspaceDashboard();
+    } else {
+        const email = document.getElementById('forgotEmail').value;
+        if (!email) { showToast('لطفا ایمیل خود را وارد کنید.'); return; }
+        showToast(`📧 لینک بازیابی به ${email} ارسال شد.`, 3500);
+        switchAuthState('login');
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
+// USER SESSION SYNC
+// ═══════════════════════════════════════════════════════════
+function syncUserSessionDOM() {
+    const loggedIn = !!currentUserSession;
+    document.getElementById('authHeaderBtn').classList.toggle('hidden', loggedIn);
+    document.getElementById('mainHeroAuthCall').classList.toggle('hidden', loggedIn);
+    document.getElementById('workspaceHeaderBtn').classList.toggle('hidden', !loggedIn);
+    document.getElementById('logoutHeaderBtn').classList.toggle('hidden', !loggedIn);
+    const ub = document.getElementById('userBadge');
+    ub.classList.toggle('hidden', !loggedIn);
+    ub.style.display = loggedIn ? 'flex' : 'none';
+    if (loggedIn) {
+        const l = currentUserSession.username[0].toUpperCase();
+        document.getElementById('avatarLetter').textContent       = l;
+        document.getElementById('headerAvatarBadge').textContent  = l;
+        document.getElementById('headerUserName').textContent     = currentUserSession.office || currentUserSession.username;
+        document.getElementById('profileDisplayName').textContent = currentUserSession.office || currentUserSession.username;
+        document.getElementById('profileEmailBadge').textContent  = currentUserSession.email;
+        document.getElementById('accountTypeToggle').value        = currentUserSession.type || 'individual';
+        document.getElementById('profileContactInput').value      = currentUserSession.contact || '';
+        document.getElementById('officeNameInput').value          = currentUserSession.office || '';
+        toggleProfileAccountType();
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
+// LOGOUT
+// ═══════════════════════════════════════════════════════════
+function confirmLogout()   { document.getElementById('logoutOverlay').classList.remove('hidden'); }
+function closeLogoutConfirm() { document.getElementById('logoutOverlay').classList.add('hidden'); }
+function executeLogout() {
+    currentUserSession = null;
+    localStorage.removeItem('deept_mock_user');
+    closeLogoutConfirm();
+    closeWorkspaceDashboard();
+    closeChatInterface();
+    syncUserSessionDOM();
+    showToast('👋 با موفقیت خارج شدید.');
+}
+document.getElementById('logoutOverlay').addEventListener('click', function(e) {
+    if (e.target === this) closeLogoutConfirm();
+});
+
+// ═══════════════════════════════════════════════════════════
+// PROFILE
+// ═══════════════════════════════════════════════════════════
+function toggleProfileAccountType() {
+    document.getElementById('officeFieldsBlock').classList.toggle('hidden', document.getElementById('accountTypeToggle').value !== 'office');
+}
+function saveProfileConfiguration() {
+    if (!currentUserSession) return;
+    currentUserSession.type    = document.getElementById('accountTypeToggle').value;
+    currentUserSession.contact = document.getElementById('profileContactInput').value;
+    currentUserSession.office  = currentUserSession.type === 'office' ? document.getElementById('officeNameInput').value : '';
+    localStorage.setItem('deept_mock_user', JSON.stringify(currentUserSession));
+    document.getElementById('profileDisplayName').textContent = currentUserSession.office || currentUserSession.username;
+    document.getElementById('headerUserName').textContent     = currentUserSession.office || currentUserSession.username;
+    showToast('✅ پروفایل بروزرسانی شد.');
+}
+
+// ═══════════════════════════════════════════════════════════
+// WALLET
+// ═══════════════════════════════════════════════════════════
+function triggerShaparakPayment() {
+    const amt = parseInt(document.getElementById('paymentAmountInput').value);
+    if (!amt || amt < 100000) { showToast('حداقل مبلغ ۱۰۰،۰۰۰ ریال می‌باشد.'); return; }
+    if (confirm(`شبیه‌ساز شاپرک\n\nپرداخت ${amt.toLocaleString()} ریال؟`)) {
+        currentWalletBalance += amt;
+        localStorage.setItem('deept_mock_wallet', currentWalletBalance);
+        document.getElementById('walletBalanceDisplay').textContent = currentWalletBalance.toLocaleString();
+        showToast('✅ کیف پول شارژ شد.');
+    }
+}
+function submitSupportTicket() {
+    const text = document.getElementById('supportTicketMsg').value;
+    if (!text) return;
+    showToast('📩 پیام شما ثبت شد.');
+    document.getElementById('supportTicketMsg').value = '';
+}
+
+// ═══════════════════════════════════════════════════════════
+// WORKSPACE DASHBOARD
+// ═══════════════════════════════════════════════════════════
+function openWorkspaceDashboard() {
+    if (!currentUserSession) { openAuthModal(); return; }
+    document.getElementById('workspaceDashboard').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    renderDashboardActiveProjects();
+}
+function closeWorkspaceDashboard() {
+    document.getElementById('workspaceDashboard').classList.add('hidden');
+    document.body.style.overflow = 'auto';
+}
+function renderDashboardActiveProjects() {
+    const tbody = document.getElementById('projectDashboardRowsBlock');
+    tbody.innerHTML = '';
+    if (!trackingProjectsDatabase.length) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">// بدون پروژه فعال</td></tr>`;
+        return;
+    }
+    trackingProjectsDatabase.forEach((p, idx) => {
+        const rem = (48*3600000) - (Date.now() - p.timestamp);
+        const timer = rem <= 0
+            ? `<span style="color:#f87171;font-weight:700;">پاک شده</span>`
+            : `<span style="color:#fb923c;font-weight:700;">⏳ ${Math.floor(rem/3600000)} ساعت و ${Math.floor((rem%3600000)/60000)} دقیقه</span>`;
+        const dateStr = new Date(p.timestamp).toLocaleDateString('fa-IR');
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td class="py-3 text-right">
+                <div class="font-black en" style="color:var(--text-main);">${p.id}</div>
+                <div class="text-[10px] truncate max-w-[170px]" style="color:var(--text-muted);">${p.name}</div>
+            </td>
+            <td class="py-3 text-center font-bold" style="color:var(--accent);">${p.type}</td>
+            <td class="py-3 text-center" style="color:var(--text-muted);">${dateStr}</td>
+            <td class="py-3 text-center">${timer}</td>
+            <td class="py-3 text-left text-xs">
+                ${rem > 0
+                    ? `<button onclick="showToast('فایل DOCX دانلود شد.')" class="font-bold hover:underline ml-3" style="color:var(--accent);">دانلود DOCX</button>
+                       <button onclick="purgeFile(${idx})" class="font-bold hover:underline" style="color:#f87171;">حذف</button>`
+                    : `<span style="color:var(--text-muted);">منقضی</span>`}
+            </td>`;
+        tbody.appendChild(row);
+    });
+}
+function purgeFile(idx) {
+    if (confirm('حذف کامل این فایل؟')) {
+        trackingProjectsDatabase.splice(idx, 1);
+        renderDashboardActiveProjects();
+        showToast('🗑️ فایل حذف شد.');
+    }
+}
+setInterval(() => {
+    if (!document.getElementById('workspaceDashboard').classList.contains('hidden')) renderDashboardActiveProjects();
+}, 30000);
+
+// ═══════════════════════════════════════════════════════════
+// CHAT MODAL — open/close
+// ═══════════════════════════════════════════════════════════
+function openChatInterface() {
+    document.getElementById('chatModal').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    // If no active session, always start at step 1
+    if (!passportSession.session_id) {
+        showStep(1);
+    } else {
+        showStep(2);
+    }
+}
+function closeChatInterface() {
+    document.getElementById('chatModal').classList.add('hidden');
+    if (document.getElementById('workspaceDashboard').classList.contains('hidden')) {
+        document.body.style.overflow = 'auto';
+    }
+}
+function showStep(n) {
+    document.getElementById('step1Panel').classList.toggle('hidden', n !== 1);
+    document.getElementById('step2Panel').classList.toggle('hidden', n !== 2);
+}
+
+// ═══════════════════════════════════════════════════════════
+// STEP 1 — PASSPORT SESSION
+// ═══════════════════════════════════════════════════════════
+function ppSetMode(mode) {
+    ppCurrentMode = mode;
+    // Hide all sub-sections first
+    document.getElementById('pp-upload-zone').classList.add('hidden');
+    document.getElementById('pp-fields').classList.add('hidden');
+    ppShowStatus('','');
+
+    if (mode === 'upload') {
+        document.getElementById('pp-upload-zone').classList.remove('hidden');
+    } else if (mode === 'manual') {
+        ppClearFields();
+        document.getElementById('pp-fields').classList.remove('hidden');
+    } else if (mode === 'skip') {
+        ppActivateSkipSession();
+    }
+}
+
+function ppShowStatus(icon, text) {
+    const bar = document.getElementById('pp-status');
+    if (!text) { bar.classList.add('hidden'); return; }
+    bar.classList.remove('hidden');
+    document.getElementById('pp-status-icon').textContent = icon;
+    document.getElementById('pp-status-text').textContent = text;
+}
+
+function ppClearFields() {
+    ['pp-first','pp-last','pp-father','pp-dob'].forEach(id => document.getElementById(id).value = '');
+}
+
+function ppFillFields(data) {
+    document.getElementById('pp-first').value  = data.first_name    || '';
+    document.getElementById('pp-last').value   = data.last_name     || '';
+    document.getElementById('pp-father').value = data.father_name   || '';
+    document.getElementById('pp-dob').value    = data.date_of_birth || '';
+}
+
+function ppHandleFile(file) {
+    if (!file) return;
+    ppSelectedFile = file;
+    document.getElementById('pp-file-name').textContent = `📎 ${file.name}`;
+    document.getElementById('pp-file-name').classList.remove('hidden');
+    document.getElementById('pp-drop-text').classList.add('hidden');
+    document.getElementById('pp-extract-btn').disabled = false;
+}
+
+// Drag and drop on passport zone
+document.getElementById('pp-drop-zone').addEventListener('dragover', e => { e.preventDefault(); document.getElementById('pp-drop-zone').classList.add('drag-over'); });
+document.getElementById('pp-drop-zone').addEventListener('dragleave', () => document.getElementById('pp-drop-zone').classList.remove('drag-over'));
+document.getElementById('pp-drop-zone').addEventListener('drop', e => {
+    e.preventDefault();
+    document.getElementById('pp-drop-zone').classList.remove('drag-over');
+    if (e.dataTransfer.files.length) ppHandleFile(e.dataTransfer.files[0]);
+});
+
+async function ppRunExtraction() {
+    if (!ppSelectedFile) return;
+    const btn = document.getElementById('pp-extract-btn');
+    btn.disabled = true;
+    btn.textContent = 'در حال استخراج...';
+    ppShowStatus('⏳', 'در حال ارسال به Gemini...');
+
+    const fd = new FormData();
+    fd.append('file', ppSelectedFile);
+
+    try {
+        const res = await fetch(`${BACKEND}/passport/extract`, { method:'POST', body:fd });
+        if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'خطای سرور'); }
+        const data = await res.json();
+        // Show fields pre-filled for review
+        document.getElementById('pp-upload-zone').classList.add('hidden');
+        ppFillFields(data);
+        ppShowStatus('✅', 'اطلاعات استخراج شد — بررسی و تأیید کنید.');
+        document.getElementById('pp-fields').classList.remove('hidden');
+    } catch (err) {
+        ppShowStatus('❌', `استخراج ناموفق: ${err.message}`);
+        btn.disabled = false;
+        btn.textContent = 'استخراج با هوش مصنوعی';
+    }
+}
+
+async function ppConfirmSession() {
+    const first  = document.getElementById('pp-first').value.trim().toUpperCase();
+    const last   = document.getElementById('pp-last').value.trim().toUpperCase();
+    const father = document.getElementById('pp-father').value.trim().toUpperCase();
+    const dob    = document.getElementById('pp-dob').value.trim();
+
+    if (!first || !last) { showToast('⚠️ نام و نام خانوادگی الزامی است.'); return; }
+
+    ppShowStatus('⏳', 'در حال ثبت جلسه...');
+
+    try {
+        const res = await fetch(`${BACKEND}/passport/confirm`, {
+            method: 'POST',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ first_name:first, last_name:last, father_name:father, date_of_birth:dob })
+        });
+        if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'خطای سرور'); }
+        const data = await res.json();
+
+        passportSession = { session_id:data.session_id, first_name:first, last_name:last, father_name:father, date_of_birth:dob };
+        ppActivateSessionUI();
+        showStep(2);
+        showToast(`✅ جلسه فعال شد — ${first} ${last}`);
+    } catch (err) {
+        ppShowStatus('❌', err.message);
+    }
+}
+
+function ppActivateSkipSession() {
+    passportSession = { session_id:'SKIP', first_name:'—', last_name:'—', father_name:null, date_of_birth:null };
+    ppActivateSessionUI();
+    showStep(2);
+    showToast('⏭️ جلسه بدون پاسپورت شروع شد.');
+}
+
+function ppActivateSessionUI() {
+    const badge = document.getElementById('activeClientBadge');
+    badge.classList.remove('hidden');
+    badge.style.display = 'flex';
+    document.getElementById('activeClientName').textContent = `${passportSession.first_name} ${passportSession.last_name}`;
+    document.getElementById('newClientBtn').classList.remove('hidden');
+}
+
+function confirmNewClient() {
+    if (!confirm(`بستن جلسه ${passportSession.first_name} ${passportSession.last_name}؟\nبرای مشتری جدید باید پاسپورت مجدداً ثبت شود.`)) return;
+
+    // Delete from backend
+    if (passportSession.session_id && passportSession.session_id !== 'SKIP') {
+        fetch(`${BACKEND}/passport/${passportSession.session_id}`, { method:'DELETE' }).catch(()=>{});
+    }
+
+    // Reset everything
+    passportSession = { session_id:null, first_name:null, last_name:null, father_name:null, date_of_birth:null };
+    ppSelectedFile  = null;
+    docSelectedFile = null;
+
+    document.getElementById('activeClientBadge').classList.add('hidden');
+    document.getElementById('newClientBtn').classList.add('hidden');
+    document.getElementById('pp-upload-zone').classList.add('hidden');
+    document.getElementById('pp-fields').classList.add('hidden');
+    ppShowStatus('','');
+
+    // Reset doc zone
+    resetDocZone();
+    showStep(1);
+    showToast('🔄 جلسه بسته شد. آماده مشتری جدید.');
+}
+
+// ═══════════════════════════════════════════════════════════
+// STEP 2 — DOCUMENT UPLOAD & TRANSLATION
+// ═══════════════════════════════════════════════════════════
+function handleDocFileSelection(file) {
+    if (!file) return;
+    docSelectedFile = file;
+    document.getElementById('docFileInfo').textContent = `📄 ${file.name} (${(file.size/1024).toFixed(0)} KB)`;
+    document.getElementById('docFileInfo').classList.remove('hidden');
+    document.getElementById('docDropText').classList.add('hidden');
+    document.getElementById('submitBtn').disabled = false;
+}
+
+// Drag and drop on document zone
+document.getElementById('docDropZone').addEventListener('dragover', e => { e.preventDefault(); document.getElementById('docDropZone').classList.add('drag-over'); });
+document.getElementById('docDropZone').addEventListener('dragleave', () => document.getElementById('docDropZone').classList.remove('drag-over'));
+document.getElementById('docDropZone').addEventListener('drop', e => {
+    e.preventDefault();
+    document.getElementById('docDropZone').classList.remove('drag-over');
+    if (e.dataTransfer.files.length) handleDocFileSelection(e.dataTransfer.files[0]);
+});
+
+async function executeTranslationPipeline() {
+    if (!docSelectedFile) return;
+
+    const submitBtn    = document.getElementById('submitBtn');
+    const statusBubble = document.getElementById('processingStatusBubble');
+    const statusText   = document.getElementById('statusMessageText');
+
+    submitBtn.disabled = true;
+    statusBubble.classList.remove('hidden');
+    statusText.textContent = 'در حال ارسال به سرور...';
+
+    const docType = document.getElementById('docTemplate').value;
+    const docDef  = DOCUMENT_REGISTRY[docType];
+
+    if (!docDef || !docDef.active || !docDef.endpoint) {
+        showToast('این نوع سند هنوز پشتیبانی نمی‌شود.');
+        submitBtn.disabled = false;
+        statusBubble.classList.add('hidden');
+        return;
+    }
+
+    const fd = new FormData();
+    fd.append('document_file', docSelectedFile);
+
+    // Passport session — only for document types that need it
+    if (docDef.usePassportSession) {
+        if (!passportSession.session_id || passportSession.session_id === 'SKIP') {
+            try {
+                statusText.textContent = 'در حال ایجاد جلسه موقت...';
+                const r = await fetch(`${BACKEND}/passport/confirm`, {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({ first_name:'', last_name:'', father_name:'', date_of_birth:'' })
+                });
+                const d = await r.json();
+                passportSession.session_id = d.session_id;
+            } catch(e) { /* backend will fall back to doc-extracted identity */ }
+        }
+        if (passportSession.session_id && passportSession.session_id !== 'SKIP') {
+            fd.append('session_id', passportSession.session_id);
+        }
+    }
+
+    const url = docDef.endpoint;
+
+    try {
+        statusText.textContent = 'در حال پردازش با هوش مصنوعی...';
+        const res = await fetch(url, { method:'POST', body:fd });
+        if (!res.ok) {
+            const err = await res.json().catch(()=>({detail:'خطای ناشناخته'}));
+            throw new Error(err.detail);
+        }
+
+        statusText.textContent = 'آماده‌سازی فایل دانلود...';
+        const blob = await res.blob();
+
+        // Add to dashboard log
+        const typeLabel = DOCUMENT_REGISTRY[docType]?.label || docType;
+        trackingProjectsDatabase.unshift({ id:'DPT-'+Math.floor(1000+Math.random()*9000), name:docSelectedFile.name, type:typeLabel, timestamp:Date.now() });
+
+        // Download
+        const dlUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = dlUrl;
+        a.download = `DeepT_${docSelectedFile.name.split('.')[0]}.docx`;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+        URL.revokeObjectURL(dlUrl);
+
+        showToast('✅ فایل ترجمه شده دانلود شد.');
+        document.getElementById('nextDocBtn').classList.remove('hidden');
+
+    } catch (err) {
+        showToast(`❌ ${err.message}`);
+    } finally {
+        submitBtn.disabled = false;
+        statusBubble.classList.add('hidden');
+    }
+}
+
+function resetDocZone() {
+    docSelectedFile = null;
+    document.getElementById('docFileInfo').classList.add('hidden');
+    document.getElementById('docDropText').classList.remove('hidden');
+    document.getElementById('docFileInput').value = '';
+    document.getElementById('submitBtn').disabled = true;
+    document.getElementById('nextDocBtn').classList.add('hidden');
+}
+
+function resetForNextDocument() {
+    resetDocZone();
+    showToast('آماده بارگذاری سند بعدی.');
+}
+
+// ═══════════════════════════════════════════════════════════
+// CANVAS BACKGROUND
+// ═══════════════════════════════════════════════════════════
+const canvas = document.getElementById('bgCanvas');
+const ctx    = canvas.getContext('2d');
+let width = canvas.width = window.innerWidth;
+let height = canvas.height = window.innerHeight;
+const nodes = [];
+function initNodes() {
+    nodes.length = 0;
+    for (let i=0; i<100; i++) nodes.push({x:Math.random()*width, y:Math.random()*height, vx:(Math.random()-.5)/4, vy:(Math.random()-.5)/4});
+}
+initNodes();
+function drawBG() {
+    width = canvas.width = window.innerWidth;
+    height = canvas.height = window.innerHeight;
+    ctx.clearRect(0,0,width,height);
+    const isLight = document.body.getAttribute('data-theme') === 'light';
+    for (let i=0;i<nodes.length;i++) for (let j=i+1;j<nodes.length;j++) {
+        const dx=nodes[i].x-nodes[j].x, dy=nodes[i].y-nodes[j].y, d=Math.sqrt(dx*dx+dy*dy);
+        if (d<160) {
+            ctx.beginPath(); ctx.moveTo(nodes[i].x,nodes[i].y); ctx.lineTo(nodes[j].x,nodes[j].y);
+            ctx.strokeStyle = isLight ? `rgba(3,105,161,${(1-d/160)*0.18})` : `rgba(0,255,255,${(1-d/160)*0.7})`;
+            ctx.lineWidth=0.8; ctx.stroke();
+        }
+    }
+    nodes.forEach(n => {
+        ctx.beginPath(); ctx.arc(n.x,n.y,1.8,0,Math.PI*2);
+        ctx.fillStyle = isLight ? '#0369a1' : 'cyan'; ctx.fill();
+        n.x+=n.vx; n.y+=n.vy;
+        if(n.x<0||n.x>width)  n.vx*=-1;
+        if(n.y<0||n.y>height) n.vy*=-1;
+    });
+    requestAnimationFrame(drawBG);
+}
+window.addEventListener('resize', ()=>{ width=canvas.width=window.innerWidth; height=canvas.height=window.innerHeight; });
+drawBG();
+
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
+document.getElementById('walletBalanceDisplay').textContent = currentWalletBalance.toLocaleString();
+
+(function() {
+    const params = new URLSearchParams(window.location.search);
+
+    // ?test=1 — auto-create a test session and open dashboard
+    if (params.get('test') === '1' && !currentUserSession) {
+        currentUserSession = {
+            email:    'test@deept.ir',
+            username: 'مترجم آزمایشی',
+            type:     'office',
+            contact:  '@deept_test',
+            office:   'دارالترجمه آزمایشی DeepT'
+        };
+        localStorage.setItem('deept_mock_user', JSON.stringify(currentUserSession));
+    }
+
+    syncUserSessionDOM();
+
+    if (currentUserSession) {
+        // Logged in — open dashboard and hide loading screen
+        document.getElementById('dashboardShell').style.display = 'none';
+        openWorkspaceDashboard();
+    } else {
+        // Not logged in — redirect to landing page
+        // If opened as a local file, just show auth modal instead
+        const isLocal = window.location.protocol === 'file:';
+        if (isLocal) {
+            document.getElementById('dashboardShell').innerHTML =
+                '<div class="text-center"><p style="color:var(--text-muted);margin-bottom:1rem;">لطفاً ابتدا وارد شوید.</p>' +
+                '<button onclick="openAuthModal()" style="background:var(--accent);color:#000;padding:.75rem 2rem;border-radius:.75rem;border:none;font-family:Vazirmatn,sans-serif;font-weight:700;cursor:pointer;font-size:1rem;">ورود / ثبت‌نام</button></div>';
+        } else {
+            window.location.href = 'index.html';
+        }
+    }
+})();
+
+</script>
+</body>
+</html>
