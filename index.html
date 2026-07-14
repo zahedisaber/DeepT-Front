@@ -1115,23 +1115,32 @@ body::before {
       </div>
     </div>
     <div class="overflow-y-auto flex-1 p-5 space-y-4" dir="rtl">
-      <!-- STEP 1: PASSPORT -->
+      <!-- STAGE 1: DOCUMENT TYPE -->
+      <div id="docTypeStageHeader" class="flex items-center gap-2 mb-2">
+        <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0" style="background:var(--accent);color:var(--btn-text-on-accent);">۱</span>
+        <span class="font-black text-sm" style="color:var(--text-main);">مرحله ۱: انتخاب نوع سند</span>
+        <span title="لطفا نوع سند مورد نظر خود را برای ترجمه انتخاب کنید" style="cursor:help;color:var(--text-muted);font-size:.85rem;">ⓘ</span>
+      </div>
+      <div id="docTypeStageBody" class="mb-4">
+        <select id="docTemplate" class="auth-input" style="font-family:'Vazirmatn',sans-serif;" onchange="handleDocTypeSelected()"></select>
+      </div>
+      <div id="docTypeStageSummary" class="hidden flex items-center justify-between mb-4 p-2.5 rounded-lg text-xs" style="background:var(--panel-bg);border:1px solid var(--border-color);">
+        <span style="color:var(--text-main);">سند انتخاب‌شده: <b id="docTypeSummaryLabel" style="color:var(--accent);"></b></span>
+        <button onclick="reopenDocTypeStage()" style="color:var(--accent);background:none;border:none;cursor:pointer;font-weight:700;">تغییر ✏️</button>
+      </div>
+
       <div id="step1Panel">
-        <div class="flex items-center gap-2 mb-4">
-          <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0" style="background:var(--accent);color:var(--btn-text-on-accent);">۱</span>
-          <span class="font-black text-sm" style="color:var(--text-main);">شناسه مشتری — اطلاعات پاسپورت</span>
+        <div class="flex items-center gap-2 mb-2">
+          <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0" style="background:var(--accent);color:var(--btn-text-on-accent);">۲</span>
+          <span class="font-black text-sm" style="color:var(--text-main);">وارد کردن اطلاعات گذرنامه‌ای</span>
+          <span title="برای وارد کردن اطلاعات گذرنامه افراد مؤثر یکی از روش‌ها را انتخاب کنید. در صورتی که افراد مؤثر بیش از یک نفر هستند می‌توانید با انتخاب گزینه افزودن اطلاعات نفر بعدی، اطلاعات مربوط به شخص دیگر را اضافه کنید." style="cursor:help;color:var(--text-muted);font-size:.85rem;">ⓘ</span>
         </div>
-          <div class="mb-4">
-  <label class="auth-label mb-1">نوع سند:</label>
-  <select id="docTemplate" class="auth-input" style="font-family:'Vazirmatn',sans-serif;" onchange="toggleMultiPassportUI()"></select>
-</div>
-<div id="multiPassportBlock" class="hidden mb-4 p-3 rounded-xl text-xs" style="background:var(--panel-bg);border:1px solid var(--border-color);">
-  <div class="flex items-center justify-between">
-    <span style="color:var(--text-muted);">پاسپورت‌های ثبت‌شده: <b id="multiPassportCount" style="color:var(--accent);">۰</b> نفر</span>
-    <button onclick="addExtraPassport()" class="font-black px-3 py-1.5 rounded-lg" style="background:var(--accent);color:var(--btn-text-on-accent);">+ افزودن پاسپورت</button>
-  </div>
-  <button onclick="continueToDocumentStep()" class="w-full mt-2 py-2 rounded-lg text-xs font-black" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-color);">ادامه به بارگذاری سند ←</button>
-</div>
+        <div id="multiPassportBlock" class="hidden mb-4 p-3 rounded-xl text-xs" style="background:var(--panel-bg);border:1px solid var(--border-color);">
+          <div class="flex items-center justify-between">
+            <span style="color:var(--text-muted);">پاسپورت‌های ثبت‌شده: <b id="multiPassportCount" style="color:var(--accent);">۰</b> نفر</span>
+            <button onclick="addExtraPassport()" class="font-black px-3 py-1.5 rounded-lg" style="background:var(--accent);color:var(--btn-text-on-accent);">+ افزودن پاسپورت</button>
+          </div>
+        </div>
         <div class="space-y-2 mb-4">
           <button onclick="ppSetMode('upload')" class="w-full flex items-center gap-3 p-3 rounded-xl border text-right transition" style="border-color:var(--border-color);background:var(--bg-main);" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border-color)'">
             <span class="text-xl shrink-0">📤</span>
@@ -1145,6 +1154,11 @@ body::before {
             <span class="text-xl shrink-0">⏭️</span>
             <div><div class="font-black text-sm" style="color:var(--text-muted);">رد شدن</div><div class="text-xs mt-0.5" style="color:var(--text-muted);">اطلاعات از خود سند استخراج می‌شود</div></div>
           </button>
+        </div>
+        <div id="pp-skip-confirm" class="hidden mb-4 space-y-3">
+          <button onclick="ppSetMode(null)" class="flex items-center gap-1.5 text-xs mb-1 font-bold transition" style="color:var(--text-muted);background:none;border:none;cursor:pointer;padding:0;">← بازگشت به انتخاب روش</button>
+          <p class="text-xs" style="color:var(--text-muted);">اطلاعات گذرنامه از خود سند استخراج خواهد شد. آیا مطمئن هستید؟</p>
+          <button onclick="ppActivateSkipSession()" class="w-full py-2.5 rounded-xl text-sm font-black transition" style="background:var(--accent);color:var(--btn-text-on-accent);">✅ تأیید و شروع ترجمه</button>
         </div>
         <div id="pp-upload-zone" class="hidden mb-4">
           <button onclick="ppSetMode(null)" class="flex items-center gap-1.5 text-xs mb-3 font-bold transition" style="color:var(--text-muted);background:none;border:none;cursor:pointer;padding:0;">← بازگشت به انتخاب روش</button>
@@ -1989,6 +2003,7 @@ function ppSetMode(mode) {
     // Hide all sub-sections first
     document.getElementById('pp-upload-zone').classList.add('hidden');
     document.getElementById('pp-fields').classList.add('hidden');
+    document.getElementById('pp-skip-confirm').classList.add('hidden');
     ppShowStatus('','');
 
     if (mode === 'upload') {
@@ -1997,7 +2012,7 @@ function ppSetMode(mode) {
         ppClearFields();
         document.getElementById('pp-fields').classList.remove('hidden');
     } else if (mode === 'skip') {
-        ppActivateSkipSession();
+        document.getElementById('pp-skip-confirm').classList.remove('hidden');
     }
 }
 
@@ -2117,6 +2132,18 @@ function ppActivateSessionUI() {
     badge.style.display = 'flex';
     document.getElementById('activeClientName').textContent = `${passportSession.first_name} ${passportSession.last_name}`;
     document.getElementById('newClientBtn').classList.remove('hidden');
+}
+    function handleDocTypeSelected() {
+    const docType = document.getElementById('docTemplate').value;
+    const docDef  = DOCUMENT_REGISTRY[docType];
+    document.getElementById('docTypeStageBody').classList.add('hidden');
+    document.getElementById('docTypeStageSummary').classList.remove('hidden');
+    document.getElementById('docTypeSummaryLabel').textContent = docDef ? docDef.label : docType;
+    toggleMultiPassportUI();
+}
+function reopenDocTypeStage() {
+    document.getElementById('docTypeStageBody').classList.remove('hidden');
+    document.getElementById('docTypeStageSummary').classList.add('hidden');
 }
 function toggleMultiPassportUI() {
     const docType = document.getElementById('docTemplate').value;
