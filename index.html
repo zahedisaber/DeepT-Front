@@ -1143,7 +1143,6 @@ body::before {
             <span style="color:var(--text-muted);">پاسپورت‌های ثبت‌شده: <b id="multiPassportCount" style="color:var(--accent);">۰</b> نفر</span>
             <button onclick="addExtraPassport()" class="font-black px-3 py-1.5 rounded-lg" style="background:var(--accent);color:var(--btn-text-on-accent);">+ افزودن پاسپورت</button>
           </div>
-          <button onclick="continueToDocumentStep()" class="w-full mt-2 py-2 rounded-lg text-xs font-black" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-color);">ادامه به بارگذاری سند ←</button>
         </div>
         <div class="space-y-2 mb-4">
           <button onclick="ppSetMode('upload')" class="w-full flex items-center gap-3 p-3 rounded-xl border text-right transition" style="border-color:var(--border-color);background:var(--bg-main);" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border-color)'">
@@ -1189,6 +1188,10 @@ body::before {
           </div>
           <button onclick="ppConfirmSession()" class="w-full py-2.5 rounded-xl text-sm font-black transition" style="background:var(--accent);color:var(--btn-text-on-accent);">✅ تأیید و شروع ترجمه</button>
         </div>
+        <div class="grid grid-cols-2 gap-3 mt-2">
+          <button onclick="goBackToDocTypeStage()" class="py-2.5 rounded-xl text-sm font-black transition" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-color);">→ بازگشت</button>
+          <button onclick="continueToDocumentStep()" class="py-2.5 rounded-xl text-sm font-black transition" style="background:var(--accent);color:var(--btn-text-on-accent);">ادامه به بارگذاری سند ←</button>
+        </div>
       </div>
       <!-- STEP 2: DOCUMENT -->
       <div id="step2Panel" class="hidden">
@@ -1207,7 +1210,10 @@ body::before {
           <span class="animate-spin" style="color:var(--accent);">⏳</span>
           <span id="statusMessageText" style="color:var(--text-muted);">در حال پردازش...</span>
         </div>
-        <button id="submitBtn" onclick="executeTranslationPipeline()" disabled class="w-full py-3 rounded-xl font-black text-sm transition disabled:opacity-30" style="background:var(--accent);color:var(--btn-text-on-accent);">ترجمه و دانلود (.DOCX)</button>
+        <div class="grid grid-cols-2 gap-3">
+          <button onclick="goBackToPassportStage()" class="py-2.5 rounded-xl text-sm font-black transition" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-color);">→ بازگشت</button>
+          <button id="submitBtn" onclick="executeTranslationPipeline()" disabled class="py-3 rounded-xl font-black text-sm transition disabled:opacity-30" style="background:var(--accent);color:var(--btn-text-on-accent);">ترجمه و دانلود (.DOCX)</button>
+        </div>
         <button id="nextDocBtn" onclick="resetForNextDocument()" class="hidden w-full py-3 rounded-xl font-black text-sm transition mt-3" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-color);">ترجمه مدرک بعدی ←</button>
       </div>
     </div>
@@ -2136,6 +2142,15 @@ function ppActivateSessionUI() {
     badge.style.display = 'flex';
     document.getElementById('activeClientName').textContent = `${passportSession.first_name} ${passportSession.last_name}`;
     document.getElementById('newClientBtn').classList.remove('hidden');
+}
+    function goBackToDocTypeStage() {
+    document.getElementById('docTypeStageHeader').classList.remove('hidden');
+    document.getElementById('docTypeStageBody').classList.remove('hidden');
+    document.getElementById('docTypeStageSummary').classList.add('hidden');
+    document.getElementById('step1Panel').classList.add('hidden');
+}
+function goBackToPassportStage() {
+    showStep(1);
 }
     function handleDocTypeSelected() {
     const docType = document.getElementById('docTemplate').value;
