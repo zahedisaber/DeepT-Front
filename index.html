@@ -1121,6 +1121,16 @@ body::before {
           <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0" style="background:var(--accent);color:var(--btn-text-on-accent);">۱</span>
           <span class="font-black text-sm" style="color:var(--text-main);">شناسه مشتری — اطلاعات پاسپورت</span>
         </div>
+          <div class="mb-4">
+  <label class="auth-label mb-1">نوع سند:</label>
+  <select id="docTemplate" class="auth-input" style="font-family:'Vazirmatn',sans-serif;" onchange="notaryTogglePassportUI()"></select>
+</div>
+<div id="notaryMultiPassportBlock" class="hidden mb-4 p-3 rounded-xl text-xs" style="background:var(--panel-bg);border:1px solid var(--border-color);">
+  <div class="flex items-center justify-between">
+    <span style="color:var(--text-muted);">پاسپورت‌های ثبت‌شده: <b id="notaryPassportCount" style="color:var(--accent);">۰</b> نفر</span>
+    <button onclick="notaryAddPassport()" class="font-black px-3 py-1.5 rounded-lg" style="background:var(--accent);color:var(--btn-text-on-accent);">+ افزودن پاسپورت</button>
+  </div>
+</div>
         <div class="space-y-2 mb-4">
           <button onclick="ppSetMode('upload')" class="w-full flex items-center gap-3 p-3 rounded-xl border text-right transition" style="border-color:var(--border-color);background:var(--bg-main);" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border-color)'">
             <span class="text-xl shrink-0">📤</span>
@@ -1668,18 +1678,13 @@ const DOCUMENT_REGISTRY = {
         endpoint:            'https://deept-police-backend.onrender.com/api/translate/police-certificate',
         active:              true,
         usePassportSession:  true,
+        legacySingleSession: true,   // old backend contract -- singular session_id, not yet updated
     },
     'vehicle-deed': {
         label:               'سند مالکیت خودرو (برگ سبز)',
         endpoint:            'https://deept-vehicle.onrender.com/translate-vehicle-deed',
         active:              false,
         usePassportSession:  false,
-    },
-    'power-of-attorney': {
-        label:               'وکالتنامه رسمی',
-        endpoint:            '',
-        active:              false,
-        usePassportSession:  true,
     },
     'marriage-certificate': {
         label:               'سند ازدواج',
@@ -1691,6 +1696,12 @@ const DOCUMENT_REGISTRY = {
         label:               'شناسنامه',
         endpoint:            '',
         active:              false,
+        usePassportSession:  true,
+    },
+    'notary-deed': {
+        label:               'اسناد دفترخانه (سند رسمی)',
+        endpoint:            'https://deept-back-end.onrender.com/api/translate/notary-deed',
+        active:              true,
         usePassportSession:  true,
     },
 };
@@ -1738,6 +1749,17 @@ let trackingProjectsDatabase = [];
 
 // ─── PASSPORT SESSION STATE ───
 let passportSession = { session_id:null, first_name:null, last_name:null, father_name:null, date_of_birth:null };
+    let notaryPassportSessions = [];   // confirmed passports for the universal multi-passport flow
+let ppAddMode = false;             // true while reusing step1's UI to add an EXTRA passport, not the primary one
+
+function getActiveBackendOrigin() {
+    const docType = document.getElementById('docTemplate').value;
+    const docDef  = DOCUMENT_REGISTRY[docType];
+    if (docDef && docDef.endpoint) {
+        try { return new URL(docDef.endpoint).origin; } catch(e) {}
+    }
+    return BACKEND; // fallback before a document type is selected
+}
 let ppSelectedFile  = null;
 let ppCurrentMode   = null;   // 'upload' | 'manual' | 'skip'
 let docSelectedFile = null;
@@ -2032,7 +2054,7 @@ async function ppRunExtraction() {
     fd.append('file', ppSelectedFile);
 
     try {
-        const res = await fetch(`${BACKEND}/passport/extract`, { method:'POST', body:fd });
+        const res = await fetch(`${getActiveBackendOrigin()}/passport/extract`, { method:'POST', body:fd });
         if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'خطای سرور'); }
         const data = await res.json();
         // Show fields pre-filled for review
@@ -2058,7 +2080,7 @@ async function ppConfirmSession() {
     ppShowStatus('⏳', 'در حال ثبت جلسه...');
 
     try {
-        const res = await fetch(`${BACKEND}/passport/confirm`, {
+        const res = await fetch(`${getActiveBackendOrigin()}/passport/confirm`, {
             method: 'POST',
             headers: {'Content-Type':'application/json'},
             body: JSON.stringify({ first_name:first, last_name:last, father_name:father, date_of_birth:dob })
@@ -2066,10 +2088,18 @@ async function ppConfirmSession() {
         if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'خطای سرور'); }
         const data = await res.json();
 
-        passportSession = { session_id:data.session_id, first_name:first, last_name:last, father_name:father, date_of_birth:dob };
-        ppActivateSessionUI();
-        showStep(2);
-        showToast(`✅ جلسه فعال شد — ${first} ${last}`);
+        if (ppAddMode) {
+            notaryPassportSessions.push({ session_id:data.session_id, first_name:first, last_name:last, father_name:father, date_of_birth:dob });
+            ppAddMode = false;
+            document.getElementById('notaryPassportCount').textContent = notaryPassportSessions.length;
+            document.getElementById('pp-fields').classList.add('hidden');
+            showToast(`✅ پاسپورت ${first} ${last} افزوده شد (مجموع: ${notaryPassportSessions.length})`);
+        } else {
+            passportSession = { session_id:data.session_id, first_name:first, last_name:last, father_name:father, date_of_birth:dob };
+            ppActivateSessionUI();
+            showStep(2);
+            showToast(`✅ جلسه فعال شد — ${first} ${last}`);
+        }
     } catch (err) {
         ppShowStatus('❌', err.message);
     }
@@ -2089,17 +2119,37 @@ function ppActivateSessionUI() {
     document.getElementById('activeClientName').textContent = `${passportSession.first_name} ${passportSession.last_name}`;
     document.getElementById('newClientBtn').classList.remove('hidden');
 }
+function notaryTogglePassportUI() {
+    const docType = document.getElementById('docTemplate').value;
+    const docDef  = DOCUMENT_REGISTRY[docType];
+    const block   = document.getElementById('notaryMultiPassportBlock');
+    if (docDef && docDef.usePassportSession && !docDef.legacySingleSession) {
+        block.classList.remove('hidden');
+        document.getElementById('notaryPassportCount').textContent = notaryPassportSessions.length;
+    } else {
+        block.classList.add('hidden');
+    }
+}
 
+function notaryAddPassport() {
+    ppAddMode = true;
+    ppSelectedFile = null;
+    ppClearFields();
+    document.getElementById('pp-fields').classList.add('hidden');
+    document.getElementById('pp-upload-zone').classList.add('hidden');
+    ppShowStatus('','');
+}
 function confirmNewClient() {
     if (!confirm(`بستن جلسه ${passportSession.first_name} ${passportSession.last_name}؟\nبرای مشتری جدید باید پاسپورت مجدداً ثبت شود.`)) return;
 
     // Delete from backend
     if (passportSession.session_id && passportSession.session_id !== 'SKIP') {
-        fetch(`${BACKEND}/passport/${passportSession.session_id}`, { method:'DELETE' }).catch(()=>{});
+        fetch(`${getActiveBackendOrigin()}/passport/${passportSession.session_id}`, { method:'DELETE' }).catch(()=>{});
     }
 
     // Reset everything
     passportSession = { session_id:null, first_name:null, last_name:null, father_name:null, date_of_birth:null };
+    notaryPassportSessions = [];
     ppSelectedFile  = null;
     docSelectedFile = null;
 
@@ -2163,22 +2213,31 @@ async function executeTranslationPipeline() {
     const fd = new FormData();
     fd.append('document_file', docSelectedFile);
 
-    // Passport session — only for document types that need it
+    // Passport session(s). police-certificate still uses its old backend
+    // contract (legacySingleSession) until that repo is updated; every other
+    // document type uses the universal multi-passport contract by default.
     if (docDef.usePassportSession) {
-        if (!passportSession.session_id || passportSession.session_id === 'SKIP') {
-            try {
-                statusText.textContent = 'در حال ایجاد جلسه موقت...';
-                const r = await fetch(`${BACKEND}/passport/confirm`, {
-                    method: 'POST',
-                    headers: {'Content-Type':'application/json'},
-                    body: JSON.stringify({ first_name:'', last_name:'', father_name:'', date_of_birth:'' })
-                });
-                const d = await r.json();
-                passportSession.session_id = d.session_id;
-            } catch(e) { /* backend will fall back to doc-extracted identity */ }
-        }
-        if (passportSession.session_id && passportSession.session_id !== 'SKIP') {
-            fd.append('session_id', passportSession.session_id);
+        if (docDef.legacySingleSession) {
+            if (!passportSession.session_id || passportSession.session_id === 'SKIP') {
+                try {
+                    statusText.textContent = 'در حال ایجاد جلسه موقت...';
+                    const r = await fetch(`${getActiveBackendOrigin()}/passport/confirm`, {
+                        method: 'POST',
+                        headers: {'Content-Type':'application/json'},
+                        body: JSON.stringify({ first_name:'', last_name:'', father_name:'', date_of_birth:'' })
+                    });
+                    const d = await r.json();
+                    passportSession.session_id = d.session_id;
+                } catch(e) { /* backend will fall back to doc-extracted identity */ }
+            }
+            if (passportSession.session_id && passportSession.session_id !== 'SKIP') {
+                fd.append('session_id', passportSession.session_id);
+            }
+        } else {
+            if (passportSession.session_id && passportSession.session_id !== 'SKIP') {
+                fd.append('session_ids', passportSession.session_id);
+            }
+            notaryPassportSessions.forEach(s => fd.append('session_ids', s.session_id));
         }
     }
 
