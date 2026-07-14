@@ -1123,13 +1123,14 @@ body::before {
         </div>
           <div class="mb-4">
   <label class="auth-label mb-1">نوع سند:</label>
-  <select id="docTemplate" class="auth-input" style="font-family:'Vazirmatn',sans-serif;" onchange="notaryTogglePassportUI()"></select>
+  <select id="docTemplate" class="auth-input" style="font-family:'Vazirmatn',sans-serif;" onchange="toggleMultiPassportUI()"></select>
 </div>
-<div id="notaryMultiPassportBlock" class="hidden mb-4 p-3 rounded-xl text-xs" style="background:var(--panel-bg);border:1px solid var(--border-color);">
+<div id="multiPassportBlock" class="hidden mb-4 p-3 rounded-xl text-xs" style="background:var(--panel-bg);border:1px solid var(--border-color);">
   <div class="flex items-center justify-between">
-    <span style="color:var(--text-muted);">پاسپورت‌های ثبت‌شده: <b id="notaryPassportCount" style="color:var(--accent);">۰</b> نفر</span>
-    <button onclick="notaryAddPassport()" class="font-black px-3 py-1.5 rounded-lg" style="background:var(--accent);color:var(--btn-text-on-accent);">+ افزودن پاسپورت</button>
+    <span style="color:var(--text-muted);">پاسپورت‌های ثبت‌شده: <b id="multiPassportCount" style="color:var(--accent);">۰</b> نفر</span>
+    <button onclick="addExtraPassport()" class="font-black px-3 py-1.5 rounded-lg" style="background:var(--accent);color:var(--btn-text-on-accent);">+ افزودن پاسپورت</button>
   </div>
+  <button onclick="continueToDocumentStep()" class="w-full mt-2 py-2 rounded-lg text-xs font-black" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-color);">ادامه به بارگذاری سند ←</button>
 </div>
         <div class="space-y-2 mb-4">
           <button onclick="ppSetMode('upload')" class="w-full flex items-center gap-3 p-3 rounded-xl border text-right transition" style="border-color:var(--border-color);background:var(--bg-main);" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border-color)'">
@@ -1746,7 +1747,7 @@ let trackingProjectsDatabase = [];
 
 // ─── PASSPORT SESSION STATE ───
 let passportSession = { session_id:null, first_name:null, last_name:null, father_name:null, date_of_birth:null };
-    let notaryPassportSessions = [];   // confirmed passports for the universal multi-passport flow
+    let extraPassportSessions = [];   // confirmed passports for the universal multi-passport flow
 let ppAddMode = false;             // true while reusing step1's UI to add an EXTRA passport, not the primary one
 
 function getActiveBackendOrigin() {
@@ -2045,7 +2046,7 @@ async function ppRunExtraction() {
     const btn = document.getElementById('pp-extract-btn');
     btn.disabled = true;
     btn.textContent = 'در حال استخراج...';
-    ppShowStatus('⏳', 'در حال ارسال به Gemini...');
+    ppShowStatus('⏳', 'در حال ارسال به DeepT...');
 
     const fd = new FormData();
     fd.append('file', ppSelectedFile);
@@ -2086,11 +2087,12 @@ async function ppConfirmSession() {
         const data = await res.json();
 
         if (ppAddMode) {
-            notaryPassportSessions.push({ session_id:data.session_id, first_name:first, last_name:last, father_name:father, date_of_birth:dob });
-            ppAddMode = false;
-            document.getElementById('notaryPassportCount').textContent = notaryPassportSessions.length;
-            document.getElementById('pp-fields').classList.add('hidden');
-            showToast(`✅ پاسپورت ${first} ${last} افزوده شد (مجموع: ${notaryPassportSessions.length})`);
+    extraPassportSessions.push({ session_id:data.session_id, first_name:first, last_name:last, father_name:father, date_of_birth:dob });
+    ppAddMode = false;
+    document.getElementById('multiPassportCount').textContent = extraPassportSessions.length;
+    document.getElementById('pp-fields').classList.add('hidden');
+    ppShowStatus('', '');   // ← ADD THIS LINE — clears the leftover "در حال ثبت جلسه" bar
+    showToast(`✅ پاسپورت ${first} ${last} افزوده شد (مجموع: ${extraPassportSessions.length})`);
         } else {
             passportSession = { session_id:data.session_id, first_name:first, last_name:last, father_name:father, date_of_birth:dob };
             ppActivateSessionUI();
@@ -2116,25 +2118,33 @@ function ppActivateSessionUI() {
     document.getElementById('activeClientName').textContent = `${passportSession.first_name} ${passportSession.last_name}`;
     document.getElementById('newClientBtn').classList.remove('hidden');
 }
-function notaryTogglePassportUI() {
+function toggleMultiPassportUI() {
     const docType = document.getElementById('docTemplate').value;
     const docDef  = DOCUMENT_REGISTRY[docType];
-    const block   = document.getElementById('notaryMultiPassportBlock');
+    const block   = document.getElementById('multiPassportBlock');
     if (docDef && docDef.usePassportSession && !docDef.legacySingleSession) {
         block.classList.remove('hidden');
-        document.getElementById('notaryPassportCount').textContent = notaryPassportSessions.length;
+        document.getElementById('multiPassportCount').textContent = extraPassportSessions.length;
     } else {
         block.classList.add('hidden');
     }
 }
 
-function notaryAddPassport() {
+function addExtraPassport() {
     ppAddMode = true;
     ppSelectedFile = null;
     ppClearFields();
     document.getElementById('pp-fields').classList.add('hidden');
     document.getElementById('pp-upload-zone').classList.add('hidden');
     ppShowStatus('','');
+}
+function continueToDocumentStep() {
+    if (!passportSession.session_id) {
+        // No "primary" passport was ever started -- rely entirely on the
+        // passports added via extraPassportSessions for matching.
+        passportSession = { session_id:'SKIP', first_name:'—', last_name:'—', father_name:null, date_of_birth:null };
+    }
+    showStep(2);
 }
 function confirmNewClient() {
     if (!confirm(`بستن جلسه ${passportSession.first_name} ${passportSession.last_name}؟\nبرای مشتری جدید باید پاسپورت مجدداً ثبت شود.`)) return;
@@ -2146,7 +2156,7 @@ function confirmNewClient() {
 
     // Reset everything
     passportSession = { session_id:null, first_name:null, last_name:null, father_name:null, date_of_birth:null };
-    notaryPassportSessions = [];
+    extraPassportSessions = [];
     ppSelectedFile  = null;
     docSelectedFile = null;
 
@@ -2234,7 +2244,7 @@ async function executeTranslationPipeline() {
             if (passportSession.session_id && passportSession.session_id !== 'SKIP') {
                 fd.append('session_ids', passportSession.session_id);
             }
-            notaryPassportSessions.forEach(s => fd.append('session_ids', s.session_id));
+            extraPassportSessions.forEach(s => fd.append('session_ids', s.session_id));
         }
     }
 
