@@ -1140,6 +1140,7 @@ body::before {
             <span style="color:var(--text-muted);">پاسپورت‌های ثبت‌شده: <b id="multiPassportCount" style="color:var(--accent);">۰</b> نفر</span>
             <button onclick="addExtraPassport()" class="font-black px-3 py-1.5 rounded-lg" style="background:var(--accent);color:var(--btn-text-on-accent);">+ افزودن پاسپورت</button>
           </div>
+          <button onclick="continueToDocumentStep()" class="w-full mt-2 py-2 rounded-lg text-xs font-black" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-color);">ادامه به بارگذاری سند ←</button>
         </div>
         <div class="space-y-2 mb-4">
           <button onclick="ppSetMode('upload')" class="w-full flex items-center gap-3 p-3 rounded-xl border text-right transition" style="border-color:var(--border-color);background:var(--bg-main);" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border-color)'">
