@@ -1125,7 +1125,10 @@ body::before {
         <select id="docTemplate" class="auth-input" style="font-family:'Vazirmatn',sans-serif;" onchange="handleDocTypeSelected()"></select>
       </div>
       <div id="docTypeStageSummary" class="hidden flex items-center justify-between mb-4 p-2.5 rounded-lg text-xs" style="background:var(--panel-bg);border:1px solid var(--border-color);">
-        <span style="color:var(--text-main);">سند انتخاب‌شده: <b id="docTypeSummaryLabel" style="color:var(--accent);"></b></span>
+        <span style="color:var(--text-main);">
+          <span class="inline-flex w-5 h-5 rounded-full items-center justify-center text-[10px] font-black" style="background:var(--accent);color:var(--btn-text-on-accent);">۱</span>
+          ✓ <b id="docTypeSummaryLabel" style="color:var(--accent);"></b>
+        </span>
         <button onclick="reopenDocTypeStage()" style="color:var(--accent);background:none;border:none;cursor:pointer;font-weight:700;">تغییر ✏️</button>
       </div>
 
@@ -2137,12 +2140,14 @@ function ppActivateSessionUI() {
     function handleDocTypeSelected() {
     const docType = document.getElementById('docTemplate').value;
     const docDef  = DOCUMENT_REGISTRY[docType];
+    document.getElementById('docTypeStageHeader').classList.add('hidden');
     document.getElementById('docTypeStageBody').classList.add('hidden');
     document.getElementById('docTypeStageSummary').classList.remove('hidden');
     document.getElementById('docTypeSummaryLabel').textContent = docDef ? docDef.label : docType;
     toggleMultiPassportUI();
 }
 function reopenDocTypeStage() {
+    document.getElementById('docTypeStageHeader').classList.remove('hidden');
     document.getElementById('docTypeStageBody').classList.remove('hidden');
     document.getElementById('docTypeStageSummary').classList.add('hidden');
 }
