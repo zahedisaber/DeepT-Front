@@ -1741,6 +1741,14 @@ const DOCUMENT_REGISTRY = {
     const sel = document.getElementById('docTemplate');
     if (!sel) return;
     sel.innerHTML = '';
+
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = 'یک مدرک انتخاب کنید';
+    placeholder.disabled = true;
+    placeholder.selected = true;
+    sel.appendChild(placeholder);
+
     Object.entries(DOCUMENT_REGISTRY).forEach(([key, doc]) => {
         const opt = document.createElement('option');
         opt.value    = key;
@@ -1749,7 +1757,6 @@ const DOCUMENT_REGISTRY = {
         sel.appendChild(opt);
     });
 })();
-
 // ─── APP STATE ───
 // ─── SESSION — reads from real auth (deept_token) or falls back to mock ───
 function loadSession() {
@@ -2192,6 +2199,7 @@ function goBackToPassportStage() {
 }
 function handleDocTypeSelected() {
     const docType = document.getElementById('docTemplate').value;
+    if (!docType) return;
     const docDef  = DOCUMENT_REGISTRY[docType];
     document.getElementById('docTypeSummaryLabel').textContent = docDef ? docDef.label : docType;
     showOnlyStage('passport');
