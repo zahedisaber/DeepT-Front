@@ -2127,8 +2127,9 @@ async function ppConfirmSession() {
         } else {
             passportSession = { session_id:data.session_id, first_name:first, last_name:last, father_name:father, date_of_birth:dob };
             ppActivateSessionUI();
-            showOnlyStage('document');
-            showToast(`✅ جلسه فعال شد — ${first} ${last}`);
+            document.getElementById('pp-fields').classList.add('hidden');
+            ppShowStatus('', '');
+            showToast(`✅ پاسپورت ${first} ${last} ثبت شد — می‌توانید فرد دیگری اضافه کنید یا ادامه دهید.`);
         }
     } catch (err) {
         ppShowStatus('❌', err.message);
