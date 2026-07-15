@@ -1194,10 +1194,17 @@ body::before {
           <button onclick="continueToDocumentStep()" class="py-2.5 rounded-xl text-sm font-black transition" style="background:var(--accent);color:var(--btn-text-on-accent);">ادامه به بارگذاری سند ←</button>
         </div>
       </div>
-      <!-- STEP 2: DOCUMENT -->
+      <div id="passportStageSummary" class="hidden flex items-center justify-between mb-4 p-2.5 rounded-lg text-xs" style="background:var(--panel-bg);border:1px solid var(--border-color);">
+        <span style="color:var(--text-main);">
+          <span class="inline-flex w-5 h-5 rounded-full items-center justify-center text-[10px] font-black" style="background:var(--accent);color:var(--btn-text-on-accent);">۲</span>
+          ✓ <b id="passportSummaryLabel" style="color:var(--accent);"></b>
+        </span>
+        <button onclick="goBackToPassportStage()" style="color:var(--accent);background:none;border:none;cursor:pointer;font-weight:700;">تغییر ✏️</button>
+      </div>
+      <!-- STAGE 3: DOCUMENT -->
       <div id="step2Panel" class="hidden">
         <div class="flex items-center gap-2 mb-4">
-          <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0" style="background:var(--accent);color:var(--btn-text-on-accent);">۲</span>
+          <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0" style="background:var(--accent);color:var(--btn-text-on-accent);">۳</span>
           <span class="font-black text-sm" style="color:var(--text-main);">بارگذاری و ترجمه سند</span>
         </div>
         
@@ -2007,6 +2014,13 @@ function showOnlyStage(stage) {
     document.getElementById('docTypeStageBody').classList.toggle('hidden', stage !== 'doctype');
     document.getElementById('docTypeStageSummary').classList.toggle('hidden', stage === 'doctype');
     document.getElementById('step1Panel').classList.toggle('hidden', stage !== 'passport');
+    document.getElementById('passportStageSummary').classList.toggle('hidden', stage !== 'document');
+    if (stage === 'document') {
+        document.getElementById('passportSummaryLabel').textContent =
+            confirmedPassports.length > 0
+                ? confirmedPassports.map(p => `${p.first_name} ${p.last_name}`).join('، ')
+                : 'بدون پاسپورت';
+    }
     document.getElementById('step2Panel').classList.toggle('hidden', stage !== 'document');
 }
 
@@ -2154,7 +2168,7 @@ function renderConfirmedPassportsList() {
     const box = document.getElementById('confirmedPassportsList');
     if (!box) return;
     if (!confirmedPassports.length) { box.innerHTML = ''; return; }
-    box.innerHTML = confirmedPassports.map((p, idx) => `
+box.innerHTML = confirmedPassports.map((p, idx) => `
         <div class="flex items-center justify-between p-2 rounded-lg" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
             <span style="color:var(--text-main);">🟢 ${p.first_name} ${p.last_name}</span>
             <button onclick="removeConfirmedPassport(${idx})" style="color:#f87171;background:none;border:none;cursor:pointer;font-weight:700;">حذف ✕</button>
