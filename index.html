@@ -1164,6 +1164,18 @@ body::before {
             <span class="text-xl shrink-0">✏️</span>
             <div><div class="font-black text-sm" style="color:var(--text-main);">ورود دستی اطلاعات</div><div class="text-xs mt-0.5" style="color:var(--text-muted);">نام، نام خانوادگی، نام پدر و تاریخ تولد</div></div>
           </button>
+          <div id="pp-fields" class="hidden space-y-3">
+            <button onclick="ppSetMode(null)" class="flex items-center gap-1.5 text-xs mb-1 font-bold transition" style="color:var(--text-muted);background:none;border:none;cursor:pointer;padding:0;">← بازگشت به انتخاب روش</button>
+            <div class="grid grid-cols-2 gap-3">
+              <div><label class="auth-label">نام (First Name)</label><input type="text" id="pp-first" class="auth-input en uppercase" dir="ltr" placeholder="ALI" oninput="this.value=this.value.toUpperCase()"></div>
+              <div><label class="auth-label">نام خانوادگی (Last Name)</label><input type="text" id="pp-last" class="auth-input en uppercase" dir="ltr" placeholder="MOHAMMADI" oninput="this.value=this.value.toUpperCase()"></div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div><label class="auth-label">نام پدر (Father's Name)</label><input type="text" id="pp-father" class="auth-input en uppercase" dir="ltr" placeholder="HASSAN" oninput="this.value=this.value.toUpperCase()"></div>
+              <div><label class="auth-label">تاریخ تولد — میلادی</label><input type="text" id="pp-dob" class="auth-input en" dir="ltr" placeholder="April 12, 1985"></div>
+            </div>
+            <button onclick="ppConfirmSession()" class="w-full py-2.5 rounded-xl text-sm font-black transition" style="background:var(--accent);color:var(--btn-text-on-accent);">✅ تأیید اطلاعات گذرنامه</button>
+          </div>
           <button onclick="ppSetMode('skip')" class="w-full flex items-center gap-3 p-3 rounded-xl border text-right transition" style="border-color:var(--border-subtle);background:var(--bg-main);" onmouseover="this.style.borderColor='var(--text-muted)'" onmouseout="this.style.borderColor='var(--border-subtle)'">
             <span class="text-xl shrink-0">⏭️</span>
             <div><div class="font-black text-sm" style="color:var(--text-muted);">رد شدن</div><div class="text-xs mt-0.5" style="color:var(--text-muted);">اطلاعات از خود سند استخراج می‌شود</div></div>
@@ -1176,18 +1188,6 @@ body::before {
         </div>
         <div id="pp-status" class="hidden text-xs p-3 rounded-lg mb-3 flex items-center gap-2" style="background:var(--accent-hover);border:1px solid var(--border-color);">
           <span id="pp-status-icon"></span><span id="pp-status-text" style="color:var(--text-main);"></span>
-        </div>
-        <div id="pp-fields" class="hidden space-y-3 mb-4">
-          <button onclick="ppSetMode(null)" class="flex items-center gap-1.5 text-xs mb-1 font-bold transition" style="color:var(--text-muted);background:none;border:none;cursor:pointer;padding:0;">← بازگشت به انتخاب روش</button>
-          <div class="grid grid-cols-2 gap-3">
-            <div><label class="auth-label">نام (First Name)</label><input type="text" id="pp-first" class="auth-input en uppercase" dir="ltr" placeholder="ALI" oninput="this.value=this.value.toUpperCase()"></div>
-            <div><label class="auth-label">نام خانوادگی (Last Name)</label><input type="text" id="pp-last" class="auth-input en uppercase" dir="ltr" placeholder="MOHAMMADI" oninput="this.value=this.value.toUpperCase()"></div>
-          </div>
-          <div class="grid grid-cols-2 gap-3">
-            <div><label class="auth-label">نام پدر (Father's Name)</label><input type="text" id="pp-father" class="auth-input en uppercase" dir="ltr" placeholder="HASSAN" oninput="this.value=this.value.toUpperCase()"></div>
-            <div><label class="auth-label">تاریخ تولد — میلادی</label><input type="text" id="pp-dob" class="auth-input en" dir="ltr" placeholder="April 12, 1985"></div>
-          </div>
-          <button onclick="ppConfirmSession()" class="w-full py-2.5 rounded-xl text-sm font-black transition" style="background:var(--accent);color:var(--btn-text-on-accent);">✅ تأیید اطلاعات گذرنامه  </button>
         </div>
         <div class="grid grid-cols-2 gap-3 mt-2">
           <button onclick="goBackToDocTypeStage()" class="py-2.5 rounded-xl text-sm font-black transition" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-color);">→ بازگشت</button>
