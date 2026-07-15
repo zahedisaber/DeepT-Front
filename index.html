@@ -1999,8 +1999,7 @@ function closeChatInterface() {
         document.body.style.overflow = 'auto';
     }
 }
-function showStep(n) {
-    // Single source of truth for stage visibility -- always shows exactly one
+// Single source of truth for stage visibility -- always shows exactly one
 // of the three stages, never a partial/mixed state. Every stage transition
 // in the app should go through this function, not toggle classes directly.
 function showOnlyStage(stage) {
