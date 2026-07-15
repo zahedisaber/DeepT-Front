@@ -555,13 +555,13 @@ header {
 .hero-logo-wrap {
     margin-bottom: 1.5rem;
 }
-.hero-logo {
-    width: 160px;
-    height: auto;
+@keyframes deeptSpin { to { transform: rotate(360deg); } }
+.deept-spinner {
+    width: 20px;
+    height: 20px;
     filter: var(--logo-filter);
-    transition: filter .3s;
-    display: block;
-    margin: 0 auto;
+    animation: deeptSpin 1s linear infinite;
+    vertical-align: middle;
 }
 
 /* ── HERO ── */
@@ -1215,7 +1215,7 @@ body::before {
           <div id="docFileInfo" class="text-xs font-bold hidden mt-1" style="color:var(--accent);"></div>
         </div>
         <div id="processingStatusBubble" class="hidden flex items-center gap-3 p-3 rounded-xl mb-3 text-sm" style="background:var(--panel-bg);border:1px solid var(--border-color);">
-          <span class="animate-spin" style="color:var(--accent);">⏳</span>
+          <img src="data:image/png;base64,PASTE_BASE64_HERE" class="deept-spinner">
           <span id="statusMessageText" style="color:var(--text-muted);">در حال پردازش...</span>
         </div>
         <div class="grid grid-cols-2 gap-3">
@@ -2049,7 +2049,12 @@ function ppShowStatus(icon, text) {
     const bar = document.getElementById('pp-status');
     if (!text) { bar.classList.add('hidden'); return; }
     bar.classList.remove('hidden');
-    document.getElementById('pp-status-icon').textContent = icon;
+    const iconEl = document.getElementById('pp-status-icon');
+    if (icon === '⏳') {
+        iconEl.innerHTML = '<img src="data:image/png;base64,PASTE_BASE64_HERE" class="deept-spinner">';
+    } else {
+        iconEl.textContent = icon;
+    }
     document.getElementById('pp-status-text').textContent = text;
 }
 
