@@ -1140,9 +1140,10 @@ body::before {
         </div>
         <div id="multiPassportBlock" class="hidden mb-4 p-3 rounded-xl text-xs" style="background:var(--panel-bg);border:1px solid var(--border-color);">
           <div class="flex items-center justify-between">
-            <span style="color:var(--text-muted);">تعداد نفرات ثبت شده: <b id="multiPassportCount" style="color:var(--accent);">۰</b> نفر</span>
+            <span style="color:var(--text-muted);">پاسپورت‌های ثبت‌شده: <b id="multiPassportCount" style="color:var(--accent);">۰</b> نفر</span>
             <button onclick="addExtraPassport()" class="font-black px-3 py-1.5 rounded-lg" style="background:var(--accent);color:var(--btn-text-on-accent);">+ افزودن پاسپورت</button>
           </div>
+          <div id="confirmedPassportsList" class="space-y-1.5 mt-2"></div>
         </div>
         <div class="space-y-2 mb-4">
           <button onclick="ppSetMode('upload')" class="w-full flex items-center gap-3 p-3 rounded-xl border text-right transition" style="border-color:var(--border-color);background:var(--bg-main);" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border-color)'">
@@ -1770,9 +1771,7 @@ let currentWalletBalance  = parseInt(localStorage.getItem('deept_mock_wallet')) 
 let trackingProjectsDatabase = [];
 
 // ─── PASSPORT SESSION STATE ───
-let passportSession = { session_id:null, first_name:null, last_name:null, father_name:null, date_of_birth:null };
-    let extraPassportSessions = [];   // confirmed passports for the universal multi-passport flow
-let ppAddMode = false;             // true while reusing step1's UI to add an EXTRA passport, not the primary one
+let confirmedPassports = [];   // every confirmed passport lives here -- no more "first one is special"
 
 function getActiveBackendOrigin() {
     const docType = document.getElementById('docTemplate').value;
@@ -1987,7 +1986,7 @@ setInterval(() => {
 function openChatInterface() {
     document.getElementById('chatModal').classList.remove('hidden');
     document.body.style.overflow = 'hidden';
-    if (passportSession.session_id) {
+    if (confirmedPassports.length > 0) {
         showOnlyStage('document');
     } else {
         showOnlyStage('doctype');
@@ -2117,20 +2116,11 @@ async function ppConfirmSession() {
         if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'خطای سرور'); }
         const data = await res.json();
 
-        if (ppAddMode) {
-    extraPassportSessions.push({ session_id:data.session_id, first_name:first, last_name:last, father_name:father, date_of_birth:dob });
-    ppAddMode = false;
-    document.getElementById('multiPassportCount').textContent = extraPassportSessions.length;
-    document.getElementById('pp-fields').classList.add('hidden');
-    ppShowStatus('', '');   // ← ADD THIS LINE — clears the leftover "در حال ثبت جلسه" bar
-    showToast(`✅ پاسپورت ${first} ${last} افزوده شد (مجموع: ${extraPassportSessions.length})`);
-        } else {
-            passportSession = { session_id:data.session_id, first_name:first, last_name:last, father_name:father, date_of_birth:dob };
-            ppActivateSessionUI();
-            document.getElementById('pp-fields').classList.add('hidden');
-            ppShowStatus('', '');
-            showToast(`✅ پاسپورت ${first} ${last} ثبت شد — می‌توانید فرد دیگری اضافه کنید یا ادامه دهید.`);
-        }
+        confirmedPassports.push({ session_id:data.session_id, first_name:first, last_name:last, father_name:father, date_of_birth:dob });
+        updateClientBadge();
+        document.getElementById('pp-fields').classList.add('hidden');
+        ppShowStatus('', '');
+        showToast(`✅ پاسپورت ${first} ${last} ثبت شد (مجموع: ${confirmedPassports.length} نفر)`);
     } catch (err) {
         ppShowStatus('❌', err.message);
     }
@@ -2143,12 +2133,42 @@ function ppActivateSkipSession() {
     showToast('⏭️ جلسه بدون پاسپورت شروع شد.');
 }
 
-function ppActivateSessionUI() {
+function updateClientBadge() {
     const badge = document.getElementById('activeClientBadge');
-    badge.classList.remove('hidden');
-    badge.style.display = 'flex';
-    document.getElementById('activeClientName').textContent = `${passportSession.first_name} ${passportSession.last_name}`;
-    document.getElementById('newClientBtn').classList.remove('hidden');
+    const btn   = document.getElementById('newClientBtn');
+    const countEl = document.getElementById('multiPassportCount');
+    if (countEl) countEl.textContent = confirmedPassports.length;
+    if (confirmedPassports.length > 0) {
+        badge.classList.remove('hidden'); badge.style.display = 'flex';
+        document.getElementById('activeClientName').textContent =
+            confirmedPassports.map(p => `${p.first_name} ${p.last_name}`).join('، ');
+        btn.classList.remove('hidden');
+    } else {
+        badge.classList.add('hidden'); badge.style.display = 'none';
+        btn.classList.add('hidden');
+    }
+    renderConfirmedPassportsList();
+}
+
+function renderConfirmedPassportsList() {
+    const box = document.getElementById('confirmedPassportsList');
+    if (!box) return;
+    if (!confirmedPassports.length) { box.innerHTML = ''; return; }
+    box.innerHTML = confirmedPassports.map((p, idx) => `
+        <div class="flex items-center justify-between p-2 rounded-lg" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
+            <span style="color:var(--text-main);">🟢 ${p.first_name} ${p.last_name}</span>
+            <button onclick="removeConfirmedPassport(${idx})" style="color:#f87171;background:none;border:none;cursor:pointer;font-weight:700;">حذف ✕</button>
+        </div>
+    `).join('');
+}
+
+function removeConfirmedPassport(idx) {
+    const p = confirmedPassports[idx];
+    if (p && p.session_id) {
+        fetch(`${getActiveBackendOrigin()}/passport/${p.session_id}`, { method:'DELETE' }).catch(()=>{});
+    }
+    confirmedPassports.splice(idx, 1);
+    updateClientBadge();
 }
     function goBackToDocTypeStage() {
     showOnlyStage('doctype');
@@ -2172,14 +2192,13 @@ function toggleMultiPassportUI() {
     const block   = document.getElementById('multiPassportBlock');
     if (docDef && docDef.usePassportSession && !docDef.legacySingleSession) {
         block.classList.remove('hidden');
-        document.getElementById('multiPassportCount').textContent = extraPassportSessions.length;
+        document.getElementById('multiPassportCount').textContent = confirmedPassports.length;
     } else {
         block.classList.add('hidden');
     }
 }
 
 function addExtraPassport() {
-    ppAddMode = true;
     ppSelectedFile = null;
     ppClearFields();
     document.getElementById('pp-fields').classList.add('hidden');
@@ -2187,34 +2206,23 @@ function addExtraPassport() {
     ppShowStatus('','');
 }
 function continueToDocumentStep() {
-    if (!passportSession.session_id) {
-        // No "primary" passport was ever started -- rely entirely on the
-        // passports added via extraPassportSessions for matching.
-        passportSession = { session_id:'SKIP', first_name:'—', last_name:'—', father_name:null, date_of_birth:null };
-    }
     showOnlyStage('document');
 }
 function confirmNewClient() {
-    if (!confirm(`بستن جلسه ${passportSession.first_name} ${passportSession.last_name}؟\nبرای مشتری جدید باید پاسپورت مجدداً ثبت شود.`)) return;
+    if (!confirm('بستن جلسه فعلی؟\nبرای مشتری جدید باید پاسپورت‌ها مجدداً ثبت شوند.')) return;
 
-    // Delete from backend
-    if (passportSession.session_id && passportSession.session_id !== 'SKIP') {
-        fetch(`${getActiveBackendOrigin()}/passport/${passportSession.session_id}`, { method:'DELETE' }).catch(()=>{});
-    }
+    confirmedPassports.forEach(p => {
+        if (p.session_id) fetch(`${getActiveBackendOrigin()}/passport/${p.session_id}`, { method:'DELETE' }).catch(()=>{});
+    });
+    confirmedPassports = [];
+    updateClientBadge();
 
-    // Reset everything
-    passportSession = { session_id:null, first_name:null, last_name:null, father_name:null, date_of_birth:null };
-    extraPassportSessions = [];
     ppSelectedFile  = null;
     docSelectedFile = null;
-
-    document.getElementById('activeClientBadge').classList.add('hidden');
-    document.getElementById('newClientBtn').classList.add('hidden');
     document.getElementById('pp-upload-zone').classList.add('hidden');
     document.getElementById('pp-fields').classList.add('hidden');
     ppShowStatus('','');
 
-    // Reset doc zone
     resetDocZone();
     showOnlyStage('doctype');
     showToast('🔄 جلسه بسته شد. آماده مشتری جدید.');
@@ -2271,9 +2279,10 @@ async function executeTranslationPipeline() {
     // Passport session(s). police-certificate still uses its old backend
     // contract (legacySingleSession) until that repo is updated; every other
     // document type uses the universal multi-passport contract by default.
-    if (docDef.usePassportSession) {
+if (docDef.usePassportSession) {
         if (docDef.legacySingleSession) {
-            if (!passportSession.session_id || passportSession.session_id === 'SKIP') {
+            let sid = confirmedPassports[0]?.session_id;
+            if (!sid) {
                 try {
                     statusText.textContent = 'در حال ایجاد جلسه موقت...';
                     const r = await fetch(`${getActiveBackendOrigin()}/passport/confirm`, {
@@ -2282,17 +2291,12 @@ async function executeTranslationPipeline() {
                         body: JSON.stringify({ first_name:'', last_name:'', father_name:'', date_of_birth:'' })
                     });
                     const d = await r.json();
-                    passportSession.session_id = d.session_id;
+                    sid = d.session_id;
                 } catch(e) { /* backend will fall back to doc-extracted identity */ }
             }
-            if (passportSession.session_id && passportSession.session_id !== 'SKIP') {
-                fd.append('session_id', passportSession.session_id);
-            }
+            if (sid) fd.append('session_id', sid);
         } else {
-            if (passportSession.session_id && passportSession.session_id !== 'SKIP') {
-                fd.append('session_ids', passportSession.session_id);
-            }
-            extraPassportSessions.forEach(s => fd.append('session_ids', s.session_id));
+            confirmedPassports.forEach(p => fd.append('session_ids', p.session_id));
         }
     }
 
