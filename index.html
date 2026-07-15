@@ -2076,7 +2076,7 @@ async function ppRunExtraction() {
     if (!ppSelectedFile) return;
     const btn = document.getElementById('pp-extract-btn');
     btn.disabled = true;
-    btn.textContent = 'در حال استخراج...';
+    btn.textContent = 'استخراج اطلاعات';
     ppShowStatus('⏳', 'در حال ارسال به DeepT...');
 
     const fd = new FormData();
