@@ -2009,14 +2009,16 @@ function navigateTo(path, pushHistory = true) {
 // history -- used both by popstate and by the initial page load, so a
 // direct visit or refresh on /dashboard lands on the right screen.
 function applyRouteForPath(path) {
-    if (path === '/dashboard') {
-        if (currentUserSession) { openWorkspaceDashboard(false); }
-        else { navigateTo('/', false); showLandingView(); }
-    } else if (path === '/new-project') {
+    if (path === '/dashboard' || path === '/new-project') {
         if (currentUserSession) {
             openWorkspaceDashboard(false);
-            openChatInterface(false);
-        } else { navigateTo('/', false); showLandingView(); }
+            if (path === '/new-project') openChatInterface(false);
+        } else {
+            navigateTo('/', false);
+            showLandingView();
+            openLogin();
+            showToast('برای دسترسی به این بخش، ابتدا وارد شوید.');
+        }
     } else {
         showLandingView();
     }
@@ -2419,7 +2421,7 @@ document.getElementById('walletBalanceDisplay').textContent = currentWalletBalan
 (function() {
     const params = new URLSearchParams(window.location.search);
 
-    // ?test=1 — auto-create a test session and open dashboard
+    // ?test=1 — auto-create a test session
     if (params.get('test') === '1' && !currentUserSession) {
         currentUserSession = {
             email:    'test@deept.ir',
@@ -2431,20 +2433,10 @@ document.getElementById('walletBalanceDisplay').textContent = currentWalletBalan
         localStorage.setItem('deept_mock_user', JSON.stringify(currentUserSession));
     }
 
-const savedPath = sessionStorage.getItem('deept_redirect_path');
-    if (savedPath) {
-        sessionStorage.removeItem('deept_redirect_path');
-        history.replaceState({ path: savedPath }, '', savedPath);
-    }
-
     syncUserSessionDOM();
-    applyRouteForPath(location.pathname);
-
-    // Normalize the very first history entry so the back button has a
-    // sane place to land on (avoids a blank/duplicate initial state).
-    history.replaceState({ path: location.pathname }, '', location.pathname);
+    // Routing decision (which view to show) is made once, later, by
+    // applyRouteForPath -- not here, to avoid two competing decisions.
 })();
-
 
 
 // ── AUTH ──
