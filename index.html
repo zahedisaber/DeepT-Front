@@ -1939,6 +1939,7 @@ function openWorkspaceDashboard(pushHistory = true) {
 function closeWorkspaceDashboard(pushHistory = true) {
     document.getElementById('workspaceDashboard').classList.add('hidden');
     document.body.style.overflow = 'auto';
+    showLandingView();
     if (pushHistory) navigateTo('/');
 }
 function renderDashboardActiveProjects() {
