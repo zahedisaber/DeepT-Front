@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<script>
+  // GitHub Pages has no server-side routing -- a direct visit or refresh on
+  // /dashboard or /new-project 404s here. This redirects back to index.html
+  // while preserving the intended path, so index.html's own routing (see
+  // applyRouteForPath) can take over and show the right view.
+  sessionStorage.setItem('deept_redirect_path', location.pathname);
+  location.replace('/');
+</script>
+</head>
+<body></body>
+</html>
