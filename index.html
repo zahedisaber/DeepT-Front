@@ -1929,15 +1929,17 @@ function submitSupportTicket() {
 // ═══════════════════════════════════════════════════════════
 // WORKSPACE DASHBOARD
 // ═══════════════════════════════════════════════════════════
-function openWorkspaceDashboard() {
+function openWorkspaceDashboard(pushHistory = true) {
     if (!currentUserSession) { openAuthModal(); return; }
     document.getElementById('workspaceDashboard').classList.remove('hidden');
     document.body.style.overflow = 'hidden';
     renderDashboardActiveProjects();
+    if (pushHistory) navigateTo('/dashboard');
 }
-function closeWorkspaceDashboard() {
+function closeWorkspaceDashboard(pushHistory = true) {
     document.getElementById('workspaceDashboard').classList.add('hidden');
     document.body.style.overflow = 'auto';
+    if (pushHistory) navigateTo('/');
 }
 function renderDashboardActiveProjects() {
     const tbody = document.getElementById('projectDashboardRowsBlock');
@@ -1994,9 +1996,39 @@ setInterval(() => {
 }, 30000);
 
 // ═══════════════════════════════════════════════════════════
+// URL ROUTING — keeps the address bar in sync with the visible view
+// ═══════════════════════════════════════════════════════════
+function navigateTo(path, pushHistory = true) {
+    if (pushHistory && location.pathname !== path) {
+        history.pushState({ path }, '', path);
+    }
+}
+
+// Applies whichever view a given path represents, WITHOUT touching
+// history -- used both by popstate and by the initial page load, so a
+// direct visit or refresh on /dashboard lands on the right screen.
+function applyRouteForPath(path) {
+    if (path === '/dashboard') {
+        if (currentUserSession) { openWorkspaceDashboard(false); }
+        else { navigateTo('/', false); showLandingView(); }
+    } else if (path === '/new-project') {
+        if (currentUserSession) {
+            openWorkspaceDashboard(false);
+            openChatInterface(false);
+        } else { navigateTo('/', false); showLandingView(); }
+    } else {
+        showLandingView();
+    }
+}
+
+window.addEventListener('popstate', () => {
+    applyRouteForPath(location.pathname);
+});
+
+// ═══════════════════════════════════════════════════════════
 // CHAT MODAL — open/close
 // ═══════════════════════════════════════════════════════════
-function openChatInterface() {
+function openChatInterface(pushHistory = true) {
     document.getElementById('chatModal').classList.remove('hidden');
     document.body.style.overflow = 'hidden';
     if (confirmedPassports.length > 0) {
@@ -2004,12 +2036,14 @@ function openChatInterface() {
     } else {
         showOnlyStage('doctype');
     }
+    if (pushHistory) navigateTo('/new-project');
 }
-function closeChatInterface() {
+function closeChatInterface(pushHistory = true) {
     document.getElementById('chatModal').classList.add('hidden');
     if (document.getElementById('workspaceDashboard').classList.contains('hidden')) {
         document.body.style.overflow = 'auto';
     }
+    if (pushHistory) navigateTo('/dashboard');
 }
 // Single source of truth for stage visibility -- always shows exactly one
 // of the three stages, never a partial/mixed state. Every stage transition
@@ -2396,16 +2430,18 @@ document.getElementById('walletBalanceDisplay').textContent = currentWalletBalan
         localStorage.setItem('deept_mock_user', JSON.stringify(currentUserSession));
     }
 
-    syncUserSessionDOM();
-
-    if (currentUserSession) {
-        // Logged in — open dashboard
-        openWorkspaceDashboard();
-    } else {
-        // Not logged in — redirect to landing page
-        // Not logged in — show landing page
-        showLandingView();
+const savedPath = sessionStorage.getItem('deept_redirect_path');
+    if (savedPath) {
+        sessionStorage.removeItem('deept_redirect_path');
+        history.replaceState({ path: savedPath }, '', savedPath);
     }
+
+    syncUserSessionDOM();
+    applyRouteForPath(location.pathname);
+
+    // Normalize the very first history entry so the back button has a
+    // sane place to land on (avoids a blank/duplicate initial state).
+    history.replaceState({ path: location.pathname }, '', location.pathname);
 })();
 
 
