@@ -2417,10 +2417,8 @@ function resetForNextDocument() {
 // INIT
 // ═══════════════════════════════════════════════════════════
 document.getElementById('walletBalanceDisplay').textContent = currentWalletBalance.toLocaleString();
-
 (function() {
     const params = new URLSearchParams(window.location.search);
-
     // ?test=1 — auto-create a test session
     if (params.get('test') === '1' && !currentUserSession) {
         currentUserSession = {
@@ -2433,11 +2431,19 @@ document.getElementById('walletBalanceDisplay').textContent = currentWalletBalan
         localStorage.setItem('deept_mock_user', JSON.stringify(currentUserSession));
     }
 
-    syncUserSessionDOM();
-    // Routing decision (which view to show) is made once, later, by
-    // applyRouteForPath -- not here, to avoid two competing decisions.
-})();
+    const savedPath = sessionStorage.getItem('deept_redirect_path');
+    if (savedPath) {
+        sessionStorage.removeItem('deept_redirect_path');
+        history.replaceState({ path: savedPath }, '', savedPath);
+    }
 
+    syncUserSessionDOM();
+    applyRouteForPath(location.pathname);
+
+    // Normalize the very first history entry so the back button has a
+    // sane place to land on.
+    history.replaceState({ path: location.pathname }, '', location.pathname);
+})();
 
 // ── AUTH ──
 async function corePost(path, body) {
