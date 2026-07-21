@@ -2884,12 +2884,9 @@ function toggleTheme() { toggleGlobalTheme(); }
     }
 
     syncUserSessionDOM();
-
-    if(currentUserSession){
-        showDashboardView();
-    } else {
-        showLandingView();
-    }
+    // Routing decision is made once, by applyRouteForPath, based on the
+    // actual URL -- not here, to avoid overriding it with a path-blind
+    // "logged in = dashboard" rule.
 })();
 </script>
 </body>
