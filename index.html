@@ -2167,9 +2167,9 @@ async function ppRunExtraction() {
         ppShowStatus('✅', 'اطلاعات استخراج شد — بررسی و تأیید کنید.');
         document.getElementById('pp-fields').classList.remove('hidden');
     } catch (err) {
-        ppShowStatus('❌', `استخراج ناموفق: ${err.message}`);
+        ppShowStatus('❌', 'استخراج اطلاعات ناموفق بود. لطفاً پس از مدتی دوباره تلاش کنید.');
         btn.disabled = false;
-        btn.textContent = 'استخراج با هوش مصنوعی';
+        btn.textContent = 'در حال استخراج اطلاعات';
     }
 }
 
@@ -2198,7 +2198,7 @@ async function ppConfirmSession() {
         ppShowStatus('', '');
         showToast(`✅ پاسپورت ${first} ${last} ثبت شد (مجموع: ${confirmedPassports.length} نفر)`);
     } catch (err) {
-        ppShowStatus('❌', err.message);
+        ppShowStatus('❌', 'ثبت اطلاعات ناموفق بود. لطفاً دوباره تلاش کنید.');
     }
 }
 
@@ -2406,7 +2406,10 @@ if (docDef.usePassportSession) {
         document.getElementById('nextDocBtn').classList.remove('hidden');
 
     } catch (err) {
-        showToast(`❌ ${err.message}`);
+        // Never display err.message directly -- it can be raw English from
+        // a network-level failure (timeout, CORS, connection drop), not
+        // just backend detail text. Always show a fixed Persian message.
+        showToast('❌ خطا در پردازش سند. لطفاً دوباره تلاش کنید یا با پشتیبانی تماس بگیرید.');
     } finally {
         submitBtn.disabled = false;
         statusBubble.classList.add('hidden');
@@ -2779,7 +2782,7 @@ async function qsRunTranslation() {
         fd.append('document_file', QS.docFile);
         fd.append('session_id', session_id);
         const tRes=await fetch(`${QS_BACKEND}/api/translate/${docType}`,{method:'POST',body:fd});
-        if (!tRes.ok) { const e=await tRes.json().catch(()=>({detail:'خطا'})); throw new Error(e.detail); }
+        if (!tRes.ok) { throw new Error('translation_failed'); }
         QS.blob = await tRes.blob();
 
         document.getElementById('qsProcessing').classList.remove('show');
@@ -2787,7 +2790,7 @@ async function qsRunTranslation() {
     } catch(err) {
         document.getElementById('qsProcessing').classList.remove('show');
         btn.disabled=false; btn.textContent='ترجمه و پرداخت ←';
-        toast('❌ '+err.message);
+        toast('❌ خطا در پردازش سند. لطفاً دوباره تلاش کنید.');
     }
 }
 
