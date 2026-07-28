@@ -1941,7 +1941,7 @@ async function refreshWalletBalanceDisplay() {
     const token = localStorage.getItem('deept_token');
     const userId = localStorage.getItem('deept_user_id');
     try {
-        const res = await fetch(`${getActiveBackendOrigin()}/wallet/${userId}`, {
+        const res = await fetch(`${CORE}/wallet/${userId}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
