@@ -1929,14 +1929,26 @@ function saveProfileConfiguration() {
 // WALLET
 // ═══════════════════════════════════════════════════════════
 function triggerShaparakPayment() {
-    const amt = parseInt(document.getElementById('paymentAmountInput').value);
-    if (!amt || amt < 100000) { showToast('حداقل مبلغ ۱۰۰،۰۰۰ ریال می‌باشد.'); return; }
-    if (confirm(`شبیه‌ساز شاپرک\n\nپرداخت ${amt.toLocaleString()} ریال؟`)) {
-        currentWalletBalance += amt;
-        localStorage.setItem('deept_mock_wallet', currentWalletBalance);
-        document.getElementById('walletBalanceDisplay').textContent = currentWalletBalance.toLocaleString();
-        showToast('✅ کیف پول شارژ شد.');
-    }
+    // Real payment isn't live yet -- during the trial, credit is added
+    // manually by the admin. No self-service top-up exists on the frontend
+    // at all right now; this replaces the old fake simulator, which showed
+    // a fabricated number disconnected from the real backend balance.
+    showToast('برای افزایش اعتبار با پشتیبانی تماس بگیرید.');
+}
+
+async function refreshWalletBalanceDisplay() {
+    if (!currentUserSession) return;
+    const token = localStorage.getItem('deept_token');
+    const userId = localStorage.getItem('deept_user_id');
+    try {
+        const res = await fetch(`${getActiveBackendOrigin()}/wallet/${userId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+            const data = await res.json();
+            document.getElementById('walletBalanceDisplay').textContent = data.balance_toman.toLocaleString();
+        }
+    } catch (e) { /* leave last-known display value on transient network failure */ }
 }
 function submitSupportTicket() {
     const text = document.getElementById('supportTicketMsg').value;
