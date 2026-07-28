@@ -2332,6 +2332,11 @@ if (docDropZoneEl) {
 async function executeTranslationPipeline() {
     if (!docSelectedFile) return;
 
+    if (!currentUserSession) {
+        openAuthModal();
+        return;
+    }
+
     const submitBtn    = document.getElementById('submitBtn');
     const statusBubble = document.getElementById('processingStatusBubble');
     const statusText   = document.getElementById('statusMessageText');
@@ -2378,10 +2383,15 @@ if (docDef.usePassportSession) {
     }
 
     const url = docDef.endpoint;
+    const token = localStorage.getItem('deept_token');
 
     try {
         statusText.textContent = 'در حال پردازش با هوش مصنوعی...';
-        const res = await fetch(url, { method:'POST', body:fd });
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: fd
+        });
         if (!res.ok) {
             const err = await res.json().catch(()=>({detail:'خطای ناشناخته'}));
             throw new Error(err.detail);
