@@ -1965,6 +1965,7 @@ function openWorkspaceDashboard(pushHistory = true) {
     document.getElementById('workspaceDashboard').classList.remove('hidden');
     document.body.style.overflow = 'hidden';
     renderDashboardActiveProjects();
+    refreshWalletBalanceDisplay();
     if (pushHistory) navigateTo('/dashboard');
 }
 function closeWorkspaceDashboard(pushHistory = true) {
