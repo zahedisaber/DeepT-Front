@@ -1965,6 +1965,15 @@ async function openWorkspaceDashboard(pushHistory = true) {
     const dashboardEl = document.getElementById('workspaceDashboard');
     dashboardEl.classList.remove('hidden');
     dashboardEl.scrollTop = 0;
+
+    // Reserve exactly as much top space as the header actually needs,
+    // measured live -- more reliable than a fixed padding guess, since it
+    // stays correct even if the header's real height ever changes.
+    const headerEl = document.querySelector('.header-bar');
+    if (headerEl) {
+        dashboardEl.style.paddingTop = (headerEl.offsetHeight + 16) + 'px';
+    }
+
     document.body.style.overflow = 'hidden';
     await renderDashboardActiveProjects();
     refreshWalletBalanceDisplay();
