@@ -1962,7 +1962,9 @@ function submitSupportTicket() {
 // ═══════════════════════════════════════════════════════════
 async function openWorkspaceDashboard(pushHistory = true) {
     if (!currentUserSession) { openAuthModal(); return; }
-    document.getElementById('workspaceDashboard').classList.remove('hidden');
+    const dashboardEl = document.getElementById('workspaceDashboard');
+    dashboardEl.classList.remove('hidden');
+    dashboardEl.scrollTop = 0;
     document.body.style.overflow = 'hidden';
     await renderDashboardActiveProjects();
     refreshWalletBalanceDisplay();
