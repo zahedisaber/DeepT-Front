@@ -1960,7 +1960,7 @@ function submitSupportTicket() {
 // ═══════════════════════════════════════════════════════════
 // WORKSPACE DASHBOARD
 // ═══════════════════════════════════════════════════════════
-function openWorkspaceDashboard(pushHistory = true) {
+async function openWorkspaceDashboard(pushHistory = true) {
     if (!currentUserSession) { openAuthModal(); return; }
     document.getElementById('workspaceDashboard').classList.remove('hidden');
     document.body.style.overflow = 'hidden';
