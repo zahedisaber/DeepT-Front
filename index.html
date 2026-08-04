@@ -1123,7 +1123,11 @@ body::before {
         <span title="لطفا نوع سند مورد نظر خود را برای ترجمه انتخاب کنید" style="cursor:help;color:var(--text-muted);font-size:.85rem;">ⓘ</span>
       </div>
       <div id="docTypeStageBody" class="mb-4">
-        <select id="docTemplate" class="auth-input" style="font-family:'Vazirmatn',sans-serif;" onchange="handleDocTypeSelected()"></select>
+<div class="relative">
+            <input type="text" id="docTemplateSearch" class="auth-input" style="font-family:'Vazirmatn',sans-serif;" placeholder="جستجوی نوع مدرک..." autocomplete="off" oninput="filterDocDropdown()" onfocus="openDocDropdownList()">
+            <div id="docTemplateOptions" class="hidden absolute z-50 w-full mt-1 rounded-lg overflow-y-auto" style="max-height:240px; background:var(--card-surface); border:1px solid var(--border-color);"></div>
+            <select id="docTemplate" style="display:none;" onchange="handleDocTypeSelected()"></select>
+        </div>
       </div>
       <div id="docTypeStageSummary" class="hidden flex items-center justify-between mb-4 p-2.5 rounded-lg text-xs" style="background:var(--panel-bg);border:1px solid var(--border-color);">
         <span style="color:var(--text-main);">
@@ -1760,7 +1764,8 @@ const DOCUMENT_REGISTRY = {
     },
 };
 
-// Populate dropdown from registry
+// Populate the hidden native select (kept so every other part of the app
+// can keep reading docTemplate.value unchanged) AND the searchable list.
 (function buildDocDropdown() {
     const sel = document.getElementById('docTemplate');
     if (!sel) return;
@@ -1780,7 +1785,72 @@ const DOCUMENT_REGISTRY = {
         opt.disabled = !doc.active;
         sel.appendChild(opt);
     });
+
+    renderDocDropdownList('');
 })();
+
+function renderDocDropdownList(query) {
+    const list = document.getElementById('docTemplateOptions');
+    if (!list) return;
+    list.innerHTML = '';
+
+    const q = (query || '').trim().toLowerCase();
+    const entries = Object.entries(DOCUMENT_REGISTRY).filter(([key, doc]) => {
+        if (!q) return true;
+        return doc.label.toLowerCase().includes(q);
+    });
+
+    if (!entries.length) {
+        const empty = document.createElement('div');
+        empty.className = 'px-3 py-2 text-xs';
+        empty.style.color = 'var(--text-muted)';
+        empty.textContent = 'موردی یافت نشد';
+        list.appendChild(empty);
+        return;
+    }
+
+    entries.forEach(([key, doc]) => {
+        const item = document.createElement('div');
+        item.className = 'px-3 py-2 text-sm cursor-pointer';
+        item.style.fontFamily = "'Vazirmatn',sans-serif";
+        item.textContent = doc.active ? doc.label : `${doc.label} — به زودی`;
+        if (!doc.active) {
+            item.style.opacity = '0.5';
+            item.style.cursor = 'not-allowed';
+        } else {
+            item.addEventListener('mouseenter', () => { item.style.background = 'var(--accent-hover)'; });
+            item.addEventListener('mouseleave', () => { item.style.background = ''; });
+            item.addEventListener('click', () => {
+                document.getElementById('docTemplate').value = key;
+                document.getElementById('docTemplateSearch').value = doc.label;
+                document.getElementById('docTemplate').dispatchEvent(new Event('change'));
+                closeDocDropdownList();
+            });
+        }
+        list.appendChild(item);
+    });
+}
+
+function filterDocDropdown() {
+    const query = document.getElementById('docTemplateSearch').value;
+    openDocDropdownList();
+    renderDocDropdownList(query);
+}
+
+function openDocDropdownList() {
+    document.getElementById('docTemplateOptions').classList.remove('hidden');
+}
+
+function closeDocDropdownList() {
+    document.getElementById('docTemplateOptions').classList.add('hidden');
+}
+
+document.addEventListener('click', (e) => {
+    const wrapper = document.getElementById('docTemplateSearch')?.closest('.relative');
+    if (wrapper && !wrapper.contains(e.target)) {
+        closeDocDropdownList();
+    }
+});
 // ─── APP STATE ───
 // ─── SESSION — reads from real auth (deept_token) or falls back to mock ───
 function loadSession() {
