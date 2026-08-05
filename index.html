@@ -2067,6 +2067,8 @@ function closeWorkspaceDashboard(pushHistory = true) {
     showLandingView();
     if (pushHistory) navigateTo('/');
 }
+let allJobsTerminal = false;
+
 async function renderDashboardActiveProjects() {
     const tbody = document.getElementById('projectDashboardRowsBlock');
     if (!currentUserSession) return;
@@ -2081,6 +2083,8 @@ async function renderDashboardActiveProjects() {
         });
         if (res.ok) jobs = await res.json();
     } catch (e) { /* keep whatever was last rendered on a transient failure */ }
+
+    allJobsTerminal = jobs.length > 0 && jobs.every(j => j.status === 'completed' || j.status === 'failed');
 
     tbody.innerHTML = '';
     if (!jobs.length) {
@@ -2162,6 +2166,7 @@ function purgeFile(idx) {
     }
 }
 setInterval(async () => {
+    if (allJobsTerminal) return;
     if (!document.getElementById('workspaceDashboard').classList.contains('hidden')) await renderDashboardActiveProjects();
 }, 30000);
 
@@ -2555,6 +2560,7 @@ if (docDef.usePassportSession) {
         // for now, just confirm the ticket was created and show the price.
         const ticket = await res.json();
 
+        allJobsTerminal = false; // a fresh queued job exists now -- resume polling
         const priceLabel = ticket.price_toman ? `${ticket.price_toman.toLocaleString()} تومان` : '';
         statusText.textContent = 'سند شما در صف پردازش قرار گرفت.';
         showToast(`✅ سند شما ثبت شد و در حال پردازش است. هزینه: ${priceLabel}`);
