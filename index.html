@@ -2138,7 +2138,14 @@ async function downloadJobResult(jobId) {
         });
         if (!res.ok) { showToast('خطا در دریافت فایل.'); return; }
         const job = await res.json();
-        if (!job.result_file_b64) { showToast('فایل هنوز آماده نیست.'); return; }
+        if (!job.result_file_b64) {
+            if (job.status === 'completed') {
+                showToast('فایل منقضی شده و حذف شده است. لطفاً سند را دوباره ارسال کنید.');
+            } else {
+                showToast('فایل هنوز آماده نیست.');
+            }
+            return;
+        }
 
         const byteChars = atob(job.result_file_b64);
         const byteNumbers = new Array(byteChars.length);
