@@ -1761,6 +1761,12 @@ const DOCUMENT_REGISTRY = {
     active: true,
     usePassportSession: true,
     },
+    'azad-transcript': {
+    label:               'ریزنمرات دانشگاه آزاد اسلامی',
+    endpoint:            'https://deept-back-end.onrender.com/api/translate/azad-transcript',
+    active:              true,
+    usePassportSession:  false,   // backend doesn't accept session_ids yet -- deliberately deferred
+    },
 };
 
 // Populate the hidden native select (kept so every other part of the app
