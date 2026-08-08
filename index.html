@@ -1317,6 +1317,60 @@ body::before {
     </div>
 </div>
 
+<div id="adminDashboard" class="fixed inset-0 z-40 hidden overflow-y-auto p-4 md:p-8 pt-24" style="background: var(--bg-secondary);">
+    <div class="max-w-6xl mx-auto">
+        <div class="flex items-center justify-between mb-6">
+            <h2 class="text-xl font-black" style="color:var(--text-main);">پنل مدیریت</h2>
+            <button onclick="adminLogout()" class="text-xs font-bold px-3 py-1.5 rounded-lg" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">خروج</button>
+        </div>
+
+        <div class="workspace-panel p-6 mb-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-sm font-black" style="color:var(--text-main);">لیست کاربران</h3>
+                <button onclick="loadAdminUsers()" class="text-xs font-bold px-3 py-1.5 rounded-lg" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">بروزرسانی</button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-xs text-right">
+                    <thead>
+                        <tr style="border-bottom:1px solid var(--divider);color:var(--text-muted);">
+                            <th class="py-2 px-2 font-bold">ایمیل</th>
+                            <th class="py-2 px-2 font-bold">نام</th>
+                            <th class="py-2 px-2 font-bold">نوع حساب</th>
+                            <th class="py-2 px-2 font-bold">موجودی (تومان)</th>
+                            <th class="py-2 px-2 font-bold">شارژ</th>
+                            <th class="py-2 px-2 font-bold">پروژه‌ها</th>
+                        </tr>
+                    </thead>
+                    <tbody id="adminUsersRowsBlock">
+                        <tr><td colspan="6" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="adminUserJobsPanel" class="workspace-panel p-6 hidden">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-sm font-black" id="adminUserJobsTitle" style="color:var(--text-main);">پروژه‌های کاربر</h3>
+                <button onclick="document.getElementById('adminUserJobsPanel').classList.add('hidden')" class="text-xs font-bold px-3 py-1.5 rounded-lg" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">بستن</button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-xs text-right">
+                    <thead>
+                        <tr style="border-bottom:1px solid var(--divider);color:var(--text-muted);">
+                            <th class="py-2 px-2 font-bold">نوع سند</th>
+                            <th class="py-2 px-2 font-bold">وضعیت</th>
+                            <th class="py-2 px-2 font-bold">قیمت (تومان)</th>
+                            <th class="py-2 px-2 font-bold">نام فایل</th>
+                            <th class="py-2 px-2 font-bold">تاریخ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="adminUserJobsRowsBlock"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- ══════════════════════════════════════════
      LANDING PAGE — hidden when logged in
      ══════════════════════════════════════════ -->
@@ -2695,9 +2749,13 @@ async function handleSignup() {
         const {ok,data} = await corePost('/auth/signup', {email, password:pass, full_name:name, account_type:'individual'});
         if (!ok) { err.textContent=data.detail||'این ایمیل قبلاً ثبت شده است.'; err.classList.add('show'); btn.textContent='ساخت حساب'; btn.disabled=false; return; }
         saveSession(data);
+        localStorage.setItem('deept_is_admin', data.is_admin ? '1' : '0');
         document.getElementById('signupForm').style.display='none';
         document.getElementById('signupSuccess').classList.add('show');
-        setTimeout(()=>{ closeModals(); currentUserSession=loadSession(); syncUserSessionDOM(); showDashboardView(); }, 1800);
+        setTimeout(()=>{
+            closeModals(); currentUserSession=loadSession(); syncUserSessionDOM();
+            if (data.is_admin) { showAdminDashboard(); } else { showDashboardView(); }
+        }, 1800);
     } catch(e) { err.textContent='خطا در اتصال.'; err.classList.add('show'); btn.textContent='ساخت حساب'; btn.disabled=false; }
 }
 
@@ -2984,10 +3042,123 @@ function qsSimulatePayment() {
 
 
 // ── VIEW CONTROLLER ──
-function showLandingView() {
+function showDashboardView() {
     const lp=document.getElementById('landingPage');
-    if(lp) lp.style.display='block';
-    document.body.style.overflow='auto';
+    if(lp) lp.style.display='none';
+    openWorkspaceDashboard();
+}
+
+function showAdminDashboard() {
+    const lp = document.getElementById('landingPage');
+    if (lp) lp.style.display = 'none';
+    document.getElementById('workspaceDashboard').classList.add('hidden');
+    document.getElementById('adminDashboard').classList.remove('hidden');
+    loadAdminUsers();
+}
+
+function adminLogout() {
+    localStorage.removeItem('deept_token');
+    localStorage.removeItem('deept_user_id');
+    localStorage.removeItem('deept_user_name');
+    localStorage.removeItem('deept_user_email');
+    localStorage.removeItem('deept_is_admin');
+    document.getElementById('adminDashboard').classList.add('hidden');
+    location.reload();
+}
+
+async function loadAdminUsers() {
+    const token = localStorage.getItem('deept_token');
+    const tbody = document.getElementById('adminUsersRowsBlock');
+    try {
+        const res = await fetch(`${CORE}/wallet/admin/users`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) {
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در دریافت لیست کاربران.</td></tr>`;
+            return;
+        }
+        const users = await res.json();
+        if (!users.length) {
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-sm" style="color:var(--text-muted);">کاربری یافت نشد.</td></tr>`;
+            return;
+        }
+        tbody.innerHTML = users.map(u => `
+            <tr style="border-bottom:1px solid var(--divider);">
+                <td class="py-2 px-2 en" style="color:var(--text-main);">${u.email}</td>
+                <td class="py-2 px-2" style="color:var(--text-main);">${u.full_name || ''}</td>
+                <td class="py-2 px-2" style="color:var(--text-muted);">${u.account_type === 'office' ? 'دارالترجمه' : 'حقیقی'}</td>
+                <td class="py-2 px-2 font-mono font-bold" style="color:var(--accent);">${u.balance_toman.toLocaleString()}</td>
+                <td class="py-2 px-2">
+                    <div class="flex items-center gap-1">
+                        <input type="number" id="topup-${u.user_id}" placeholder="مبلغ" class="auth-input text-xs w-24 py-1">
+                        <button onclick="adminTopup('${u.user_id}')" class="text-xs font-bold px-2 py-1 rounded" style="background:var(--accent);color:var(--btn-text-on-accent);">شارژ</button>
+                    </div>
+                </td>
+                <td class="py-2 px-2">
+                    <button onclick="adminViewUserJobs('${u.user_id}', '${(u.email||'').replace(/'/g,"")}')" class="text-xs font-bold px-2 py-1 rounded" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">مشاهده</button>
+                </td>
+            </tr>
+        `).join('');
+    } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در اتصال.</td></tr>`;
+    }
+}
+
+async function adminTopup(userId) {
+    const token = localStorage.getItem('deept_token');
+    const input = document.getElementById(`topup-${userId}`);
+    const amount = parseInt(input.value, 10);
+    if (!amount || amount <= 0) { showToast('مبلغ نامعتبر است.'); return; }
+    try {
+        const res = await fetch(`${CORE}/wallet/topup`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ user_id: userId, amount_toman: amount })
+        });
+        const data = await res.json();
+        if (!res.ok) { showToast(data.detail || 'خطا در شارژ.'); return; }
+        showToast(`شارژ موفق. موجودی جدید: ${data.balance_toman.toLocaleString()} تومان`);
+        input.value = '';
+        loadAdminUsers();
+    } catch (e) {
+        showToast('خطا در اتصال.');
+    }
+}
+
+async function adminViewUserJobs(userId, email) {
+    const token = localStorage.getItem('deept_token');
+    const panel = document.getElementById('adminUserJobsPanel');
+    const tbody = document.getElementById('adminUserJobsRowsBlock');
+    document.getElementById('adminUserJobsTitle').textContent = `پروژه‌های ${email}`;
+    panel.classList.remove('hidden');
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>`;
+    try {
+        const res = await fetch(`${CORE}/jobs?user_id=${userId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) {
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در دریافت پروژه‌ها.</td></tr>`;
+            return;
+        }
+        const jobs = await res.json();
+        if (!jobs.length) {
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">این کاربر پروژه‌ای ندارد.</td></tr>`;
+            return;
+        }
+        const typeLabel = (t) => DOCUMENT_REGISTRY[t]?.label || t;
+        const statusLabel = (s) => ({queued:'در صف', processing:'در حال پردازش', completed:'تکمیل شده', failed:'ناموفق'}[s] || s);
+        tbody.innerHTML = jobs.map(j => `
+            <tr style="border-bottom:1px solid var(--divider);">
+                <td class="py-2 px-2" style="color:var(--text-main);">${typeLabel(j.document_type)}</td>
+                <td class="py-2 px-2" style="color:var(--text-muted);">${statusLabel(j.status)}</td>
+                <td class="py-2 px-2 font-mono" style="color:var(--text-main);">${(j.price_toman||0).toLocaleString()}</td>
+                <td class="py-2 px-2 en" style="color:var(--text-muted);">${j.original_filename || ''}</td>
+                <td class="py-2 px-2 en" style="color:var(--text-muted);">${(j.created_at||'').slice(0,10)}</td>
+            </tr>
+        `).join('');
+    } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در اتصال.</td></tr>`;
+    }
 }
 function showDashboardView() {
     const lp=document.getElementById('landingPage');
