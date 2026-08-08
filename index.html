@@ -2669,10 +2669,14 @@ async function handleLogin() {
     try {
         const {ok,data} = await corePost('/auth/login', {email, password:pass});
         if (!ok) { err.textContent=data.detail||'ایمیل یا رمز عبور اشتباه است.'; err.classList.add('show'); btn.textContent='ورود'; btn.disabled=false; return; }
-        saveSession(data);
+       saveSession(data);
+        localStorage.setItem('deept_is_admin', data.is_admin ? '1' : '0');
         document.getElementById('loginForm').style.display='none';
         document.getElementById('loginSuccess').classList.add('show');
-        setTimeout(()=>{ closeModals(); currentUserSession=loadSession(); syncUserSessionDOM(); showDashboardView(); }, 1400);
+        setTimeout(()=>{
+            closeModals(); currentUserSession=loadSession(); syncUserSessionDOM();
+            if (data.is_admin) { showAdminDashboard(); } else { showDashboardView(); }
+        }, 1400);
     } catch(e) { err.textContent='خطا در اتصال.'; err.classList.add('show'); btn.textContent='ورود'; btn.disabled=false; }
 }
 
