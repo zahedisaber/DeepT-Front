@@ -2126,6 +2126,16 @@ async function openWorkspaceDashboard(pushHistory = true) {
     refreshWalletBalanceDisplay();
     if (pushHistory) navigateTo('/dashboard');
 }
+function showLandingView() {
+    const lp = document.getElementById('landingPage');
+    if (lp) lp.style.display = '';
+    const wd = document.getElementById('workspaceDashboard');
+    if (wd) wd.classList.add('hidden');
+    const ad = document.getElementById('adminDashboard');
+    if (ad) ad.classList.add('hidden');
+    document.body.style.overflow = 'auto';
+}
+
 function closeWorkspaceDashboard(pushHistory = true) {
     document.getElementById('workspaceDashboard').classList.add('hidden');
     document.body.style.overflow = 'auto';
@@ -3071,8 +3081,8 @@ function adminLogout() {
     location.reload();
 }
 
-let adminUsersCache = [];
-
+var adminUsersCache = [];
+    
 function renderAdminUsersRows(users) {
     const tbody = document.getElementById('adminUsersRowsBlock');
     if (!users.length) {
