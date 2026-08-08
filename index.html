@@ -1338,6 +1338,8 @@ body::before {
                             <th class="py-2 px-2 font-bold">نوع حساب</th>
                             <th class="py-2 px-2 font-bold">موجودی (تومان)</th>
                             <th class="py-2 px-2 font-bold">شارژ</th>
+                            <th class="py-2 px-2 font-bold">کسر اعتبار</th>
+                            <th class="py-2 px-2 font-bold">وضعیت حساب</th>
                             <th class="py-2 px-2 font-bold">پروژه‌ها</th>
                         </tr>
                     </thead>
@@ -3083,16 +3085,27 @@ async function loadAdminUsers() {
             return;
         }
         tbody.innerHTML = users.map(u => `
-            <tr style="border-bottom:1px solid var(--divider);">
+            <tr style="border-bottom:1px solid var(--divider);${u.is_active === false ? 'opacity:0.5;' : ''}">
                 <td class="py-2 px-2 en" style="color:var(--text-main);">${u.email}</td>
                 <td class="py-2 px-2" style="color:var(--text-main);">${u.full_name || ''}</td>
                 <td class="py-2 px-2" style="color:var(--text-muted);">${u.account_type === 'office' ? 'دارالترجمه' : 'حقیقی'}</td>
                 <td class="py-2 px-2 font-mono font-bold" style="color:var(--accent);">${u.balance_toman.toLocaleString()}</td>
                 <td class="py-2 px-2">
                     <div class="flex items-center gap-1">
-                        <input type="number" id="topup-${u.user_id}" placeholder="مبلغ" class="auth-input text-xs w-24 py-1">
+                        <input type="number" id="topup-${u.user_id}" placeholder="مبلغ" class="auth-input text-xs w-20 py-1">
                         <button onclick="adminTopup('${u.user_id}')" class="text-xs font-bold px-2 py-1 rounded" style="background:var(--accent);color:var(--btn-text-on-accent);">شارژ</button>
                     </div>
+                </td>
+                <td class="py-2 px-2">
+                    <div class="flex items-center gap-1">
+                        <input type="number" id="deduct-${u.user_id}" placeholder="مبلغ" class="auth-input text-xs w-20 py-1">
+                        <button onclick="adminDeduct('${u.user_id}')" class="text-xs font-bold px-2 py-1 rounded" style="background:#f87171;color:#fff;">کسر</button>
+                    </div>
+                </td>
+                <td class="py-2 px-2">
+                    <button onclick="adminToggleActive('${u.user_id}', ${u.is_active === false})" class="text-xs font-bold px-2 py-1 rounded" style="background:${u.is_active === false ? '#4ade80' : '#f87171'};color:#fff;">
+                        ${u.is_active === false ? 'فعال‌سازی' : 'غیرفعال‌سازی'}
+                    </button>
                 </td>
                 <td class="py-2 px-2">
                     <button onclick="adminViewUserJobs('${u.user_id}', '${(u.email||'').replace(/'/g,"")}')" class="text-xs font-bold px-2 py-1 rounded" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">مشاهده</button>
@@ -3101,6 +3114,47 @@ async function loadAdminUsers() {
         `).join('');
     } catch (e) {
         tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در اتصال.</td></tr>`;
+    }
+}
+
+async function adminDeduct(userId) {
+    const token = localStorage.getItem('deept_token');
+    const input = document.getElementById(`deduct-${userId}`);
+    const amount = parseInt(input.value, 10);
+    if (!amount || amount <= 0) { showToast('مبلغ نامعتبر است.'); return; }
+    if (!confirm(`کسر ${amount.toLocaleString()} تومان از این کاربر؟`)) return;
+    try {
+        const res = await fetch(`${CORE}/wallet/admin/deduct`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ user_id: userId, amount_toman: amount, document_type: 'manual-admin-adjustment', description: 'کسر دستی توسط ادمین' })
+        });
+        const data = await res.json();
+        if (!res.ok) { showToast(data.detail || 'خطا در کسر اعتبار.'); return; }
+        showToast(`کسر موفق. موجودی جدید: ${data.balance_toman.toLocaleString()} تومان`);
+        input.value = '';
+        loadAdminUsers();
+    } catch (e) {
+        showToast('خطا در اتصال.');
+    }
+}
+
+async function adminToggleActive(userId, makeActive) {
+    const token = localStorage.getItem('deept_token');
+    const actionLabel = makeActive ? 'فعال‌سازی' : 'غیرفعال‌سازی';
+    if (!confirm(`${actionLabel} این حساب؟`)) return;
+    try {
+        const res = await fetch(`${CORE}/wallet/admin/toggle-active`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ user_id: userId, is_active: makeActive })
+        });
+        const data = await res.json();
+        if (!res.ok) { showToast(data.detail || 'خطا.'); return; }
+        showToast(`✅ ${actionLabel} انجام شد.`);
+        loadAdminUsers();
+    } catch (e) {
+        showToast('خطا در اتصال.');
     }
 }
 
