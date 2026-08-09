@@ -1219,7 +1219,7 @@ body::before {
           <div id="docFileInfo" class="text-xs font-bold hidden mt-1" style="color:var(--accent);"></div>
         </div>
         <div id="processingStatusBubble" class="hidden flex items-center gap-3 p-3 rounded-xl mb-3 text-sm" style="background:var(--panel-bg);border:1px solid var(--border-color);">
-          <span class="animate-spin" style="color:var(--accent);">⏳</span>
+          <span id="statusMessageIcon" class="animate-spin" style="color:var(--accent);">⏳</span>
           <span id="statusMessageText" style="color:var(--text-muted);">در حال پردازش...</span>
         </div>
         <div class="grid grid-cols-2 gap-3">
@@ -1300,9 +1300,9 @@ body::before {
                         <thead>
                             <tr>
                                 <th class="text-right">شناسه / نام سند</th>
-                                <th class="text-center">نوع</th>
+                                <th class="text-center">نوع سند</th>
                                 <th class="text-center">تاریخ</th>
-                                <th class="text-center" style="color:#fb923c;">⏱ تخریب خودکار</th>
+                                <th class="text-center" style="color:#fb923c;">⏱ وضعیت</th>
                                 <th class="text-left">عملیات</th>
                             </tr>
                         </thead>
@@ -2577,11 +2577,15 @@ async function executeTranslationPipeline() {
     const submitBtn    = document.getElementById('submitBtn');
     const statusBubble = document.getElementById('processingStatusBubble');
     const statusText   = document.getElementById('statusMessageText');
+    const statusIcon   = document.getElementById('statusMessageIcon');
 
     submitBtn.disabled = true;
     statusBubble.classList.remove('hidden');
+    statusIcon.textContent = '⏳';
+    statusIcon.classList.add('animate-spin');
+    statusText.style.color = 'var(--text-muted)';
     statusText.textContent = 'در حال ارسال به سرور...';
-
+    
     const docType = document.getElementById('docTemplate').value;
     const docDef  = DOCUMENT_REGISTRY[docType];
 
@@ -2644,18 +2648,21 @@ if (docDef.usePassportSession) {
 
         allJobsTerminal = false; // a fresh queued job exists now -- resume polling
         const priceLabel = ticket.price_toman ? `${ticket.price_toman.toLocaleString()} تومان` : '';
-        statusText.textContent = 'سند شما در صف پردازش قرار گرفت.';
-        showToast(`✅ سند شما ثبت شد و در حال پردازش است. هزینه: ${priceLabel}`);
+        statusIcon.classList.remove('animate-spin');
+        statusIcon.textContent = '✅';
+        statusText.style.color = 'var(--text-main)';
+        statusText.textContent = 'سند شما ثبت شد و در صف پردازش قرار گرفت. ترجمه پس از چند ثانیه در «میز کار دیجیتال ← پروژه‌های ترجمه» قابل مشاهده خواهد بود.';
+        showToast(`✅ سند شما ثبت شد. هزینه: ${priceLabel}`);
         document.getElementById('nextDocBtn').classList.remove('hidden');
 
     } catch (err) {
         // Never display err.message directly -- it can be raw English from
         // a network-level failure (timeout, CORS, connection drop), not
         // just backend detail text. Always show a fixed Persian message.
+        statusBubble.classList.add('hidden');
         showToast('❌ خطا در پردازش سند. لطفاً دوباره تلاش کنید یا با پشتیبانی تماس بگیرید.');
     } finally {
         submitBtn.disabled = false;
-        statusBubble.classList.add('hidden');
     }
 }
 
@@ -2666,6 +2673,7 @@ function resetDocZone() {
     document.getElementById('docFileInput').value = '';
     document.getElementById('submitBtn').disabled = true;
     document.getElementById('nextDocBtn').classList.add('hidden');
+    document.getElementById('processingStatusBubble').classList.add('hidden');
 }
 
 function resetForNextDocument() {
