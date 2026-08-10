@@ -3113,10 +3113,15 @@ function renderAdminUsersRows(users) {
                 </div>
             </td>
             <td class="py-3 px-3">
-                <button onclick="adminToggleActive('${u.user_id}', ${u.is_active === false})" class="text-sm font-bold px-3 py-2 rounded-lg" style="background:${u.is_active === false ? '#4ade80' : '#f87171'};color:#fff;">
-                    ${u.is_active === false ? 'فعال‌سازی' : 'غیرفعال‌سازی'}
-                </button>
-            </td>
+                    <div class="flex flex-col items-start gap-1.5">
+                        <button onclick="adminToggleActive('${u.user_id}', ${u.is_active === false})" class="text-sm font-bold px-3 py-2 rounded-lg" style="background:${u.is_active === false ? '#4ade80' : '#f87171'};color:#fff;">
+                            ${u.is_active === false ? 'فعال‌سازی' : 'غیرفعال‌سازی'}
+                        </button>
+                        <button onclick="adminDeleteUser('${u.user_id}', '${(u.email||'').replace(/'/g,"")}')" class="text-sm font-bold px-3 py-2 rounded-lg" style="background:#7f1d1d;color:#fff;">
+                            حذف دائمی
+                        </button>
+                    </div>
+                </td>
             <td class="py-3 px-3">
                 <button onclick="adminViewUserJobs('${u.user_id}', '${(u.email||'').replace(/'/g,"")}')" class="text-sm font-bold px-3 py-2 rounded-lg" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">مشاهده</button>
             </td>
@@ -3186,6 +3191,27 @@ async function adminToggleActive(userId, makeActive) {
         const data = await res.json();
         if (!res.ok) { showToast(data.detail || 'خطا.'); return; }
         showToast(`✅ ${actionLabel} انجام شد.`);
+        loadAdminUsers();
+    } catch (e) {
+        showToast('خطا در اتصال.');
+    }
+}
+
+async function adminDeleteUser(userId, userEmail) {
+    const typed = prompt(`این عملیات غیرقابل بازگشت است و تمام اطلاعات این کاربر (پروژه‌ها، تراکنش‌ها، کیف پول) را برای همیشه حذف می‌کند.\n\nبرای تایید، ایمیل کاربر را دقیقاً تایپ کنید:\n${userEmail}`);
+    if (typed !== userEmail) {
+        if (typed !== null) showToast('ایمیل واردشده مطابقت ندارد. عملیات لغو شد.');
+        return;
+    }
+    const token = localStorage.getItem('deept_token');
+    try {
+        const res = await fetch(`${CORE}/wallet/admin/users/${userId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (!res.ok) { showToast(data.detail || 'خطا در حذف حساب.'); return; }
+        showToast('✅ حساب کاربر برای همیشه حذف شد.');
         loadAdminUsers();
     } catch (e) {
         showToast('خطا در اتصال.');
