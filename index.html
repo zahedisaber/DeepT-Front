@@ -1091,8 +1091,8 @@ body::before {
     </div>
     <div class="modal-success" id="signupSuccess">
       <div class="icon">📧</div>
-      <strong>ثبت‌نام موفق</strong>
-      <p>در حال انتقال به پنل ترجمه...</p>
+      <strong>ایمیل تأیید ارسال شد</strong>
+      <p>لطفاً ایمیل خود را بررسی کنید و روی لینک فعال‌سازی کلیک کنید.</p>
     </div>
     <p class="modal-switch">قبلاً ثبت‌نام کردید؟ <a onclick="switchToLogin()">وارد شوید</a></p>
   </div>
@@ -2771,14 +2771,11 @@ async function handleSignup() {
     try {
         const {ok,data} = await corePost('/auth/signup', {email, password:pass, full_name:name, account_type:'individual'});
         if (!ok) { err.textContent=data.detail||'این ایمیل قبلاً ثبت شده است.'; err.classList.add('show'); btn.textContent='ساخت حساب'; btn.disabled=false; return; }
-        saveSession(data);
-        localStorage.setItem('deept_is_admin', data.is_admin ? '1' : '0');
         document.getElementById('signupForm').style.display='none';
         document.getElementById('signupSuccess').classList.add('show');
-        setTimeout(()=>{
-            closeModals(); currentUserSession=loadSession(); syncUserSessionDOM();
-            if (data.is_admin) { showAdminDashboard(); } else { showDashboardView(); }
-        }, 1800);
+        // Account exists but is unverified -- don't save a session or route
+        // to the dashboard, nothing will work until the activation link is
+        // clicked. Just show the "check your email" message and stop.
     } catch(e) { err.textContent='خطا در اتصال.'; err.classList.add('show'); btn.textContent='ساخت حساب'; btn.disabled=false; }
 }
 
