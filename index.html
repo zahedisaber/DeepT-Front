@@ -2918,11 +2918,34 @@ function copyFmt(id){
     const valEl = el.querySelector('.fmt-value') || el;
     const v = valEl.textContent.trim();
     if (!v) return;
-    navigator.clipboard.writeText(v).then(() => {
+
+    function onCopied() {
         const tip = document.getElementById('cp-' + id);
         if (tip) { tip.classList.add('show'); setTimeout(()=>tip.classList.remove('show'), 1400); }
-        toast('کپی شد: ' + v);
-    });
+        showToast('کپی شد: ' + v);
+    }
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(v).then(onCopied).catch(() => fallbackCopyText(v, onCopied));
+    } else {
+        fallbackCopyText(v, onCopied);
+    }
+}
+
+function fallbackCopyText(text, onSuccess) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+        document.execCommand('copy');
+        onSuccess();
+    } catch (e) {
+        showToast('کپی خودکار پشتیبانی نمی‌شود. لطفاً دستی کپی کنید.');
+    }
+    document.body.removeChild(ta);
 }
 
 // ── QUICK START PIPELINE ──
