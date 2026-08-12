@@ -1817,8 +1817,14 @@ const DOCUMENT_REGISTRY = {
         usePassportSession:  true,
     },
     'insurance-record': {
-        label:               'سوابق بیمه تامین اجتماعی',
+        label:               'سوابق کامل بیمه تامین اجتماعی',
         endpoint:            'https://deept-back-end.onrender.com/api/translate/insurance-record',
+        active:              true,
+        usePassportSession:  false,
+    },
+    'consolidated-insurance-record': {
+        label:               'سوابق تلفیقی بیمه تامین اجتماعی',
+        endpoint:            'https://deept-back-end.onrender.com/api/translate/consolidated-insurance-record',
         active:              true,
         usePassportSession:  false,
     },
