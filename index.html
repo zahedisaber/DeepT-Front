@@ -2452,21 +2452,23 @@ function updateClientBadge() {
     const badge = document.getElementById('activeClientBadge');
     const btn   = document.getElementById('newClientBtn');
     const countEl = document.getElementById('multiPassportCount');
+    const addBtn  = document.getElementById('addPassportBtn');
     if (countEl) countEl.textContent = confirmedPassports.length;
     if (confirmedPassports.length > 0) {
         badge.classList.remove('hidden'); badge.style.display = 'flex';
         document.getElementById('activeClientName').textContent =
             confirmedPassports.map(p => `${p.first_name} ${p.last_name}`).join('، ');
         btn.classList.remove('hidden');
+        if (addBtn) addBtn.classList.remove('hidden');
     } else {
         badge.classList.add('hidden'); badge.style.display = 'none';
         btn.classList.add('hidden');
+        if (addBtn) addBtn.classList.add('hidden');
         const modeButtons = document.getElementById('ppModeButtons');
         if (modeButtons) modeButtons.classList.remove('hidden');
     }
 renderConfirmedPassportsList();
 }
-
 function renderConfirmedPassportsList() {
     const box = document.getElementById('confirmedPassportsList');
     if (!box) return;
