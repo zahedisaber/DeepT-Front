@@ -1739,8 +1739,8 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
 </div>
 
 <script>
-const CORE    = 'https://deept-core.onrender.com';
-const BACKEND = 'https://deept-police-backend.onrender.com';
+const CORE    = 'https://core.deept.ir';
+const BACKEND = 'https://backend.deept.ir';
 
 // ── ENHANCED JS (pipeline, dashboard, passport) ──
 
@@ -1757,14 +1757,14 @@ const BACKEND = 'https://deept-police-backend.onrender.com';
 const DOCUMENT_REGISTRY = {
     'police-certificate': {
         label:               'گواهی عدم سوء پیشینه',
-        endpoint:            'https://deept-police-backend.onrender.com/api/translate/police-certificate',
+        endpoint: 'https://police.deept.ir/api/translate/police-certificate',
         active:              true,
         usePassportSession:  true,
         legacySingleSession: true,   // old backend contract -- singular session_id, not yet updated
     },
     'vehicle-deed': {
         label:               'سند مالکیت خودرو (برگ سبز)',
-        endpoint:            'https://deept-back-end.onrender.com/api/translate/vehicle-deed',
+        endpoint: 'https://backend.deept.ir/api/translate/vehicle-deed',
         active:              true,
         usePassportSession:  true,
     },
@@ -1782,49 +1782,49 @@ const DOCUMENT_REGISTRY = {
     },
     'notary-deed': {
         label:               'اسناد دفترخانه (سند رسمی)',
-        endpoint:            'https://deept-back-end.onrender.com/api/translate/notary-deed',
+        endpoint: 'https://backend.deept.ir/api/translate/notary-deed',
         active:              true,
         usePassportSession:  true,
     },
     'academic-transcript': {
         label:               'ریزنمرات علوم پزشکی',
-        endpoint:            'https://deept-back-end.onrender.com/api/translate/academic-transcript',
+        endpoint: 'https://backend.deept.ir/api/translate/academic-transcript',
         active:              true,
         usePassportSession:  true,
     },
     'gazette-notice': {
         label:               'آگهی تاسیس / تغییرات (روزنامه رسمی)',
-        endpoint:            'https://deept-back-end.onrender.com/api/translate/gazette-notice',
+        endpoint: 'https://backend.deept.ir/api/translate/gazette-notice',
         active:              true,
         usePassportSession:  false,
     },
     'high-school-transcript': {
         label:               'ریزنمرات دبیرستان',
-        endpoint:            'https://deept-back-end.onrender.com/api/translate/high-school-transcript',
+        endpoint: 'https://backend.deept.ir/api/translate/high-school-transcript',
         active:              true,
         usePassportSession:  true,
     },
     'ownership-deed': {
     label: 'سند مالکیت (تک برگ؛ نام مالک اول)',
-    endpoint: 'https://deept-back-end.onrender.com/api/translate/ownership-deed',
+    endpoint: 'https://backend.deept.ir/api/translate/ownership-deed',
     active: true,
     usePassportSession: true,
     },
     'azad-transcript': {
         label:               'ریزنمرات دانشگاه آزاد اسلامی',
-        endpoint:            'https://deept-back-end.onrender.com/api/translate/azad-transcript',
+        endpoint: 'https://backend.deept.ir/api/translate/azad-transcript',
         active:              true,
         usePassportSession:  true,
     },
     'insurance-record': {
         label:               'سوابق کامل بیمه تامین اجتماعی',
-        endpoint:            'https://deept-back-end.onrender.com/api/translate/insurance-record',
+        endpoint: 'https://backend.deept.ir/api/translate/insurance-record',
         active:              true,
         usePassportSession:  true,
     },
     'consolidated-insurance-record': {
         label:               'سوابق تلفیقی بیمه تامین اجتماعی',
-        endpoint:            'https://deept-back-end.onrender.com/api/translate/consolidated-insurance-record',
+        endpoint: 'https://backend.deept.ir/api/translate/consolidated-insurance-record',
         active:              true,
         usePassportSession:  true,
     },
@@ -2953,7 +2953,7 @@ function fallbackCopyText(text, onSuccess) {
 
 // ── QUICK START PIPELINE ──
 const QS = { mode:null, passFile:null, docFile:null, sessionId:null, blob:null };
-const QS_BACKEND = 'https://deept-police-backend.onrender.com';
+const QS_BACKEND = 'https://police.deept.ir';
 
 function qsReset() {
     Object.assign(QS, {mode:null,passFile:null,docFile:null,sessionId:null,blob:null});
