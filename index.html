@@ -1194,8 +1194,8 @@ body::before {
         </div>
         <div class="grid grid-cols-2 gap-3 mt-2">
           <button onclick="goBackToDocTypeStage()" class="py-2.5 rounded-xl text-sm font-black transition" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-color);">→ بازگشت</button>
-          <button onclick="continueToDocumentStep()" class="py-2.5 rounded-xl text-sm font-black transition" style="background:var(--accent);color:var(--btn-text-on-accent);">ادامه به بارگذاری سند ←</button>
-        </div>
+          <button id="continueToDocBtn" onclick="continueToDocumentStep()" class="hidden py-2.5 rounded-xl text-sm font-black transition" style="background:var(--accent);color:var(--btn-text-on-accent);">ادامه به بارگذاری سند ←</button>
+        </div
       </div>
       <div id="passportStageSummary" class="hidden flex items-center justify-between mb-4 p-2.5 rounded-lg text-xs" style="background:var(--panel-bg);border:1px solid var(--border-color);">
         <span style="color:var(--text-main);">
@@ -2453,6 +2453,7 @@ function updateClientBadge() {
     const btn   = document.getElementById('newClientBtn');
     const countEl = document.getElementById('multiPassportCount');
     const addBtn  = document.getElementById('addPassportBtn');
+    const continueBtn = document.getElementById('continueToDocBtn');
     if (countEl) countEl.textContent = confirmedPassports.length;
     if (confirmedPassports.length > 0) {
         badge.classList.remove('hidden'); badge.style.display = 'flex';
@@ -2460,10 +2461,12 @@ function updateClientBadge() {
             confirmedPassports.map(p => `${p.first_name} ${p.last_name}`).join('، ');
         btn.classList.remove('hidden');
         if (addBtn) addBtn.classList.remove('hidden');
+        if (continueBtn) continueBtn.classList.remove('hidden');
     } else {
         badge.classList.add('hidden'); badge.style.display = 'none';
         btn.classList.add('hidden');
         if (addBtn) addBtn.classList.add('hidden');
+        if (continueBtn) continueBtn.classList.add('hidden');
         const modeButtons = document.getElementById('ppModeButtons');
         if (modeButtons) modeButtons.classList.remove('hidden');
     }
