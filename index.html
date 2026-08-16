@@ -1146,8 +1146,7 @@ body::before {
         <div id="multiPassportBlock" class="hidden mb-4 p-3 rounded-xl text-xs" style="background:var(--panel-bg);border:1px solid var(--border-color);">
           <div class="flex items-center justify-between">
             <span style="color:var(--text-muted);">پاسپورت‌های ثبت‌شده: <b id="multiPassportCount" style="color:var(--accent);">۰</b> نفر</span>
-            <button onclick="addExtraPassport()" class="font-black px-3 py-1.5 rounded-lg" style="background:var(--accent);color:var(--btn-text-on-accent);">+ افزودن پاسپورت</button>
-          </div>
+            <button id="addPassportBtn" onclick="addExtraPassport()" class="hidden font-black px-3 py-1.5 rounded-lg" style="background:var(--accent);color:var(--btn-text-on-accent);">+ افزودن پاسپورت</button>          </div>
           <div id="confirmedPassportsList" class="space-y-1.5 mt-2"></div>
         </div>
         <div id="ppModeButtons" class="space-y-2 mb-4">
@@ -2460,11 +2459,11 @@ function updateClientBadge() {
             confirmedPassports.map(p => `${p.first_name} ${p.last_name}`).join('، ');
         btn.classList.remove('hidden');
     } else {
-    badge.classList.add('hidden'); badge.style.display = 'none';
-    btn.classList.add('hidden');
-    const modeButtons = document.getElementById('ppModeButtons');       // ← new
-    if (modeButtons) modeButtons.classList.remove('hidden');            // ← new
-}
+        badge.classList.add('hidden'); badge.style.display = 'none';
+        btn.classList.add('hidden');
+        const modeButtons = document.getElementById('ppModeButtons');
+        if (modeButtons) modeButtons.classList.remove('hidden');
+    }
 renderConfirmedPassportsList();
 }
 
