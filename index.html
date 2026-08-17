@@ -2585,6 +2585,7 @@ async function executeTranslationPipeline() {
         return;
     }
 
+    const idempotencyKey = crypto.randomUUID();
     const submitBtn      = document.getElementById('submitBtn');
     const statusBubble   = document.getElementById('processingStatusBubble');
     const statusText     = document.getElementById('statusMessageText');
@@ -2610,7 +2611,8 @@ async function executeTranslationPipeline() {
 
     const fd = new FormData();
     fd.append('document_file', docSelectedFile);
-
+    fd.append('idempotency_key', idempotencyKey);
+    
     // Passport session(s). police-certificate still uses its old backend
     // contract (legacySingleSession) until that repo is updated; every other
     // document type uses the universal multi-passport contract by default.
@@ -2639,16 +2641,32 @@ if (docDef.usePassportSession) {
     const token = localStorage.getItem('deept_token');
 
     try {
-        statusText.textContent = 'در حال پردازش؛ این فرایند ممکن است چند دقیقه طول بکشد. لطفا منتظر بمانید.';
-        const res = await fetch(url, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` },
-            body: fd
-        });
-        if (!res.ok) {
-            const err = await res.json().catch(()=>({detail:'خطای ناشناخته'}));
-            throw new Error(err.detail);
+    statusText.textContent = 'در حال پردازش؛ این فرایند ممکن است چند دقیقه طول بکشد. لطفا منتظر بمانید.';
+
+    let res;
+    const maxAttempts = 3;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+            res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: fd
+            });
+            break; // got a real HTTP response (even an error one) -- stop retrying
+        } catch (networkErr) {
+            // Only retry on a true network-level failure (connection drop,
+            // ERR_HTTP2_PROTOCOL_ERROR, timeout) -- NOT on a normal HTTP
+            // error response, which already reached `break` above.
+            if (attempt === maxAttempts) throw networkErr;
+            statusText.textContent = `اتصال قطع شد، تلاش مجدد... (${attempt}/${maxAttempts})`;
+            await new Promise(r => setTimeout(r, 1500 * attempt));
         }
+    }
+
+    if (!res.ok) {
+        const err = await res.json().catch(()=>({detail:'خطای ناشناخته'}));
+        throw new Error(err.detail);
+    }
 
         // Backend now returns a ticket immediately -- {job_id, status,
         // price_toman, page_count} -- NOT the finished file. The actual
