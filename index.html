@@ -1906,10 +1906,14 @@ function openDocDropdownList() {
     const input = document.getElementById('docTemplateSearch');
     const list = document.getElementById('docTemplateOptions');
     const rect = input.getBoundingClientRect();
+    const availableBelow = window.innerHeight - rect.bottom - 12;
+    const maxHeight = Math.max(160, Math.min(320, availableBelow));
     list.style.position = 'fixed';
     list.style.top = (rect.bottom + 4) + 'px';
     list.style.left = rect.left + 'px';
     list.style.width = rect.width + 'px';
+    list.style.maxHeight = maxHeight + 'px';
+    list.style.overflowY = 'auto';
     list.classList.remove('hidden');
 }
 
@@ -2433,7 +2437,7 @@ async function ppConfirmSession() {
         confirmedPassports.push({ session_id:data.session_id, first_name:first, last_name:last, father_name:father, date_of_birth:dob });
         updateClientBadge();
 document.getElementById('pp-fields').classList.add('hidden');
-document.getElementById('ppModeButtons').classList.add('hidden');   // ← new line
+document.getElementById('ppModeButtons').classList.add('hidden');
 ppShowStatus('', '');
         showToast(`✅ پاسپورت ${first} ${last} ثبت شد (مجموع: ${confirmedPassports.length} نفر)`);
     } catch (err) {
@@ -2545,7 +2549,7 @@ function confirmNewClient() {
     docSelectedFile = null;
     document.getElementById('pp-upload-zone').classList.add('hidden');
     document.getElementById('pp-fields').classList.add('hidden');
-    document.getElementById('ppModeButtons').classList.remove('hidden');   // ← new line
+     document.getElementById('ppModeButtons').classList.remove('hidden');
     ppShowStatus('','');
 
     resetDocZone();
