@@ -2588,7 +2588,7 @@ if (docDropZoneEl) {
     });
 }
 async function uploadFileInChunks(file, onProgress) {
-    const CHUNK_SIZE = 50 * 1024; // 300KB
+    const CHUNK_SIZE = 150 * 1024; // 300KB
     const MAX_RETRIES_PER_CHUNK = 3;
 
     const uploadId = crypto.randomUUID();
