@@ -2587,7 +2587,51 @@ if (docDropZoneEl) {
         if (e.dataTransfer.files.length) handleDocFileSelection(e.dataTransfer.files[0]);
     });
 }
+async function uploadFileInChunks(file, onProgress) {
+    const CHUNK_SIZE = 300 * 1024; // 300KB
+    const MAX_RETRIES_PER_CHUNK = 3;
 
+    const uploadId = crypto.randomUUID();
+    const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+
+    for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+        const start = chunkIndex * CHUNK_SIZE;
+        const end = Math.min(start + CHUNK_SIZE, file.size);
+        const chunkBlob = file.slice(start, end);
+
+        const fd = new FormData();
+        fd.append('upload_id', uploadId);
+        fd.append('chunk_index', chunkIndex);
+        fd.append('total_chunks', totalChunks);
+        fd.append('original_filename', file.name);
+        fd.append('chunk', chunkBlob);
+
+        let succeeded = false;
+        for (let attempt = 1; attempt <= MAX_RETRIES_PER_CHUNK; attempt++) {
+            try {
+                const res = await fetch('https://backend.deept.ir/upload/chunk', {
+                    method: 'POST',
+                    body: fd,
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({ detail: 'خطای ناشناخته' }));
+                    throw new Error(err.detail);
+                }
+                succeeded = true;
+                break;
+            } catch (networkErr) {
+                if (attempt === MAX_RETRIES_PER_CHUNK) {
+                    throw new Error(`آپلود قطعه ${chunkIndex + 1} از ${totalChunks} ناموفق بود.`);
+                }
+                await new Promise(r => setTimeout(r, 1000 * attempt));
+            }
+        }
+
+        if (onProgress) onProgress(chunkIndex + 1, totalChunks);
+    }
+
+    return uploadId;
+}
 async function executeTranslationPipeline() {
     if (!docSelectedFile) return;
 
@@ -2620,8 +2664,18 @@ async function executeTranslationPipeline() {
         return;
     }
 
+    // After
     const fd = new FormData();
-    fd.append('document_file', docSelectedFile);
+
+    if (docType === 'academic-transcript') {
+        statusText.textContent = 'در حال آپلود سند...';
+        const uploadId = await uploadFileInChunks(docSelectedFile, (done, total) => {
+            statusText.textContent = `در حال آپلود قطعه ${done} از ${total}...`;
+        });
+        fd.append('upload_id', uploadId);
+    } else {
+        fd.append('document_file', docSelectedFile);
+    }
     fd.append('idempotency_key', idempotencyKey);
     
     // Passport session(s). police-certificate still uses its old backend
