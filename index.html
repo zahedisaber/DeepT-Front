@@ -2588,7 +2588,7 @@ if (docDropZoneEl) {
     });
 }
 async function uploadFileInChunks(file, onProgress) {
-    const CHUNK_SIZE = 300 * 1024; // 300KB
+    const CHUNK_SIZE = 50 * 1024; // 300KB
     const MAX_RETRIES_PER_CHUNK = 3;
 
     const uploadId = crypto.randomUUID();
@@ -2623,7 +2623,7 @@ async function uploadFileInChunks(file, onProgress) {
                 if (attempt === MAX_RETRIES_PER_CHUNK) {
                     throw new Error(`آپلود قطعه ${chunkIndex + 1} از ${totalChunks} ناموفق بود.`);
                 }
-                await new Promise(r => setTimeout(r, 1000 * attempt));
+                await new Promise(r => setTimeout(r, 500 * attempt));
             }
         }
 
