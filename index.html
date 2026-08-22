@@ -2665,25 +2665,9 @@ async function executeTranslationPipeline() {
         return;
     }
 
-    // After
+   // After
     const fd = new FormData();
-
-        if (docType === 'academic-transcript') {
-        statusText.textContent = 'در حال آپلود سند...';
-        try {
-            const uploadId = await uploadFileInChunks(docSelectedFile, (percent) => {
-                statusText.textContent = `در حال آپلود سند... ${percent}%`;
-            });
-            fd.append('upload_id', uploadId);
-        } catch (uploadErr) {
-            statusText.textContent = 'آپلود سند ناموفق بود. لطفاً دوباره تلاش کنید.';
-            statusText.style.color = 'var(--error-color, #ef4444)';
-            submitBtn.disabled = false;
-            return;
-        }
-    } else {
-        fd.append('document_file', docSelectedFile);
-    }
+    fd.append('document_file', docSelectedFile);
     fd.append('idempotency_key', idempotencyKey);
     
     // Passport session(s). police-certificate still uses its old backend
@@ -2713,10 +2697,12 @@ if (docDef.usePassportSession) {
     const url = docDef.endpoint;
     const token = localStorage.getItem('deept_token');
 
+    // After
     try {
     statusText.textContent = 'در حال پردازش؛ این فرایند ممکن است چند دقیقه طول بکشد. لطفا منتظر بمانید.';
 
     let res;
+    let directFailed = false;
     const maxAttempts = 3;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
@@ -2730,17 +2716,55 @@ if (docDef.usePassportSession) {
             // Only retry on a true network-level failure (connection drop,
             // ERR_HTTP2_PROTOCOL_ERROR, timeout) -- NOT on a normal HTTP
             // error response, which already reached `break` above.
-            if (attempt === maxAttempts) throw networkErr;
+            if (attempt === maxAttempts) {
+                directFailed = true;
+                break;
+            }
             statusText.textContent = `اتصال قطع شد، تلاش مجدد... (${attempt}/${maxAttempts})`;
             await new Promise(r => setTimeout(r, 1500 * attempt));
         }
+    }
+
+    // Direct upload never got a response after every retry. For document
+    // types that support it, fall back to sending the file in small
+    // pieces instead -- only a failed piece needs retrying, not the whole
+    // file each time, so this is much more likely to get through on a
+    // genuinely bad connection.
+    if (directFailed && docType === 'academic-transcript') {
+        try {
+            const uploadId = await uploadFileInChunks(docSelectedFile, (percent) => {
+                statusText.textContent = `در حال آپلود سند... ${percent}%`;
+            });
+
+            const chunkedFd = new FormData();
+            chunkedFd.append('upload_id', uploadId);
+            chunkedFd.append('idempotency_key', idempotencyKey);
+            if (docDef.usePassportSession) {
+                if (docDef.legacySingleSession) {
+                    const sid = fd.get('session_id');
+                    if (sid) chunkedFd.append('session_id', sid);
+                } else {
+                    fd.getAll('session_ids').forEach(sid => chunkedFd.append('session_ids', sid));
+                }
+            }
+
+            statusText.textContent = 'در حال پردازش؛ این فرایند ممکن است چند دقیقه طول بکشد. لطفا منتظر بمانید.';
+            res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: chunkedFd
+            });
+        } catch (chunkErr) {
+            throw new Error('آپلود سند ناموفق بود. لطفاً اتصال اینترنت خود را بررسی کرده و دوباره تلاش کنید.');
+        }
+    } else if (directFailed) {
+        throw new Error('آپلود سند ناموفق بود. لطفاً اتصال اینترنت خود را بررسی کرده و دوباره تلاش کنید.');
     }
 
     if (!res.ok) {
         const err = await res.json().catch(()=>({detail:'خطای ناشناخته'}));
         throw new Error(err.detail);
     }
-
         // Backend now returns a ticket immediately -- {job_id, status,
         // price_toman, page_count} -- NOT the finished file. The actual
         // translation runs in the background; there is nothing to
