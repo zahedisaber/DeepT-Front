@@ -2627,10 +2627,7 @@ async function uploadFileInChunks(file, onProgress) {
             }
         }
 
-        if (onProgress) {
-    const percent = Math.round(((chunkIndex + 1) / totalChunks) * 100);
-    onProgress(percent);
-}
+        if (onProgress) onProgress(chunkIndex + 1, totalChunks);
     }
 
     return uploadId;
@@ -2672,10 +2669,9 @@ async function executeTranslationPipeline() {
 
     if (docType === 'academic-transcript') {
         statusText.textContent = 'در حال آپلود سند...';
-        // After
-const uploadId = await uploadFileInChunks(docSelectedFile, (percent) => {
-    statusText.textContent = `در حال آپلود سند... ${percent}%`;
-});
+        const uploadId = await uploadFileInChunks(docSelectedFile, (done, total) => {
+            statusText.textContent = `در حال آپلود قطعه ${done} از ${total}...`;
+        });
         fd.append('upload_id', uploadId);
     } else {
         fd.append('document_file', docSelectedFile);
