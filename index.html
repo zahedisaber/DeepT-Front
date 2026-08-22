@@ -2627,7 +2627,10 @@ async function uploadFileInChunks(file, onProgress) {
             }
         }
 
-        if (onProgress) onProgress(chunkIndex + 1, totalChunks);
+        if (onProgress) {
+            const percent = Math.round(((chunkIndex + 1) / totalChunks) * 100);
+            onProgress(percent);
+        }
     }
 
     return uploadId;
@@ -2667,12 +2670,19 @@ async function executeTranslationPipeline() {
     // After
     const fd = new FormData();
 
-    if (docType === 'academic-transcript') {
+        if (docType === 'academic-transcript') {
         statusText.textContent = 'در حال آپلود سند...';
-        const uploadId = await uploadFileInChunks(docSelectedFile, (done, total) => {
-            statusText.textContent = `در حال آپلود قطعه ${done} از ${total}...`;
-        });
-        fd.append('upload_id', uploadId);
+        try {
+            const uploadId = await uploadFileInChunks(docSelectedFile, (percent) => {
+                statusText.textContent = `در حال آپلود سند... ${percent}%`;
+            });
+            fd.append('upload_id', uploadId);
+        } catch (uploadErr) {
+            statusText.textContent = 'آپلود سند ناموفق بود. لطفاً دوباره تلاش کنید.';
+            statusText.style.color = 'var(--error-color, #ef4444)';
+            submitBtn.disabled = false;
+            return;
+        }
     } else {
         fd.append('document_file', docSelectedFile);
     }
