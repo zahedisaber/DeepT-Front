@@ -1977,6 +1977,24 @@ let docSelectedFile = null;
 // ═══════════════════════════════════════════════════════════
 // TOAST
 // ═══════════════════════════════════════════════════════════
+
+// Escapes user-controlled text before it's interpolated into innerHTML.
+// REQUIRED wherever a template literal injects data that originated from
+// a user (signup name/email, uploaded filenames, manually-entered names,
+// backend error messages that may echo input) -- without this, a user
+// could set e.g. their signup name to a <script>/onerror payload and have
+// it execute in another user's (or an admin's) browser when that data is
+// rendered elsewhere.
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 function showToast(msg, duration=2500) {
     const t = document.getElementById('toast');
     t.textContent = msg;
@@ -2193,7 +2211,7 @@ async function renderDashboardActiveProjects() {
         if (job.status === 'completed') {
             actionsHtml = `<button onclick="downloadJobResult('${job.id}')" class="font-bold hover:underline" style="color:var(--accent);">دانلود DOCX</button>`;
         } else if (job.status === 'failed') {
-            actionsHtml = `<span style="color:#f87171;font-size:11px;">${job.error_message || 'خطا رخ داد'}</span>`;
+                        actionsHtml = `<span style="color:#f87171;font-size:11px;">${escapeHtml(job.error_message) || 'خطا رخ داد'}</span>`;
         } else {
             actionsHtml = `<span style="color:var(--text-muted);">در حال پردازش...</span>`;
         }
@@ -2202,7 +2220,7 @@ async function renderDashboardActiveProjects() {
         row.innerHTML = `
             <td class="py-3 text-right">
                 <div class="font-black en" style="color:var(--text-main);">${job.id.slice(0,8)}</div>
-                <div class="text-[10px] truncate max-w-[170px]" style="color:var(--text-muted);">${job.original_filename || ''}</div>
+                                <div class="text-[10px] truncate max-w-[170px]" style="color:var(--text-muted);">${escapeHtml(job.original_filename)}</div>
             </td>
             <td class="py-3 text-center font-bold" style="color:var(--accent);">
                 ${typeLabel}
@@ -2489,7 +2507,7 @@ function renderConfirmedPassportsList() {
     if (!confirmedPassports.length) { box.innerHTML = ''; return; }
 box.innerHTML = confirmedPassports.map((p, idx) => `
         <div class="flex items-center justify-between p-2 rounded-lg" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
-            <span style="color:var(--text-main);">🟢 ${p.first_name} ${p.last_name}</span>
+                        <span style="color:var(--text-main);">🟢 ${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}</span>
             <button onclick="removeConfirmedPassport(${idx})" style="color:#f87171;background:none;border:none;cursor:pointer;font-weight:700;">حذف ✕</button>
         </div>
     `).join('');
@@ -3248,8 +3266,8 @@ function renderAdminUsersRows(users) {
     }
     tbody.innerHTML = users.map(u => `
         <tr style="border-bottom:1px solid var(--divider);${u.is_active === false ? 'opacity:0.5;' : ''}">
-            <td class="py-3 px-3 en" style="color:var(--text-main);">${u.email}</td>
-            <td class="py-3 px-3" style="color:var(--text-main);">${u.full_name || ''}</td>
+                        <td class="py-3 px-3 en" style="color:var(--text-main);">${escapeHtml(u.email)}</td>
+            <td class="py-3 px-3" style="color:var(--text-main);">${escapeHtml(u.full_name)}</td>
             <td class="py-3 px-3" style="color:var(--text-muted);">${u.account_type === 'office' ? 'دارالترجمه' : 'حقیقی'}</td>
             <td class="py-3 px-3 font-mono font-bold text-base" style="color:var(--accent);">${u.balance_toman.toLocaleString()}</td>
             <td class="py-3 px-3">
@@ -3418,7 +3436,7 @@ async function adminViewUserJobs(userId, email) {
                 <td class="py-2 px-2" style="color:var(--text-main);">${typeLabel(j.document_type)}</td>
                 <td class="py-2 px-2" style="color:var(--text-muted);">${statusLabel(j.status)}</td>
                 <td class="py-2 px-2 font-mono" style="color:var(--text-main);">${(j.price_toman||0).toLocaleString()}</td>
-                <td class="py-2 px-2 en" style="color:var(--text-muted);">${j.original_filename || ''}</td>
+                                <td class="py-2 px-2 en" style="color:var(--text-muted);">${escapeHtml(j.original_filename)}</td>
                 <td class="py-2 px-2 en" style="color:var(--text-muted);">${(j.created_at||'').slice(0,10)}</td>
             </tr>
         `).join('');
