@@ -1211,11 +1211,15 @@ body::before {
           <span class="font-black text-sm" style="color:var(--text-main);">بارگذاری و ترجمه سند</span>
         </div>
         
-        <div id="docDropZone" onclick="document.getElementById('docFileInput').click()" class="drop-zone-chat p-8 text-center cursor-pointer mb-4">
+                <div id="docDropZone" onclick="document.getElementById('docFileInput').click()" class="drop-zone-chat p-8 text-center cursor-pointer mb-4">
           <div class="text-3xl mb-2">📄</div>
           <p id="docDropText" class="text-xs" style="color:var(--text-muted);">فایل سند را اینجا بکشید یا کلیک کنید</p>
           <input type="file" id="docFileInput" accept="image/jpeg,image/png,application/pdf" style="display:none" onchange="handleDocFileSelection(this.files[0])">
           <div id="docFileInfo" class="text-xs font-bold hidden mt-1" style="color:var(--accent);"></div>
+        </div>
+        <div id="courseCodesToggleWrap" class="hidden flex items-center gap-2 mb-4 p-2.5 rounded-lg text-xs" style="background:var(--panel-bg);border:1px solid var(--border-color);">
+          <input type="checkbox" id="includeCourseCodesCheckbox" checked style="width:16px;height:16px;cursor:pointer;flex-shrink:0;">
+          <label for="includeCourseCodesCheckbox" style="color:var(--text-main);cursor:pointer;">نمایش کد دروس در ترجمه <span style="color:var(--text-muted);">(در صورت عدم انتخاب، ستون کد درس حذف می‌شود)</span></label>
         </div>
         <div id="processingStatusBubble" class="hidden flex items-center gap-3 p-3 rounded-xl mb-3 text-sm" style="background:var(--panel-bg);border:1px solid var(--border-color);">
           <div id="statusMessageIcon" class="shrink-0" style="width:32px;height:32px;position:relative;">
@@ -2350,7 +2354,11 @@ function showOnlyStage(stage) {
                 ? confirmedPassports.map(p => `${p.first_name} ${p.last_name}`).join('، ')
                 : 'بدون پاسپورت';
     }
-    document.getElementById('step2Panel').classList.toggle('hidden', stage !== 'document');
+        document.getElementById('step2Panel').classList.toggle('hidden', stage !== 'document');
+    if (stage === 'document') {
+        const currentDocType = document.getElementById('docTemplate').value;
+        document.getElementById('courseCodesToggleWrap').classList.toggle('hidden', currentDocType !== 'academic-transcript');
+    }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -2689,6 +2697,11 @@ async function executeTranslationPipeline() {
     const fd = new FormData();
     fd.append('document_file', docSelectedFile);
     fd.append('idempotency_key', idempotencyKey);
+
+    if (docType === 'academic-transcript') {
+        const includeCourseCodes = document.getElementById('includeCourseCodesCheckbox').checked;
+        fd.append('include_course_codes', includeCourseCodes ? 'true' : 'false');
+    }
     
     // Passport session(s). police-certificate still uses its old backend
     // contract (legacySingleSession) until that repo is updated; every other
@@ -2759,6 +2772,9 @@ if (docDef.usePassportSession) {
             const chunkedFd = new FormData();
             chunkedFd.append('upload_id', uploadId);
             chunkedFd.append('idempotency_key', idempotencyKey);
+            if (docType === 'academic-transcript') {
+                chunkedFd.append('include_course_codes', fd.get('include_course_codes'));
+            }
             if (docDef.usePassportSession) {
                 if (docDef.legacySingleSession) {
                     const sid = fd.get('session_id');
