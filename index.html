@@ -2285,11 +2285,13 @@ function applyRouteForPath(path) {
             openLogin();
             showToast('برای دسترسی به این بخش، ابتدا وارد شوید.');
         }
+    } else if (path === '/login') {
+        showLandingView();
+        openLogin();
     } else {
         showLandingView();
     }
 }
-
 window.addEventListener('popstate', () => {
     applyRouteForPath(location.pathname);
 });
@@ -3517,7 +3519,22 @@ function toggleTheme() { toggleGlobalTheme(); }
         currentUserSession=loadSession();
     }
 
-    syncUserSessionDOM();
+        syncUserSessionDOM();
+
+    // Email activation redirect (from DeepT-Core's /auth/activate) --
+    // opens the login modal directly so the user can enter their password
+    // right away, instead of landing on a bare page.
+    const activated = params.get('activated');
+    if (activated === 'success') {
+        showToast('✅ ایمیل شما تایید شد. اکنون وارد شوید.');
+        openLogin();
+        window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (activated === 'error') {
+        showToast('⚠️ لینک فعال‌سازی نامعتبر یا قبلاً استفاده شده است.');
+        openLogin();
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
     // Routing decision is made once, by applyRouteForPath, based on the
     // actual URL -- not here, to avoid overriding it with a path-blind
     // "logged in = dashboard" rule.
