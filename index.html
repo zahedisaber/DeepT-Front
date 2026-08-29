@@ -1401,11 +1401,36 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                 </div>
             </div>
 
-            <!-- Failure Rate by Doc Type Grid -->
-            <div class="mb-6">
-                <h4 class="text-sm font-black mb-3" style="color:var(--text-main);">نرخ ناموفق و آمار به تفکیک نوع سند</h4>
-                <div id="crmDocTypeStatsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <!-- Cards will be populated dynamically -->
+            <!-- Document Type Summary Table & Graph Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <!-- Summary Table Card -->
+                <div class="p-6 rounded-xl border" style="background: var(--card-surface); border-color: var(--border-subtle); box-shadow: var(--shadow-accent);">
+                    <h4 class="text-sm font-black mb-4" style="color:var(--text-main);">📊 جدول آمار سفارشات به تفکیک نوع سند</h4>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs text-right">
+                            <thead>
+                                <tr style="border-bottom:1px solid var(--divider); color:var(--text-muted);">
+                                    <th class="py-2 px-1 font-bold">نوع سند</th>
+                                    <th class="py-2 px-1 font-bold text-center">کل سفارشات</th>
+                                    <th class="py-2 px-1 font-bold text-center">موفق</th>
+                                    <th class="py-2 px-1 font-bold text-center">ناموفق</th>
+                                    <th class="py-2 px-1 font-bold text-center">درصد سهم</th>
+                                    <th class="py-2 px-1 font-bold text-center">درآمد (تومان)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="crmDocTypeSummaryTableBody">
+                                <tr><td colspan="6" class="text-center py-4" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Distribution Graph Card -->
+                <div class="p-6 rounded-xl border" style="background: var(--card-surface); border-color: var(--border-subtle); box-shadow: var(--shadow-accent);">
+                    <h4 class="text-sm font-black mb-4" style="color:var(--text-main);">📈 نمودار توزیع سفارشات نوع سند</h4>
+                    <div id="crmDocTypeSummaryGraphContainer" class="flex flex-col gap-3">
+                        <div class="text-center py-4 text-xs" style="color:var(--text-muted);">در حال بارگذاری...</div>
+                    </div>
                 </div>
             </div>
 
@@ -3664,53 +3689,90 @@ function updateCrmDashboard() {
     document.getElementById('crmStatWorkDetails').textContent = `موفق: ${completedMonthly.length.toLocaleString()} | ناموفق: ${failedMonthly.length.toLocaleString()}`;
     document.getElementById('crmStatFailureRate').textContent = `${failureRateMonthly}%`;
     
+    // Build per-document-type aggregation across ALL jobs (not just current month)
     const docTypeStats = {};
     Object.entries(DOCUMENT_REGISTRY).forEach(([key, doc]) => {
-        docTypeStats[key] = { label: doc.label, total: 0, completed: 0, failed: 0 };
+        docTypeStats[key] = { label: doc.label, total: 0, completed: 0, failed: 0, revenue: 0 };
     });
     
     adminCrmJobsCache.forEach(j => {
         const t = j.document_type;
         if (!docTypeStats[t]) {
-            docTypeStats[t] = { label: t, total: 0, completed: 0, failed: 0 };
+            docTypeStats[t] = { label: t, total: 0, completed: 0, failed: 0, revenue: 0 };
         }
         docTypeStats[t].total++;
-        if (j.status === 'completed') docTypeStats[t].completed++;
-        else if (j.status === 'failed') docTypeStats[t].failed++;
+        if (j.status === 'completed') {
+            docTypeStats[t].completed++;
+            docTypeStats[t].revenue += (j.price_toman || 0);
+        } else if (j.status === 'failed') {
+            docTypeStats[t].failed++;
+        }
     });
-    
-    const grid = document.getElementById('crmDocTypeStatsGrid');
-    if (grid) {
-        const activeTypes = Object.entries(docTypeStats).filter(([_, s]) => s.total > 0);
-        
+
+    // Only types that have at least one job, sorted descending by total
+    const grandTotal = adminCrmJobsCache.length;
+    const activeTypes = Object.entries(docTypeStats)
+        .filter(([_, s]) => s.total > 0)
+        .sort((a, b) => b[1].total - a[1].total);
+
+    // Shared colour palette
+    const palette = ['#00ffff','#60a5fa','#a78bfa','#34d399','#f59e0b','#f87171','#fb923c','#e879f9','#38bdf8','#4ade80'];
+
+    // ── Summary Table ──────────────────────────────────────────
+    const tableTbody = document.getElementById('crmDocTypeSummaryTableBody');
+    if (tableTbody) {
         if (activeTypes.length === 0) {
-            grid.innerHTML = `<div class="col-span-full text-center py-4 text-sm" style="color:var(--text-muted);">داده‌ای برای تفکیک نوع سند وجود ندارد.</div>`;
+            tableTbody.innerHTML = `<tr><td colspan="6" class="text-center py-4" style="color:var(--text-muted);">داده‌ای وجود ندارد.</td></tr>`;
         } else {
-            grid.innerHTML = activeTypes.map(([key, s]) => {
-                const fr = ((s.failed / s.total) * 100).toFixed(1);
-                let color = '#4ade80';
-                if (fr > 15) color = '#f87171';
-                else if (fr > 5) color = '#fb923c';
-                
+            tableTbody.innerHTML = activeTypes.map(([key, s], idx) => {
+                const share = grandTotal > 0 ? ((s.total / grandTotal) * 100).toFixed(1) : '0.0';
+                const color = palette[idx % palette.length];
                 return `
-                    <div class="p-3 rounded-lg border text-xs" style="background: var(--card-surface); border-color: var(--border-subtle);">
-                        <div class="font-bold flex justify-between items-center mb-2" style="color:var(--text-main);">
-                            <span>${s.label}</span>
-                            <span class="font-mono px-2 py-0.5 rounded text-white" style="background:${color}">${fr}% خطا</span>
+                    <tr style="border-bottom:1px solid var(--divider);">
+                        <td class="py-2 px-1" style="color:var(--text-main);">
+                            <span class="inline-block w-2 h-2 rounded-full ml-1" style="background:${color};vertical-align:middle;"></span>${s.label}
+                        </td>
+                        <td class="py-2 px-1 text-center font-black en" style="color:var(--text-main);">${s.total.toLocaleString()}</td>
+                        <td class="py-2 px-1 text-center en" style="color:#4ade80;">${s.completed.toLocaleString()}</td>
+                        <td class="py-2 px-1 text-center en" style="color:#f87171;">${s.failed.toLocaleString()}</td>
+                        <td class="py-2 px-1 text-center en font-bold" style="color:var(--accent);">${share}%</td>
+                        <td class="py-2 px-1 text-center en" style="color:var(--text-muted);">${s.revenue.toLocaleString()}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+    }
+
+    // ── Horizontal Bar Graph ───────────────────────────────────
+    const graphContainer = document.getElementById('crmDocTypeSummaryGraphContainer');
+    if (graphContainer) {
+        if (activeTypes.length === 0) {
+            graphContainer.innerHTML = `<div class="text-center py-4 text-xs" style="color:var(--text-muted);">داده‌ای وجود ندارد.</div>`;
+        } else {
+            const maxTotal = activeTypes[0][1].total; // already sorted desc
+            graphContainer.innerHTML = activeTypes.map(([key, s], idx) => {
+                const barWidthPct = maxTotal > 0 ? ((s.total / maxTotal) * 100).toFixed(1) : 0;
+                const sharePct   = grandTotal > 0 ? ((s.total / grandTotal) * 100).toFixed(1) : '0.0';
+                const color = palette[idx % palette.length];
+                return `
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-xs font-bold truncate" style="color:var(--text-main); max-width:55%;" title="${s.label}">${s.label}</span>
+                            <span class="text-xs font-mono font-black en" style="color:${color}; white-space:nowrap;">
+                                ${s.total.toLocaleString()} <span style="color:var(--text-muted); font-weight:400;">(${sharePct}%)</span>
+                            </span>
                         </div>
-                        <div class="flex justify-between items-center" style="color:var(--text-muted);">
-                            <span>کل سفارشات: <strong class="en">${s.total}</strong></span>
-                            <span>موفق: <strong class="en">${s.completed}</strong> | ناموفق: <strong class="en">${s.failed}</strong></span>
-                        </div>
-                        <div class="w-full bg-gray-700 h-1 rounded-full mt-2 overflow-hidden">
-                            <div class="h-full" style="width:${100-fr}%; background: #4ade80;"></div>
+                        <div class="w-full rounded-full overflow-hidden" style="height:10px; background:var(--bg-main);">
+                            <div class="h-full rounded-full transition-all duration-700"
+                                 style="width:${barWidthPct}%; background: linear-gradient(90deg, ${color}99, ${color}); box-shadow: 0 0 6px ${color}55;">
+                            </div>
                         </div>
                     </div>
                 `;
             }).join('');
         }
     }
-    
+
     applyCrmFilters();
 }
 
