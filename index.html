@@ -1333,7 +1333,17 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
             <button onclick="adminLogout()" class="text-sm font-bold px-4 py-2 rounded-lg" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">خروج</button>
         </div>
 
-        <div class="workspace-panel p-6 mb-6">
+        <!-- Tabs for Admin Dashboard -->
+        <div class="flex gap-2 border-b mb-6" style="border-color: var(--divider);">
+            <button onclick="switchAdminTab('users')" id="adminTabUsers" class="px-4 py-2 text-sm font-black border-b-2 transition-all duration-200" style="color: var(--accent); border-color: var(--accent); background: transparent;">
+                مدیریت کاربران
+            </button>
+            <button onclick="switchAdminTab('crm')" id="adminTabCrm" class="px-4 py-2 text-sm font-bold border-b-2 border-transparent transition-all duration-200" style="color: var(--text-muted); background: transparent;">
+                گزارشات و CRM
+            </button>
+        </div>
+
+        <div id="adminUsersPanel" class="workspace-panel p-6 mb-6">
             <div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
                 <h3 class="text-base font-black" style="color:var(--text-main);">لیست کاربران</h3>
                 <div class="flex items-center gap-2">
@@ -1357,6 +1367,90 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                     </thead>
                     <tbody id="adminUsersRowsBlock">
                         <tr><td colspan="6" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- CRM (Customer Relationship Management) Panel -->
+        <div id="adminCrmPanel" class="workspace-panel p-6 mb-6 hidden">
+            <div class="flex items-center justify-between mb-6 gap-3 flex-wrap">
+                <h3 class="text-base font-black" style="color:var(--text-main);">گزارشات و CRM</h3>
+                <button onclick="loadAdminCrmData()" class="text-sm font-bold px-4 py-2 rounded-lg" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">بروزرسانی داده‌ها</button>
+            </div>
+            
+            <!-- Monthly Stats Grid -->
+            <div id="crmStatsContainer" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <!-- Stat Card 1: Profit -->
+                <div class="p-4 rounded-xl border" style="background: var(--card-surface); border-color: var(--border-subtle); box-shadow: var(--shadow-accent);">
+                    <div class="text-xs font-bold" style="color: var(--text-muted);">سود ماه جاری (تومان)</div>
+                    <div class="text-2xl font-black mt-2 en" id="crmStatProfit">0</div>
+                    <div class="text-xs mt-1" style="color: var(--text-muted);">جمع پرداختی کارهای موفق این ماه</div>
+                </div>
+                <!-- Stat Card 2: Work Count -->
+                <div class="p-4 rounded-xl border" style="background: var(--card-surface); border-color: var(--border-subtle); box-shadow: var(--shadow-accent);">
+                    <div class="text-xs font-bold" style="color: var(--text-muted);">تعداد کل کارهای ماه جاری</div>
+                    <div class="text-2xl font-black mt-2 en" id="crmStatWorkCount">0</div>
+                    <div class="text-xs mt-1" style="color: var(--text-muted);" id="crmStatWorkDetails">موفق: 0 | ناموفق: 0</div>
+                </div>
+                <!-- Stat Card 3: Failure Rate -->
+                <div class="p-4 rounded-xl border" style="background: var(--card-surface); border-color: var(--border-subtle); box-shadow: var(--shadow-accent);">
+                    <div class="text-xs font-bold" style="color: var(--text-muted);">نرخ ناموفق ماه جاری</div>
+                    <div class="text-2xl font-black mt-2 en" id="crmStatFailureRate">0%</div>
+                    <div class="text-xs mt-1" style="color: var(--text-muted);">نسبت کارهای ناموفق به کل</div>
+                </div>
+            </div>
+
+            <!-- Failure Rate by Doc Type Grid -->
+            <div class="mb-6">
+                <h4 class="text-sm font-black mb-3" style="color:var(--text-main);">نرخ ناموفق و آمار به تفکیک نوع سند</h4>
+                <div id="crmDocTypeStatsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <!-- Cards will be populated dynamically -->
+                </div>
+            </div>
+
+            <!-- Filters section -->
+            <div class="flex flex-wrap gap-3 items-center justify-between mb-4 p-4 rounded-xl border" style="background: var(--bg-main); border-color: var(--border-subtle);">
+                <div class="flex flex-wrap gap-2 items-center">
+                    <input type="text" id="crmEmailFilter" placeholder="جستجو با ایمیل..." class="auth-input text-sm w-48 py-2 en" dir="ltr" oninput="applyCrmFilters()">
+                    <select id="crmDocTypeFilter" class="auth-input text-sm w-48 py-2" onchange="applyCrmFilters()" style="background: var(--input-bg); color: var(--text-main); border-color: var(--input-border); border-radius: 0.5rem; padding: 0.5rem;">
+                        <option value="">همه نوع سند</option>
+                    </select>
+                    <select id="crmStatusFilter" class="auth-input text-sm w-36 py-2" onchange="applyCrmFilters()" style="background: var(--input-bg); color: var(--text-main); border-color: var(--input-border); border-radius: 0.5rem; padding: 0.5rem;">
+                        <option value="">همه وضعیت‌ها</option>
+                        <option value="queued">در صف</option>
+                        <option value="processing">در حال پردازش</option>
+                        <option value="completed">تکمیل شده</option>
+                        <option value="failed">ناموفق</option>
+                    </select>
+                    <select id="crmDateFilter" class="auth-input text-sm w-36 py-2" onchange="applyCrmFilters()" style="background: var(--input-bg); color: var(--text-main); border-color: var(--input-border); border-radius: 0.5rem; padding: 0.5rem;">
+                        <option value="">همه زمان‌ها</option>
+                        <option value="today">امروز</option>
+                        <option value="yesterday">دیروز</option>
+                        <option value="last7">۷ روز اخیر</option>
+                        <option value="last30">۳۰ روز اخیر</option>
+                        <option value="thisMonth">ماه جاری</option>
+                    </select>
+                </div>
+                <div class="text-xs font-bold" style="color: var(--text-muted);" id="crmFilteredCount">یافت شده: ۰ کار</div>
+            </div>
+
+            <!-- CRM Jobs List Table -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-right">
+                    <thead>
+                        <tr style="border-bottom:1px solid var(--divider);color:var(--text-muted);">
+                            <th class="py-3 px-2 font-bold">ایمیل</th>
+                            <th class="py-3 px-2 font-bold">نوع سند</th>
+                            <th class="py-3 px-2 font-bold text-center">وضعیت</th>
+                            <th class="py-3 px-2 font-bold text-center">تاریخ</th>
+                            <th class="py-3 px-2 font-bold text-center">هزینه (تومان)</th>
+                            <th class="py-3 px-2 font-bold">نام فایل</th>
+                            <th class="py-3 px-2 font-bold">جزئیات خطا</th>
+                        </tr>
+                    </thead>
+                    <tbody id="crmJobsTableBody">
+                        <tr><td colspan="7" class="text-center py-8 text-sm" style="color:var(--text-muted);">داده‌ای وجود ندارد.</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -3259,6 +3353,7 @@ function showAdminDashboard() {
     if (lp) lp.style.display = 'none';
     document.getElementById('workspaceDashboard').classList.add('hidden');
     document.getElementById('adminDashboard').classList.remove('hidden');
+    switchAdminTab('users');
     loadAdminUsers();
 }
 
@@ -3460,6 +3555,254 @@ async function adminViewUserJobs(userId, email) {
         tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در اتصال.</td></tr>`;
     }
 }
+
+// ── CRM PANEL LOGIC ──
+var adminCrmJobsCache = [];
+
+function switchAdminTab(tab) {
+    const usersPanel = document.getElementById('adminUsersPanel');
+    const crmPanel = document.getElementById('adminCrmPanel');
+    const tabUsersBtn = document.getElementById('adminTabUsers');
+    const tabCrmBtn = document.getElementById('adminTabCrm');
+    
+    const jobsPanel = document.getElementById('adminUserJobsPanel');
+    if (jobsPanel) jobsPanel.classList.add('hidden');
+    
+    if (tab === 'users') {
+        if (usersPanel) usersPanel.classList.remove('hidden');
+        if (crmPanel) crmPanel.classList.add('hidden');
+        
+        if (tabUsersBtn) {
+            tabUsersBtn.classList.add('border-b-2');
+            tabUsersBtn.style.borderColor = 'var(--accent)';
+            tabUsersBtn.style.color = 'var(--accent)';
+            tabUsersBtn.classList.remove('border-transparent');
+        }
+        if (tabCrmBtn) {
+            tabCrmBtn.classList.remove('border-b-2');
+            tabCrmBtn.style.borderColor = 'transparent';
+            tabCrmBtn.style.color = 'var(--text-muted)';
+        }
+    } else if (tab === 'crm') {
+        if (usersPanel) usersPanel.classList.add('hidden');
+        if (crmPanel) crmPanel.classList.remove('hidden');
+        
+        if (tabCrmBtn) {
+            tabCrmBtn.classList.add('border-b-2');
+            tabCrmBtn.style.borderColor = 'var(--accent)';
+            tabCrmBtn.style.color = 'var(--accent)';
+            tabCrmBtn.classList.remove('border-transparent');
+        }
+        if (tabUsersBtn) {
+            tabUsersBtn.classList.remove('border-b-2');
+            tabUsersBtn.style.borderColor = 'transparent';
+            tabUsersBtn.style.color = 'var(--text-muted)';
+        }
+        
+        loadAdminCrmData();
+    }
+}
+
+async function loadAdminCrmData() {
+    const token = localStorage.getItem('deept_token');
+    const tableBody = document.getElementById('crmJobsTableBody');
+    if (tableBody) {
+        tableBody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری داده‌های CRM...</td></tr>`;
+    }
+    
+    try {
+        const res = await fetch(`${CORE}/jobs/admin/all`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) {
+            if (tableBody) tableBody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در بارگذاری داده‌های CRM.</td></tr>`;
+            showToast('خطا در بارگذاری داده‌های CRM');
+            return;
+        }
+        adminCrmJobsCache = await res.json();
+        
+        populateCrmDocTypeFilter();
+        updateCrmDashboard();
+    } catch (e) {
+        console.error(e);
+        if (tableBody) tableBody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در اتصال به سرور.</td></tr>`;
+        showToast('خطا در ارتباط با سرور.');
+    }
+}
+
+function populateCrmDocTypeFilter() {
+    const select = document.getElementById('crmDocTypeFilter');
+    if (!select || select.options.length > 1) return;
+    
+    Object.entries(DOCUMENT_REGISTRY).forEach(([key, doc]) => {
+        const opt = document.createElement('option');
+        opt.value = key;
+        opt.textContent = doc.label;
+        select.appendChild(opt);
+    });
+}
+
+function updateCrmDashboard() {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    
+    const monthlyJobs = adminCrmJobsCache.filter(j => {
+        const d = new Date(j.created_at);
+        return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+    });
+    
+    const totalMonthly = monthlyJobs.length;
+    const completedMonthly = monthlyJobs.filter(j => j.status === 'completed');
+    const failedMonthly = monthlyJobs.filter(j => j.status === 'failed');
+    
+    const profitMonthly = completedMonthly.reduce((sum, j) => sum + (j.price_toman || 0), 0);
+    const failureRateMonthly = totalMonthly > 0 ? ((failedMonthly.length / totalMonthly) * 100).toFixed(1) : '0';
+    
+    document.getElementById('crmStatProfit').textContent = profitMonthly.toLocaleString();
+    document.getElementById('crmStatWorkCount').textContent = totalMonthly.toLocaleString();
+    document.getElementById('crmStatWorkDetails').textContent = `موفق: ${completedMonthly.length.toLocaleString()} | ناموفق: ${failedMonthly.length.toLocaleString()}`;
+    document.getElementById('crmStatFailureRate').textContent = `${failureRateMonthly}%`;
+    
+    const docTypeStats = {};
+    Object.entries(DOCUMENT_REGISTRY).forEach(([key, doc]) => {
+        docTypeStats[key] = { label: doc.label, total: 0, completed: 0, failed: 0 };
+    });
+    
+    adminCrmJobsCache.forEach(j => {
+        const t = j.document_type;
+        if (!docTypeStats[t]) {
+            docTypeStats[t] = { label: t, total: 0, completed: 0, failed: 0 };
+        }
+        docTypeStats[t].total++;
+        if (j.status === 'completed') docTypeStats[t].completed++;
+        else if (j.status === 'failed') docTypeStats[t].failed++;
+    });
+    
+    const grid = document.getElementById('crmDocTypeStatsGrid');
+    if (grid) {
+        const activeTypes = Object.entries(docTypeStats).filter(([_, s]) => s.total > 0);
+        
+        if (activeTypes.length === 0) {
+            grid.innerHTML = `<div class="col-span-full text-center py-4 text-sm" style="color:var(--text-muted);">داده‌ای برای تفکیک نوع سند وجود ندارد.</div>`;
+        } else {
+            grid.innerHTML = activeTypes.map(([key, s]) => {
+                const fr = ((s.failed / s.total) * 100).toFixed(1);
+                let color = '#4ade80';
+                if (fr > 15) color = '#f87171';
+                else if (fr > 5) color = '#fb923c';
+                
+                return `
+                    <div class="p-3 rounded-lg border text-xs" style="background: var(--card-surface); border-color: var(--border-subtle);">
+                        <div class="font-bold flex justify-between items-center mb-2" style="color:var(--text-main);">
+                            <span>${s.label}</span>
+                            <span class="font-mono px-2 py-0.5 rounded text-white" style="background:${color}">${fr}% خطا</span>
+                        </div>
+                        <div class="flex justify-between items-center" style="color:var(--text-muted);">
+                            <span>کل سفارشات: <strong class="en">${s.total}</strong></span>
+                            <span>موفق: <strong class="en">${s.completed}</strong> | ناموفق: <strong class="en">${s.failed}</strong></span>
+                        </div>
+                        <div class="w-full bg-gray-700 h-1 rounded-full mt-2 overflow-hidden">
+                            <div class="h-full" style="width:${100-fr}%; background: #4ade80;"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+    
+    applyCrmFilters();
+}
+
+function applyCrmFilters() {
+    const emailQuery = (document.getElementById('crmEmailFilter').value || '').trim().toLowerCase();
+    const docTypeVal = document.getElementById('crmDocTypeFilter').value;
+    const statusVal = document.getElementById('crmStatusFilter').value;
+    const dateVal = document.getElementById('crmDateFilter').value;
+    
+    const now = new Date();
+    
+    const filtered = adminCrmJobsCache.filter(j => {
+        if (emailQuery && !(j.email || '').toLowerCase().includes(emailQuery)) {
+            return false;
+        }
+        if (docTypeVal && j.document_type !== docTypeVal) {
+            return false;
+        }
+        if (statusVal && j.status !== statusVal) {
+            return false;
+        }
+        if (dateVal) {
+            const jobDate = new Date(j.created_at);
+            if (dateVal === 'today') {
+                if (jobDate.toDateString() !== now.toDateString()) return false;
+            } else if (dateVal === 'yesterday') {
+                const yesterday = new Date();
+                yesterday.setDate(now.getDate() - 1);
+                if (jobDate.toDateString() !== yesterday.toDateString()) return false;
+            } else if (dateVal === 'last7') {
+                const diffTime = Math.abs(now - jobDate);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                if (diffDays > 7) return false;
+            } else if (dateVal === 'last30') {
+                const diffTime = Math.abs(now - jobDate);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                if (diffDays > 30) return false;
+            } else if (dateVal === 'thisMonth') {
+                if (jobDate.getFullYear() !== now.getFullYear() || jobDate.getMonth() !== now.getMonth()) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    });
+    
+    document.getElementById('crmFilteredCount').textContent = `یافت شده: ${filtered.length.toLocaleString()} کار`;
+    
+    const tbody = document.getElementById('crmJobsTableBody');
+    if (!tbody) return;
+    
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-sm" style="color:var(--text-muted);">هیچ کاری با مشخصات فیلتر شده یافت نشد.</td></tr>`;
+        return;
+    }
+    
+    const typeLabel = (t) => DOCUMENT_REGISTRY[t]?.label || t;
+    const statusLabel = (s) => ({
+        queued: 'در صف',
+        processing: 'در حال پردازش',
+        completed: 'تکمیل شده',
+        failed: 'ناموفق'
+    }[s] || s);
+    
+    const statusBadgeStyle = (s) => {
+        if (s === 'completed') return 'background:#4ade80; color:#000; font-weight:bold;';
+        if (s === 'failed') return 'background:#f87171; color:#fff; font-weight:bold;';
+        if (s === 'processing') return 'background:#60a5fa; color:#000; font-weight:bold;';
+        return 'background:#9ca3af; color:#000;';
+    };
+    
+    tbody.innerHTML = filtered.map(j => {
+        const errMsg = j.error_message ? escapeHtml(j.error_message) : '—';
+        const dateStr = (j.created_at || '').slice(0, 10) + ' ' + (j.created_at || '').slice(11, 16);
+        return `
+            <tr style="border-bottom:1px solid var(--divider);">
+                <td class="py-2 px-2 en text-right" style="color:var(--text-main); font-size:0.8rem;" dir="ltr">${escapeHtml(j.email)}</td>
+                <td class="py-2 px-2" style="color:var(--text-main);">${typeLabel(j.document_type)}</td>
+                <td class="py-2 px-2 text-center">
+                    <span class="px-2 py-0.5 rounded text-xs" style="${statusBadgeStyle(j.status)}">
+                        ${statusLabel(j.status)}
+                    </span>
+                </td>
+                <td class="py-2 px-2 text-center en" style="color:var(--text-muted); font-size:0.8rem;">${dateStr}</td>
+                <td class="py-2 px-2 text-center font-mono" style="color:var(--text-main);">${(j.price_toman || 0).toLocaleString()}</td>
+                <td class="py-2 px-2 en text-right" style="color:var(--text-muted); font-size:0.85rem;" dir="ltr">${escapeHtml(j.original_filename)}</td>
+                <td class="py-2 px-2 text-xs text-red-400 max-w-xs truncate" title="${errMsg}" style="color: #fb7185;">${errMsg}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
 function showDashboardView() {
     const lp=document.getElementById('landingPage');
     if(lp) lp.style.display='none';
