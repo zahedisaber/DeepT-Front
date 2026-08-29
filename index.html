@@ -3281,7 +3281,7 @@ function renderAdminUsersRows(users) {
         return;
     }
     tbody.innerHTML = users.map(u => `
-        <tr style="border-bottom:1px solid var(--divider);${u.is_active === false ? 'opacity:0.5;' : ''}">
+        <tr style="border-bottom:1px solid var(--divider);${(u.email_verified === false || u.is_active === false) ? 'opacity:0.5;' : ''}">
                         <td class="py-3 px-3 en" style="color:var(--text-main);">${escapeHtml(u.email)}</td>
             <td class="py-3 px-3" style="color:var(--text-main);">${escapeHtml(u.full_name)}</td>
             <td class="py-3 px-3" style="color:var(--text-muted);">${u.account_type === 'office' ? 'دارالترجمه' : 'حقیقی'}</td>
@@ -3300,8 +3300,8 @@ function renderAdminUsersRows(users) {
             </td>
             <td class="py-3 px-3">
                     <div class="flex flex-col items-start gap-1.5">
-                        <button onclick="adminToggleActive('${u.user_id}', ${u.is_active === false})" class="text-sm font-bold px-3 py-2 rounded-lg" style="background:${u.is_active === false ? '#4ade80' : '#f87171'};color:#fff;">
-                            ${u.is_active === false ? 'فعال‌سازی' : 'غیرفعال‌سازی'}
+                        <button onclick="adminToggleActive('${u.user_id}', ${u.email_verified === false || u.is_active === false})" class="text-sm font-bold px-3 py-2 rounded-lg" style="background:${(u.email_verified === false || u.is_active === false) ? '#4ade80' : '#f87171'};color:#fff;">
+                            ${(u.email_verified === false || u.is_active === false) ? 'فعال‌سازی' : 'غیرفعال‌سازی'}
                         </button>
                         <button onclick="adminDeleteUser('${u.user_id}', '${(u.email||'').replace(/'/g,"")}')" class="text-sm font-bold px-3 py-2 rounded-lg" style="background:#7f1d1d;color:#fff;">
                             حذف دائمی
