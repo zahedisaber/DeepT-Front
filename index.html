@@ -1160,6 +1160,10 @@ body::before {
     <h4 class="text-sm font-black mb-2 flex items-center gap-1.5" style="color:var(--text-main);">📊 سابقه پروژه‌ها (<span class="en" id="cd-job-count">۰</span>)</h4>
     <div id="cd-jobs-list" class="space-y-1.5 mb-5"></div>
 
+    <h4 class="text-sm font-black mb-2 flex items-center gap-1.5" style="color:var(--text-main);">📄 اسناد سامانه سنام (<span class="en" id="cd-sanam-doc-count">۰</span>)</h4>
+    <p class="text-[11px] mb-2" style="color:var(--text-muted);">اسنادی که برای این مشتری از فایل اکسل سنام وارد شده، به همراه تاریخ هر سند — هر بار که فایل سنام دوباره بارگذاری شود، اسناد جدید همین‌جا اضافه می‌شوند.</p>
+    <div id="cd-sanam-docs-list" class="space-y-1.5 mb-5"></div>
+
     <div class="p-3.5 rounded-xl mb-5" style="background:var(--bg-main);border:1px solid var(--border-color);">
       <h4 class="text-sm font-black flex items-center gap-1.5 mb-2.5" style="color:var(--text-main);">🧮 پیش‌نویس فاکتور</h4>
       <div class="flex flex-wrap items-center gap-2 mb-2.5">
@@ -2978,6 +2982,20 @@ async function openClientDetail(clientId) {
                 </div>`;
             }).join('');
         }
+
+        // Sanam-imported documents -- not a DeepT job (no status/price to
+        // show), just what was translated and when, straight from the
+        // excel import(s) done for this client so far.
+        const sanamDocs = c.sanam_documents || [];
+        document.getElementById('cd-sanam-doc-count').textContent = sanamDocs.length;
+        const sanamBox = document.getElementById('cd-sanam-docs-list');
+        sanamBox.innerHTML = !sanamDocs.length
+            ? `<div class="text-xs text-center py-4" style="color:var(--text-muted);">// سندی از سنام وارد نشده</div>`
+            : sanamDocs.map(d => `
+                <div class="flex items-center gap-2.5 p-2.5 rounded-lg text-xs" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
+                    <span class="flex-1" style="color:var(--text-main);">${escapeHtml(d.description)}${d.quantity > 1 ? ` <span class="en" style="color:var(--text-muted);">×${d.quantity}</span>` : ''}</span>
+                    <span class="en shrink-0" style="color:var(--text-muted);">${d.date ? escapeHtml(d.date.slice(0, 10)) : '—'}</span>
+                </div>`).join('');
 
         renderDraftRows();
         await renderClientInvoices(clientId);
