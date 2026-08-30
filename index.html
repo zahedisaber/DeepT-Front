@@ -1205,7 +1205,7 @@ body::before {
       </div>
       <div id="docTypeStageBody" class="mb-4">
 <div class="relative">
-            <input type="text" id="docTemplateSearch" class="auth-input" style="font-family:'Vazirmatn',sans-serif;" placeholder="جستجوی نوع مدرک..." autocomplete="off" oninput="filterDocDropdown()" onfocus="openDocDropdownList()">
+            <input type="text" id="docTemplateSearch" class="auth-input" style="font-family:'Vazirmatn',sans-serif;" placeholder="برای یافتن مدرک مورد نظر یک کلید واژه را تایپ کنید..." autocomplete="off" oninput="filterDocDropdown()" onfocus="openDocDropdownList()">
 <div id="docTemplateOptions" class="hidden z-50 rounded-lg" style="background:var(--card-surface); border:1px solid var(--border-color);"></div>
             <select id="docTemplate" style="display:none;" onchange="handleDocTypeSelected()"></select>
         </div>
@@ -1227,11 +1227,10 @@ body::before {
         <div id="multiPassportBlock" class="hidden mb-4 p-3 rounded-xl text-xs" style="background:var(--panel-bg);border:1px solid var(--border-color);">
           <div class="flex items-center justify-between">
             <span style="color:var(--text-muted);">پاسپورت‌های ثبت‌شده: <b id="multiPassportCount" style="color:var(--accent);">۰</b> نفر</span>
-            <button onclick="addExtraPassport()" class="font-black px-3 py-1.5 rounded-lg" style="background:var(--accent);color:var(--btn-text-on-accent);">+ افزودن پاسپورت</button>
-          </div>
+            <button id="addPassportBtn" onclick="addExtraPassport()" class="hidden font-black px-3 py-1.5 rounded-lg" style="background:var(--accent);color:var(--btn-text-on-accent);">+ افزودن پاسپورت</button>          </div>
           <div id="confirmedPassportsList" class="space-y-1.5 mt-2"></div>
         </div>
-        <div class="space-y-2 mb-4">
+        <div id="ppModeButtons" class="space-y-2 mb-4">
           <button onclick="ppSetMode('upload')" class="w-full flex items-center gap-3 p-3 rounded-xl border text-right transition" style="border-color:var(--border-color);background:var(--bg-main);" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border-color)'">
             <span class="text-xl shrink-0">📤</span>
             <div><div class="font-black text-sm" style="color:var(--text-main);">بارگذاری تصویر پاسپورت</div><div class="text-xs mt-0.5" style="color:var(--text-muted);">اطلاعات به‌صورت خودکار استخراج می‌شود</div></div>
@@ -1290,7 +1289,7 @@ body::before {
         </div>
         <div class="grid grid-cols-2 gap-3 mt-2">
           <button onclick="goBackToDocTypeStage()" class="py-2.5 rounded-xl text-sm font-black transition" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-color);">→ بازگشت</button>
-          <button onclick="continueToDocumentStep()" class="py-2.5 rounded-xl text-sm font-black transition" style="background:var(--accent);color:var(--btn-text-on-accent);">ادامه به بارگذاری سند ←</button>
+          <button id="continueToDocBtn" onclick="continueToDocumentStep()" class="hidden py-2.5 rounded-xl text-sm font-black transition" style="background:var(--accent);color:var(--btn-text-on-accent);">ادامه به بارگذاری سند ←</button>
         </div>
       </div>
       <div id="passportStageSummary" class="hidden flex items-center justify-between mb-4 p-2.5 rounded-lg text-xs" style="background:var(--panel-bg);border:1px solid var(--border-color);">
@@ -1307,11 +1306,15 @@ body::before {
           <span class="font-black text-sm" style="color:var(--text-main);">بارگذاری و ترجمه سند</span>
         </div>
         
-        <div id="docDropZone" onclick="document.getElementById('docFileInput').click()" class="drop-zone-chat p-8 text-center cursor-pointer mb-4">
+                <div id="docDropZone" onclick="document.getElementById('docFileInput').click()" class="drop-zone-chat p-8 text-center cursor-pointer mb-4">
           <div class="text-3xl mb-2">📄</div>
           <p id="docDropText" class="text-xs" style="color:var(--text-muted);">فایل سند را اینجا بکشید یا کلیک کنید</p>
           <input type="file" id="docFileInput" accept="image/jpeg,image/png,application/pdf" style="display:none" onchange="handleDocFileSelection(this.files[0])">
           <div id="docFileInfo" class="text-xs font-bold hidden mt-1" style="color:var(--accent);"></div>
+        </div>
+        <div id="courseCodesToggleWrap" class="hidden flex items-center gap-2 mb-4 p-2.5 rounded-lg text-xs" style="background:var(--panel-bg);border:1px solid var(--border-color);">
+          <input type="checkbox" id="includeCourseCodesCheckbox" checked style="width:16px;height:16px;cursor:pointer;flex-shrink:0;">
+          <label for="includeCourseCodesCheckbox" style="color:var(--text-main);cursor:pointer;">نمایش کد دروس در ترجمه <span style="color:var(--text-muted);">(در صورت عدم انتخاب، ستون کد درس حذف می‌شود)</span></label>
         </div>
         <div id="processingStatusBubble" class="hidden flex items-center gap-3 p-3 rounded-xl mb-3 text-sm" style="background:var(--panel-bg);border:1px solid var(--border-color);">
           <div id="statusMessageIcon" class="shrink-0" style="width:32px;height:32px;position:relative;">
@@ -1465,7 +1468,17 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
             <button onclick="adminLogout()" class="text-sm font-bold px-4 py-2 rounded-lg" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">خروج</button>
         </div>
 
-        <div class="workspace-panel p-6 mb-6">
+        <!-- Tabs for Admin Dashboard -->
+        <div class="flex gap-2 border-b mb-6" style="border-color: var(--divider);">
+            <button onclick="switchAdminTab('users')" id="adminTabUsers" class="px-4 py-2 text-sm font-black border-b-2 transition-all duration-200" style="color: var(--accent); border-color: var(--accent); background: transparent;">
+                مدیریت کاربران
+            </button>
+            <button onclick="switchAdminTab('crm')" id="adminTabCrm" class="px-4 py-2 text-sm font-bold border-b-2 border-transparent transition-all duration-200" style="color: var(--text-muted); background: transparent;">
+                گزارشات و CRM
+            </button>
+        </div>
+
+        <div id="adminUsersPanel" class="workspace-panel p-6 mb-6">
             <div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
                 <h3 class="text-base font-black" style="color:var(--text-main);">لیست کاربران</h3>
                 <div class="flex items-center gap-2">
@@ -1489,6 +1502,115 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                     </thead>
                     <tbody id="adminUsersRowsBlock">
                         <tr><td colspan="6" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- CRM (Customer Relationship Management) Panel -->
+        <div id="adminCrmPanel" class="workspace-panel p-6 mb-6 hidden">
+            <div class="flex items-center justify-between mb-6 gap-3 flex-wrap">
+                <h3 class="text-base font-black" style="color:var(--text-main);">گزارشات و CRM</h3>
+                <button onclick="loadAdminCrmData()" class="text-sm font-bold px-4 py-2 rounded-lg" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">بروزرسانی داده‌ها</button>
+            </div>
+            
+            <!-- Monthly Stats Grid -->
+            <div id="crmStatsContainer" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <!-- Stat Card 1: Profit -->
+                <div class="p-4 rounded-xl border" style="background: var(--card-surface); border-color: var(--border-subtle); box-shadow: var(--shadow-accent);">
+                    <div class="text-xs font-bold" style="color: var(--text-muted);">سود ماه جاری (تومان)</div>
+                    <div class="text-2xl font-black mt-2 en" id="crmStatProfit">0</div>
+                    <div class="text-xs mt-1" style="color: var(--text-muted);">جمع پرداختی کارهای موفق این ماه</div>
+                </div>
+                <!-- Stat Card 2: Work Count -->
+                <div class="p-4 rounded-xl border" style="background: var(--card-surface); border-color: var(--border-subtle); box-shadow: var(--shadow-accent);">
+                    <div class="text-xs font-bold" style="color: var(--text-muted);">تعداد کل کارهای ماه جاری</div>
+                    <div class="text-2xl font-black mt-2 en" id="crmStatWorkCount">0</div>
+                    <div class="text-xs mt-1" style="color: var(--text-muted);" id="crmStatWorkDetails">موفق: 0 | ناموفق: 0</div>
+                </div>
+                <!-- Stat Card 3: Failure Rate -->
+                <div class="p-4 rounded-xl border" style="background: var(--card-surface); border-color: var(--border-subtle); box-shadow: var(--shadow-accent);">
+                    <div class="text-xs font-bold" style="color: var(--text-muted);">نرخ ناموفق ماه جاری</div>
+                    <div class="text-2xl font-black mt-2 en" id="crmStatFailureRate">0%</div>
+                    <div class="text-xs mt-1" style="color: var(--text-muted);">نسبت کارهای ناموفق به کل</div>
+                </div>
+            </div>
+
+            <!-- Document Type Summary Table & Graph Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                <!-- Summary Table Card -->
+                <div class="p-6 rounded-xl border" style="background: var(--card-surface); border-color: var(--border-subtle); box-shadow: var(--shadow-accent);">
+                    <h4 class="text-sm font-black mb-4" style="color:var(--text-main);">📊 جدول آمار سفارشات به تفکیک نوع سند</h4>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs text-right">
+                            <thead>
+                                <tr style="border-bottom:1px solid var(--divider); color:var(--text-muted);">
+                                    <th class="py-2 px-1 font-bold">نوع سند</th>
+                                    <th class="py-2 px-1 font-bold text-center">کل سفارشات</th>
+                                    <th class="py-2 px-1 font-bold text-center">موفق</th>
+                                    <th class="py-2 px-1 font-bold text-center">ناموفق</th>
+                                    <th class="py-2 px-1 font-bold text-center">درصد سهم</th>
+                                    <th class="py-2 px-1 font-bold text-center">درآمد (تومان)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="crmDocTypeSummaryTableBody">
+                                <tr><td colspan="6" class="text-center py-4" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Distribution Graph Card -->
+                <div class="p-6 rounded-xl border" style="background: var(--card-surface); border-color: var(--border-subtle); box-shadow: var(--shadow-accent);">
+                    <h4 class="text-sm font-black mb-4" style="color:var(--text-main);">📈 نمودار توزیع سفارشات نوع سند</h4>
+                    <div id="crmDocTypeSummaryGraphContainer" class="flex flex-col gap-3">
+                        <div class="text-center py-4 text-xs" style="color:var(--text-muted);">در حال بارگذاری...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filters section -->
+            <div class="flex flex-wrap gap-3 items-center justify-between mb-4 p-4 rounded-xl border" style="background: var(--bg-main); border-color: var(--border-subtle);">
+                <div class="flex flex-wrap gap-2 items-center">
+                    <input type="text" id="crmEmailFilter" placeholder="جستجو با ایمیل..." class="auth-input text-sm w-48 py-2 en" dir="ltr" oninput="applyCrmFilters()">
+                    <select id="crmDocTypeFilter" class="auth-input text-sm w-48 py-2" onchange="applyCrmFilters()" style="background: var(--input-bg); color: var(--text-main); border-color: var(--input-border); border-radius: 0.5rem; padding: 0.5rem;">
+                        <option value="">همه نوع سند</option>
+                    </select>
+                    <select id="crmStatusFilter" class="auth-input text-sm w-36 py-2" onchange="applyCrmFilters()" style="background: var(--input-bg); color: var(--text-main); border-color: var(--input-border); border-radius: 0.5rem; padding: 0.5rem;">
+                        <option value="">همه وضعیت‌ها</option>
+                        <option value="queued">در صف</option>
+                        <option value="processing">در حال پردازش</option>
+                        <option value="completed">تکمیل شده</option>
+                        <option value="failed">ناموفق</option>
+                    </select>
+                    <select id="crmDateFilter" class="auth-input text-sm w-36 py-2" onchange="applyCrmFilters()" style="background: var(--input-bg); color: var(--text-main); border-color: var(--input-border); border-radius: 0.5rem; padding: 0.5rem;">
+                        <option value="">همه زمان‌ها</option>
+                        <option value="today">امروز</option>
+                        <option value="yesterday">دیروز</option>
+                        <option value="last7">۷ روز اخیر</option>
+                        <option value="last30">۳۰ روز اخیر</option>
+                        <option value="thisMonth">ماه جاری</option>
+                    </select>
+                </div>
+                <div class="text-xs font-bold" style="color: var(--text-muted);" id="crmFilteredCount">یافت شده: ۰ کار</div>
+            </div>
+
+            <!-- CRM Jobs List Table -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-right">
+                    <thead>
+                        <tr style="border-bottom:1px solid var(--divider);color:var(--text-muted);">
+                            <th class="py-3 px-2 font-bold">ایمیل</th>
+                            <th class="py-3 px-2 font-bold">نوع سند</th>
+                            <th class="py-3 px-2 font-bold text-center">وضعیت</th>
+                            <th class="py-3 px-2 font-bold text-center">تاریخ</th>
+                            <th class="py-3 px-2 font-bold text-center">هزینه (تومان)</th>
+                            <th class="py-3 px-2 font-bold">نام فایل</th>
+                            <th class="py-3 px-2 font-bold">جزئیات خطا</th>
+                        </tr>
+                    </thead>
+                    <tbody id="crmJobsTableBody">
+                        <tr><td colspan="7" class="text-center py-8 text-sm" style="color:var(--text-muted);">داده‌ای وجود ندارد.</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -1689,7 +1811,7 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
     <!-- ── PANEL 3: Payment & Download ── -->
     <div class="qs-panel" id="qsPanel3">
       <div class="qs-pay-box">
-        <div class="qs-pay-amount">۵۰،۰۰۰ تومان</div>
+        <div class="qs-pay-amount">هر صفحه 30000 هزار تومان</div>
         <div class="qs-pay-label">هزینه ترجمه یک سند</div>
       </div>
       <p style="font-size:.83rem;color:var(--muted);margin-bottom:1.1rem;line-height:1.75;text-align:center;">
@@ -1731,9 +1853,8 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
     DeepT ابزار تخصصی مترجمان رسمی، دارالترجمه‌ها و فرمزن‌ها برای ترجمه اسناد حقوقی است.
     بارگذاری سند، دریافت خروجی Word — در چند ثانیه.
   </p>
-  <div class="hero-cta">
+    <div class="hero-cta">
     <button class="btn-primary" onclick="openSignup()">ثبت‌نام رایگان</button>
-    <button class="btn-secondary" onclick="openQuickStart()">⚡ شروع سریع — بدون ثبت‌نام</button>
   </div>
 </section>
 
@@ -1835,14 +1956,13 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
     <div class="pricing-card featured">
       <div class="pricing-badge">پیشنهادی</div>
       <div class="pricing-title">حساب کاربری</div>
-      <div class="pricing-price">۳۵،۰۰۰ <span>تومان / سند</span></div>
+      <div class="pricing-price">۳۰،۰۰۰ <span>تومان / صفحه</span></div>
       <p class="pricing-sub">ثبت‌نام رایگان، تاریخچه کامل، کیف پول داخلی و قیمت کمتر به‌ازای هر ترجمه.</p>
       <ul class="pricing-features">
         <li>ثبت‌نام رایگان — بدون هزینه اولیه</li>
-        <li>تاریخچه تمام ترجمه‌ها</li>
-        <li>کیف پول داخلی و شارژ گروهی</li>
+        <li>سوابق تمام ترجمه‌ها</li>
+        <li>کیف پول داخلی</li>
         <li>پروفایل مترجم / دارالترجمه</li>
-        <li>اولویت در پردازش</li>
       </ul>
       <button class="pricing-btn pricing-btn-primary" onclick="openSignup()">
         ثبت‌نام رایگان
@@ -1874,8 +1994,8 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
 </div>
 
 <script>
-const CORE    = 'https://deept-core.onrender.com';
-const BACKEND = 'https://deept-police-backend.onrender.com';
+const CORE    = 'https://core.deept.ir';
+const BACKEND = 'https://backend.deept.ir';
 
 // ── ENHANCED JS (pipeline, dashboard, passport) ──
 
@@ -1892,14 +2012,14 @@ const BACKEND = 'https://deept-police-backend.onrender.com';
 const DOCUMENT_REGISTRY = {
     'police-certificate': {
         label:               'گواهی عدم سوء پیشینه',
-        endpoint:            'https://deept-police-backend.onrender.com/api/translate/police-certificate',
+        endpoint: 'https://police.deept.ir/api/translate/police-certificate',
         active:              true,
         usePassportSession:  true,
         legacySingleSession: true,   // old backend contract -- singular session_id, not yet updated
     },
     'vehicle-deed': {
         label:               'سند مالکیت خودرو (برگ سبز)',
-        endpoint:            'https://deept-back-end.onrender.com/api/translate/vehicle-deed',
+        endpoint: 'https://backend.deept.ir/api/translate/vehicle-deed',
         active:              true,
         usePassportSession:  true,
     },
@@ -1917,46 +2037,59 @@ const DOCUMENT_REGISTRY = {
     },
     'notary-deed': {
         label:               'اسناد دفترخانه (سند رسمی)',
-        endpoint:            'https://deept-back-end.onrender.com/api/translate/notary-deed',
+        endpoint: 'https://backend.deept.ir/api/translate/notary-deed',
         active:              true,
         usePassportSession:  true,
     },
     'academic-transcript': {
         label:               'ریزنمرات علوم پزشکی',
-        endpoint:            'https://deept-back-end.onrender.com/api/translate/academic-transcript',
+        endpoint: 'https://backend.deept.ir/api/translate/academic-transcript',
         active:              true,
         usePassportSession:  true,
     },
     'gazette-notice': {
         label:               'آگهی تاسیس / تغییرات (روزنامه رسمی)',
-        endpoint:            'https://deept-back-end.onrender.com/api/translate/gazette-notice',
+        endpoint: 'https://backend.deept.ir/api/translate/gazette-notice',
         active:              true,
         usePassportSession:  false,
     },
     'high-school-transcript': {
         label:               'ریزنمرات دبیرستان',
-        endpoint:            'https://deept-back-end.onrender.com/api/translate/high-school-transcript',
+        endpoint: 'https://backend.deept.ir/api/translate/high-school-transcript',
         active:              true,
         usePassportSession:  true,
     },
     'ownership-deed': {
     label: 'سند مالکیت (تک برگ؛ نام مالک اول)',
-    endpoint: 'https://deept-back-end.onrender.com/api/translate/ownership-deed',
+    endpoint: 'https://backend.deept.ir/api/translate/ownership-deed',
     active: true,
     usePassportSession: true,
     },
     'azad-transcript': {
         label:               'ریزنمرات دانشگاه آزاد اسلامی',
-        endpoint:            'https://deept-back-end.onrender.com/api/translate/azad-transcript',
+        endpoint: 'https://backend.deept.ir/api/translate/azad-transcript',
         active:              true,
         usePassportSession:  true,
     },
     'insurance-record': {
-        label:               'سوابق بیمه تامین اجتماعی',
-        endpoint:            'https://deept-back-end.onrender.com/api/translate/insurance-record',
+        label:               'سوابق کامل بیمه تامین اجتماعی',
+        endpoint: 'https://backend.deept.ir/api/translate/insurance-record',
         active:              true,
-        usePassportSession:  false,
+        usePassportSession:  true,
     },
+    'consolidated-insurance-record': {
+        label:               'سوابق تلفیقی بیمه تامین اجتماعی',
+        endpoint: 'https://backend.deept.ir/api/translate/consolidated-insurance-record',
+        active:              true,
+        usePassportSession:  true,
+    },
+    'police-certificate': {
+    label:               'گواهی عدم سوء پیشینه',
+    endpoint:            'https://deept-back-end.onrender.com/api/translate/police-certificate',
+    // or your proxied domain, e.g. backend.deept.ir/api/translate/police-certificate
+    active:              true,
+    usePassportSession:  true,
+},
 };
 
 // Populate the hidden native select (kept so every other part of the app
@@ -2036,10 +2169,14 @@ function openDocDropdownList() {
     const input = document.getElementById('docTemplateSearch');
     const list = document.getElementById('docTemplateOptions');
     const rect = input.getBoundingClientRect();
+    const availableBelow = window.innerHeight - rect.bottom - 12;
+    const maxHeight = Math.max(160, Math.min(320, availableBelow));
     list.style.position = 'fixed';
     list.style.top = (rect.bottom + 4) + 'px';
     list.style.left = rect.left + 'px';
     list.style.width = rect.width + 'px';
+    list.style.maxHeight = maxHeight + 'px';
+    list.style.overflowY = 'auto';
     list.classList.remove('hidden');
 }
 
@@ -2106,6 +2243,24 @@ let docSelectedFile = null;
 // ═══════════════════════════════════════════════════════════
 // TOAST
 // ═══════════════════════════════════════════════════════════
+
+// Escapes user-controlled text before it's interpolated into innerHTML.
+// REQUIRED wherever a template literal injects data that originated from
+// a user (signup name/email, uploaded filenames, manually-entered names,
+// backend error messages that may echo input) -- without this, a user
+// could set e.g. their signup name to a <script>/onerror payload and have
+// it execute in another user's (or an admin's) browser when that data is
+// rendered elsewhere.
+function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 function showToast(msg, duration=2500) {
     const t = document.getElementById('toast');
     t.textContent = msg;
@@ -2356,7 +2511,7 @@ async function renderDashboardActiveProjects() {
         if (job.status === 'completed') {
             actionsHtml = `<button onclick="downloadJobResult('${job.id}')" class="font-bold hover:underline" style="color:var(--accent);">دانلود DOCX</button>`;
         } else if (job.status === 'failed') {
-            actionsHtml = `<span style="color:#f87171;font-size:11px;">${job.error_message || 'خطا رخ داد'}</span>`;
+                        actionsHtml = `<span style="color:#f87171;font-size:11px;">${escapeHtml(job.error_message) || 'خطا رخ داد'}</span>`;
         } else {
             actionsHtml = `<span style="color:var(--text-muted);">در حال پردازش...</span>`;
         }
@@ -2365,7 +2520,7 @@ async function renderDashboardActiveProjects() {
         row.innerHTML = `
             <td class="py-3 text-right">
                 <div class="font-black en" style="color:var(--text-main);">${job.id.slice(0,8)}</div>
-                <div class="text-[10px] truncate max-w-[170px]" style="color:var(--text-muted);">${job.original_filename || ''}</div>
+                                <div class="text-[10px] truncate max-w-[170px]" style="color:var(--text-muted);">${escapeHtml(job.original_filename)}</div>
             </td>
             <td class="py-3 text-center font-bold" style="color:var(--accent);">
                 ${typeLabel}
@@ -2405,8 +2560,8 @@ async function renderDashboardClients(q = '') {
         box.innerHTML = clients.map(c => `
             <div class="flex items-center justify-between p-3 rounded-xl" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
                 <div>
-                    <div class="font-bold text-sm en" style="color:var(--text-main);">${c.first_name} ${c.last_name}</div>
-                    <div class="text-[11px] en" style="color:var(--text-muted);">کد ملی: ${c.national_id || '—'} ${c.phone ? '· ' + c.phone : ''}</div>
+                    <div class="font-bold text-sm en" style="color:var(--text-main);">${escapeHtml(c.first_name)} ${escapeHtml(c.last_name)}</div>
+                    <div class="text-[11px] en" style="color:var(--text-muted);">کد ملی: ${escapeHtml(c.national_id) || '—'} ${c.phone ? '· ' + escapeHtml(c.phone) : ''}</div>
                 </div>
                 <button onclick="openClientDetail('${c.id}')" class="text-xs font-bold px-3 py-1.5 rounded-lg transition" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">مشاهده</button>
             </div>
@@ -2445,10 +2600,10 @@ async function openClientDetail(clientId) {
             ? `<div class="text-xs text-center py-3" style="color:var(--text-muted);">// نفر مرتبطی ثبت نشده</div>`
             : related.map(r => `
                 <div class="flex items-center justify-between p-2.5 rounded-lg text-xs" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
-                    <span class="en" style="color:var(--text-main);">${r.first_name} ${r.last_name}</span>
+                    <span class="en" style="color:var(--text-main);">${escapeHtml(r.first_name)} ${escapeHtml(r.last_name)}</span>
                     <span class="flex items-center gap-2">
-                        <span class="en" style="color:var(--text-muted);">کد ملی: ${r.national_id || '—'}</span>
-                        <button onclick="removeRelatedPerson('${r.national_id}')" style="color:#f87171;background:none;border:none;cursor:pointer;font-weight:700;">حذف ✕</button>
+                        <span class="en" style="color:var(--text-muted);">کد ملی: ${escapeHtml(r.national_id) || '—'}</span>
+                        <button onclick="removeRelatedPerson('${(r.national_id||'').replace(/'/g,"")}')" style="color:#f87171;background:none;border:none;cursor:pointer;font-weight:700;">حذف ✕</button>
                     </span>
                 </div>`).join('');
 
@@ -2511,7 +2666,7 @@ async function renderClientInvoices(clientId) {
                 <div class="flex items-center justify-between">
                     <span class="flex items-center gap-1.5" style="color:var(--text-main);">
                         🧾 <span class="status-pill" style="color:${t.color};background:${t.color}1f;">${t.text}</span>
-                        ${SOURCE_LABELS[inv.source] || inv.source}${inv.tracking_code ? ' · کد پیگیری ' + inv.tracking_code : ''}
+                        ${SOURCE_LABELS[inv.source] || inv.source}${inv.tracking_code ? ' · کد پیگیری ' + escapeHtml(inv.tracking_code) : ''}
                     </span>
                     <span class="font-bold en" style="color:var(--accent);">${(inv.total_toman || 0).toLocaleString()} تومان</span>
                 </div>
@@ -2764,11 +2919,13 @@ function applyRouteForPath(path) {
             openLogin();
             showToast('برای دسترسی به این بخش، ابتدا وارد شوید.');
         }
+    } else if (path === '/login') {
+        showLandingView();
+        openLogin();
     } else {
         showLandingView();
     }
 }
-
 window.addEventListener('popstate', () => {
     applyRouteForPath(location.pathname);
 });
@@ -2809,7 +2966,11 @@ function showOnlyStage(stage) {
                 ? confirmedPassports.map(p => `${p.first_name} ${p.last_name}`).join('، ')
                 : 'بدون پاسپورت';
     }
-    document.getElementById('step2Panel').classList.toggle('hidden', stage !== 'document');
+        document.getElementById('step2Panel').classList.toggle('hidden', stage !== 'document');
+    if (stage === 'document') {
+        const currentDocType = document.getElementById('docTemplate').value;
+        document.getElementById('courseCodesToggleWrap').classList.toggle('hidden', currentDocType !== 'academic-transcript');
+    }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -2861,8 +3022,8 @@ async function ppFetchExistingClients(q) {
         box.innerHTML = clients.map(c => `
             <button onclick="ppSelectExistingClient('${c.id}')" class="w-full flex items-center justify-between p-2.5 rounded-lg text-right transition" style="background:var(--bg-main);border:1px solid var(--border-subtle);" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border-subtle)'">
                 <span>
-                    <div class="font-bold text-sm en" style="color:var(--text-main);">${c.first_name} ${c.last_name}</div>
-                    <div class="text-[11px] en" style="color:var(--text-muted);">کد ملی: ${c.national_id || '—'}</div>
+                    <div class="font-bold text-sm en" style="color:var(--text-main);">${escapeHtml(c.first_name)} ${escapeHtml(c.last_name)}</div>
+                    <div class="text-[11px] en" style="color:var(--text-muted);">کد ملی: ${escapeHtml(c.national_id) || '—'}</div>
                 </span>
                 <span style="color:var(--accent);font-size:.7rem;font-weight:700;">انتخاب ←</span>
             </button>
@@ -2997,8 +3158,9 @@ async function ppConfirmSession() {
 
         confirmedPassports.push({ session_id:data.session_id, first_name:first, last_name:last, father_name:father, date_of_birth:dob, national_id:national });
         updateClientBadge();
-        document.getElementById('pp-fields').classList.add('hidden');
-        ppShowStatus('', '');
+document.getElementById('pp-fields').classList.add('hidden');
+document.getElementById('ppModeButtons').classList.add('hidden');
+ppShowStatus('', '');
         showToast(`✅ پاسپورت ${first} ${last} ثبت شد (مجموع: ${confirmedPassports.length} نفر)`);
 
         // Identity is stored in the profile the moment it's confirmed --
@@ -3081,26 +3243,33 @@ function updateClientBadge() {
     const badge = document.getElementById('activeClientBadge');
     const btn   = document.getElementById('newClientBtn');
     const countEl = document.getElementById('multiPassportCount');
+    const addBtn  = document.getElementById('addPassportBtn');
+    const continueBtn = document.getElementById('continueToDocBtn');
     if (countEl) countEl.textContent = confirmedPassports.length;
     if (confirmedPassports.length > 0) {
         badge.classList.remove('hidden'); badge.style.display = 'flex';
         document.getElementById('activeClientName').textContent =
             confirmedPassports.map(p => `${p.first_name} ${p.last_name}`).join('، ');
         btn.classList.remove('hidden');
+        if (addBtn) addBtn.classList.remove('hidden');
+        if (continueBtn) continueBtn.classList.remove('hidden');
     } else {
         badge.classList.add('hidden'); badge.style.display = 'none';
         btn.classList.add('hidden');
+        if (addBtn) addBtn.classList.add('hidden');
+        if (continueBtn) continueBtn.classList.add('hidden');
+        const modeButtons = document.getElementById('ppModeButtons');
+        if (modeButtons) modeButtons.classList.remove('hidden');
     }
-    renderConfirmedPassportsList();
+renderConfirmedPassportsList();
 }
-
 function renderConfirmedPassportsList() {
     const box = document.getElementById('confirmedPassportsList');
     if (!box) return;
     if (!confirmedPassports.length) { box.innerHTML = ''; return; }
 box.innerHTML = confirmedPassports.map((p, idx) => `
         <div class="flex items-center justify-between p-2 rounded-lg" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
-            <span style="color:var(--text-main);">🟢 ${p.first_name} ${p.last_name}</span>
+            <span style="color:var(--text-main);">🟢 ${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}</span>
             <span class="flex items-center gap-2.5">
                 <button onclick="openSaveClientModal(${idx})" style="color:var(--accent);background:none;border:none;cursor:pointer;font-weight:700;font-size:.72rem;">${p.national_id ? '✏️ ثبت جزئیات تماس' : '💾 ذخیره مشتری'}</button>
                 <button onclick="removeConfirmedPassport(${idx})" style="color:#f87171;background:none;border:none;cursor:pointer;font-weight:700;">حذف ✕</button>
@@ -3256,6 +3425,7 @@ function addExtraPassport() {
     document.getElementById('pp-fields').classList.add('hidden');
     document.getElementById('pp-upload-zone').classList.add('hidden');
     ppShowStatus('','');
+    document.getElementById('ppModeButtons').classList.remove('hidden');   // ← new line
 }
 function continueToDocumentStep() {
     showOnlyStage('document');
@@ -3276,6 +3446,7 @@ function confirmNewClient() {
     docSelectedFile = null;
     document.getElementById('pp-upload-zone').classList.add('hidden');
     document.getElementById('pp-fields').classList.add('hidden');
+     document.getElementById('ppModeButtons').classList.remove('hidden');
     ppShowStatus('','');
 
     resetDocZone();
@@ -3306,7 +3477,54 @@ if (docDropZoneEl) {
         if (e.dataTransfer.files.length) handleDocFileSelection(e.dataTransfer.files[0]);
     });
 }
+async function uploadFileInChunks(file, onProgress) {
+    const CHUNK_SIZE = 150 * 1024; // 300KB
+    const MAX_RETRIES_PER_CHUNK = 3;
 
+    const uploadId = crypto.randomUUID();
+    const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+
+    for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+        const start = chunkIndex * CHUNK_SIZE;
+        const end = Math.min(start + CHUNK_SIZE, file.size);
+        const chunkBlob = file.slice(start, end);
+
+        const fd = new FormData();
+        fd.append('upload_id', uploadId);
+        fd.append('chunk_index', chunkIndex);
+        fd.append('total_chunks', totalChunks);
+        fd.append('original_filename', file.name);
+        fd.append('chunk', chunkBlob);
+
+        let succeeded = false;
+        for (let attempt = 1; attempt <= MAX_RETRIES_PER_CHUNK; attempt++) {
+            try {
+                const res = await fetch('https://backend.deept.ir/upload/chunk', {
+                    method: 'POST',
+                    body: fd,
+                });
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({ detail: 'خطای ناشناخته' }));
+                    throw new Error(err.detail);
+                }
+                succeeded = true;
+                break;
+            } catch (networkErr) {
+                if (attempt === MAX_RETRIES_PER_CHUNK) {
+                    throw new Error(`آپلود قطعه ${chunkIndex + 1} از ${totalChunks} ناموفق بود.`);
+                }
+                await new Promise(r => setTimeout(r, 500 * attempt));
+            }
+        }
+
+        if (onProgress) {
+            const percent = Math.round(((chunkIndex + 1) / totalChunks) * 100);
+            onProgress(percent);
+        }
+    }
+
+    return uploadId;
+}
 async function executeTranslationPipeline() {
     if (!docSelectedFile) return;
 
@@ -3315,6 +3533,7 @@ async function executeTranslationPipeline() {
         return;
     }
 
+    const idempotencyKey = crypto.randomUUID();
     const submitBtn      = document.getElementById('submitBtn');
     const statusBubble   = document.getElementById('processingStatusBubble');
     const statusText     = document.getElementById('statusMessageText');
@@ -3338,9 +3557,16 @@ async function executeTranslationPipeline() {
         return;
     }
 
+   // After
     const fd = new FormData();
     fd.append('document_file', docSelectedFile);
+    fd.append('idempotency_key', idempotencyKey);
 
+    if (docType === 'academic-transcript') {
+        const includeCourseCodes = document.getElementById('includeCourseCodesCheckbox').checked;
+        fd.append('include_course_codes', includeCourseCodes ? 'true' : 'false');
+    }
+    
     // Passport session(s). police-certificate still uses its old backend
     // contract (legacySingleSession) until that repo is updated; every other
     // document type uses the universal multi-passport contract by default.
@@ -3369,18 +3595,77 @@ if (docDef.usePassportSession) {
     const url = docDef.endpoint;
     const token = localStorage.getItem('deept_token');
 
+    // After
     try {
-        statusText.textContent = 'در حال پردازش با هوش مصنوعی...';
-        const res = await fetch(url, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` },
-            body: fd
-        });
-        if (!res.ok) {
-            const err = await res.json().catch(()=>({detail:'خطای ناشناخته'}));
-            throw new Error(err.detail);
-        }
+    statusText.textContent = 'در حال پردازش؛ این فرایند ممکن است چند دقیقه طول بکشد. لطفا منتظر بمانید.';
 
+    let res;
+    let directFailed = false;
+    const maxAttempts = 3;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+            res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: fd
+            });
+            break; // got a real HTTP response (even an error one) -- stop retrying
+        } catch (networkErr) {
+            // Only retry on a true network-level failure (connection drop,
+            // ERR_HTTP2_PROTOCOL_ERROR, timeout) -- NOT on a normal HTTP
+            // error response, which already reached `break` above.
+            if (attempt === maxAttempts) {
+                directFailed = true;
+                break;
+            }
+            statusText.textContent = `اتصال قطع شد، تلاش مجدد... (${attempt}/${maxAttempts})`;
+            await new Promise(r => setTimeout(r, 1500 * attempt));
+        }
+    }
+
+    // Direct upload never got a response after every retry. For document
+    // types that support it, fall back to sending the file in small
+    // pieces instead -- only a failed piece needs retrying, not the whole
+    // file each time, so this is much more likely to get through on a
+    // genuinely bad connection.
+    if (directFailed && docType === 'academic-transcript') {
+        try {
+            const uploadId = await uploadFileInChunks(docSelectedFile, (percent) => {
+                statusText.textContent = `در حال آپلود سند... ${percent}%`;
+            });
+
+            const chunkedFd = new FormData();
+            chunkedFd.append('upload_id', uploadId);
+            chunkedFd.append('idempotency_key', idempotencyKey);
+            if (docType === 'academic-transcript') {
+                chunkedFd.append('include_course_codes', fd.get('include_course_codes'));
+            }
+            if (docDef.usePassportSession) {
+                if (docDef.legacySingleSession) {
+                    const sid = fd.get('session_id');
+                    if (sid) chunkedFd.append('session_id', sid);
+                } else {
+                    fd.getAll('session_ids').forEach(sid => chunkedFd.append('session_ids', sid));
+                }
+            }
+
+            statusText.textContent = 'در حال پردازش؛ این فرایند ممکن است چند دقیقه طول بکشد. لطفا منتظر بمانید.';
+            res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` },
+                body: chunkedFd
+            });
+        } catch (chunkErr) {
+            throw new Error('آپلود سند ناموفق بود. لطفاً اتصال اینترنت خود را بررسی کرده و دوباره تلاش کنید.');
+        }
+    } else if (directFailed) {
+        throw new Error('آپلود سند ناموفق بود. لطفاً اتصال اینترنت خود را بررسی کرده و دوباره تلاش کنید.');
+    }
+
+    if (!res.ok) {
+        const err = await res.json().catch(()=>({detail:'خطای ناشناخته'}));
+        throw new Error(err.detail);
+    }
         // Backend now returns a ticket immediately -- {job_id, status,
         // price_toman, page_count} -- NOT the finished file. The actual
         // translation runs in the background; there is nothing to
@@ -3693,7 +3978,7 @@ function fallbackCopyText(text, onSuccess) {
 
 // ── QUICK START PIPELINE ──
 const QS = { mode:null, passFile:null, docFile:null, sessionId:null, blob:null };
-const QS_BACKEND = 'https://deept-police-backend.onrender.com';
+const QS_BACKEND = 'https://police.deept.ir';
 
 function qsReset() {
     Object.assign(QS, {mode:null,passFile:null,docFile:null,sessionId:null,blob:null});
@@ -3840,6 +4125,7 @@ function showAdminDashboard() {
     document.getElementById('workspaceDashboard').classList.add('hidden');
     document.getElementById('clientsWorkspace').classList.add('hidden');
     document.getElementById('adminDashboard').classList.remove('hidden');
+    switchAdminTab('users');
     loadAdminUsers();
 }
 
@@ -3862,9 +4148,9 @@ function renderAdminUsersRows(users) {
         return;
     }
     tbody.innerHTML = users.map(u => `
-        <tr style="border-bottom:1px solid var(--divider);${u.is_active === false ? 'opacity:0.5;' : ''}">
-            <td class="py-3 px-3 en" style="color:var(--text-main);">${u.email}</td>
-            <td class="py-3 px-3" style="color:var(--text-main);">${u.full_name || ''}</td>
+        <tr style="border-bottom:1px solid var(--divider);${(u.email_verified === false || u.is_active === false) ? 'opacity:0.5;' : ''}">
+                        <td class="py-3 px-3 en" style="color:var(--text-main);">${escapeHtml(u.email)}</td>
+            <td class="py-3 px-3" style="color:var(--text-main);">${escapeHtml(u.full_name)}</td>
             <td class="py-3 px-3" style="color:var(--text-muted);">${u.account_type === 'office' ? 'دارالترجمه' : 'حقیقی'}</td>
             <td class="py-3 px-3 font-mono font-bold text-base" style="color:var(--accent);">${u.balance_toman.toLocaleString()}</td>
             <td class="py-3 px-3">
@@ -3881,8 +4167,8 @@ function renderAdminUsersRows(users) {
             </td>
             <td class="py-3 px-3">
                     <div class="flex flex-col items-start gap-1.5">
-                        <button onclick="adminToggleActive('${u.user_id}', ${u.is_active === false})" class="text-sm font-bold px-3 py-2 rounded-lg" style="background:${u.is_active === false ? '#4ade80' : '#f87171'};color:#fff;">
-                            ${u.is_active === false ? 'فعال‌سازی' : 'غیرفعال‌سازی'}
+                        <button onclick="adminToggleActive('${u.user_id}', ${u.email_verified === false || u.is_active === false})" class="text-sm font-bold px-3 py-2 rounded-lg" style="background:${(u.email_verified === false || u.is_active === false) ? '#4ade80' : '#f87171'};color:#fff;">
+                            ${(u.email_verified === false || u.is_active === false) ? 'فعال‌سازی' : 'غیرفعال‌سازی'}
                         </button>
                         <button onclick="adminDeleteUser('${u.user_id}', '${(u.email||'').replace(/'/g,"")}')" class="text-sm font-bold px-3 py-2 rounded-lg" style="background:#7f1d1d;color:#fff;">
                             حذف دائمی
@@ -4033,7 +4319,7 @@ async function adminViewUserJobs(userId, email) {
                 <td class="py-2 px-2" style="color:var(--text-main);">${typeLabel(j.document_type)}</td>
                 <td class="py-2 px-2" style="color:var(--text-muted);">${statusLabel(j.status)}</td>
                 <td class="py-2 px-2 font-mono" style="color:var(--text-main);">${(j.price_toman||0).toLocaleString()}</td>
-                <td class="py-2 px-2 en" style="color:var(--text-muted);">${j.original_filename || ''}</td>
+                                <td class="py-2 px-2 en" style="color:var(--text-muted);">${escapeHtml(j.original_filename)}</td>
                 <td class="py-2 px-2 en" style="color:var(--text-muted);">${(j.created_at||'').slice(0,10)}</td>
             </tr>
         `).join('');
@@ -4041,6 +4327,291 @@ async function adminViewUserJobs(userId, email) {
         tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در اتصال.</td></tr>`;
     }
 }
+
+// ── CRM PANEL LOGIC ──
+var adminCrmJobsCache = [];
+
+function switchAdminTab(tab) {
+    const usersPanel = document.getElementById('adminUsersPanel');
+    const crmPanel = document.getElementById('adminCrmPanel');
+    const tabUsersBtn = document.getElementById('adminTabUsers');
+    const tabCrmBtn = document.getElementById('adminTabCrm');
+    
+    const jobsPanel = document.getElementById('adminUserJobsPanel');
+    if (jobsPanel) jobsPanel.classList.add('hidden');
+    
+    if (tab === 'users') {
+        if (usersPanel) usersPanel.classList.remove('hidden');
+        if (crmPanel) crmPanel.classList.add('hidden');
+        
+        if (tabUsersBtn) {
+            tabUsersBtn.classList.add('border-b-2');
+            tabUsersBtn.style.borderColor = 'var(--accent)';
+            tabUsersBtn.style.color = 'var(--accent)';
+            tabUsersBtn.classList.remove('border-transparent');
+        }
+        if (tabCrmBtn) {
+            tabCrmBtn.classList.remove('border-b-2');
+            tabCrmBtn.style.borderColor = 'transparent';
+            tabCrmBtn.style.color = 'var(--text-muted)';
+        }
+    } else if (tab === 'crm') {
+        if (usersPanel) usersPanel.classList.add('hidden');
+        if (crmPanel) crmPanel.classList.remove('hidden');
+        
+        if (tabCrmBtn) {
+            tabCrmBtn.classList.add('border-b-2');
+            tabCrmBtn.style.borderColor = 'var(--accent)';
+            tabCrmBtn.style.color = 'var(--accent)';
+            tabCrmBtn.classList.remove('border-transparent');
+        }
+        if (tabUsersBtn) {
+            tabUsersBtn.classList.remove('border-b-2');
+            tabUsersBtn.style.borderColor = 'transparent';
+            tabUsersBtn.style.color = 'var(--text-muted)';
+        }
+        
+        loadAdminCrmData();
+    }
+}
+
+async function loadAdminCrmData() {
+    const token = localStorage.getItem('deept_token');
+    const tableBody = document.getElementById('crmJobsTableBody');
+    if (tableBody) {
+        tableBody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری داده‌های CRM...</td></tr>`;
+    }
+    
+    try {
+        const res = await fetch(`${CORE}/jobs/admin/all`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) {
+            if (tableBody) tableBody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در بارگذاری داده‌های CRM.</td></tr>`;
+            showToast('خطا در بارگذاری داده‌های CRM');
+            return;
+        }
+        adminCrmJobsCache = await res.json();
+        
+        populateCrmDocTypeFilter();
+        updateCrmDashboard();
+    } catch (e) {
+        console.error(e);
+        if (tableBody) tableBody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در اتصال به سرور.</td></tr>`;
+        showToast('خطا در ارتباط با سرور.');
+    }
+}
+
+function populateCrmDocTypeFilter() {
+    const select = document.getElementById('crmDocTypeFilter');
+    if (!select || select.options.length > 1) return;
+    
+    Object.entries(DOCUMENT_REGISTRY).forEach(([key, doc]) => {
+        const opt = document.createElement('option');
+        opt.value = key;
+        opt.textContent = doc.label;
+        select.appendChild(opt);
+    });
+}
+
+function updateCrmDashboard() {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    
+    const monthlyJobs = adminCrmJobsCache.filter(j => {
+        const d = new Date(j.created_at);
+        return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+    });
+    
+    const totalMonthly = monthlyJobs.length;
+    const completedMonthly = monthlyJobs.filter(j => j.status === 'completed');
+    const failedMonthly = monthlyJobs.filter(j => j.status === 'failed');
+    
+    const profitMonthly = completedMonthly.reduce((sum, j) => sum + (j.price_toman || 0), 0);
+    const failureRateMonthly = totalMonthly > 0 ? ((failedMonthly.length / totalMonthly) * 100).toFixed(1) : '0';
+    
+    document.getElementById('crmStatProfit').textContent = profitMonthly.toLocaleString();
+    document.getElementById('crmStatWorkCount').textContent = totalMonthly.toLocaleString();
+    document.getElementById('crmStatWorkDetails').textContent = `موفق: ${completedMonthly.length.toLocaleString()} | ناموفق: ${failedMonthly.length.toLocaleString()}`;
+    document.getElementById('crmStatFailureRate').textContent = `${failureRateMonthly}%`;
+    
+    // Build per-document-type aggregation across ALL jobs (not just current month)
+    const docTypeStats = {};
+    Object.entries(DOCUMENT_REGISTRY).forEach(([key, doc]) => {
+        docTypeStats[key] = { label: doc.label, total: 0, completed: 0, failed: 0, revenue: 0 };
+    });
+    
+    adminCrmJobsCache.forEach(j => {
+        const t = j.document_type;
+        if (!docTypeStats[t]) {
+            docTypeStats[t] = { label: t, total: 0, completed: 0, failed: 0, revenue: 0 };
+        }
+        docTypeStats[t].total++;
+        if (j.status === 'completed') {
+            docTypeStats[t].completed++;
+            docTypeStats[t].revenue += (j.price_toman || 0);
+        } else if (j.status === 'failed') {
+            docTypeStats[t].failed++;
+        }
+    });
+
+    // Only types that have at least one job, sorted descending by total
+    const grandTotal = adminCrmJobsCache.length;
+    const activeTypes = Object.entries(docTypeStats)
+        .filter(([_, s]) => s.total > 0)
+        .sort((a, b) => b[1].total - a[1].total);
+
+    // Shared colour palette
+    const palette = ['#00ffff','#60a5fa','#a78bfa','#34d399','#f59e0b','#f87171','#fb923c','#e879f9','#38bdf8','#4ade80'];
+
+    // ── Summary Table ──────────────────────────────────────────
+    const tableTbody = document.getElementById('crmDocTypeSummaryTableBody');
+    if (tableTbody) {
+        if (activeTypes.length === 0) {
+            tableTbody.innerHTML = `<tr><td colspan="6" class="text-center py-4" style="color:var(--text-muted);">داده‌ای وجود ندارد.</td></tr>`;
+        } else {
+            tableTbody.innerHTML = activeTypes.map(([key, s], idx) => {
+                const share = grandTotal > 0 ? ((s.total / grandTotal) * 100).toFixed(1) : '0.0';
+                const color = palette[idx % palette.length];
+                return `
+                    <tr style="border-bottom:1px solid var(--divider);">
+                        <td class="py-2 px-1" style="color:var(--text-main);">
+                            <span class="inline-block w-2 h-2 rounded-full ml-1" style="background:${color};vertical-align:middle;"></span>${s.label}
+                        </td>
+                        <td class="py-2 px-1 text-center font-black en" style="color:var(--text-main);">${s.total.toLocaleString()}</td>
+                        <td class="py-2 px-1 text-center en" style="color:#4ade80;">${s.completed.toLocaleString()}</td>
+                        <td class="py-2 px-1 text-center en" style="color:#f87171;">${s.failed.toLocaleString()}</td>
+                        <td class="py-2 px-1 text-center en font-bold" style="color:var(--accent);">${share}%</td>
+                        <td class="py-2 px-1 text-center en" style="color:var(--text-muted);">${s.revenue.toLocaleString()}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+    }
+
+    // ── Horizontal Bar Graph ───────────────────────────────────
+    const graphContainer = document.getElementById('crmDocTypeSummaryGraphContainer');
+    if (graphContainer) {
+        if (activeTypes.length === 0) {
+            graphContainer.innerHTML = `<div class="text-center py-4 text-xs" style="color:var(--text-muted);">داده‌ای وجود ندارد.</div>`;
+        } else {
+            const maxTotal = activeTypes[0][1].total; // already sorted desc
+            graphContainer.innerHTML = activeTypes.map(([key, s], idx) => {
+                const barWidthPct = maxTotal > 0 ? ((s.total / maxTotal) * 100).toFixed(1) : 0;
+                const sharePct   = grandTotal > 0 ? ((s.total / grandTotal) * 100).toFixed(1) : '0.0';
+                const color = palette[idx % palette.length];
+                return `
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-xs font-bold truncate" style="color:var(--text-main); max-width:55%;" title="${s.label}">${s.label}</span>
+                            <span class="text-xs font-mono font-black en" style="color:${color}; white-space:nowrap;">
+                                ${s.total.toLocaleString()} <span style="color:var(--text-muted); font-weight:400;">(${sharePct}%)</span>
+                            </span>
+                        </div>
+                        <div class="w-full rounded-full overflow-hidden" style="height:10px; background:var(--bg-main);">
+                            <div class="h-full rounded-full transition-all duration-700"
+                                 style="width:${barWidthPct}%; background: linear-gradient(90deg, ${color}99, ${color}); box-shadow: 0 0 6px ${color}55;">
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+
+    applyCrmFilters();
+}
+
+function applyCrmFilters() {
+    const emailQuery = (document.getElementById('crmEmailFilter').value || '').trim().toLowerCase();
+    const docTypeVal = document.getElementById('crmDocTypeFilter').value;
+    const statusVal = document.getElementById('crmStatusFilter').value;
+    const dateVal = document.getElementById('crmDateFilter').value;
+    
+    const now = new Date();
+    
+    const filtered = adminCrmJobsCache.filter(j => {
+        if (emailQuery && !(j.email || '').toLowerCase().includes(emailQuery)) {
+            return false;
+        }
+        if (docTypeVal && j.document_type !== docTypeVal) {
+            return false;
+        }
+        if (statusVal && j.status !== statusVal) {
+            return false;
+        }
+        if (dateVal) {
+            const jobDate = new Date(j.created_at);
+            if (dateVal === 'today') {
+                if (jobDate.toDateString() !== now.toDateString()) return false;
+            } else if (dateVal === 'yesterday') {
+                const yesterday = new Date();
+                yesterday.setDate(now.getDate() - 1);
+                if (jobDate.toDateString() !== yesterday.toDateString()) return false;
+            } else if (dateVal === 'last7') {
+                const diffTime = Math.abs(now - jobDate);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                if (diffDays > 7) return false;
+            } else if (dateVal === 'last30') {
+                const diffTime = Math.abs(now - jobDate);
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                if (diffDays > 30) return false;
+            } else if (dateVal === 'thisMonth') {
+                if (jobDate.getFullYear() !== now.getFullYear() || jobDate.getMonth() !== now.getMonth()) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    });
+    
+    document.getElementById('crmFilteredCount').textContent = `یافت شده: ${filtered.length.toLocaleString()} کار`;
+    
+    const tbody = document.getElementById('crmJobsTableBody');
+    if (!tbody) return;
+    
+    if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-sm" style="color:var(--text-muted);">هیچ کاری با مشخصات فیلتر شده یافت نشد.</td></tr>`;
+        return;
+    }
+    
+    const typeLabel = (t) => DOCUMENT_REGISTRY[t]?.label || t;
+    const statusLabel = (s) => ({
+        queued: 'در صف',
+        processing: 'در حال پردازش',
+        completed: 'تکمیل شده',
+        failed: 'ناموفق'
+    }[s] || s);
+    
+    const statusBadgeStyle = (s) => {
+        if (s === 'completed') return 'background:#4ade80; color:#000; font-weight:bold;';
+        if (s === 'failed') return 'background:#f87171; color:#fff; font-weight:bold;';
+        if (s === 'processing') return 'background:#60a5fa; color:#000; font-weight:bold;';
+        return 'background:#9ca3af; color:#000;';
+    };
+    
+    tbody.innerHTML = filtered.map(j => {
+        const errMsg = j.error_message ? escapeHtml(j.error_message) : '—';
+        const dateStr = (j.created_at || '').slice(0, 10) + ' ' + (j.created_at || '').slice(11, 16);
+        return `
+            <tr style="border-bottom:1px solid var(--divider);">
+                <td class="py-2 px-2 en text-right" style="color:var(--text-main); font-size:0.8rem;" dir="ltr">${escapeHtml(j.email)}</td>
+                <td class="py-2 px-2" style="color:var(--text-main);">${typeLabel(j.document_type)}</td>
+                <td class="py-2 px-2 text-center">
+                    <span class="px-2 py-0.5 rounded text-xs" style="${statusBadgeStyle(j.status)}">
+                        ${statusLabel(j.status)}
+                    </span>
+                </td>
+                <td class="py-2 px-2 text-center en" style="color:var(--text-muted); font-size:0.8rem;">${dateStr}</td>
+                <td class="py-2 px-2 text-center font-mono" style="color:var(--text-main);">${(j.price_toman || 0).toLocaleString()}</td>
+                <td class="py-2 px-2 en text-right" style="color:var(--text-muted); font-size:0.85rem;" dir="ltr">${escapeHtml(j.original_filename)}</td>
+                <td class="py-2 px-2 text-xs text-red-400 max-w-xs truncate" title="${errMsg}" style="color: #fb7185;">${errMsg}</td>
+            </tr>
+        `;
+    }).join('');
+}
+
 function showDashboardView() {
     const lp=document.getElementById('landingPage');
     if(lp) lp.style.display='none';
@@ -4134,7 +4705,22 @@ function toggleTheme() { toggleGlobalTheme(); }
         currentUserSession=loadSession();
     }
 
-    syncUserSessionDOM();
+        syncUserSessionDOM();
+
+    // Email activation redirect (from DeepT-Core's /auth/activate) --
+    // opens the login modal directly so the user can enter their password
+    // right away, instead of landing on a bare page.
+    const activated = params.get('activated');
+    if (activated === 'success') {
+        showToast('✅ ایمیل شما تایید شد. اکنون وارد شوید.');
+        openLogin();
+        window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (activated === 'error') {
+        showToast('⚠️ لینک فعال‌سازی نامعتبر یا قبلاً استفاده شده است.');
+        openLogin();
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
     // Routing decision is made once, by applyRouteForPath, based on the
     // actual URL -- not here, to avoid overriding it with a path-blind
     // "logged in = dashboard" rule.
