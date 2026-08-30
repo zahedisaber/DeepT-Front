@@ -1012,6 +1012,18 @@ body::before {
         linear-gradient(rgba(0,114,168,0.05) 1px, transparent 1px),
         linear-gradient(90deg, rgba(0,114,168,0.05) 1px, transparent 1px);
 }
+
+/* Invoice print/save-as-PDF: the browser's own print dialog is the "PDF
+   generator" here (every browser can print-to-PDF), so nothing needs to be
+   rendered server-side -- just show only the invoice sheet on paper and
+   hide the rest of the app chrome (nav, overlay backdrop, buttons). */
+@media print {
+    body > *:not(#invoiceViewModal) { display: none !important; }
+    #invoiceViewModal { position: static !important; display: block !important; background: #fff !important; z-index: auto !important; }
+    #invoiceViewModal > div { max-width: none !important; max-height: none !important; box-shadow: none !important; border: none !important; overflow: visible !important; }
+    #invoiceViewModal .no-print { display: none !important; }
+    #iv-sheet { color: #000 !important; }
+}
 </style>
 </head>
 <body>
@@ -1164,6 +1176,66 @@ body::before {
 
     <h4 class="text-sm font-black mb-2 flex items-center gap-1.5" style="color:var(--text-main);">🧾 فاکتورهای ثبت‌شده (<span class="en" id="cd-invoice-count">۰</span>)</h4>
     <div id="cd-invoices-list" class="space-y-1.5"></div>
+  </div>
+</div>
+
+<!-- ─── INVOICE VIEW / PRINT / EMAIL ─── -->
+<div id="invoiceViewModal" class="modal-overlay fixed inset-0 z-[80] hidden flex items-center justify-center p-4">
+  <div class="w-full max-w-lg p-6" style="background:var(--card-surface);border:1px solid var(--border-color);border-radius:1rem;max-height:90vh;overflow-y:auto;">
+    <div class="flex items-center justify-between mb-4 no-print">
+      <h3 class="text-base font-black" style="color:var(--text-main);">پیش‌نمایش فاکتور</h3>
+      <button onclick="closeInvoiceViewModal()" style="color:var(--text-muted);background:none;border:none;cursor:pointer;font-size:1.1rem;">✕</button>
+    </div>
+
+    <div id="iv-sheet">
+      <div class="flex items-center justify-between mb-4 pb-3" style="border-bottom:2px solid var(--border-color);">
+        <div>
+          <div class="text-lg font-black" id="iv-issuer-name" style="color:var(--text-main);">—</div>
+          <div class="text-[11px]" style="color:var(--text-muted);">دارالترجمه رسمی</div>
+        </div>
+        <div class="text-left">
+          <div class="text-sm font-black" id="iv-type-badge" style="color:var(--accent);">فاکتور</div>
+          <div class="text-[11px] en" id="iv-date" style="color:var(--text-muted);">—</div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 text-xs mb-4">
+        <div class="p-2.5 rounded-lg" style="background:var(--bg-main);border:1px solid var(--border-subtle);"><span style="color:var(--text-muted);">گیرنده</span><div class="font-bold mt-0.5" id="iv-client-name" style="color:var(--text-main);">—</div></div>
+        <div class="p-2.5 rounded-lg" style="background:var(--bg-main);border:1px solid var(--border-subtle);"><span style="color:var(--text-muted);">کد ملی</span><div class="font-bold en mt-0.5" id="iv-client-national" style="color:var(--text-main);">—</div></div>
+      </div>
+
+      <table class="w-full text-xs mb-4" style="border-collapse:collapse;">
+        <thead>
+          <tr style="background:var(--bg-main);">
+            <th class="p-2 text-right" style="border:1px solid var(--border-subtle);color:var(--text-muted);">شرح</th>
+            <th class="p-2" style="border:1px solid var(--border-subtle);width:50px;color:var(--text-muted);">تعداد</th>
+            <th class="p-2" style="border:1px solid var(--border-subtle);width:90px;color:var(--text-muted);">قیمت واحد</th>
+            <th class="p-2" style="border:1px solid var(--border-subtle);width:90px;color:var(--text-muted);">جمع</th>
+          </tr>
+        </thead>
+        <tbody id="iv-items"></tbody>
+      </table>
+
+      <div class="flex items-center justify-between mb-8">
+        <span class="text-sm font-black" style="color:var(--text-main);">جمع کل</span>
+        <span class="text-base font-black en" id="iv-total" style="color:var(--accent);">۰ تومان</span>
+      </div>
+
+      <div class="grid grid-cols-2 gap-8 text-[11px]" style="color:var(--text-muted);">
+        <div class="text-center"><div style="border-top:1px solid var(--border-color);padding-top:6px;">امضاء و اثر انگشت گیرنده سند</div></div>
+        <div class="text-center"><div style="border-top:1px solid var(--border-color);padding-top:6px;">مهر و امضاء دارالترجمه</div></div>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2 mt-6 no-print">
+      <button onclick="printInvoiceView()" class="flex-1 py-2.5 rounded-xl text-xs font-black transition" style="background:var(--accent);color:var(--btn-text-on-accent);">🖨️ چاپ / ذخیره PDF</button>
+      <button onclick="toggleInvoiceEmailRow()" class="flex-1 py-2.5 rounded-xl text-xs font-black transition" style="background:var(--bg-main);color:var(--accent);border:1px solid var(--border-color);">📧 ارسال ایمیل</button>
+    </div>
+    <div id="iv-email-row" class="hidden items-center gap-2 mt-2 no-print">
+      <input type="text" id="iv-email-input" class="auth-input en flex-1" dir="ltr" placeholder="client@email.com" style="padding:.5rem .7rem;font-size:.8rem;">
+      <button onclick="submitInvoiceEmail()" id="iv-email-submit" class="text-xs font-black px-3 py-2 rounded-lg transition shrink-0" style="background:var(--accent);color:var(--btn-text-on-accent);">ارسال</button>
+    </div>
+    <p id="iv-email-status" class="text-[11px] mt-2 no-print hidden"></p>
   </div>
 </div>
 
@@ -2605,7 +2677,9 @@ async function renderDashboardClients(q = '') {
             </div>
         `).join('');
     } catch (e) {
-        box.innerHTML = `<div class="text-xs text-center py-6" style="color:#f87171;">خطا در دریافت لیست مشتریان.</div>`;
+        box.innerHTML = `<div class="text-xs text-center py-6" style="color:#f87171;">خطا در دریافت لیست مشتریان.
+            <button onclick="renderDashboardClients('${(q || '').replace(/'/g,"")}')" class="block mx-auto mt-2 text-[11px] font-bold px-3 py-1 rounded-lg" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">🔄 تلاش مجدد</button>
+        </div>`;
     }
 }
 
@@ -2700,7 +2774,7 @@ async function renderClientInvoices(clientId) {
         box.innerHTML = invoices.map(inv => {
             const t = TYPE_LABELS[inv.invoice_type] || TYPE_LABELS.invoice;
             return `
-            <div class="p-2.5 rounded-lg text-xs" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
+            <div onclick="openInvoiceView('${inv.id}')" class="p-2.5 rounded-lg text-xs cursor-pointer transition hover:opacity-80" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
                 <div class="flex items-center justify-between">
                     <span class="flex items-center gap-1.5" style="color:var(--text-main);">
                         🧾 <span class="status-pill" style="color:${t.color};background:${t.color}1f;">${t.text}</span>
@@ -2810,6 +2884,97 @@ function closeClientDetailModal() {
     currentClientDetailId = null;
 }
 
+// ── Invoice view / print / email — a translator needs a signed paper copy
+// for the client's file and often needs to email a copy too, not just see
+// a row in a list. The browser's own print dialog doubles as the "PDF
+// generator" (چاپ → ذخیره به‌عنوان PDF), so no server-side rendering is
+// needed; #invoiceViewModal is the one thing left visible by the
+// @media print rule above. ─────────────────────────────────────────────
+let currentInvoiceView = null; // { id, client } — kept for the email prefill
+
+const INVOICE_TYPE_LABELS_FA = { invoice: 'فاکتور', proforma: 'پیش‌فاکتور' };
+
+async function openInvoiceView(invoiceId) {
+    const token = localStorage.getItem('deept_token');
+    try {
+        const res = await fetch(`${CORE}/invoices/${invoiceId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!res.ok) throw new Error();
+        const inv = await res.json();
+        currentInvoiceView = { id: inv.id, client: inv.client || {} };
+
+        const issuer = inv.issuer || {};
+        document.getElementById('iv-issuer-name').textContent = issuer.office_name || issuer.full_name || 'دیپ‌تی';
+        document.getElementById('iv-type-badge').textContent = INVOICE_TYPE_LABELS_FA[inv.invoice_type] || 'فاکتور';
+        document.getElementById('iv-date').textContent = (inv.issue_date || '').slice(0, 10) || '—';
+
+        const clientName = `${inv.client?.first_name || ''} ${inv.client?.last_name || ''}`.trim();
+        document.getElementById('iv-client-name').textContent = clientName || '—';
+        document.getElementById('iv-client-national').textContent = inv.client?.national_id || '—';
+
+        document.getElementById('iv-items').innerHTML = (inv.items || []).map(it => `
+            <tr>
+                <td class="p-2" style="border:1px solid var(--border-subtle);color:var(--text-main);">${escapeHtml(it.description)}</td>
+                <td class="p-2 text-center en" style="border:1px solid var(--border-subtle);color:var(--text-main);">${it.quantity}</td>
+                <td class="p-2 text-center en" style="border:1px solid var(--border-subtle);color:var(--text-main);">${(it.line_total_toman / (it.quantity || 1)).toLocaleString()}</td>
+                <td class="p-2 text-center en font-bold" style="border:1px solid var(--border-subtle);color:var(--text-main);">${it.line_total_toman.toLocaleString()}</td>
+            </tr>`).join('');
+        document.getElementById('iv-total').textContent = `${(inv.total_toman || 0).toLocaleString()} تومان`;
+
+        document.getElementById('iv-email-row').classList.add('hidden');
+        document.getElementById('iv-email-row').classList.remove('flex');
+        document.getElementById('iv-email-input').value = inv.client?.email || '';
+        document.getElementById('iv-email-status').classList.add('hidden');
+
+        document.getElementById('invoiceViewModal').classList.remove('hidden');
+    } catch (e) {
+        showToast('خطا در دریافت فاکتور.');
+    }
+}
+
+function closeInvoiceViewModal() {
+    document.getElementById('invoiceViewModal').classList.add('hidden');
+    currentInvoiceView = null;
+}
+
+function printInvoiceView() {
+    window.print();
+}
+
+function toggleInvoiceEmailRow() {
+    const row = document.getElementById('iv-email-row');
+    row.classList.toggle('hidden');
+    row.classList.toggle('flex');
+}
+
+async function submitInvoiceEmail() {
+    if (!currentInvoiceView) return;
+    const toEmail = document.getElementById('iv-email-input').value.trim();
+    const status = document.getElementById('iv-email-status');
+    const btn = document.getElementById('iv-email-submit');
+    status.classList.remove('hidden');
+    status.style.color = 'var(--text-muted)';
+    status.textContent = 'در حال ارسال...';
+    btn.disabled = true;
+
+    const token = localStorage.getItem('deept_token');
+    try {
+        const res = await fetch(`${CORE}/invoices/${currentInvoiceView.id}/email`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(toEmail ? { to_email: toEmail } : {})
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || 'خطای سرور');
+        status.style.color = 'var(--accent)';
+        status.textContent = `✅ فاکتور به ${data.to_email} ارسال شد.`;
+    } catch (e) {
+        status.style.color = '#f87171';
+        status.textContent = `❌ ${e.message || 'ارسال ایمیل ناموفق بود.'}`;
+    } finally {
+        btn.disabled = false;
+    }
+}
+
 async function saveClientNotes() {
     if (!currentClientDetailId) return;
     const token = localStorage.getItem('deept_token');
@@ -2866,11 +3031,13 @@ async function handleSanamFileSelected(file) {
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.detail || 'خطای سرور');
 
-        status.style.color = 'var(--accent)';
+        const errors = data.errors || [];
+        status.style.color = errors.length ? '#fb923c' : 'var(--accent)';
         status.textContent =
-            `✅ ${data.clients_touched} مشتری ثبت/به‌روزرسانی شد — ` +
+            `${errors.length ? '⚠️' : '✅'} ${data.clients_touched} مشتری ثبت/به‌روزرسانی شد — ` +
             `${data.invoices_created} فاکتور جدید ساخته شد` +
             (data.invoices_skipped_already_imported ? ` (${data.invoices_skipped_already_imported} فاکتور قبلاً وارد شده بود و رد شد)` : '') +
+            (errors.length ? ` — ${errors.length} ردیف رد شد: ${errors.map(e => `کد پیگیری ${e.tracking_code} (${e.reason})`).join('، ')}` : '') +
             '.';
         renderDashboardClients();
     } catch (err) {
