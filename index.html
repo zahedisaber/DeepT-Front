@@ -1016,13 +1016,17 @@ body::before {
 /* Invoice print/save-as-PDF: the browser's own print dialog is the "PDF
    generator" here (every browser can print-to-PDF), so nothing needs to be
    rendered server-side -- just show only the invoice sheet on paper and
-   hide the rest of the app chrome (nav, overlay backdrop, buttons). */
+   hide the rest of the app chrome (nav, overlay backdrop, buttons). This is
+   a signable document handed to the translator's own client, so it prints
+   as plain black-on-white with solid ruled table borders regardless of the
+   app's own theme (dark mode, accent color, etc.) -- never colored. */
 @media print {
     body > *:not(#invoiceViewModal) { display: none !important; }
     #invoiceViewModal { position: static !important; display: block !important; background: #fff !important; z-index: auto !important; }
-    #invoiceViewModal > div { max-width: none !important; max-height: none !important; box-shadow: none !important; border: none !important; overflow: visible !important; }
+    #invoiceViewModal > div { max-width: none !important; max-height: none !important; box-shadow: none !important; border: none !important; overflow: visible !important; background: #fff !important; }
     #invoiceViewModal .no-print { display: none !important; }
-    #iv-sheet { color: #000 !important; }
+    #iv-sheet, #iv-sheet * { color: #000 !important; background: #fff !important; border-color: #000 !important; }
+    #iv-sheet table, #iv-sheet th, #iv-sheet td { border: 1px solid #000 !important; }
 }
 </style>
 </head>
@@ -1247,7 +1251,7 @@ body::before {
         </div>
         <div class="text-left">
           <div class="text-sm font-black" id="iv-type-badge" style="color:var(--accent);">فاکتور</div>
-          <div class="text-[11px] en" id="iv-date" style="color:var(--text-muted);">—</div>
+          <div class="text-[11px]" id="iv-date" style="color:var(--text-muted);">—</div>
         </div>
       </div>
 
@@ -3728,10 +3732,16 @@ async function openInvoiceView(invoiceId, autoEdit = false) {
         invoiceViewFinalized = !!inv.finalized_at;
         invoiceEditState = null;
 
+        // This invoice goes to the *translator's own client* (b2b) -- it
+        // must read as coming from their دارالترجمه, never from DeepT.
         const issuer = inv.issuer || {};
-        document.getElementById('iv-issuer-name').textContent = issuer.office_name || issuer.full_name || 'دیپ‌تی';
+        document.getElementById('iv-issuer-name').textContent = issuer.office_name || issuer.full_name || 'دفتر ترجمه رسمی';
         document.getElementById('iv-type-badge').textContent = INVOICE_TYPE_LABELS_FA[inv.invoice_type] || 'فاکتور';
-        document.getElementById('iv-date').textContent = (inv.issue_date || '').slice(0, 10) || '—';
+        // issue_date_shamsi is computed server-side (and, for a Sanam-
+        // imported invoice, passed through as-is since it's already a
+        // Shamsi date from the judiciary's own export) -- see Core's
+        // invoices.py _display_date().
+        document.getElementById('iv-date').textContent = inv.issue_date_shamsi || '—';
 
         const clientName = `${inv.client?.first_name || ''} ${inv.client?.last_name || ''}`.trim();
         document.getElementById('iv-client-name').textContent = clientName || '—';
