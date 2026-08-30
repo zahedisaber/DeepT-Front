@@ -1027,6 +1027,7 @@ body::before {
     </button>
     <button id="authHeaderBtn" onclick="openLogin()" class="header-btn header-btn-auth">ورود / ثبت‌نام</button>
     <button id="workspaceHeaderBtn" onclick="openWorkspaceDashboard()" class="header-btn header-btn-workspace hidden">میز کار دیجیتال</button>
+    <button id="clientsHeaderBtn" onclick="openClientsWorkspace()" class="header-btn header-btn-workspace hidden">مشتریان</button>
     <button id="logoutHeaderBtn" onclick="confirmLogout()" class="header-btn header-btn-logout hidden">
       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
       خروج
@@ -1048,6 +1049,86 @@ body::before {
       <button onclick="executeLogout()" class="bg-red-500 text-white font-bold px-6 py-2.5 rounded-xl text-sm">بله، خروج</button>
       <button onclick="closeLogoutConfirm()" class="font-bold px-6 py-2.5 rounded-xl text-sm" style="background:var(--bg-secondary);color:var(--text-main);border:1px solid var(--border-subtle);">انصراف</button>
     </div>
+  </div>
+</div>
+
+<!-- ─── SAVE AS CLIENT ─── -->
+<div id="saveClientModal" class="modal-overlay fixed inset-0 z-[70] hidden flex items-center justify-center p-4">
+  <div class="w-full max-w-md p-6" style="background:var(--card-surface);border:1px solid var(--border-color);border-radius:1rem;">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-base font-black" id="sc-modal-title" style="color:var(--text-main);">💾 ذخیره به‌عنوان مشتری</h3>
+      <button onclick="closeSaveClientModal()" style="color:var(--text-muted);background:none;border:none;cursor:pointer;font-size:1.1rem;">✕</button>
+    </div>
+    <p class="text-xs mb-4" id="sc-modal-desc" style="color:var(--text-muted);">دفعه بعد بدون بارگذاری پاسپورت، این مشتری را از لیست «مشتریان قبلی» انتخاب کنید.</p>
+    <div class="p-3 rounded-lg mb-4 text-sm font-bold en" id="saveClientNamePreview" style="background:var(--bg-main);border:1px solid var(--border-subtle);color:var(--text-main);"></div>
+    <div class="space-y-3">
+      <div>
+        <label class="auth-label">کد ملی <span style="color:#f87171;">*</span></label>
+        <input type="text" id="sc-national" required class="auth-input en" dir="ltr" placeholder="0012345678">
+        <p class="text-[11px] mt-1" style="color:var(--text-muted);">شناسه اصلی مشتری — روی پاسپورت درج شده و برای جلوگیری از ثبت تکراری استفاده می‌شود.</p>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="auth-label">شماره تماس</label><input type="text" id="sc-phone" class="auth-input en" dir="ltr" placeholder="09xxxxxxxxx"></div>
+        <div><label class="auth-label">ایمیل</label><input type="text" id="sc-email" class="auth-input en" dir="ltr" placeholder="client@email.com"></div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="auth-label">شماره پاسپورت</label><input type="text" id="sc-passport" class="auth-input en" dir="ltr" placeholder="A12345678"></div>
+        <div><label class="auth-label">ملیت</label><input type="text" id="sc-nationality" class="auth-input" placeholder="ایرانی"></div>
+      </div>
+      <div><label class="auth-label">یادداشت</label><textarea id="sc-notes" rows="2" class="auth-input resize-none" placeholder="یادداشت اختیاری..."></textarea></div>
+    </div>
+    <button onclick="submitSaveClient()" id="sc-submit-btn" class="w-full mt-5 py-2.5 rounded-xl text-sm font-black transition" style="background:var(--accent);color:var(--btn-text-on-accent);">ذخیره مشتری</button>
+  </div>
+</div>
+
+<!-- ─── CLIENT DETAIL (dashboard) ─── -->
+<div id="clientDetailModal" class="modal-overlay fixed inset-0 z-[70] hidden flex items-center justify-center p-4">
+  <div class="w-full max-w-lg p-6" style="background:var(--card-surface);border:1px solid var(--border-color);border-radius:1rem;max-height:85vh;overflow-y:auto;">
+    <div class="flex items-center justify-between mb-1">
+      <h3 class="text-base font-black en" id="cd-name" style="color:var(--text-main);">—</h3>
+      <button onclick="closeClientDetailModal()" style="color:var(--text-muted);background:none;border:none;cursor:pointer;font-size:1.1rem;">✕</button>
+    </div>
+    <p class="text-xs mb-4" id="cd-subtitle" style="color:var(--text-muted);"></p>
+
+    <div class="grid grid-cols-2 gap-2 text-xs mb-4">
+      <div class="p-2.5 rounded-lg" style="background:var(--bg-main);border:1px solid var(--border-subtle);"><span style="color:var(--text-muted);">شماره پاسپورت</span><div class="font-bold en mt-0.5" id="cd-passport" style="color:var(--text-main);">—</div></div>
+      <div class="p-2.5 rounded-lg" style="background:var(--bg-main);border:1px solid var(--border-subtle);"><span style="color:var(--text-muted);">کد ملی</span><div class="font-bold en mt-0.5" id="cd-national" style="color:var(--text-main);">—</div></div>
+      <div class="p-2.5 rounded-lg" style="background:var(--bg-main);border:1px solid var(--border-subtle);"><span style="color:var(--text-muted);">تماس</span><div class="font-bold en mt-0.5" id="cd-phone" style="color:var(--text-main);">—</div></div>
+      <div class="p-2.5 rounded-lg" style="background:var(--bg-main);border:1px solid var(--border-subtle);"><span style="color:var(--text-muted);">ایمیل</span><div class="font-bold en mt-0.5" id="cd-email" style="color:var(--text-main);">—</div></div>
+    </div>
+
+    <h4 class="text-sm font-black mb-2 flex items-center gap-1.5" style="color:var(--text-main);">👨‍👩‍👧‍👦 نفرات مرتبط (<span class="en" id="cd-related-count">۰</span>)</h4>
+    <p class="text-[11px] mb-2" style="color:var(--text-muted);">افرادی که پاسپورتشان همراه این مخاطب برای یک کار ثبت شده — مثل همسر یا فرزند.</p>
+    <div id="cd-related-list" class="space-y-1.5 mb-5"></div>
+
+    <label class="auth-label">یادداشت</label>
+    <textarea id="cd-notes" rows="2" class="auth-input resize-none mb-2" placeholder="یادداشتی برای این مشتری..."></textarea>
+    <button onclick="saveClientNotes()" class="w-full mb-5 py-2 rounded-xl text-xs font-black transition" style="background:var(--bg-main);color:var(--accent);border:1px solid var(--border-color);">ذخیره یادداشت</button>
+
+    <h4 class="text-sm font-black mb-2 flex items-center gap-1.5" style="color:var(--text-main);">📊 سابقه پروژه‌ها (<span class="en" id="cd-job-count">۰</span>)</h4>
+    <div id="cd-jobs-list" class="space-y-1.5 mb-5"></div>
+
+    <div class="p-3.5 rounded-xl mb-5" style="background:var(--bg-main);border:1px solid var(--border-color);">
+      <h4 class="text-sm font-black flex items-center gap-1.5 mb-2.5" style="color:var(--text-main);">🧮 پیش‌نویس فاکتور</h4>
+      <div class="flex flex-wrap items-center gap-2 mb-2.5">
+        <button onclick="addCustomInvoiceRow()" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">+ ردیف دلخواه</button>
+        <button onclick="addPresetInvoiceRow('تمبر دادگستری', 60000)" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">+ تمبر دادگستری <span class="en" style="color:var(--text-muted);">(۶۰,۰۰۰)</span></button>
+        <button onclick="addPresetInvoiceRow('مهر وزارت خارجه (هر صفحه)', 50000)" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">+ مهر وزارت خارجه <span class="en" style="color:var(--text-muted);">(۵۰,۰۰۰/صفحه)</span></button>
+      </div>
+      <p class="text-[11px] mb-2" style="color:var(--text-muted);">از سابقه پروژه‌ها «+ افزودن» بزنید، یا ردیف دلخواه اضافه کنید. تعداد و قیمت واحد هر ردیف قابل ویرایش است.</p>
+      <div id="cd-draft-rows" class="space-y-1.5"></div>
+      <div id="cd-draft-empty" class="text-xs text-center py-4" style="color:var(--text-muted);">// هنوز ردیفی اضافه نشده</div>
+      <div class="flex items-center justify-between mt-3 pt-3" style="border-top:1px solid var(--divider);">
+        <span class="text-xs font-bold" style="color:var(--text-muted);">جمع کل: <span class="en" id="cd-draft-total" style="color:var(--text-main);">۰</span> تومان</span>
+        <span class="flex items-center gap-2">
+          <button onclick="submitDraftInvoice('proforma')" class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition" style="background:var(--card-surface);color:var(--text-muted);border:1px solid var(--border-subtle);">ثبت پیش‌فاکتور</button>
+          <button onclick="submitDraftInvoice('invoice')" class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition" style="background:var(--accent);color:var(--btn-text-on-accent);border:1px solid transparent;">ثبت فاکتور</button>
+        </span>
+      </div>
+    </div>
+
+    <h4 class="text-sm font-black mb-2 flex items-center gap-1.5" style="color:var(--text-main);">🧾 فاکتورهای ثبت‌شده (<span class="en" id="cd-invoice-count">۰</span>)</h4>
+    <div id="cd-invoices-list" class="space-y-1.5"></div>
   </div>
 </div>
 
@@ -1164,6 +1245,15 @@ body::before {
             </div>
             <button id="pp-extract-btn" onclick="ppRunExtraction()" disabled class="w-full mt-2 py-2.5 rounded-xl text-sm font-black transition disabled:opacity-30" style="background:var(--accent);color:var(--btn-text-on-accent);">استخراج اطلاعات از پاسپورت</button>
           </div>
+          <button onclick="ppSetMode('existing')" class="w-full flex items-center gap-3 p-3 rounded-xl border text-right transition" style="border-color:var(--border-color);background:var(--bg-main);" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border-color)'">
+            <span class="text-xl shrink-0">👤</span>
+            <div><div class="font-black text-sm" style="color:var(--text-main);">انتخاب از مشتریان قبلی</div><div class="text-xs mt-0.5" style="color:var(--text-muted);">بدون نیاز به بارگذاری مجدد پاسپورت</div></div>
+          </button>
+          <div id="pp-existing-client" class="hidden space-y-2.5">
+            <button onclick="ppSetMode(null)" class="flex items-center gap-1.5 text-xs mb-1 font-bold transition" style="color:var(--text-muted);background:none;border:none;cursor:pointer;padding:0;">← بازگشت به انتخاب روش</button>
+            <input type="text" id="pp-client-search" class="auth-input" placeholder="جستجو با نام یا کد ملی..." oninput="ppSearchExistingClients(this.value)">
+            <div id="pp-client-results" class="space-y-1.5" style="max-height:220px;overflow-y:auto;"></div>
+          </div>
           <button onclick="ppSetMode('manual')" class="w-full flex items-center gap-3 p-3 rounded-xl border text-right transition" style="border-color:var(--border-color);background:var(--bg-main);" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border-color)'">
             <span class="text-xl shrink-0">✏️</span>
             <div><div class="font-black text-sm" style="color:var(--text-main);">ورود دستی اطلاعات</div><div class="text-xs mt-0.5" style="color:var(--text-muted);">نام، نام خانوادگی، نام پدر و تاریخ تولد</div></div>
@@ -1177,6 +1267,11 @@ body::before {
             <div class="grid grid-cols-2 gap-3">
               <div><label class="auth-label">نام پدر (Father's Name)</label><input type="text" id="pp-father" class="auth-input en uppercase" dir="ltr" placeholder="HASSAN" oninput="this.value=this.value.toUpperCase()"></div>
               <div><label class="auth-label">تاریخ تولد — میلادی</label><input type="text" id="pp-dob" class="auth-input en" dir="ltr" placeholder="April 12, 1985"></div>
+            </div>
+            <div>
+              <label class="auth-label">کد ملی (در صورت درج در پاسپورت)</label>
+              <input type="text" id="pp-national" class="auth-input en" dir="ltr" placeholder="0012345678">
+              <p class="text-[11px] mt-1" style="color:var(--text-muted);">در صورت وارد کردن، این فرد پس از تأیید به‌طور خودکار به «مشتریان قبلی» شما اضافه می‌شود.</p>
             </div>
             <button onclick="ppConfirmSession()" class="w-full py-2.5 rounded-xl text-sm font-black transition" style="background:var(--accent);color:var(--btn-text-on-accent);">✅ تأیید اطلاعات گذرنامه</button>
           </div>
@@ -1319,9 +1414,49 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                     </table>
                 </div>
             </div>
-            <div class="text-center">
+            <div class="text-center flex flex-col sm:flex-row gap-3 justify-center">
+                <button onclick="openClientsWorkspace()" class="text-xs px-6 py-2 rounded-xl transition font-bold" style="color:var(--accent);border:1px solid var(--border-color);background:var(--card-surface);">👥 مشتریان من ←</button>
                 <button onclick="closeWorkspaceDashboard()" class="text-xs px-6 py-2 rounded-xl transition" style="color:var(--text-muted);border:1px solid var(--border-subtle);background:var(--card-surface);">بازگشت به صفحه اصلی ↩</button>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- ─── CLIENTS WORKSPACE (separate from the translation-projects dashboard, kept in sync via passport confirmations + job history) ─── -->
+<div id="clientsWorkspace" class="fixed inset-0 z-40 hidden overflow-y-auto p-4 md:p-8 pt-24" style="background: var(--bg-secondary);">
+    <div class="max-w-5xl mx-auto space-y-5">
+        <div class="flex items-center justify-between gap-3 flex-wrap">
+            <h2 class="text-xl font-black flex items-center gap-2" style="color:var(--text-main);">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+                مشتریان من
+            </h2>
+            <button onclick="openWorkspaceDashboard()" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">میز کار ترجمه ←</button>
+        </div>
+        <div class="workspace-panel p-5">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                    <h3 class="text-sm font-bold flex items-center gap-1.5" style="color:var(--text-main);">📥 بارگذاری فایل سنام</h3>
+                    <p class="text-xs mt-1" style="color:var(--text-muted);">فایل اکسل گزارش سامانه سنام را بارگذاری کنید تا مشتریان و فاکتورها به‌طور خودکار ساخته شوند.</p>
+                </div>
+                <div class="shrink-0">
+                    <input type="file" id="sanamFileInput" accept=".xlsx" style="display:none" onchange="handleSanamFileSelected(this.files[0])">
+                    <button onclick="document.getElementById('sanamFileInput').click()" id="sanamUploadBtn" class="text-xs font-black px-4 py-2 rounded-xl transition" style="background:var(--accent);color:var(--btn-text-on-accent);">انتخاب فایل اکسل...</button>
+                </div>
+            </div>
+            <div id="sanamImportStatus" class="hidden text-xs mt-3 p-3 rounded-lg" style="background:var(--bg-main);border:1px solid var(--border-subtle);"></div>
+        </div>
+        <div class="workspace-panel p-6">
+            <div class="flex flex-col sm:flex-row sm:items-start justify-between pb-4 mb-4 gap-3" style="border-bottom:1px solid var(--divider);">
+                <div>
+                    <h3 class="text-sm font-bold" style="color:var(--text-main);">لیست مشتریان</h3>
+                    <p class="text-xs mt-1" style="color:var(--text-muted);">ساخته‌شده از اطلاعات پاسپورت‌های تأییدشده؛ سابقه پروژه‌ها به‌صورت خودکار همگام است.</p>
+                </div>
+                <input type="text" id="clientsSearchInput" class="auth-input" style="max-width:220px;" placeholder="جستجو با نام یا کد ملی..." oninput="searchDashboardClients(this.value)">
+            </div>
+            <div id="dashboardClientsList" class="space-y-2"></div>
+        </div>
+        <div class="text-center">
+            <button onclick="closeClientsWorkspace()" class="text-xs px-6 py-2 rounded-xl transition" style="color:var(--text-muted);border:1px solid var(--border-subtle);background:var(--card-surface);">بازگشت به صفحه اصلی ↩</button>
         </div>
     </div>
 </div>
@@ -2084,6 +2219,14 @@ let trackingProjectsDatabase = [];
 
 // ─── PASSPORT SESSION STATE ───
 let confirmedPassports = [];   // every confirmed passport lives here -- no more "first one is special"
+let selectedClientId   = null; // set when the session came from "select existing client" -- sent as client_id on submit
+
+// Multi-passport jobs (e.g. a client bringing a spouse's or child's
+// passport too) -- the FIRST identity saved this session is the main
+// contact; everyone after that attaches to that profile as a نفر مرتبط
+// (related person) instead of becoming their own separate client.
+let mainContactClientId     = null;
+let mainContactNationalId   = null;
 
 function getActiveBackendOrigin() {
     const docType = document.getElementById('docTemplate').value;
@@ -2161,6 +2304,7 @@ function syncUserSessionDOM() {
     toggle('authHeaderBtn',      loggedIn);
     toggle('mainHeroAuthCall',   loggedIn);
     toggle('workspaceHeaderBtn', !loggedIn);
+    toggle('clientsHeaderBtn',   !loggedIn);
     toggle('logoutHeaderBtn',    !loggedIn);
     const ub = document.getElementById('userBadge');
     if (ub) { ub.classList.toggle('hidden', !loggedIn); ub.style.display = loggedIn ? 'flex' : 'none'; }
@@ -2263,6 +2407,7 @@ async function openWorkspaceDashboard(pushHistory = true) {
     const dashboardEl = document.getElementById('workspaceDashboard');
     dashboardEl.classList.remove('hidden');
     dashboardEl.scrollTop = 0;
+    document.getElementById('clientsWorkspace').classList.add('hidden');
 
     // Reserve exactly as much top space as the header actually needs,
     // measured live -- more reliable than a fixed padding guess, since it
@@ -2277,6 +2422,36 @@ async function openWorkspaceDashboard(pushHistory = true) {
     refreshWalletBalanceDisplay();
     if (pushHistory) navigateTo('/dashboard');
 }
+
+// Separate top-level section from the translation-projects dashboard above --
+// kept in sync through shared data only: clients come from confirmed
+// passport_session identities, and a client's job history is read straight
+// from translation_jobs via client_id, not duplicated anywhere.
+async function openClientsWorkspace(pushHistory = true) {
+    if (!currentUserSession) { openAuthModal(); return; }
+    const el = document.getElementById('clientsWorkspace');
+    el.classList.remove('hidden');
+    el.scrollTop = 0;
+    document.getElementById('workspaceDashboard').classList.add('hidden');
+    document.getElementById('adminDashboard').classList.add('hidden');
+
+    const headerEl = document.querySelector('.header-bar');
+    if (headerEl) {
+        el.style.paddingTop = (headerEl.offsetHeight + 16) + 'px';
+    }
+
+    document.body.style.overflow = 'hidden';
+    renderDashboardClients();
+    if (pushHistory) navigateTo('/clients');
+}
+
+function closeClientsWorkspace(pushHistory = true) {
+    document.getElementById('clientsWorkspace').classList.add('hidden');
+    document.body.style.overflow = 'auto';
+    showLandingView();
+    if (pushHistory) navigateTo('/');
+}
+
 function showLandingView() {
     const lp = document.getElementById('landingPage');
     if (lp) lp.style.display = '';
@@ -2284,6 +2459,8 @@ function showLandingView() {
     if (wd) wd.classList.add('hidden');
     const ad = document.getElementById('adminDashboard');
     if (ad) ad.classList.add('hidden');
+    const cw = document.getElementById('clientsWorkspace');
+    if (cw) cw.classList.add('hidden');
     document.body.style.overflow = 'auto';
 }
 
@@ -2356,6 +2533,318 @@ async function renderDashboardActiveProjects() {
     });
 }
 
+// ═══════════════════════════════════════════════════════════
+// DASHBOARD — MY CLIENTS
+// ═══════════════════════════════════════════════════════════
+let dashboardClientsDebounce = null;
+function searchDashboardClients(q) {
+    clearTimeout(dashboardClientsDebounce);
+    dashboardClientsDebounce = setTimeout(() => renderDashboardClients(q), 250);
+}
+
+async function renderDashboardClients(q = '') {
+    const box = document.getElementById('dashboardClientsList');
+    if (!box) return;
+    box.innerHTML = `<div class="text-xs text-center py-6" style="color:var(--text-muted);">در حال بارگذاری...</div>`;
+    const token = localStorage.getItem('deept_token');
+    try {
+        const url = new URL(`${CORE}/clients`);
+        if (q) url.searchParams.set('q', q);
+        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!res.ok) throw new Error();
+        const clients = await res.json();
+        if (!clients.length) {
+            box.innerHTML = `<div class="text-xs text-center py-6" style="color:var(--text-muted);">// هنوز مشتری‌ای ثبت نشده</div>`;
+            return;
+        }
+        box.innerHTML = clients.map(c => `
+            <div class="flex items-center justify-between p-3 rounded-xl" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
+                <div>
+                    <div class="font-bold text-sm en" style="color:var(--text-main);">${escapeHtml(c.first_name)} ${escapeHtml(c.last_name)}</div>
+                    <div class="text-[11px] en" style="color:var(--text-muted);">کد ملی: ${escapeHtml(c.national_id) || '—'} ${c.phone ? '· ' + escapeHtml(c.phone) : ''}</div>
+                </div>
+                <button onclick="openClientDetail('${c.id}')" class="text-xs font-bold px-3 py-1.5 rounded-lg transition" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">مشاهده</button>
+            </div>
+        `).join('');
+    } catch (e) {
+        box.innerHTML = `<div class="text-xs text-center py-6" style="color:#f87171;">خطا در دریافت لیست مشتریان.</div>`;
+    }
+}
+
+let currentClientDetailId = null;
+let invoiceDraft = [];   // [{description, quantity, line_total_toman, job_id}] -- built up before POSTing to /invoices
+
+async function openClientDetail(clientId) {
+    currentClientDetailId = clientId;
+    invoiceDraft = [];
+    document.getElementById('clientDetailModal').classList.remove('hidden');
+    const token = localStorage.getItem('deept_token');
+    try {
+        const res = await fetch(`${CORE}/clients/${clientId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!res.ok) throw new Error();
+        const c = await res.json();
+
+        document.getElementById('cd-name').textContent = `${c.first_name} ${c.last_name}`;
+        document.getElementById('cd-subtitle').textContent = c.father_name ? `فرزند ${c.father_name}` : '';
+        document.getElementById('cd-passport').textContent = c.passport_number || '—';
+        document.getElementById('cd-national').textContent = c.national_id || '—';
+        document.getElementById('cd-phone').textContent = c.phone || '—';
+        document.getElementById('cd-email').textContent = c.email || '—';
+        document.getElementById('cd-notes').value = c.notes || '';
+        document.getElementById('cd-job-count').textContent = c.job_count || 0;
+
+        const related = c.related_persons || [];
+        document.getElementById('cd-related-count').textContent = related.length;
+        const relatedBox = document.getElementById('cd-related-list');
+        relatedBox.innerHTML = !related.length
+            ? `<div class="text-xs text-center py-3" style="color:var(--text-muted);">// نفر مرتبطی ثبت نشده</div>`
+            : related.map(r => `
+                <div class="flex items-center justify-between p-2.5 rounded-lg text-xs" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
+                    <span class="en" style="color:var(--text-main);">${escapeHtml(r.first_name)} ${escapeHtml(r.last_name)}</span>
+                    <span class="flex items-center gap-2">
+                        <span class="en" style="color:var(--text-muted);">کد ملی: ${escapeHtml(r.national_id) || '—'}</span>
+                        <button onclick="removeRelatedPerson('${(r.national_id||'').replace(/'/g,"")}')" style="color:#f87171;background:none;border:none;cursor:pointer;font-weight:700;">حذف ✕</button>
+                    </span>
+                </div>`).join('');
+
+        const STATUS_LABELS = {
+            queued:     { text: 'در صف',        color: '#94a3b8' },
+            processing: { text: 'در حال پردازش', color: '#fb923c' },
+            completed:  { text: 'آماده',        color: '#4ade80' },
+            failed:     { text: 'ناموفق',       color: '#f87171' },
+        };
+        const jobsBox = document.getElementById('cd-jobs-list');
+        if (!c.jobs || !c.jobs.length) {
+            jobsBox.innerHTML = `<div class="text-xs text-center py-4" style="color:var(--text-muted);">// بدون سابقه پروژه</div>`;
+        } else {
+            jobsBox.innerHTML = c.jobs.map(j => {
+                const st = STATUS_LABELS[j.status] || { text: j.status, color: 'var(--text-muted)' };
+                const typeLabel = DOCUMENT_REGISTRY[j.document_type]?.label || j.document_type;
+                // Only a completed job has a settled price worth invoicing --
+                // queued/processing/failed jobs don't get an "add" button.
+                const addBtn = j.status === 'completed'
+                    ? `<button onclick='addJobToDraft(${JSON.stringify(j.id)}, ${JSON.stringify(typeLabel)}, ${j.price_toman || 0})' class="text-[11px] font-bold px-2 py-1 rounded-md transition shrink-0" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">+ افزودن</button>`
+                    : `<span style="width:3.2rem;display:inline-block;"></span>`;
+                return `<div class="flex items-center gap-2.5 p-2.5 rounded-lg text-xs" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
+                    <span class="flex-1" style="color:var(--text-main);">${typeLabel}</span>
+                    <span class="en" style="color:var(--text-muted);">${j.price_toman ? j.price_toman.toLocaleString() + ' ت' : ''}</span>
+                    <span class="status-pill" style="color:${st.color};background:${st.color}1f;">${st.text}</span>
+                    ${addBtn}
+                </div>`;
+            }).join('');
+        }
+
+        renderDraftRows();
+        await renderClientInvoices(clientId);
+    } catch (e) {
+        showToast('خطا در دریافت اطلاعات مشتری.');
+    }
+}
+
+async function renderClientInvoices(clientId) {
+    const box = document.getElementById('cd-invoices-list');
+    const token = localStorage.getItem('deept_token');
+    box.innerHTML = `<div class="text-xs text-center py-3" style="color:var(--text-muted);">در حال بارگذاری...</div>`;
+    try {
+        const res = await fetch(`${CORE}/invoices?client_id=${clientId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!res.ok) throw new Error();
+        const invoices = await res.json();
+        document.getElementById('cd-invoice-count').textContent = invoices.length;
+        if (!invoices.length) {
+            box.innerHTML = `<div class="text-xs text-center py-4" style="color:var(--text-muted);">// بدون فاکتور ثبت‌شده</div>`;
+            return;
+        }
+        const SOURCE_LABELS = { sanam_import: 'سنام', manual: 'دستی' };
+        const TYPE_LABELS = {
+            invoice:  { text: 'فاکتور',     color: '#4ade80' },
+            proforma: { text: 'پیش‌فاکتور', color: '#fb923c' },
+        };
+        box.innerHTML = invoices.map(inv => {
+            const t = TYPE_LABELS[inv.invoice_type] || TYPE_LABELS.invoice;
+            return `
+            <div class="p-2.5 rounded-lg text-xs" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
+                <div class="flex items-center justify-between">
+                    <span class="flex items-center gap-1.5" style="color:var(--text-main);">
+                        🧾 <span class="status-pill" style="color:${t.color};background:${t.color}1f;">${t.text}</span>
+                        ${SOURCE_LABELS[inv.source] || inv.source}${inv.tracking_code ? ' · کد پیگیری ' + escapeHtml(inv.tracking_code) : ''}
+                    </span>
+                    <span class="font-bold en" style="color:var(--accent);">${(inv.total_toman || 0).toLocaleString()} تومان</span>
+                </div>
+            </div>`;
+        }).join('');
+    } catch (e) {
+        box.innerHTML = `<div class="text-xs text-center py-3" style="color:#f87171;">خطا در دریافت فاکتورها.</div>`;
+    }
+}
+
+// ── Invoice draft builder — prices are volatile enough (and one-off costs
+// like هزینه پیک come up often enough) that every line, whether pulled from
+// a job or typed in from scratch, has to stay editable right up until the
+// translator actually submits the invoice. Quantity × unit price, not just
+// a flat total, since per-item costs (تمبر دادگستری, هر صفحه مهر وزارت
+// خارجه, ...) commonly repeat several times in one order. ──────────────────
+function addJobToDraft(jobId, description, priceToman) {
+    if (invoiceDraft.some(row => row.job_id === jobId)) { showToast('این پروژه قبلاً به فاکتور اضافه شده.'); return; }
+    invoiceDraft.push({ description, quantity: 1, unit_price_toman: priceToman, job_id: jobId });
+    renderDraftRows();
+}
+
+function addCustomInvoiceRow() {
+    invoiceDraft.push({ description: '', quantity: 1, unit_price_toman: 0, job_id: null });
+    renderDraftRows();
+}
+
+// Quick-add for per-item official fees that repeat across an order --
+// تمبر دادگستری (۶۰,۰۰۰ هر سند) و مهر وزارت خارجه (۵۰,۰۰۰ هر صفحه) --
+// prefilled with today's default price, quantity still fully editable.
+function addPresetInvoiceRow(description, unitPriceToman) {
+    invoiceDraft.push({ description, quantity: 1, unit_price_toman: unitPriceToman, job_id: null });
+    renderDraftRows();
+}
+
+function updateDraftRow(idx, field, value) {
+    if (!invoiceDraft[idx]) return;
+    invoiceDraft[idx][field] = field === 'description' ? value : (parseInt(value, 10) || 0);
+    if (field === 'quantity' || field === 'unit_price_toman') renderDraftRows();
+}
+
+function removeDraftRow(idx) {
+    invoiceDraft.splice(idx, 1);
+    renderDraftRows();
+}
+
+function updateDraftTotal() {
+    const total = invoiceDraft.reduce((s, row) => s + (row.quantity || 0) * (row.unit_price_toman || 0), 0);
+    document.getElementById('cd-draft-total').textContent = total.toLocaleString();
+}
+
+function renderDraftRows() {
+    const box = document.getElementById('cd-draft-rows');
+    const empty = document.getElementById('cd-draft-empty');
+    empty.classList.toggle('hidden', invoiceDraft.length > 0);
+    box.innerHTML = invoiceDraft.map((row, idx) => {
+        const lineTotal = (row.quantity || 0) * (row.unit_price_toman || 0);
+        return `
+        <div class="flex items-center gap-1.5 p-2 rounded-lg" style="background:var(--card-surface);border:1px solid var(--border-subtle);">
+            <input type="text" value="${row.description.replace(/"/g,'&quot;')}" placeholder="شرح ردیف (مثلاً هزینه پیک)" oninput="updateDraftRow(${idx},'description',this.value)" class="auth-input flex-1" style="padding:.4rem .6rem;font-size:.78rem;">
+            <input type="number" min="1" value="${row.quantity}" title="تعداد" oninput="updateDraftRow(${idx},'quantity',this.value)" class="auth-input en" dir="ltr" style="width:52px;padding:.4rem .4rem;font-size:.78rem;text-align:center;">
+            <span class="text-[10px] shrink-0" style="color:var(--text-muted);">×</span>
+            <input type="number" value="${row.unit_price_toman}" title="قیمت واحد (تومان)" oninput="updateDraftRow(${idx},'unit_price_toman',this.value)" class="auth-input en" dir="ltr" style="width:100px;padding:.4rem .6rem;font-size:.78rem;">
+            <span class="text-[11px] font-bold en shrink-0" style="width:95px;text-align:left;color:var(--accent);">${lineTotal.toLocaleString()}</span>
+            <button onclick="removeDraftRow(${idx})" style="color:#f87171;background:none;border:none;cursor:pointer;font-weight:700;padding:0 .25rem;">✕</button>
+        </div>`;
+    }).join('');
+    updateDraftTotal();
+}
+
+async function submitDraftInvoice(invoiceType) {
+    if (!currentClientDetailId) return;
+    if (!invoiceDraft.length) { showToast('⚠️ حداقل یک ردیف به فاکتور اضافه کنید.'); return; }
+    if (invoiceDraft.some(row => !row.description.trim())) { showToast('⚠️ شرح همه ردیف‌ها باید تکمیل شود.'); return; }
+
+    const items = invoiceDraft.map(row => ({
+        description: row.description,
+        quantity: row.quantity || 1,
+        line_total_toman: (row.quantity || 0) * (row.unit_price_toman || 0),
+        job_id: row.job_id,
+    }));
+
+    const token = localStorage.getItem('deept_token');
+    try {
+        const res = await fetch(`${CORE}/invoices`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ client_id: currentClientDetailId, items, invoice_type: invoiceType })
+        });
+        if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.detail || 'خطای سرور'); }
+        const label = invoiceType === 'proforma' ? 'پیش‌فاکتور' : 'فاکتور';
+        showToast(`✅ ${label}ی با ${items.length} ردیف ثبت شد.`);
+        invoiceDraft = [];
+        renderDraftRows();
+        await renderClientInvoices(currentClientDetailId);
+    } catch (e) {
+        showToast('❌ ثبت فاکتور ناموفق بود.');
+    }
+}
+
+function closeClientDetailModal() {
+    document.getElementById('clientDetailModal').classList.add('hidden');
+    currentClientDetailId = null;
+}
+
+async function saveClientNotes() {
+    if (!currentClientDetailId) return;
+    const token = localStorage.getItem('deept_token');
+    try {
+        const res = await fetch(`${CORE}/clients/${currentClientDetailId}`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ notes: document.getElementById('cd-notes').value })
+        });
+        if (!res.ok) throw new Error();
+        showToast('✅ یادداشت ذخیره شد.');
+    } catch (e) {
+        showToast('خطا در ذخیره یادداشت.');
+    }
+}
+
+async function removeRelatedPerson(nationalId) {
+    if (!currentClientDetailId) return;
+    const token = localStorage.getItem('deept_token');
+    try {
+        const res = await fetch(`${CORE}/clients/${currentClientDetailId}/related/${nationalId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error();
+        showToast('✅ نفر مرتبط حذف شد.');
+        await openClientDetail(currentClientDetailId);
+    } catch (e) {
+        showToast('خطا در حذف نفر مرتبط.');
+    }
+}
+
+// ── Sanam bulk import ─────────────────────────────────────────────────────────
+async function handleSanamFileSelected(file) {
+    if (!file) return;
+    const btn    = document.getElementById('sanamUploadBtn');
+    const status = document.getElementById('sanamImportStatus');
+    btn.disabled = true;
+    btn.textContent = 'در حال پردازش فایل...';
+    status.classList.remove('hidden');
+    status.style.color = 'var(--text-muted)';
+    status.textContent = 'در حال بارگذاری و بررسی فایل سنام...';
+
+    const fd = new FormData();
+    fd.append('file', file);
+    const token = localStorage.getItem('deept_token');
+
+    try {
+        const res = await fetch(`${CORE}/invoices/import-sanam`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` },
+            body: fd
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || 'خطای سرور');
+
+        status.style.color = 'var(--accent)';
+        status.textContent =
+            `✅ ${data.clients_touched} مشتری ثبت/به‌روزرسانی شد — ` +
+            `${data.invoices_created} فاکتور جدید ساخته شد` +
+            (data.invoices_skipped_already_imported ? ` (${data.invoices_skipped_already_imported} فاکتور قبلاً وارد شده بود و رد شد)` : '') +
+            '.';
+        renderDashboardClients();
+    } catch (err) {
+        status.style.color = '#f87171';
+        status.textContent = `❌ ${err.message || 'بارگذاری فایل سنام ناموفق بود.'}`;
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'انتخاب فایل اکسل...';
+        document.getElementById('sanamFileInput').value = '';
+    }
+}
+
 async function downloadJobResult(jobId) {
     const token = localStorage.getItem('deept_token');
     try {
@@ -2416,10 +2905,14 @@ function navigateTo(path, pushHistory = true) {
 // history -- used both by popstate and by the initial page load, so a
 // direct visit or refresh on /dashboard lands on the right screen.
 function applyRouteForPath(path) {
-    if (path === '/dashboard' || path === '/new-project') {
+    if (path === '/dashboard' || path === '/new-project' || path === '/clients') {
         if (currentUserSession) {
-            openWorkspaceDashboard(false);
-            if (path === '/new-project') openChatInterface(false);
+            if (path === '/clients') {
+                openClientsWorkspace(false);
+            } else {
+                openWorkspaceDashboard(false);
+                if (path === '/new-project') openChatInterface(false);
+            }
         } else {
             navigateTo('/', false);
             showLandingView();
@@ -2489,6 +2982,7 @@ function ppSetMode(mode) {
     document.getElementById('pp-upload-zone').classList.add('hidden');
     document.getElementById('pp-fields').classList.add('hidden');
     document.getElementById('pp-skip-confirm').classList.add('hidden');
+    document.getElementById('pp-existing-client').classList.add('hidden');
     ppShowStatus('','');
 
     if (mode === 'upload') {
@@ -2498,6 +2992,80 @@ function ppSetMode(mode) {
         document.getElementById('pp-fields').classList.remove('hidden');
     } else if (mode === 'skip') {
         document.getElementById('pp-skip-confirm').classList.remove('hidden');
+    } else if (mode === 'existing') {
+        document.getElementById('pp-existing-client').classList.remove('hidden');
+        ppSearchExistingClients('');
+    }
+}
+
+// ── "Select existing client" — reuse a saved client's identity ──────────────
+let ppClientSearchDebounce = null;
+function ppSearchExistingClients(q) {
+    clearTimeout(ppClientSearchDebounce);
+    ppClientSearchDebounce = setTimeout(() => ppFetchExistingClients(q), 250);
+}
+
+async function ppFetchExistingClients(q) {
+    const box = document.getElementById('pp-client-results');
+    box.innerHTML = `<div class="text-xs text-center py-3" style="color:var(--text-muted);">در حال بارگذاری...</div>`;
+    const token = localStorage.getItem('deept_token');
+    try {
+        const url = new URL(`${CORE}/clients`);
+        if (q) url.searchParams.set('q', q);
+        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!res.ok) throw new Error();
+        const clients = await res.json();
+        if (!clients.length) {
+            box.innerHTML = `<div class="text-xs text-center py-3" style="color:var(--text-muted);">مشتری‌ای یافت نشد.</div>`;
+            return;
+        }
+        box.innerHTML = clients.map(c => `
+            <button onclick="ppSelectExistingClient('${c.id}')" class="w-full flex items-center justify-between p-2.5 rounded-lg text-right transition" style="background:var(--bg-main);border:1px solid var(--border-subtle);" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border-subtle)'">
+                <span>
+                    <div class="font-bold text-sm en" style="color:var(--text-main);">${escapeHtml(c.first_name)} ${escapeHtml(c.last_name)}</div>
+                    <div class="text-[11px] en" style="color:var(--text-muted);">کد ملی: ${escapeHtml(c.national_id) || '—'}</div>
+                </span>
+                <span style="color:var(--accent);font-size:.7rem;font-weight:700;">انتخاب ←</span>
+            </button>
+        `).join('');
+    } catch (e) {
+        box.innerHTML = `<div class="text-xs text-center py-3" style="color:#f87171;">خطا در دریافت لیست مشتریان.</div>`;
+    }
+}
+
+async function ppSelectExistingClient(clientId) {
+    ppShowStatus('⏳', 'در حال بارگذاری اطلاعات مشتری...');
+    const token = localStorage.getItem('deept_token');
+    try {
+        const res = await fetch(`${getActiveBackendOrigin()}/passport/from-client/${clientId}`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.detail || 'خطای سرور'); }
+        const data = await res.json();
+        const idn = data.identity || {};
+        confirmedPassports.push({
+            session_id:    data.session_id,
+            first_name:    idn.first_name    || '',
+            last_name:     idn.last_name     || '',
+            father_name:   idn.father_name   || '',
+            date_of_birth: idn.date_of_birth || '',
+        });
+        selectedClientId = clientId;
+        // The first person established this session (whether picked from
+        // the list or freshly confirmed) is the main contact -- anyone
+        // confirmed afterward attaches to them as a نفر مرتبط instead of
+        // becoming a separate client.
+        if (!mainContactClientId) {
+            mainContactClientId = clientId;
+            mainContactNationalId = idn.national_id || null;
+        }
+        updateClientBadge();
+        document.getElementById('pp-existing-client').classList.add('hidden');
+        ppShowStatus('', '');
+        showToast(`✅ ${idn.first_name} ${idn.last_name} انتخاب شد — بدون بارگذاری پاسپورت`);
+    } catch (err) {
+        ppShowStatus('❌', 'دریافت اطلاعات مشتری ناموفق بود.');
     }
 }
 
@@ -2510,14 +3078,15 @@ function ppShowStatus(icon, text) {
 }
 
 function ppClearFields() {
-    ['pp-first','pp-last','pp-father','pp-dob'].forEach(id => document.getElementById(id).value = '');
+    ['pp-first','pp-last','pp-father','pp-dob','pp-national'].forEach(id => document.getElementById(id).value = '');
 }
 
 function ppFillFields(data) {
-    document.getElementById('pp-first').value  = data.first_name    || '';
-    document.getElementById('pp-last').value   = data.last_name     || '';
-    document.getElementById('pp-father').value = data.father_name   || '';
-    document.getElementById('pp-dob').value    = data.date_of_birth || '';
+    document.getElementById('pp-first').value    = data.first_name    || '';
+    document.getElementById('pp-last').value     = data.last_name     || '';
+    document.getElementById('pp-father').value   = data.father_name   || '';
+    document.getElementById('pp-dob').value      = data.date_of_birth || '';
+    document.getElementById('pp-national').value = data.national_id   || '';
 }
 
 function ppHandleFile(file) {
@@ -2568,10 +3137,11 @@ async function ppRunExtraction() {
 }
 
 async function ppConfirmSession() {
-    const first  = document.getElementById('pp-first').value.trim().toUpperCase();
-    const last   = document.getElementById('pp-last').value.trim().toUpperCase();
-    const father = document.getElementById('pp-father').value.trim().toUpperCase();
-    const dob    = document.getElementById('pp-dob').value.trim();
+    const first    = document.getElementById('pp-first').value.trim().toUpperCase();
+    const last     = document.getElementById('pp-last').value.trim().toUpperCase();
+    const father   = document.getElementById('pp-father').value.trim().toUpperCase();
+    const dob      = document.getElementById('pp-dob').value.trim();
+    const national = document.getElementById('pp-national').value.trim();
 
     if (!first || !last) { showToast('⚠️ نام و نام خانوادگی الزامی است.'); return; }
 
@@ -2581,20 +3151,85 @@ async function ppConfirmSession() {
         const res = await fetch(`${getActiveBackendOrigin()}/passport/confirm`, {
             method: 'POST',
             headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ first_name:first, last_name:last, father_name:father, date_of_birth:dob })
+            body: JSON.stringify({ first_name:first, last_name:last, father_name:father, date_of_birth:dob, national_id:national })
         });
         if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'خطای سرور'); }
         const data = await res.json();
 
-        confirmedPassports.push({ session_id:data.session_id, first_name:first, last_name:last, father_name:father, date_of_birth:dob });
+        confirmedPassports.push({ session_id:data.session_id, first_name:first, last_name:last, father_name:father, date_of_birth:dob, national_id:national });
         updateClientBadge();
 document.getElementById('pp-fields').classList.add('hidden');
 document.getElementById('ppModeButtons').classList.add('hidden');
 ppShowStatus('', '');
         showToast(`✅ پاسپورت ${first} ${last} ثبت شد (مجموع: ${confirmedPassports.length} نفر)`);
+
+        // Identity is stored in the profile the moment it's confirmed --
+        // no separate "save as client" step needed when a national ID was
+        // captured. Silent on success; a client without a national ID (a
+        // foreign passport, or the field left blank) simply isn't
+        // auto-saved -- the manual "💾 ذخیره مشتری" button on the
+        // confirmed-passports list still covers that case once one is typed in.
+        if (national) {
+            saveOrAttachClient({ first_name:first, last_name:last, father_name:father, date_of_birth:dob, national_id:national, session_id:data.session_id });
+        }
     } catch (err) {
         ppShowStatus('❌', 'ثبت اطلاعات ناموفق بود. لطفاً دوباره تلاش کنید.');
     }
+}
+
+// Auto-persists a confirmed identity -- called right after every passport
+// confirmation that has a national ID, so "no need to upload passport next
+// time" holds without any extra click. The FIRST identity saved this
+// session becomes the main contact; anyone confirmed afterward (a spouse,
+// a child -- documents often arrive together for a family) attaches to
+// that same profile as a نفر مرتبط instead of becoming a separate client.
+// Silent on success (a quiet toast only); failures are swallowed since this
+// runs alongside a translation job that must not be blocked by it.
+async function saveOrAttachClient(identity) {
+    const token = localStorage.getItem('deept_token');
+
+    if (!mainContactClientId) {
+        try {
+            const res = await fetch(`${CORE}/clients`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    first_name:    identity.first_name,
+                    last_name:     identity.last_name,
+                    national_id:   identity.national_id,
+                    father_name:   identity.father_name   || '',
+                    date_of_birth: identity.date_of_birth || '',
+                    source_passport_session_id: identity.session_id || null,
+                })
+            });
+            if (res.ok) {
+                const client = await res.json();
+                mainContactClientId = client.id;
+                mainContactNationalId = identity.national_id;
+                showToast(`👤 ${identity.first_name} ${identity.last_name} به‌عنوان مخاطب اصلی ذخیره شد.`, 1800);
+            }
+        } catch (e) { /* best-effort -- the job itself must not fail because of this */ }
+        return;
+    }
+
+    if (identity.national_id === mainContactNationalId) return; // same person confirmed twice this session
+
+    try {
+        const res = await fetch(`${CORE}/clients/${mainContactClientId}/related`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                first_name:    identity.first_name,
+                last_name:     identity.last_name,
+                national_id:   identity.national_id,
+                father_name:   identity.father_name   || '',
+                date_of_birth: identity.date_of_birth || '',
+            })
+        });
+        if (res.ok) {
+            showToast(`👨‍👩‍👧 ${identity.first_name} ${identity.last_name} به‌عنوان نفر مرتبط به پروفایل اضافه شد.`, 2000);
+        }
+    } catch (e) { /* best-effort */ }
 }
 
 function ppActivateSkipSession() {
@@ -2634,8 +3269,11 @@ function renderConfirmedPassportsList() {
     if (!confirmedPassports.length) { box.innerHTML = ''; return; }
 box.innerHTML = confirmedPassports.map((p, idx) => `
         <div class="flex items-center justify-between p-2 rounded-lg" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
-                        <span style="color:var(--text-main);">🟢 ${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}</span>
-            <button onclick="removeConfirmedPassport(${idx})" style="color:#f87171;background:none;border:none;cursor:pointer;font-weight:700;">حذف ✕</button>
+            <span style="color:var(--text-main);">🟢 ${escapeHtml(p.first_name)} ${escapeHtml(p.last_name)}</span>
+            <span class="flex items-center gap-2.5">
+                <button onclick="openSaveClientModal(${idx})" style="color:var(--accent);background:none;border:none;cursor:pointer;font-weight:700;font-size:.72rem;">${p.national_id ? '✏️ ثبت جزئیات تماس' : '💾 ذخیره مشتری'}</button>
+                <button onclick="removeConfirmedPassport(${idx})" style="color:#f87171;background:none;border:none;cursor:pointer;font-weight:700;">حذف ✕</button>
+            </span>
         </div>
     `).join('');
 }
@@ -2646,7 +3284,111 @@ function removeConfirmedPassport(idx) {
         fetch(`${getActiveBackendOrigin()}/passport/${p.session_id}`, { method:'DELETE' }).catch(()=>{});
     }
     confirmedPassports.splice(idx, 1);
+    if (!confirmedPassports.length) {
+        selectedClientId = null;
+        mainContactClientId = null;
+        mainContactNationalId = null;
+    }
     updateClientBadge();
+}
+
+// ── "Save as new client" — persist a confirmed passport for reuse ───────────
+let saveClientSourceIdx = null;
+
+function openSaveClientModal(idx) {
+    const p = confirmedPassports[idx];
+    if (!p) return;
+    saveClientSourceIdx = idx;
+    document.getElementById('saveClientNamePreview').textContent = `${p.first_name} ${p.last_name}`;
+    ['sc-phone','sc-email','sc-passport','sc-national','sc-nationality','sc-notes'].forEach(id => document.getElementById(id).value = '');
+    // Already captured automatically at confirm time when the passport had
+    // one printed -- prefilled here so the translator isn't asked twice,
+    // but still editable in case it needs correcting.
+    if (p.national_id) document.getElementById('sc-national').value = p.national_id;
+
+    // A main contact already exists this session -> this person will be
+    // saved as a نفر مرتبط on that profile, not a separate client, so the
+    // modal says so up front instead of implying a new independent client.
+    const isRelated = mainContactClientId && p.national_id && p.national_id !== mainContactNationalId;
+    document.getElementById('sc-modal-title').textContent = isRelated ? '👨‍👩‍👧 افزودن نفر مرتبط' : '💾 ذخیره به‌عنوان مشتری';
+    document.getElementById('sc-modal-desc').textContent = isRelated
+        ? 'این فرد به‌عنوان نفر مرتبط به پروفایل مخاطب اصلی این کار اضافه می‌شود.'
+        : 'دفعه بعد بدون بارگذاری پاسپورت، این مشتری را از لیست «مشتریان قبلی» انتخاب کنید.';
+
+    document.getElementById('saveClientModal').classList.remove('hidden');
+}
+
+function closeSaveClientModal() {
+    document.getElementById('saveClientModal').classList.add('hidden');
+    saveClientSourceIdx = null;
+}
+
+async function submitSaveClient() {
+    if (saveClientSourceIdx === null) return;
+    const p = confirmedPassports[saveClientSourceIdx];
+    if (!p) return;
+
+    const nationalId = document.getElementById('sc-national').value.trim();
+    if (!nationalId) {
+        showToast('⚠️ کد ملی الزامی است — شناسه اصلی مشتری برای جلوگیری از ثبت تکراری است.');
+        document.getElementById('sc-national').focus();
+        return;
+    }
+
+    const btn = document.getElementById('sc-submit-btn');
+    btn.disabled = true;
+    btn.textContent = 'در حال ذخیره...';
+    const token = localStorage.getItem('deept_token');
+
+    // A main contact already established this session, and this is someone
+    // else (e.g. a family member) -- attach as a نفر مرتبط on that profile
+    // instead of creating a second independent client.
+    const isRelated = mainContactClientId && nationalId !== mainContactNationalId;
+
+    try {
+        const res = isRelated
+            ? await fetch(`${CORE}/clients/${mainContactClientId}/related`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    first_name: p.first_name, last_name: p.last_name, national_id: nationalId,
+                    father_name: p.father_name || '', date_of_birth: p.date_of_birth || '',
+                })
+            })
+            : await fetch(`${CORE}/clients`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    first_name:    p.first_name,
+                    last_name:     p.last_name,
+                    national_id:   nationalId,
+                    father_name:   p.father_name   || '',
+                    date_of_birth: p.date_of_birth || '',
+                    phone:           document.getElementById('sc-phone').value.trim()       || null,
+                    email:           document.getElementById('sc-email').value.trim()       || null,
+                    passport_number: document.getElementById('sc-passport').value.trim()    || null,
+                    nationality:     document.getElementById('sc-nationality').value.trim() || null,
+                    notes:           document.getElementById('sc-notes').value.trim()       || null,
+                    source_passport_session_id: p.session_id || null,
+                })
+            });
+        if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.detail || 'خطای سرور'); }
+
+        if (isRelated) {
+            showToast('✅ به‌عنوان نفر مرتبط به پروفایل مخاطب اصلی اضافه شد.');
+        } else {
+            const client = await res.json();
+            mainContactClientId = client.id;
+            mainContactNationalId = nationalId;
+            showToast('✅ مشتری ذخیره شد.');
+        }
+        closeSaveClientModal();
+    } catch (e) {
+        showToast('❌ ذخیره مشتری ناموفق بود.');
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'ذخیره مشتری';
+    }
 }
     function goBackToDocTypeStage() {
     showOnlyStage('doctype');
@@ -2695,6 +3437,9 @@ function confirmNewClient() {
         if (p.session_id) fetch(`${getActiveBackendOrigin()}/passport/${p.session_id}`, { method:'DELETE' }).catch(()=>{});
     });
     confirmedPassports = [];
+    selectedClientId = null;
+    mainContactClientId = null;
+    mainContactNationalId = null;
     updateClientBadge();
 
     ppSelectedFile  = null;
@@ -2843,6 +3588,7 @@ if (docDef.usePassportSession) {
             if (sid) fd.append('session_id', sid);
         } else {
             confirmedPassports.forEach(p => fd.append('session_ids', p.session_id));
+            if (selectedClientId) fd.append('client_id', selectedClientId);
         }
     }
 
@@ -3377,6 +4123,7 @@ function showAdminDashboard() {
     const lp = document.getElementById('landingPage');
     if (lp) lp.style.display = 'none';
     document.getElementById('workspaceDashboard').classList.add('hidden');
+    document.getElementById('clientsWorkspace').classList.add('hidden');
     document.getElementById('adminDashboard').classList.remove('hidden');
     switchAdminTab('users');
     loadAdminUsers();
@@ -3863,12 +4610,6 @@ function applyCrmFilters() {
             </tr>
         `;
     }).join('');
-}
-
-function showDashboardView() {
-    const lp=document.getElementById('landingPage');
-    if(lp) lp.style.display='none';
-    openWorkspaceDashboard();
 }
 
 // ── THEME ──
