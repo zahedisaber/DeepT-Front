@@ -1081,6 +1081,41 @@ body::before {
   </div>
 </div>
 
+<!-- ─── ADD CLIENT DIRECTLY (from the Clients section, no passport/job involved) ─── -->
+<div id="addClientModal" class="modal-overlay fixed inset-0 z-[70] hidden flex items-center justify-center p-4">
+  <div class="w-full max-w-md p-6" style="background:var(--card-surface);border:1px solid var(--border-color);border-radius:1rem;max-height:88vh;overflow-y:auto;">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-base font-black" style="color:var(--text-main);">➕ افزودن مشتری جدید</h3>
+      <button onclick="closeAddClientModal()" style="color:var(--text-muted);background:none;border:none;cursor:pointer;font-size:1.1rem;">✕</button>
+    </div>
+    <div class="space-y-3">
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="auth-label">نام (First Name) <span style="color:#f87171;">*</span></label><input type="text" id="ac-first" class="auth-input en uppercase" dir="ltr" placeholder="ALI" oninput="this.value=this.value.toUpperCase()"></div>
+        <div><label class="auth-label">نام خانوادگی (Last Name) <span style="color:#f87171;">*</span></label><input type="text" id="ac-last" class="auth-input en uppercase" dir="ltr" placeholder="MOHAMMADI" oninput="this.value=this.value.toUpperCase()"></div>
+      </div>
+      <div>
+        <label class="auth-label">کد ملی <span style="color:#f87171;">*</span></label>
+        <input type="text" id="ac-national" class="auth-input en" dir="ltr" placeholder="0012345678">
+        <p class="text-[11px] mt-1" style="color:var(--text-muted);">شناسه اصلی مشتری — برای جلوگیری از ثبت تکراری استفاده می‌شود.</p>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="auth-label">نام پدر (Father's Name)</label><input type="text" id="ac-father" class="auth-input en uppercase" dir="ltr" placeholder="HASSAN" oninput="this.value=this.value.toUpperCase()"></div>
+        <div><label class="auth-label">تاریخ تولد — میلادی</label><input type="text" id="ac-dob" class="auth-input en" dir="ltr" placeholder="April 12, 1985"></div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="auth-label">شماره تماس</label><input type="text" id="ac-phone" class="auth-input en" dir="ltr" placeholder="09xxxxxxxxx"></div>
+        <div><label class="auth-label">ایمیل</label><input type="text" id="ac-email" class="auth-input en" dir="ltr" placeholder="client@email.com"></div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="auth-label">شماره پاسپورت</label><input type="text" id="ac-passport" class="auth-input en" dir="ltr" placeholder="A12345678"></div>
+        <div><label class="auth-label">ملیت</label><input type="text" id="ac-nationality" class="auth-input" placeholder="ایرانی"></div>
+      </div>
+      <div><label class="auth-label">یادداشت</label><textarea id="ac-notes" rows="2" class="auth-input resize-none" placeholder="یادداشت اختیاری..."></textarea></div>
+    </div>
+    <button onclick="submitAddClient()" id="ac-submit-btn" class="w-full mt-5 py-2.5 rounded-xl text-sm font-black transition" style="background:var(--accent);color:var(--btn-text-on-accent);">افزودن مشتری</button>
+  </div>
+</div>
+
 <!-- ─── CLIENT DETAIL (dashboard) ─── -->
 <div id="clientDetailModal" class="modal-overlay fixed inset-0 z-[70] hidden flex items-center justify-center p-4">
   <div class="w-full max-w-lg p-6" style="background:var(--card-surface);border:1px solid var(--border-color);border-radius:1rem;max-height:85vh;overflow-y:auto;">
@@ -1451,7 +1486,10 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                     <h3 class="text-sm font-bold" style="color:var(--text-main);">لیست مشتریان</h3>
                     <p class="text-xs mt-1" style="color:var(--text-muted);">ساخته‌شده از اطلاعات پاسپورت‌های تأییدشده؛ سابقه پروژه‌ها به‌صورت خودکار همگام است.</p>
                 </div>
-                <input type="text" id="clientsSearchInput" class="auth-input" style="max-width:220px;" placeholder="جستجو با نام یا کد ملی..." oninput="searchDashboardClients(this.value)">
+                <div class="flex items-center gap-2">
+                    <input type="text" id="clientsSearchInput" class="auth-input" style="max-width:220px;" placeholder="جستجو با نام یا کد ملی..." oninput="searchDashboardClients(this.value)">
+                    <button onclick="openAddClientModal()" class="text-xs font-black px-4 py-2 rounded-xl transition shrink-0" style="background:var(--accent);color:var(--btn-text-on-accent);">+ افزودن مشتری</button>
+                </div>
             </div>
             <div id="dashboardClientsList" class="space-y-2"></div>
         </div>
@@ -3321,6 +3359,63 @@ function openSaveClientModal(idx) {
 function closeSaveClientModal() {
     document.getElementById('saveClientModal').classList.add('hidden');
     saveClientSourceIdx = null;
+}
+
+// ── Add a client directly from the Clients section — no passport upload or
+// job needed, for a walk-in whose documents haven't come through DeepT yet. ──
+function openAddClientModal() {
+    ['ac-first','ac-last','ac-national','ac-father','ac-dob','ac-phone','ac-email','ac-passport','ac-nationality','ac-notes']
+        .forEach(id => document.getElementById(id).value = '');
+    document.getElementById('addClientModal').classList.remove('hidden');
+}
+
+function closeAddClientModal() {
+    document.getElementById('addClientModal').classList.add('hidden');
+}
+
+async function submitAddClient() {
+    const first = document.getElementById('ac-first').value.trim().toUpperCase();
+    const last  = document.getElementById('ac-last').value.trim().toUpperCase();
+    const nationalId = document.getElementById('ac-national').value.trim();
+
+    if (!first || !last) { showToast('⚠️ نام و نام خانوادگی الزامی است.'); return; }
+    if (!nationalId) {
+        showToast('⚠️ کد ملی الزامی است — شناسه اصلی مشتری برای جلوگیری از ثبت تکراری است.');
+        document.getElementById('ac-national').focus();
+        return;
+    }
+
+    const btn = document.getElementById('ac-submit-btn');
+    btn.disabled = true;
+    btn.textContent = 'در حال افزودن...';
+    const token = localStorage.getItem('deept_token');
+    try {
+        const res = await fetch(`${CORE}/clients`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                first_name:  first,
+                last_name:   last,
+                national_id: nationalId,
+                father_name:   document.getElementById('ac-father').value.trim().toUpperCase(),
+                date_of_birth: document.getElementById('ac-dob').value.trim(),
+                phone:           document.getElementById('ac-phone').value.trim()       || null,
+                email:           document.getElementById('ac-email').value.trim()       || null,
+                passport_number: document.getElementById('ac-passport').value.trim()    || null,
+                nationality:     document.getElementById('ac-nationality').value.trim() || null,
+                notes:           document.getElementById('ac-notes').value.trim()       || null,
+            })
+        });
+        if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.detail || 'خطای سرور'); }
+        closeAddClientModal();
+        showToast('✅ مشتری افزوده شد.');
+        renderDashboardClients();
+    } catch (e) {
+        showToast(`❌ ${e.message || 'افزودن مشتری ناموفق بود.'}`);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'افزودن مشتری';
+    }
 }
 
 async function submitSaveClient() {
