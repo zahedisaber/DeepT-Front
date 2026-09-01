@@ -1279,11 +1279,35 @@ body::before {
       <button onclick="printInvoiceView()" class="flex-1 py-2.5 rounded-xl text-xs font-black transition" style="background:var(--accent);color:var(--btn-text-on-accent);">🖨️ چاپ / ذخیره PDF</button>
       <button onclick="toggleInvoiceEmailRow()" class="flex-1 py-2.5 rounded-xl text-xs font-black transition" style="background:var(--bg-main);color:var(--accent);border:1px solid var(--border-color);">📧 ارسال ایمیل</button>
     </div>
+    <div class="flex items-center gap-2 mt-2 no-print">
+      <button onclick="startInvoiceEdit()" id="iv-edit-btn" class="w-full py-2.5 rounded-xl text-xs font-black transition" style="background:var(--bg-main);color:var(--accent);border:1px solid var(--border-color);">✏️ ویرایش فاکتور</button>
+    </div>
     <div id="iv-email-row" class="hidden items-center gap-2 mt-2 no-print">
       <input type="text" id="iv-email-input" class="auth-input en flex-1" dir="ltr" placeholder="client@email.com" style="padding:.5rem .7rem;font-size:.8rem;">
       <button onclick="submitInvoiceEmail()" id="iv-email-submit" class="text-xs font-black px-3 py-2 rounded-lg transition shrink-0" style="background:var(--accent);color:var(--btn-text-on-accent);">ارسال</button>
     </div>
     <p id="iv-email-status" class="text-[11px] mt-2 no-print hidden"></p>
+
+    <div id="iv-edit-editor" class="hidden mt-4 no-print">
+      <div class="text-sm font-black mb-3" style="color:var(--text-main);">✏️ ویرایش فاکتور</div>
+      <div class="flex items-center gap-2 mb-3">
+        <span class="text-xs font-bold" style="color:var(--text-muted);">نوع:</span>
+        <button onclick="setInvoiceEditType('invoice')" id="ive-type-invoice" class="text-[11px] font-bold px-3 py-1.5 rounded-lg transition" style="background:var(--bg-main);border:1px solid var(--border-subtle);color:var(--text-muted);">فاکتور</button>
+        <button onclick="setInvoiceEditType('proforma')" id="ive-type-proforma" class="text-[11px] font-bold px-3 py-1.5 rounded-lg transition" style="background:var(--bg-main);border:1px solid var(--border-subtle);color:var(--text-muted);">پیش‌فاکتور</button>
+      </div>
+      <div class="flex flex-wrap items-center gap-2 mb-3">
+        <button onclick="addInvoiceEditRow()" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">+ ردیف</button>
+        <span class="text-[11px]" style="color:var(--text-muted);">تعداد و قیمت هر ردیف را می‌توانید تغییر دهید.</span>
+      </div>
+      <div id="ive-rows" class="space-y-1.5"></div>
+      <div class="flex items-center justify-between mt-3 pt-3" style="border-top:1px solid var(--divider);">
+        <span class="text-xs font-bold" style="color:var(--text-muted);">جمع: <span class="en" id="ive-total" style="color:var(--text-main);">۰</span> تومان</span>
+        <span class="flex items-center gap-2">
+          <button onclick="cancelInvoiceEdit()" class="text-[11px] font-bold px-3 py-1.5 rounded-lg transition" style="background:var(--bg-main);color:var(--text-muted);border:1px solid var(--border-subtle);">انصراف</button>
+          <button onclick="saveInvoiceEdit()" id="ive-save-btn" class="text-[11px] font-black px-3 py-1.5 rounded-lg transition" style="background:var(--accent);color:var(--btn-text-on-accent);border:1px solid transparent;">ذخیره تغییرات</button>
+        </span>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -2987,14 +3011,21 @@ async function renderClientInvoices(clientId) {
         };
         box.innerHTML = invoices.map(inv => {
             const t = TYPE_LABELS[inv.invoice_type] || TYPE_LABELS.invoice;
+            const locked = !!inv.finalized_at;
+            const actions = locked
+                ? `<span class="text-[10px] shrink-0" style="color:var(--text-muted);">🔒 نهایی</span>`
+                : `<button onclick="event.stopPropagation();openInvoiceView('${inv.id}', true)" class="text-[10px] font-bold px-2 py-1 rounded-md shrink-0" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">✏️ ویرایش</button>`;
             return `
             <div onclick="openInvoiceView('${inv.id}')" class="p-2.5 rounded-lg text-xs cursor-pointer transition hover:opacity-80" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
-                <div class="flex items-center justify-between">
+                <div class="flex items-center justify-between gap-2">
                     <span class="flex items-center gap-1.5" style="color:var(--text-main);">
                         🧾 <span class="status-pill" style="color:${t.color};background:${t.color}1f;">${t.text}</span>
                         ${SOURCE_LABELS[inv.source] || inv.source}${inv.tracking_code ? ' · کد پیگیری ' + escapeHtml(inv.tracking_code) : ''}
                     </span>
-                    <span class="font-bold en" style="color:var(--accent);">${(inv.total_toman || 0).toLocaleString()} تومان</span>
+                    <span class="flex items-center gap-2">
+                        <span class="font-bold en" style="color:var(--accent);">${(inv.total_toman || 0).toLocaleString()} تومان</span>
+                        ${actions}
+                    </span>
                 </div>
             </div>`;
         }).join('');
@@ -3665,14 +3696,19 @@ async function renderScheduleWeek() {
 let currentInvoiceView = null; // { id, client } — kept for the email prefill
 
 const INVOICE_TYPE_LABELS_FA = { invoice: 'فاکتور', proforma: 'پیش‌فاکتور' };
+let invoiceViewFinalized = false;     // locked once printed (finalize) or emailed
+let invoiceEditState = null;          // { items: [...], invoice_type } while editing
+let invoiceEditType = 'invoice';
 
-async function openInvoiceView(invoiceId) {
+async function openInvoiceView(invoiceId, autoEdit = false) {
     const token = localStorage.getItem('deept_token');
     try {
         const res = await fetch(`${CORE}/invoices/${invoiceId}`, { headers: { 'Authorization': `Bearer ${token}` } });
         if (!res.ok) throw new Error();
         const inv = await res.json();
         currentInvoiceView = { id: inv.id, client: inv.client || {} };
+        invoiceViewFinalized = !!inv.finalized_at;
+        invoiceEditState = null;
 
         const issuer = inv.issuer || {};
         document.getElementById('iv-issuer-name').textContent = issuer.office_name || issuer.full_name || 'دیپ‌تی';
@@ -3697,7 +3733,15 @@ async function openInvoiceView(invoiceId) {
         document.getElementById('iv-email-input').value = inv.client?.email || '';
         document.getElementById('iv-email-status').classList.add('hidden');
 
+        document.getElementById('iv-edit-editor').classList.add('hidden');
+        const editBtn = document.getElementById('iv-edit-btn');
+        editBtn.classList.toggle('hidden', invoiceViewFinalized);
+        editBtn.textContent = invoiceViewFinalized ? '🔒 فاکتور نهایی‌شده' : '✏️ ویرایش فاکتور';
+        if (invoiceViewFinalized) editBtn.style.color = 'var(--text-muted)';
+        else editBtn.style.color = 'var(--accent)';
+
         document.getElementById('invoiceViewModal').classList.remove('hidden');
+        if (autoEdit && !invoiceViewFinalized) startInvoiceEdit();
     } catch (e) {
         showToast('خطا در دریافت فاکتور.');
     }
@@ -3708,7 +3752,18 @@ function closeInvoiceViewModal() {
     currentInvoiceView = null;
 }
 
-function printInvoiceView() {
+async function printInvoiceView() {
+    // Printing counts as issuing the invoice, so lock it (finalize) before
+    // the sheet is sent to the printer -- after this it can no longer be edited.
+    if (!invoiceViewFinalized && currentInvoiceView) {
+        try {
+            const res = await fetch(`${CORE}/invoices/${currentInvoiceView.id}/finalize`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${getToken()}` }
+            });
+            if (res.ok) { invoiceViewFinalized = true; await renderClientInvoices(currentClientDetailId); }
+        } catch (e) {}
+    }
     window.print();
 }
 
@@ -3716,6 +3771,142 @@ function toggleInvoiceEmailRow() {
     const row = document.getElementById('iv-email-row');
     row.classList.toggle('hidden');
     row.classList.toggle('flex');
+}
+
+// ── Invoice editing (allowed only while not finalized) ───────────────────
+function startInvoiceEdit() {
+    if (invoiceViewFinalized || !currentInvoiceView) return;
+    if (invoiceEditState) return;
+    const rowsEl = document.getElementById('iv-items');
+    const items = Array.from(rowsEl.querySelectorAll('tr')).map(tr => {
+        const cells = tr.querySelectorAll('td');
+        const desc = cells[0]?.textContent || '';
+        const qty = parseInt(cells[1]?.textContent, 10) || 1;
+        const unit = parseInt(cells[2]?.textContent.replace(/[^\d]/g, ''), 10) || 0;
+        const line = parseInt(cells[3]?.textContent.replace(/[^\d]/g, ''), 10) || 0;
+        return { description: desc, quantity: qty, unit_price_toman: unit, line_total_toman: line };
+    });
+    invoiceEditState = { items: items.map(i => ({
+        description: i.description,
+        quantity: i.quantity,
+        unit_price_toman: i.unit_price_toman,
+        line_total_toman: (i.quantity || 1) * (i.unit_price_toman || 0),
+    })) };
+    invoiceEditType = (document.getElementById('iv-type-badge').textContent === 'پیش‌فاکتور') ? 'proforma' : 'invoice';
+    refreshInvoiceEditTypeBtns();
+    renderInvoiceEditRows();
+    document.getElementById('iv-edit-editor').classList.remove('hidden');
+    document.getElementById('iv-edit-btn').classList.add('hidden');
+}
+
+function refreshInvoiceEditTypeBtns() {
+    ['invoice', 'proforma'].forEach(t => {
+        const el = document.getElementById('ive-type-' + t);
+        const active = invoiceEditType === t;
+        el.style.background = active ? 'var(--accent)' : 'var(--bg-main)';
+        el.style.color = active ? 'var(--btn-text-on-accent)' : 'var(--text-muted)';
+        el.style.borderColor = active ? 'transparent' : 'var(--border-subtle)';
+    });
+}
+
+function setInvoiceEditType(t) {
+    invoiceEditType = t;
+    refreshInvoiceEditTypeBtns();
+}
+
+function renderInvoiceEditRows() {
+    if (!invoiceEditState) return;
+    const box = document.getElementById('ive-rows');
+    box.innerHTML = invoiceEditState.items.map((row, idx) => {
+        const lineTotal = (row.quantity || 1) * (row.unit_price_toman || 0);
+        row.line_total_toman = lineTotal;
+        return `
+        <div class="flex items-center gap-1.5 p-2 rounded-lg" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
+            <input type="text" value="${row.description.replace(/"/g,'&quot;')}" oninput="updateInvoiceEditRow(${idx},'description',this.value)" class="auth-input flex-1" style="padding:.4rem .6rem;font-size:.78rem;">
+            <input type="number" min="1" value="${row.quantity}" oninput="updateInvoiceEditRow(${idx},'quantity',this.value)" class="auth-input en" dir="ltr" style="width:52px;padding:.4rem .4rem;font-size:.78rem;text-align:center;">
+            <span class="text-[10px] shrink-0" style="color:var(--text-muted);">×</span>
+            <input type="number" value="${row.unit_price_toman}" oninput="updateInvoiceEditRow(${idx},'unit_price_toman',this.value)" class="auth-input en" dir="ltr" style="width:100px;padding:.4rem .6rem;font-size:.78rem;">
+            <span class="text-[11px] font-bold en shrink-0" style="width:92px;text-align:left;color:var(--accent);">${lineTotal.toLocaleString()}</span>
+            <button onclick="removeInvoiceEditRow(${idx})" style="color:#f87171;background:none;border:none;cursor:pointer;font-weight:700;padding:0 .25rem;">✕</button>
+        </div>`;
+    }).join('');
+    updateInvoiceEditTotal();
+}
+
+function updateInvoiceEditRow(idx, field, value) {
+    if (!invoiceEditState || !invoiceEditState.items[idx]) return;
+    const row = invoiceEditState.items[idx];
+    if (field === 'description') row.description = value;
+    else if (field === 'quantity') row.quantity = parseInt(value, 10) || 1;
+    else if (field === 'unit_price_toman') row.unit_price_toman = parseInt(value, 10) || 0;
+    row.line_total_toman = (row.quantity || 1) * (row.unit_price_toman || 0);
+    document.getElementById('ive-rows').children[idx].querySelector('span').textContent = row.line_total_toman.toLocaleString();
+    updateInvoiceEditTotal();
+}
+
+function removeInvoiceEditRow(idx) {
+    if (!invoiceEditState) return;
+    invoiceEditState.items.splice(idx, 1);
+    renderInvoiceEditRows();
+}
+
+function addInvoiceEditRow() {
+    if (!invoiceEditState) return;
+    invoiceEditState.items.push({ description: '', quantity: 1, unit_price_toman: 0, line_total_toman: 0 });
+    renderInvoiceEditRows();
+}
+
+function updateInvoiceEditTotal() {
+    if (!invoiceEditState) return;
+    const total = invoiceEditState.items.reduce((s, r) => s + ((r.quantity || 1) * (r.unit_price_toman || 0)), 0);
+    document.getElementById('ive-total').textContent = total.toLocaleString();
+}
+
+function cancelInvoiceEdit() {
+    invoiceEditState = null;
+    document.getElementById('iv-edit-editor').classList.add('hidden');
+    const editBtn = document.getElementById('iv-edit-btn');
+    editBtn.classList.remove('hidden');
+}
+
+async function saveInvoiceEdit() {
+    if (!invoiceEditState || !currentInvoiceView) return;
+    if (!invoiceEditState.items.length) { showToast('⚠️ حداقل یک ردیف لازم است.'); return; }
+    if (invoiceEditState.items.some(r => !r.description.trim())) { showToast('⚠️ شرح همه ردیف‌ها باید تکمیل شود.'); return; }
+    const btn = document.getElementById('ive-save-btn');
+    btn.disabled = true;
+    btn.textContent = 'در حال ذخیره...';
+    const token = localStorage.getItem('deept_token');
+    try {
+        const body = {
+            items: invoiceEditState.items.map(r => ({
+                description: r.description,
+                quantity: r.quantity || 1,
+                line_total_toman: (r.quantity || 1) * (r.unit_price_toman || 0),
+            })),
+            invoice_type: invoiceEditType,
+        };
+        const res = await fetch(`${CORE}/invoices/${currentInvoiceView.id}`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || 'خطای سرور');
+        showToast('✅ تغییرات فاکتور ذخیره شد.');
+        invoiceEditState = null;
+        document.getElementById('iv-edit-editor').classList.add('hidden');
+        const editBtn = document.getElementById('iv-edit-btn');
+        editBtn.classList.remove('hidden');
+        editBtn.textContent = '✏️ ویرایش فاکتور';
+        await openInvoiceView(currentInvoiceView.id);
+        await renderClientInvoices(currentClientDetailId);
+    } catch (e) {
+        showToast(`❌ ${e.message || 'ذخیره ناموفق بود.'}`);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = 'ذخیره تغییرات';
+    }
 }
 
 async function submitInvoiceEmail() {
