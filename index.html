@@ -1176,6 +1176,72 @@ body::before {
 
     <h4 class="text-sm font-black mb-2 flex items-center gap-1.5" style="color:var(--text-main);">🧾 فاکتورهای ثبت‌شده (<span class="en" id="cd-invoice-count">۰</span>)</h4>
     <div id="cd-invoices-list" class="space-y-1.5"></div>
+
+    <div class="mt-6 pt-5" style="border-top:1px solid var(--divider);">
+      <div class="flex items-center justify-between mb-1 flex-wrap gap-2">
+        <h4 class="text-sm font-black flex items-center gap-1.5" style="color:var(--text-main);">📅 تقویم کاری / زمان‌بندی</h4>
+        <button onclick="openWorkOrderModal()" class="text-[11px] font-black px-3 py-1.5 rounded-lg transition" style="background:var(--accent);color:var(--btn-text-on-accent);">+ افزودن سفارش</button>
+      </div>
+      <p class="text-[11px] mb-3" style="color:var(--text-muted);">سفارش کار این مشتری را با مهلت (ددلاین) به تقویم هفتگی اضافه کنید؛ تفکیک سفارش‌های تاییدی از مهر مترجم.</p>
+
+      <div class="flex items-center gap-2 mb-3 flex-wrap">
+        <button onclick="shiftWorkWeek(-1)" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--bg-main);color:var(--accent);border:1px solid var(--border-color);">‹ هفته قبل</button>
+        <button onclick="setWorkWeekToToday()" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">امروز</button>
+        <button onclick="shiftWorkWeek(1)" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--bg-main);color:var(--accent);border:1px solid var(--border-color);">هفته بعد ›</button>
+        <span class="text-xs font-black en flex-1 text-left" id="workWeekLabel" style="color:var(--text-main);">—</span>
+      </div>
+
+      <div class="flex items-center gap-2 mb-3 flex-wrap">
+        <button onclick="setWorkOrderTypeFilter(null)" id="wft-all" class="text-[11px] font-bold px-3 py-1 rounded-lg transition" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">همه</button>
+        <button onclick="setWorkOrderTypeFilter('TAYIDI')" id="wft-TAYIDI" class="text-[11px] font-bold px-3 py-1 rounded-lg transition" style="background:var(--bg-main);border:1px solid #38bdf8;color:#38bdf8;">تاییدی</button>
+        <button onclick="setWorkOrderTypeFilter('MEHR_MOTARJEM')" id="wft-MEHR_MOTARJEM" class="text-[11px] font-bold px-3 py-1 rounded-lg transition" style="background:var(--bg-main);border:1px solid #c084fc;color:#c084fc;">مهر مترجم</button>
+      </div>
+
+      <div id="workWeekGrid" style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;overflow-x:auto;min-width:100%;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── ADD / EDIT WORK ORDER MODAL ─── -->
+<div id="workOrderModal" class="modal-overlay fixed inset-0 z-[75] hidden flex items-center justify-center p-4">
+  <div class="w-full max-w-sm p-6" style="background:var(--card-surface);border:1px solid var(--border-color);border-radius:1rem;">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-base font-black" id="wo-modal-title" style="color:var(--text-main);">➕ افزودن سفارش کار</h3>
+      <button onclick="closeWorkOrderModal()" style="color:var(--text-muted);background:none;border:none;cursor:pointer;font-size:1.1rem;">✕</button>
+    </div>
+    <div class="space-y-3">
+      <div>
+        <label class="auth-label">نوع سفارش <span style="color:#f87171;">*</span></label>
+        <div class="grid grid-cols-2 gap-2">
+          <button onclick="selectWorkOrderType('TAYIDI')" id="wo-type-TAYIDI" class="text-xs font-bold px-3 py-2.5 rounded-xl transition" style="background:var(--bg-main);border:1px solid #38bdf8;color:#38bdf8;">تاییدی</button>
+          <button onclick="selectWorkOrderType('MEHR_MOTARJEM')" id="wo-type-MEHR_MOTARJEM" class="text-xs font-bold px-3 py-2.5 rounded-xl transition" style="background:var(--bg-main);border:1px solid #c084fc;color:#c084fc;">مهر مترجم</button>
+        </div>
+      </div>
+      <div>
+        <label class="auth-label">عنوان سفارش</label>
+        <input type="text" id="wo-title" class="auth-input" placeholder="مثلاً تأیید ترجمه سند ازدواج">
+      </div>
+      <div>
+        <label class="auth-label">مهلت (ددلاین)</label>
+        <input type="date" id="wo-due" class="auth-input en" dir="ltr">
+      </div>
+      <div>
+        <label class="auth-label">وضعیت</label>
+        <select id="wo-status" class="auth-input" style="background:var(--input-bg);color:var(--text-main);">
+          <option value="PENDING">در انتظار</option>
+          <option value="DONE">انجام‌شده</option>
+          <option value="CANCELLED">لغو شده</option>
+        </select>
+      </div>
+      <div>
+        <label class="auth-label">یادداشت</label>
+        <textarea id="wo-notes" rows="2" class="auth-input resize-none" placeholder="یادداشت اختیاری..."></textarea>
+      </div>
+    </div>
+    <div class="flex gap-2 mt-5">
+      <button onclick="deleteWorkOrder(workOrderEditingId)" id="wo-delete-btn" class="hidden px-4 py-2.5 rounded-xl text-sm font-black transition" style="background:var(--bg-main);color:#f87171;border:1px solid rgba(248,113,113,0.4);">حذف</button>
+      <button onclick="submitWorkOrder()" id="wo-submit-btn" class="flex-1 py-2.5 rounded-xl text-sm font-black transition" style="background:var(--accent);color:var(--btn-text-on-accent);">ثبت سفارش</button>
+    </div>
   </div>
 </div>
 
@@ -2748,6 +2814,8 @@ async function openClientDetail(clientId) {
 
         renderDraftRows();
         await renderClientInvoices(clientId);
+        workWeekStart = startOfPersianWeek(new Date());
+        setWorkOrderTypeFilter(null);
     } catch (e) {
         showToast('خطا در دریافت اطلاعات مشتری.');
     }
@@ -2884,6 +2952,277 @@ function closeClientDetailModal() {
     currentClientDetailId = null;
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// WORK SCHEDULE / CALENDAR — weekly calendar of orders added from within a
+// client's profile. Distinguishes سفارش های تاییدی from سفارش های مهر مترجم
+// (type badges + filter) and surfaces deadlines so the translator stays on
+// top of their schedule. Stored via DeepT-Core /work-orders (work_orders
+// table).
+// ═══════════════════════════════════════════════════════════════════════
+const WORK_ORDER_TYPE_FA = {
+    TAYIDI:        { text: 'تاییدی',     color: '#38bdf8' },
+    MEHR_MOTARJEM: { text: 'مهر مترجم',  color: '#c084fc' },
+};
+const WORK_ORDER_STATUS_FA = {
+    PENDING:   { text: 'در انتظار',  color: '#fbbf24' },
+    DONE:      { text: 'انجام‌شده',    color: '#4ade80' },
+    CANCELLED: { text: 'لغو شده',      color: '#f87171' },
+};
+const WEEKDAY_FA = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه'];
+
+let workWeekStart = null;      // JS Date (Monday-based offset for Persian week)
+let workOrderTypeFilter = null; // 'TAYIDI' | 'MEHR_MOTARJEM' | null = all
+let workWeekOrders = [];       // orders for the visible week window
+let workOrderEditingId = null; // id when editing, null when adding
+let workOrderDraftType = 'MEHR_MOTARJEM';
+
+function getToken() { return localStorage.getItem('deept_token'); }
+
+// ── Week navigation (Persian week: Saturday .. Friday) ────────────────
+function startOfPersianWeek(d) {
+    const date = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    // JS getDay(): Sat=6, Sun=0, ... Fri=5. Persian week starts Saturday,
+    // so the offset = (getDay() + 1) % 7 maps Sat->0, Sun->1, ... Fri->6.
+    const offset = (date.getDay() + 1) % 7;
+    date.setDate(date.getDate() - offset);
+    return date;
+}
+
+function setWorkWeekToToday() {
+    workWeekStart = startOfPersianWeek(new Date());
+    renderWorkWeek();
+}
+
+function setWorkOrderTypeFilter(type) {
+    workOrderTypeFilter = type;
+    ['all', 'TAYIDI', 'MEHR_MOTARJEM'].forEach(t => {
+        const el = document.getElementById('wft-' + t);
+        if (!el) return;
+        const active = (type === null && t === 'all') || type === t;
+        if (t === 'all') {
+            el.style.background = active ? 'var(--accent)' : 'var(--bg-main)';
+            el.style.color = active ? 'var(--btn-text-on-accent)' : 'var(--text-main)';
+            el.style.borderColor = 'var(--border-subtle)';
+        } else {
+            const color = WORK_ORDER_TYPE_FA[t].color;
+            el.style.background = active ? color : 'var(--bg-main)';
+            el.style.color = active ? '#000' : color;
+            el.style.borderColor = color;
+            el.style.fontWeight = active ? '900' : '700';
+        }
+    });
+    renderWorkWeek();
+}
+
+function shiftWorkWeek(n) {
+    if (!workWeekStart) workWeekStart = startOfPersianWeek(new Date());
+    workWeekStart.setDate(workWeekStart.getDate() + n * 7);
+    renderWorkWeek();
+}
+
+function fmtWeekISO(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
+async function renderWorkWeek() {
+    if (!currentClientDetailId) return;
+    if (!workWeekStart) workWeekStart = startOfPersianWeek(new Date());
+
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(workWeekStart);
+        d.setDate(workWeekStart.getDate() + i);
+        days.push(d);
+    }
+
+    const fromISO = fmtWeekISO(days[0]);
+    const toISO = fmtWeekISO(days[6]);
+
+    // Label: e.g. "۱۴ آبان – ۲۰ آبان ۱۴۰۴"
+    const startFmt = days[0].toLocaleDateString('fa-IR', { day: 'numeric', month: 'long', year: 'numeric' });
+    const endFmt = days[6].toLocaleDateString('fa-IR', { day: 'numeric', month: 'long' });
+    document.getElementById('workWeekLabel').textContent = `${startFmt} — ${endFmt}`;
+
+    const grid = document.getElementById('workWeekGrid');
+    grid.innerHTML = `<div class="text-xs text-center py-6" style="color:var(--text-muted);grid-column:1/-1;">در حال بارگذاری تقویم...</div>`;
+
+    try {
+        const url = new URL(`${CORE}/work-orders`);
+        url.searchParams.set('client_id', currentClientDetailId);
+        url.searchParams.set('from', fromISO);
+        url.searchParams.set('to', toISO);
+        if (workOrderTypeFilter) url.searchParams.set('order_type', workOrderTypeFilter);
+        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${getToken()}` } });
+        if (!res.ok) throw new Error();
+        workWeekOrders = await res.json();
+    } catch (e) {
+        workWeekOrders = [];
+        grid.innerHTML = `<div class="text-xs text-center py-6" style="color:#f87171;grid-column:1/-1;">خطا در دریافت زمان‌بندی.
+            <button onclick="renderWorkWeek()" class="block mx-auto mt-2 text-[11px] font-bold px-3 py-1 rounded-lg" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">🔄 تلاش مجدد</button>
+        </div>`;
+        return;
+    }
+
+    const today = startOfPersianWeek(new Date());
+    today.setDate(today.getDate() + ((new Date().getDay() + 1) % 7)); // actual today
+
+    const byDay = {};
+    for (const o of workWeekOrders) byDay[o.due_date || ''] = (byDay[o.due_date || ''] || []).concat(o);
+
+    grid.innerHTML = days.map((d, idx) => {
+        const iso = fmtWeekISO(d);
+        const isToday = fmtWeekISO(today) === iso;
+        const orders = byDay[iso] || [];
+        const pendingCount = orders.filter(o => o.status === 'PENDING').length;
+        const overdue = orders.some(o =>
+            o.status === 'PENDING' && o.due_date && o.due_date < fmtWeekISO(new Date()));
+
+        const dayHeader = `
+            <div class="flex items-center justify-between mb-1.5" style="padding-bottom:4px;border-bottom:1px solid var(--divider);">
+                <span class="text-[11px] font-black" style="color:${isToday ? 'var(--accent)' : 'var(--text-main)'};">${WEEKDAY_FA[idx]}</span>
+                <span class="text-[10px] en font-bold" style="color:${isToday ? 'var(--accent)' : 'var(--text-muted)'};">${d.getDate()}</span>
+            </div>`;
+
+        const ordersHtml = orders.length
+            ? orders.map(o => {
+                const t = WORK_ORDER_TYPE_FA[o.order_type] || { text: o.order_type, color: 'var(--accent)' };
+                const s = WORK_ORDER_STATUS_FA[o.status] || { text: o.status, color: 'var(--text-muted)' };
+                const done = o.status === 'DONE';
+                return `
+                  <div onclick="openWorkOrderEdit('${o.id}')" class="p-1.5 rounded-md text-[10px] cursor-pointer mb-1 hover:opacity-85" style="background:${(t.color) + '1a'};border:1px solid ${t.color}55;border-left:3px solid ${t.color};">
+                    <div class="flex items-center justify-between gap-1">
+                      <span class="font-bold truncate" style="color:${done ? 'var(--text-muted)' : 'var(--text-main)'};${done ? 'text-decoration:line-through;' : ''}">${escapeHtml(o.title || t.text)}</span>
+                    </div>
+                    <div class="flex items-center justify-between gap-1 mt-0.5" style="color:var(--text-muted);">
+                      <span style="color:${t.color};">${t.text}</span>
+                      <span class="en" style="color:${s.color};">${s.text}</span>
+                    </div>
+                  </div>`;
+              }).join('')
+            : `<div class="text-[10px] text-center py-2" style="color:var(--text-muted);">—</div>`;
+
+        const deadlineHint = (overdue && pendingCount)
+            ? `<div class="text-[9px] font-bold mt-1" style="color:#f87171;">⚠ ددلاین گذشته</div>`
+            : '';
+
+        return `
+          <div class="p-1.5 rounded-lg" style="background:${isToday ? 'var(--accent-hover)' : 'var(--bg-main)'};border:1px solid ${isToday ? 'var(--border-color)' : 'var(--border-subtle)'};${overdue ? 'box-shadow:0 0 0 1px rgba(248,113,113,0.4);' : ''}">
+            ${dayHeader}
+            ${pendingCount ? `<div class="text-[9px] font-bold mb-1" style="color:var(--accent);"><span class="en">${pendingCount}</span> در انتظار</div>` : ''}
+            ${deadlineHint}
+            ${ordersHtml}
+          </div>`;
+    }).join('');
+}
+
+// ── Add / edit modal ────────────────────────────────────────────────────
+function openWorkOrderModal() {
+    if (!currentClientDetailId) return;
+    workOrderEditingId = null;
+    workOrderDraftType = 'MEHR_MOTARJEM';
+    document.getElementById('wo-modal-title').textContent = '➕ افزودن سفارش کار';
+    document.getElementById('wo-submit-btn').textContent = 'ثبت سفارش';
+    document.getElementById('wo-title').value = '';
+    document.getElementById('wo-due').value = '';
+    document.getElementById('wo-notes').value = '';
+    document.getElementById('wo-status').value = 'PENDING';
+    document.getElementById('wo-status').disabled = true;
+    document.getElementById('wo-delete-btn').classList.add('hidden');
+    refreshWorkOrderTypeBtns();
+    document.getElementById('workOrderModal').classList.remove('hidden');
+}
+
+function openWorkOrderEdit(orderId) {
+    const o = (workWeekOrders || []).find(x => x.id === orderId);
+    if (!o) return;
+    workOrderEditingId = orderId;
+    workOrderDraftType = o.order_type;
+    document.getElementById('wo-modal-title').textContent = '✏️ ویرایش سفارش کار';
+    document.getElementById('wo-submit-btn').textContent = 'ذخیره تغییرات';
+    document.getElementById('wo-title').value = o.title || '';
+    document.getElementById('wo-due').value = o.due_date || '';
+    document.getElementById('wo-notes').value = o.notes || '';
+    document.getElementById('wo-status').value = o.status || 'PENDING';
+    document.getElementById('wo-status').disabled = false;
+    document.getElementById('wo-delete-btn').classList.remove('hidden');
+    refreshWorkOrderTypeBtns();
+    document.getElementById('workOrderModal').classList.remove('hidden');
+}
+
+function closeWorkOrderModal() {
+    document.getElementById('workOrderModal').classList.add('hidden');
+    workOrderEditingId = null;
+}
+
+function selectWorkOrderType(type) {
+    workOrderDraftType = type;
+    refreshWorkOrderTypeBtns();
+}
+
+function refreshWorkOrderTypeBtns() {
+    ['TAYIDI', 'MEHR_MOTARJEM'].forEach(t => {
+        const el = document.getElementById('wo-type-' + t);
+        const active = workOrderDraftType === t;
+        const color = WORK_ORDER_TYPE_FA[t].color;
+        el.style.background = active ? color : 'var(--bg-main)';
+        el.style.color = active ? '#000' : color;
+        el.style.borderColor = color;
+        el.style.fontWeight = '900';
+    });
+}
+
+async function submitWorkOrder() {
+    const payload = {
+        client_id: currentClientDetailId,
+        title: document.getElementById('wo-title').value.trim(),
+        order_type: workOrderDraftType,
+        due_date: document.getElementById('wo-due').value || null,
+        notes: document.getElementById('wo-notes').value.trim() || null,
+    };
+    if (workOrderEditingId) {
+        payload.status = document.getElementById('wo-status').value;
+    }
+
+    const url = workOrderEditingId
+        ? `${CORE}/work-orders/${workOrderEditingId}`
+        : `${CORE}/work-orders`;
+    const method = workOrderEditingId ? 'PATCH' : 'POST';
+
+    try {
+        const res = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
+            body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error();
+        closeWorkOrderModal();
+        showToast(workOrderEditingId ? 'سفارش به‌روزرسانی شد.' : 'سفارش به تقویم اضافه شد.');
+        await renderWorkWeek();
+    } catch (e) {
+        showToast('خطا در ثبت سفارش.');
+    }
+}
+
+async function deleteWorkOrder(orderId) {
+    if (!orderId) return;
+    if (!confirm('این سفارش حذف شود؟')) return;
+    try {
+        const res = await fetch(`${CORE}/work-orders/${orderId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${getToken()}` },
+        });
+        if (!res.ok) throw new Error();
+        showToast('سفارش حذف شد.');
+        await renderWorkWeek();
+    } catch (e) {
+        showToast('خطا در حذف سفارش.');
+    }
+}
+
+// 
 // ── Invoice view / print / email — a translator needs a signed paper copy
 // for the client's file and often needs to email a copy too, not just see
 // a row in a list. The browser's own print dialog doubles as the "PDF
