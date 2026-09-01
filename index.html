@@ -1106,6 +1106,10 @@ body::before {
         <div><label class="auth-label">نام (First Name) <span style="color:#f87171;">*</span></label><input type="text" id="ac-first" class="auth-input en uppercase" dir="ltr" placeholder="ALI" oninput="this.value=this.value.toUpperCase()"></div>
         <div><label class="auth-label">نام خانوادگی (Last Name) <span style="color:#f87171;">*</span></label><input type="text" id="ac-last" class="auth-input en uppercase" dir="ltr" placeholder="MOHAMMADI" oninput="this.value=this.value.toUpperCase()"></div>
       </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="auth-label">نام (فارسی)</label><input type="text" id="ac-first-fa" class="auth-input" placeholder="علی"></div>
+        <div><label class="auth-label">نام خانوادگی (فارسی)</label><input type="text" id="ac-last-fa" class="auth-input" placeholder="محمدی"></div>
+      </div>
       <div>
         <label class="auth-label">کد ملی <span style="color:#f87171;">*</span></label>
         <input type="text" id="ac-national" class="auth-input en" dir="ltr" placeholder="0012345678">
@@ -1677,7 +1681,10 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
             <div class="workspace-panel p-5">
                 <h3 class="text-sm font-black mb-3 flex items-center gap-1.5" style="color:var(--text-main);">👤 اطلاعات تماس و پاسپورت</h3>
                 <div class="space-y-2.5 text-xs">
+                    <div class="flex items-center justify-between pb-2" style="border-bottom:1px solid var(--divider);"><span style="color:var(--text-muted);">نام</span><span class="font-bold en" id="cp-first" style="color:var(--text-main);">—</span></div>
                     <div class="flex items-center justify-between pb-2" style="border-bottom:1px solid var(--divider);"><span style="color:var(--text-muted);">نام خانوادگی</span><span class="font-bold en" id="cp-last" style="color:var(--text-main);">—</span></div>
+                    <div class="flex items-center justify-between pb-2" style="border-bottom:1px solid var(--divider);"><span style="color:var(--text-muted);">نام (فارسی)</span><span class="font-bold" id="cp-first-fa" style="color:var(--text-main);">—</span></div>
+                    <div class="flex items-center justify-between pb-2" style="border-bottom:1px solid var(--divider);"><span style="color:var(--text-muted);">نام خانوادگی (فارسی)</span><span class="font-bold" id="cp-last-fa" style="color:var(--text-main);">—</span></div>
                     <div class="flex items-center justify-between pb-2" style="border-bottom:1px solid var(--divider);"><span style="color:var(--text-muted);">نام پدر</span><span class="font-bold en" id="cp-father" style="color:var(--text-main);">—</span></div>
                     <div class="flex items-center justify-between pb-2" style="border-bottom:1px solid var(--divider);"><span style="color:var(--text-muted);">تاریخ تولد</span><span class="font-bold en" id="cp-dob" style="color:var(--text-main);">—</span></div>
                     <div class="flex items-center justify-between pb-2" style="border-bottom:1px solid var(--divider);"><span style="color:var(--text-muted);">کد ملی</span><span class="font-bold en" id="cp-national" style="color:var(--text-main);">—</span></div>
@@ -3398,9 +3405,15 @@ async function openClientProfile(clientId) {
         const c = await res.json();
 
         document.getElementById('cp-name').textContent = `${c.first_name} ${c.last_name}`.trim() || '—';
-        document.getElementById('cp-subtitle').textContent = c.father_name ? `فرزند ${c.father_name}` : '';
+        const faName = `${c.first_name_fa || ''} ${c.last_name_fa || ''}`.trim();
+        const subParts = [];
+        if (faName) subParts.push(`(${faName})`);
+        if (c.father_name) subParts.push(`فرزند ${c.father_name}`);
+        document.getElementById('cp-subtitle').textContent = subParts.join(' · ');
         document.getElementById('cp-last').textContent = c.last_name || '—';
-        document.getElementById('cp-father').textContent = c.father_name || '—';
+        document.getElementById('cp-first').textContent = c.first_name || '—';
+        document.getElementById('cp-first-fa').textContent = c.first_name_fa || '—';
+        document.getElementById('cp-last-fa').textContent = c.last_name_fa || '—';
         document.getElementById('cp-dob').textContent = c.date_of_birth || '—';
         document.getElementById('cp-national').textContent = c.national_id || '—';
         document.getElementById('cp-passport').textContent = c.passport_number || '—';
@@ -4307,7 +4320,7 @@ let clientEditingId = null;
 
 function openAddClientModal() {
     clientEditingId = null;
-    ['ac-first','ac-last','ac-national','ac-father','ac-dob','ac-phone','ac-email','ac-passport','ac-nationality','ac-notes']
+    ['ac-first','ac-last','ac-first-fa','ac-last-fa','ac-national','ac-father','ac-dob','ac-phone','ac-email','ac-passport','ac-nationality','ac-notes']
         .forEach(id => document.getElementById(id).value = '');
     document.getElementById('ac-submit-btn').textContent = 'افزودن مشتری';
     document.querySelector('#addClientModal h3').textContent = '➕ افزودن مشتری جدید';
@@ -4324,6 +4337,8 @@ async function openAddClientModalForEdit() {
         clientEditingId = currentClientDetailId;
         document.getElementById('ac-first').value = c.first_name || '';
         document.getElementById('ac-last').value = c.last_name || '';
+        document.getElementById('ac-first-fa').value = c.first_name_fa || '';
+        document.getElementById('ac-last-fa').value = c.last_name_fa || '';
         document.getElementById('ac-national').value = c.national_id || '';
         document.getElementById('ac-father').value = c.father_name || '';
         document.getElementById('ac-dob').value = c.date_of_birth || '';
@@ -4363,6 +4378,8 @@ async function submitAddClient() {
     const payload = {
         first_name:  first,
         last_name:   last,
+        first_name_fa: document.getElementById('ac-first-fa').value.trim(),
+        last_name_fa:  document.getElementById('ac-last-fa').value.trim(),
         national_id: nationalId,
         father_name:   document.getElementById('ac-father').value.trim().toUpperCase(),
         date_of_birth: document.getElementById('ac-dob').value.trim(),
