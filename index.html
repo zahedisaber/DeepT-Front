@@ -2864,15 +2864,27 @@ async function renderDashboardClients(q = '') {
             box.innerHTML = `<div class="text-xs text-center py-6" style="color:var(--text-muted);">// هنوز مشتری‌ای ثبت نشده</div>`;
             return;
         }
-        box.innerHTML = clients.map(c => `
-            <div class="flex items-center justify-between p-3 rounded-xl" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
-                <div>
-                    <div class="font-bold text-sm en" style="color:var(--text-main);">${escapeHtml(c.first_name)} ${escapeHtml(c.last_name)}</div>
-                    <div class="text-[11px] en" style="color:var(--text-muted);">کد ملی: ${escapeHtml(c.national_id) || '—'} ${c.phone ? '· ' + escapeHtml(c.phone) : ''}</div>
-                </div>
-                <button onclick="openClientProfile('${c.id}')" class="text-xs font-bold px-3 py-1.5 rounded-lg transition" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">مشاهده</button>
+        const faName = (c) => `${c.first_name_fa || ''} ${c.last_name_fa || ''}`.trim();
+        const enName = (c) => `${c.first_name || ''} ${c.last_name || ''}`.trim();
+        const displayName = (c) => faName(c) || enName(c) || '—';
+        box.innerHTML = `
+            <div class="grid grid-cols-[1.6fr_1fr_1fr_auto] items-center gap-3 px-3 py-2 text-[11px] font-black" style="color:var(--text-muted);border-bottom:1px solid var(--divider);">
+                <span>نام</span>
+                <span>کد ملی</span>
+                <span>شماره همراه</span>
+                <span></span>
             </div>
-        `).join('');
+            ${clients.map(c => `
+                <div class="grid grid-cols-[1.6fr_1fr_1fr_auto] items-center gap-3 p-3 rounded-xl" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
+                    <div>
+                        <div class="font-black text-sm" style="color:var(--text-main);">${escapeHtml(displayName(c))}</div>
+                        ${enName(c) && enName(c) !== displayName(c) ? `<div class="text-[11px] en" style="color:var(--text-muted);">${escapeHtml(enName(c))}</div>` : ''}
+                    </div>
+                    <div class="text-xs en font-bold" style="color:var(--text-main);" dir="ltr">${escapeHtml(c.national_id) || '—'}</div>
+                    <div class="text-xs en font-bold" style="color:var(--text-main);" dir="ltr">${escapeHtml(c.phone) || '—'}</div>
+                    <button onclick="openClientProfile('${c.id}')" class="text-xs font-bold px-3 py-1.5 rounded-lg transition justify-self-end" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">مشاهده</button>
+                </div>
+            `).join('')}`;
     } catch (e) {
         box.innerHTML = `<div class="text-xs text-center py-6" style="color:#f87171;">خطا در دریافت لیست مشتریان.
             <button onclick="renderDashboardClients('${(q || '').replace(/'/g,"")}')" class="block mx-auto mt-2 text-[11px] font-bold px-3 py-1 rounded-lg" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">🔄 تلاش مجدد</button>
