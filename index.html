@@ -1040,6 +1040,7 @@ body::before {
     <button id="authHeaderBtn" onclick="openLogin()" class="header-btn header-btn-auth">ورود / ثبت‌نام</button>
     <button id="workspaceHeaderBtn" onclick="openWorkspaceDashboard()" class="header-btn header-btn-workspace hidden">میز کار دیجیتال</button>
     <button id="clientsHeaderBtn" onclick="openClientsWorkspace()" class="header-btn header-btn-workspace hidden">مشتریان</button>
+    <button id="scheduleHeaderBtn" onclick="openWorkSchedulePage()" class="header-btn header-btn-workspace hidden">📅 برنامه کاری دفتر</button>
     <button id="logoutHeaderBtn" onclick="confirmLogout()" class="header-btn header-btn-logout hidden">
       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
       خروج
@@ -1176,29 +1177,6 @@ body::before {
 
     <h4 class="text-sm font-black mb-2 flex items-center gap-1.5" style="color:var(--text-main);">🧾 فاکتورهای ثبت‌شده (<span class="en" id="cd-invoice-count">۰</span>)</h4>
     <div id="cd-invoices-list" class="space-y-1.5"></div>
-
-    <div class="mt-6 pt-5" style="border-top:1px solid var(--divider);">
-      <div class="flex items-center justify-between mb-1 flex-wrap gap-2">
-        <h4 class="text-sm font-black flex items-center gap-1.5" style="color:var(--text-main);">📅 تقویم کاری / زمان‌بندی</h4>
-        <button onclick="openWorkOrderModal()" class="text-[11px] font-black px-3 py-1.5 rounded-lg transition" style="background:var(--accent);color:var(--btn-text-on-accent);">+ افزودن سفارش</button>
-      </div>
-      <p class="text-[11px] mb-3" style="color:var(--text-muted);">سفارش کار این مشتری را با مهلت (ددلاین) به تقویم هفتگی اضافه کنید؛ تفکیک سفارش‌های تاییدی از مهر مترجم.</p>
-
-      <div class="flex items-center gap-2 mb-3 flex-wrap">
-        <button onclick="shiftWorkWeek(-1)" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--bg-main);color:var(--accent);border:1px solid var(--border-color);">‹ هفته قبل</button>
-        <button onclick="setWorkWeekToToday()" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">امروز</button>
-        <button onclick="shiftWorkWeek(1)" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--bg-main);color:var(--accent);border:1px solid var(--border-color);">هفته بعد ›</button>
-        <span class="text-xs font-black en flex-1 text-left" id="workWeekLabel" style="color:var(--text-main);">—</span>
-      </div>
-
-      <div class="flex items-center gap-2 mb-3 flex-wrap">
-        <button onclick="setWorkOrderTypeFilter(null)" id="wft-all" class="text-[11px] font-bold px-3 py-1 rounded-lg transition" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">همه</button>
-        <button onclick="setWorkOrderTypeFilter('TAYIDI')" id="wft-TAYIDI" class="text-[11px] font-bold px-3 py-1 rounded-lg transition" style="background:var(--bg-main);border:1px solid #38bdf8;color:#38bdf8;">تاییدی</button>
-        <button onclick="setWorkOrderTypeFilter('MEHR_MOTARJEM')" id="wft-MEHR_MOTARJEM" class="text-[11px] font-bold px-3 py-1 rounded-lg transition" style="background:var(--bg-main);border:1px solid #c084fc;color:#c084fc;">مهر مترجم</button>
-      </div>
-
-      <div id="workWeekGrid" style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;overflow-x:auto;min-width:100%;"></div>
-    </div>
   </div>
 </div>
 
@@ -1633,6 +1611,143 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
         </div>
         <div class="text-center">
             <button onclick="closeClientsWorkspace()" class="text-xs px-6 py-2 rounded-xl transition" style="color:var(--text-muted);border:1px solid var(--border-subtle);background:var(--card-surface);">بازگشت به صفحه اصلی ↩</button>
+        </div>
+    </div>
+</div>
+
+<!-- ─── FULL-WINDOW WORK SCHEDULE (برنامه کاری دفتر): the office's weekly
+     calendar across ALL clients, so the translator sees every order + its
+     deadline at a glance and can navigate weeks. ─────────────────────── -->
+<div id="workSchedulePage" class="fixed inset-0 z-40 hidden overflow-y-auto p-4 md:p-8 pt-24" style="background: var(--bg-secondary);">
+    <div class="max-w-7xl mx-auto space-y-5">
+        <div class="flex items-center justify-between gap-3 flex-wrap">
+            <h2 class="text-xl font-black flex items-center gap-2" style="color:var(--text-main);">
+                🗓️ برنامه کاری دفتر
+            </h2>
+            <div class="flex items-center gap-2 flex-wrap">
+                <button onclick="openClientsWorkspace()" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">مشتریان</button>
+                <button onclick="openWorkspaceDashboard()" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">میز کار ترجمه ←</button>
+            </div>
+        </div>
+
+        <div class="workspace-panel p-5">
+            <div class="flex items-center justify-between gap-3 flex-wrap mb-4">
+                <div class="flex items-center gap-2 flex-wrap">
+                    <button onclick="shiftScheduleWeek(-1)" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--bg-main);color:var(--accent);border:1px solid var(--border-color);">‹ هفته قبل</button>
+                    <button onclick="setScheduleWeekToToday()" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">امروز</button>
+                    <button onclick="shiftScheduleWeek(1)" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--bg-main);color:var(--accent);border:1px solid var(--border-color);">هفته بعد ›</button>
+                    <span class="text-sm font-black en" id="scheduleWeekLabel" style="color:var(--text-main);">—</span>
+                </div>
+                <div class="flex items-center gap-2 flex-wrap">
+                    <button onclick="setScheduleTypeFilter(null)" id="sf-all" class="text-[11px] font-bold px-3 py-1 rounded-lg transition" style="background:var(--accent);color:var(--btn-text-on-accent);border:1px solid transparent;">همه</button>
+                    <button onclick="setScheduleTypeFilter('TAYIDI')" id="sf-TAYIDI" class="text-[11px] font-bold px-3 py-1 rounded-lg transition" style="background:var(--bg-main);border:1px solid #38bdf8;color:#38bdf8;">تاییدی</button>
+                    <button onclick="setScheduleTypeFilter('MEHR_MOTARJEM')" id="sf-MEHR_MOTARJEM" class="text-[11px] font-bold px-3 py-1 rounded-lg transition" style="background:var(--bg-main);border:1px solid #c084fc;color:#c084fc;">مهر مترجم</button>
+                </div>
+            </div>
+            <div id="scheduleWeekGrid" style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;overflow-x:auto;"></div>
+        </div>
+
+        <div class="workspace-panel p-5">
+            <h3 class="text-sm font-black mb-3" style="color:var(--text-main);">📋 سفارش‌های این هفته</h3>
+            <div id="scheduleOrderList" class="space-y-2"></div>
+        </div>
+    </div>
+</div>
+
+<!-- ─── FULL-WINDOW CLIENT PROFILE (CRM layout): left = contact/passport,
+     center = previous jobs + start new project, right = invoices + calendar.
+     HubSpot-style, so all of one client's data lives on one clear screen
+     instead of a cramped modal. ─────────────────────────────────────── -->
+<div id="clientProfilePage" class="fixed inset-0 z-40 hidden overflow-y-auto p-4 md:p-6 pt-20" style="background: var(--bg-secondary);">
+    <div class="max-w-7xl mx-auto">
+        <div class="flex items-center justify-between gap-3 flex-wrap mb-5">
+            <div class="flex items-center gap-3">
+                <button onclick="closeClientProfilePage()" class="text-xs font-bold px-3 py-2 rounded-xl transition" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">‹ بازگشت به مشتریان</button>
+                <h2 class="text-xl font-black en" id="cp-name" style="color:var(--text-main);">—</h2>
+                <span class="text-xs" id="cp-subtitle" style="color:var(--text-muted);"></span>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="openChatForClient()" class="text-xs font-black px-4 py-2 rounded-xl transition" style="background:var(--accent);color:var(--btn-text-on-accent);">🚀 شروع پروژه جدید</button>
+                <button onclick="openAddClientModalForEdit()" class="text-xs font-bold px-3 py-2 rounded-xl transition" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">✏️ ویرایش</button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+            <!-- LEFT: contact & passport -->
+            <div class="workspace-panel p-5">
+                <h3 class="text-sm font-black mb-3 flex items-center gap-1.5" style="color:var(--text-main);">👤 اطلاعات تماس و پاسپورت</h3>
+                <div class="space-y-2.5 text-xs">
+                    <div class="flex items-center justify-between pb-2" style="border-bottom:1px solid var(--divider);"><span style="color:var(--text-muted);">نام خانوادگی</span><span class="font-bold en" id="cp-last" style="color:var(--text-main);">—</span></div>
+                    <div class="flex items-center justify-between pb-2" style="border-bottom:1px solid var(--divider);"><span style="color:var(--text-muted);">نام پدر</span><span class="font-bold en" id="cp-father" style="color:var(--text-main);">—</span></div>
+                    <div class="flex items-center justify-between pb-2" style="border-bottom:1px solid var(--divider);"><span style="color:var(--text-muted);">تاریخ تولد</span><span class="font-bold en" id="cp-dob" style="color:var(--text-main);">—</span></div>
+                    <div class="flex items-center justify-between pb-2" style="border-bottom:1px solid var(--divider);"><span style="color:var(--text-muted);">کد ملی</span><span class="font-bold en" id="cp-national" style="color:var(--text-main);">—</span></div>
+                    <div class="flex items-center justify-between pb-2" style="border-bottom:1px solid var(--divider);"><span style="color:var(--text-muted);">شماره پاسپورت</span><span class="font-bold en" id="cp-passport" style="color:var(--text-main);">—</span></div>
+                    <div class="flex items-center justify-between pb-2" style="border-bottom:1px solid var(--divider);"><span style="color:var(--text-muted);">ملیت</span><span class="font-bold" id="cp-nationality" style="color:var(--text-main);">—</span></div>
+                    <div class="flex items-center justify-between pb-2" style="border-bottom:1px solid var(--divider);"><span style="color:var(--text-muted);">شماره تماس</span><span class="font-bold en" id="cp-phone" style="color:var(--text-main);">—</span></div>
+                    <div class="flex items-center justify-between pb-2" style="border-bottom:1px solid var(--divider);"><span style="color:var(--text-muted);">ایمیل</span><span class="font-bold en" id="cp-email" style="color:var(--text-main);">—</span></div>
+                </div>
+
+                <h3 class="text-sm font-black mt-5 mb-3 flex items-center gap-1.5" style="color:var(--text-main);">👨‍👩‍👧‍👦 نفرات مرتبط</h3>
+                <div id="cp-related-list" class="space-y-1.5 mb-4"></div>
+
+                <label class="auth-label">یادداشت</label>
+                <textarea id="cp-notes" rows="3" class="auth-input resize-none mb-2" placeholder="یادداشتی برای این مشتری..."></textarea>
+                <button onclick="saveClientNotes()" class="w-full py-2 rounded-xl text-xs font-black transition" style="background:var(--bg-main);color:var(--accent);border:1px solid var(--border-color);">ذخیره یادداشت</button>
+            </div>
+
+            <!-- CENTER: previous jobs/orders + related -->
+            <div class="workspace-panel p-5">
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-sm font-black flex items-center gap-1.5" style="color:var(--text-main);">📊 سابقه پروژه‌ها <span class="en" style="color:var(--text-muted);">(<span id="cp-job-count">۰</span>)</span></h3>
+                    <button onclick="openChatForClient()" class="text-[11px] font-black px-3 py-1.5 rounded-lg transition" style="background:var(--accent);color:var(--btn-text-on-accent);">+ پروژه جدید</button>
+                </div>
+                <div id="cp-jobs-list" class="space-y-2"></div>
+            </div>
+
+            <!-- RIGHT: invoices + calendar -->
+            <div class="space-y-4">
+                <div class="workspace-panel p-5">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-sm font-black flex items-center gap-1.5" style="color:var(--text-main);">🧾 فاکتورها <span class="en" style="color:var(--text-muted);">(<span id="cp-invoice-count">۰</span>)</span></h3>
+                    </div>
+                    <div class="p-3 rounded-xl mb-3" style="background:var(--bg-main);border:1px solid var(--border-color);">
+                        <div class="flex flex-wrap items-center gap-2 mb-2">
+                            <button onclick="addCustomInvoiceRow()" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">+ ردیف دلخواه</button>
+                            <button onclick="addPresetInvoiceRow('تمبر دادگستری', 60000)" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">+ تمبر</button>
+                            <button onclick="addPresetInvoiceRow('مهر وزارت خارجه (هر صفحه)', 50000)" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">+ مهر خارجه</button>
+                        </div>
+                        <div id="cp-draft-rows" class="space-y-1.5"></div>
+                        <div id="cp-draft-empty" class="text-xs text-center py-3" style="color:var(--text-muted);">// هنوز ردیفی اضافه نشده</div>
+                        <div class="flex items-center justify-between mt-3 pt-3" style="border-top:1px solid var(--divider);">
+                            <span class="text-xs font-bold" style="color:var(--text-muted);">جمع: <span class="en" id="cp-draft-total" style="color:var(--text-main);">۰</span> تومان</span>
+                            <span class="flex items-center gap-2">
+                                <button onclick="submitDraftInvoice('proforma')" class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition" style="background:var(--card-surface);color:var(--text-muted);border:1px solid var(--border-subtle);">پیش‌فاکتور</button>
+                                <button onclick="submitDraftInvoice('invoice')" class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition" style="background:var(--accent);color:var(--btn-text-on-accent);border:1px solid transparent;">ثبت فاکتور</button>
+                            </span>
+                        </div>
+                    </div>
+                    <div id="cp-invoices-list" class="space-y-2"></div>
+                </div>
+
+                <div class="workspace-panel p-5">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-sm font-black flex items-center gap-1.5" style="color:var(--text-main);">📅 تقویم کاری</h3>
+                    </div>
+                    <div class="flex items-center gap-2 mb-3 flex-wrap">
+                        <button onclick="shiftWorkWeek(-1)" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--bg-main);color:var(--accent);border:1px solid var(--border-color);">‹</button>
+                        <button onclick="setWorkWeekToToday()" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">امروز</button>
+                        <button onclick="shiftWorkWeek(1)" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--bg-main);color:var(--accent);border:1px solid var(--border-color);">›</button>
+                        <span class="text-[11px] font-black en flex-1 text-left" id="workWeekLabel" style="color:var(--text-main);">—</span>
+                    </div>
+                    <div class="flex items-center gap-2 mb-3 flex-wrap">
+                        <button onclick="setWorkOrderTypeFilter(null)" id="wft-all" class="text-[11px] font-bold px-3 py-1 rounded-lg transition" style="background:var(--accent);color:var(--btn-text-on-accent);border:1px solid transparent;">همه</button>
+                        <button onclick="setWorkOrderTypeFilter('TAYIDI')" id="wft-TAYIDI" class="text-[11px] font-bold px-3 py-1 rounded-lg transition" style="background:var(--bg-main);border:1px solid #38bdf8;color:#38bdf8;">تاییدی</button>
+                        <button onclick="setWorkOrderTypeFilter('MEHR_MOTARJEM')" id="wft-MEHR_MOTARJEM" class="text-[11px] font-bold px-3 py-1 rounded-lg transition" style="background:var(--bg-main);border:1px solid #c084fc;color:#c084fc;">مهر مترجم</button>
+                        <button onclick="openWorkOrderModal()" class="text-[11px] font-black px-3 py-1.5 rounded-lg transition ms-auto" style="background:var(--accent);color:var(--btn-text-on-accent);">+ سفارش</button>
+                    </div>
+                    <div id="workWeekGrid" style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;overflow-x:auto;"></div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -2481,6 +2596,7 @@ function syncUserSessionDOM() {
     toggle('mainHeroAuthCall',   loggedIn);
     toggle('workspaceHeaderBtn', !loggedIn);
     toggle('clientsHeaderBtn',   !loggedIn);
+    toggle('scheduleHeaderBtn',  !loggedIn);
     toggle('logoutHeaderBtn',    !loggedIn);
     const ub = document.getElementById('userBadge');
     if (ub) { ub.classList.toggle('hidden', !loggedIn); ub.style.display = loggedIn ? 'flex' : 'none'; }
@@ -2584,6 +2700,8 @@ async function openWorkspaceDashboard(pushHistory = true) {
     dashboardEl.classList.remove('hidden');
     dashboardEl.scrollTop = 0;
     document.getElementById('clientsWorkspace').classList.add('hidden');
+    document.getElementById('clientProfilePage').classList.add('hidden');
+    document.getElementById('workSchedulePage').classList.add('hidden');
 
     // Reserve exactly as much top space as the header actually needs,
     // measured live -- more reliable than a fixed padding guess, since it
@@ -2610,6 +2728,8 @@ async function openClientsWorkspace(pushHistory = true) {
     el.scrollTop = 0;
     document.getElementById('workspaceDashboard').classList.add('hidden');
     document.getElementById('adminDashboard').classList.add('hidden');
+    document.getElementById('clientProfilePage').classList.add('hidden');
+    document.getElementById('workSchedulePage').classList.add('hidden');
 
     const headerEl = document.querySelector('.header-bar');
     if (headerEl) {
@@ -2637,6 +2757,10 @@ function showLandingView() {
     if (ad) ad.classList.add('hidden');
     const cw = document.getElementById('clientsWorkspace');
     if (cw) cw.classList.add('hidden');
+    const pp = document.getElementById('clientProfilePage');
+    if (pp) pp.classList.add('hidden');
+    const sp = document.getElementById('workSchedulePage');
+    if (sp) sp.classList.add('hidden');
     document.body.style.overflow = 'auto';
 }
 
@@ -2739,7 +2863,7 @@ async function renderDashboardClients(q = '') {
                     <div class="font-bold text-sm en" style="color:var(--text-main);">${escapeHtml(c.first_name)} ${escapeHtml(c.last_name)}</div>
                     <div class="text-[11px] en" style="color:var(--text-muted);">کد ملی: ${escapeHtml(c.national_id) || '—'} ${c.phone ? '· ' + escapeHtml(c.phone) : ''}</div>
                 </div>
-                <button onclick="openClientDetail('${c.id}')" class="text-xs font-bold px-3 py-1.5 rounded-lg transition" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">مشاهده</button>
+                <button onclick="openClientProfile('${c.id}')" class="text-xs font-bold px-3 py-1.5 rounded-lg transition" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">مشاهده</button>
             </div>
         `).join('');
     } catch (e) {
@@ -2822,14 +2946,17 @@ async function openClientDetail(clientId) {
 }
 
 async function renderClientInvoices(clientId) {
-    const box = document.getElementById('cd-invoices-list');
+    const profileOpen = isProfilePageOpen();
+    const prefix = profileOpen ? 'cp' : 'cd';
+    const box = document.getElementById(prefix + '-invoices-list');
+    const countEl = document.getElementById(prefix + '-invoice-count');
     const token = localStorage.getItem('deept_token');
     box.innerHTML = `<div class="text-xs text-center py-3" style="color:var(--text-muted);">در حال بارگذاری...</div>`;
     try {
         const res = await fetch(`${CORE}/invoices?client_id=${clientId}`, { headers: { 'Authorization': `Bearer ${token}` } });
         if (!res.ok) throw new Error();
         const invoices = await res.json();
-        document.getElementById('cd-invoice-count').textContent = invoices.length;
+        if (countEl) countEl.textContent = invoices.length;
         if (!invoices.length) {
             box.innerHTML = `<div class="text-xs text-center py-4" style="color:var(--text-muted);">// بدون فاکتور ثبت‌شده</div>`;
             return;
@@ -2893,14 +3020,24 @@ function removeDraftRow(idx) {
     renderDraftRows();
 }
 
+function isProfilePageOpen() {
+    const el = document.getElementById('clientProfilePage');
+    return el && !el.classList.contains('hidden');
+}
+
 function updateDraftTotal() {
     const total = invoiceDraft.reduce((s, row) => s + (row.quantity || 0) * (row.unit_price_toman || 0), 0);
-    document.getElementById('cd-draft-total').textContent = total.toLocaleString();
+    const id = isProfilePageOpen() ? 'cp-draft-total' : 'cd-draft-total';
+    const el = document.getElementById(id);
+    if (el) el.textContent = total.toLocaleString();
 }
 
 function renderDraftRows() {
-    const box = document.getElementById('cd-draft-rows');
-    const empty = document.getElementById('cd-draft-empty');
+    const profileOpen = isProfilePageOpen();
+    const prefix = profileOpen ? 'cp' : 'cd';
+    const box = document.getElementById(prefix + '-draft-rows');
+    const empty = document.getElementById(prefix + '-draft-empty');
+    if (!box || !empty) return;
     empty.classList.toggle('hidden', invoiceDraft.length > 0);
     box.innerHTML = invoiceDraft.map((row, idx) => {
         const lineTotal = (row.quantity || 0) * (row.unit_price_toman || 0);
@@ -3222,6 +3359,277 @@ async function deleteWorkOrder(orderId) {
     }
 }
 
+// ═══════════════════════════════════════════════════════════════════════
+// FULL-WINDOW CLIENT PROFILE (CRM layout) + FULL-WINDOW WORK SCHEDULE
+// (برنامه کاری دفتر). These replace the cramped modal with a HubSpot-style
+// three-column client screen and a dedicated office-wide weekly calendar.
+// ═══════════════════════════════════════════════════════════════════════
+
+function hideWorkspaceViews() {
+    ['workspaceDashboard', 'clientsWorkspace', 'adminDashboard',
+     'clientProfilePage', 'workSchedulePage'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+    });
+}
+
+function showFullView(id) {
+    hideWorkspaceViews();
+    const headerEl = document.querySelector('.header-bar');
+    const el = document.getElementById(id);
+    el.classList.remove('hidden');
+    el.scrollTop = 0;
+    if (headerEl) el.style.paddingTop = (headerEl.offsetHeight + 16) + 'px';
+    document.body.style.overflow = 'hidden';
+}
+
+// ── Open a client's full profile page ──────────────────────────────────
+async function openClientProfile(clientId) {
+    if (!currentUserSession) { openAuthModal(); return; }
+    currentClientDetailId = clientId;
+    invoiceDraft = [];
+    showFullView('clientProfilePage');
+    navigateTo('/clients/' + clientId);
+
+    const token = localStorage.getItem('deept_token');
+    try {
+        const res = await fetch(`${CORE}/clients/${clientId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!res.ok) throw new Error();
+        const c = await res.json();
+
+        document.getElementById('cp-name').textContent = `${c.first_name} ${c.last_name}`.trim() || '—';
+        document.getElementById('cp-subtitle').textContent = c.father_name ? `فرزند ${c.father_name}` : '';
+        document.getElementById('cp-last').textContent = c.last_name || '—';
+        document.getElementById('cp-father').textContent = c.father_name || '—';
+        document.getElementById('cp-dob').textContent = c.date_of_birth || '—';
+        document.getElementById('cp-national').textContent = c.national_id || '—';
+        document.getElementById('cp-passport').textContent = c.passport_number || '—';
+        document.getElementById('cp-nationality').textContent = c.nationality || '—';
+        document.getElementById('cp-phone').textContent = c.phone || '—';
+        document.getElementById('cp-email').textContent = c.email || '—';
+        document.getElementById('cp-notes').value = c.notes || '';
+        document.getElementById('cp-job-count').textContent = c.job_count || 0;
+
+        const related = c.related_persons || [];
+        const relatedBox = document.getElementById('cp-related-list');
+        relatedBox.innerHTML = !related.length
+            ? `<div class="text-xs text-center py-3" style="color:var(--text-muted);">// نفر مرتبطی ثبت نشده</div>`
+            : related.map(r => `
+                <div class="flex items-center justify-between p-2.5 rounded-lg text-xs" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
+                    <span class="en" style="color:var(--text-main);">${escapeHtml(r.first_name)} ${escapeHtml(r.last_name)}</span>
+                    <span class="flex items-center gap-2">
+                        <span class="en" style="color:var(--text-muted);">کد ملی: ${escapeHtml(r.national_id) || '—'}</span>
+                        <button onclick="removeRelatedPerson('${(r.national_id||'').replace(/'/g,"")}')" style="color:#f87171;background:none;border:none;cursor:pointer;font-weight:700;">حذف ✕</button>
+                    </span>
+                </div>`).join('');
+
+        const STATUS_LABELS = {
+            queued:     { text: 'در صف',        color: '#94a3b8' },
+            processing: { text: 'در حال پردازش', color: '#fb923c' },
+            completed:  { text: 'آماده',        color: '#4ade80' },
+            failed:     { text: 'ناموفق',       color: '#f87171' },
+        };
+        const jobsBox = document.getElementById('cp-jobs-list');
+        if (!c.jobs || !c.jobs.length) {
+            jobsBox.innerHTML = `<div class="text-xs text-center py-4" style="color:var(--text-muted);">// بدون سابقه پروژه</div>`;
+        } else {
+            jobsBox.innerHTML = c.jobs.map(j => {
+                const st = STATUS_LABELS[j.status] || { text: j.status, color: 'var(--text-muted)' };
+                const typeLabel = DOCUMENT_REGISTRY[j.document_type]?.label || j.document_type;
+                const addBtn = j.status === 'completed'
+                    ? `<button onclick='addJobToDraft(${JSON.stringify(j.id)}, ${JSON.stringify(typeLabel)}, ${j.price_toman || 0})' class="text-[11px] font-bold px-2 py-1 rounded-md transition shrink-0" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">+ افزودن</button>`
+                    : `<span style="width:3.2rem;display:inline-block;"></span>`;
+                return `<div class="flex items-center gap-2.5 p-2.5 rounded-lg text-xs" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
+                    <span class="flex-1" style="color:var(--text-main);">${typeLabel}</span>
+                    <span class="en" style="color:var(--text-muted);">${j.price_toman ? j.price_toman.toLocaleString() + ' ت' : ''}</span>
+                    <span class="status-pill" style="color:${st.color};background:${st.color}1f;">${st.text}</span>
+                    ${addBtn}
+                </div>`;
+            }).join('');
+        }
+
+        renderDraftRows();
+        await renderClientInvoices(clientId);
+        workWeekStart = startOfPersianWeek(new Date());
+        setWorkOrderTypeFilter(null);
+    } catch (e) {
+        showToast('خطا در دریافت اطلاعات مشتری.');
+    }
+}
+
+function closeClientProfilePage() {
+    document.getElementById('clientProfilePage').classList.add('hidden');
+    document.body.style.overflow = 'auto';
+    currentClientDetailId = null;
+    openClientsWorkspace(false);
+}
+
+// Start a new project tied to the currently open client profile.
+function openChatForClient() {
+    if (!currentClientDetailId) return;
+    selectedClientId = currentClientDetailId;
+    mainContactClientId = currentClientDetailId;
+    navigateTo('/new-project');
+    openChatInterface(false);
+}
+
+// ── Open the office-wide weekly work schedule ──────────────────────────
+let scheduleWeekStart = null;
+let scheduleTypeFilter = null;
+let scheduleWeekOrders = [];
+
+function openWorkSchedulePage() {
+    if (!currentUserSession) { openAuthModal(); return; }
+    showFullView('workSchedulePage');
+    navigateTo('/schedule');
+    scheduleWeekStart = startOfPersianWeek(new Date());
+    scheduleTypeFilter = null;
+    setScheduleTypeFilter(null);
+}
+
+function closeWorkSchedulePage() {
+    document.getElementById('workSchedulePage').classList.add('hidden');
+    document.body.style.overflow = 'auto';
+    openWorkspaceDashboard(false);
+}
+
+function setScheduleWeekToToday() {
+    scheduleWeekStart = startOfPersianWeek(new Date());
+    renderScheduleWeek();
+}
+
+function shiftScheduleWeek(n) {
+    if (!scheduleWeekStart) scheduleWeekStart = startOfPersianWeek(new Date());
+    scheduleWeekStart.setDate(scheduleWeekStart.getDate() + n * 7);
+    renderScheduleWeek();
+}
+
+function setScheduleTypeFilter(type) {
+    scheduleTypeFilter = type;
+    ['all', 'TAYIDI', 'MEHR_MOTARJEM'].forEach(t => {
+        const el = document.getElementById('sf-' + t);
+        if (!el) return;
+        const active = (type === null && t === 'all') || type === t;
+        if (t === 'all') {
+            el.style.background = active ? 'var(--accent)' : 'var(--bg-main)';
+            el.style.color = active ? 'var(--btn-text-on-accent)' : 'var(--text-main)';
+            el.style.borderColor = active ? 'transparent' : 'var(--border-subtle)';
+        } else {
+            const color = WORK_ORDER_TYPE_FA[t].color;
+            el.style.background = active ? color : 'var(--bg-main)';
+            el.style.color = active ? '#000' : color;
+            el.style.borderColor = color;
+            el.style.fontWeight = active ? '900' : '700';
+        }
+    });
+    renderScheduleWeek();
+}
+
+async function renderScheduleWeek() {
+    const grid = document.getElementById('scheduleWeekGrid');
+    const list = document.getElementById('scheduleOrderList');
+    if (!grid || !list) return;
+    if (!scheduleWeekStart) scheduleWeekStart = startOfPersianWeek(new Date());
+
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(scheduleWeekStart);
+        d.setDate(scheduleWeekStart.getDate() + i);
+        days.push(d);
+    }
+    const fromISO = fmtWeekISO(days[0]);
+    const toISO = fmtWeekISO(days[6]);
+
+    const startFmt = days[0].toLocaleDateString('fa-IR', { day: 'numeric', month: 'long', year: 'numeric' });
+    const endFmt = days[6].toLocaleDateString('fa-IR', { day: 'numeric', month: 'long' });
+    document.getElementById('scheduleWeekLabel').textContent = `${startFmt} — ${endFmt}`;
+
+    grid.innerHTML = `<div class="text-xs text-center py-6" style="color:var(--text-muted);grid-column:1/-1;">در حال بارگذاری تقویم...</div>`;
+
+    let orders = [];
+    try {
+        const url = new URL(`${CORE}/work-orders`);
+        url.searchParams.set('from', fromISO);
+        url.searchParams.set('to', toISO);
+        if (scheduleTypeFilter) url.searchParams.set('order_type', scheduleTypeFilter);
+        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${getToken()}` } });
+        if (!res.ok) throw new Error();
+        orders = await res.json();
+    } catch (e) {
+        grid.innerHTML = `<div class="text-xs text-center py-6" style="color:#f87171;grid-column:1/-1;">خطا در دریافت زمان‌بندی.
+            <button onclick="renderScheduleWeek()" class="block mx-auto mt-2 text-[11px] font-bold px-3 py-1 rounded-lg" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">🔄 تلاش مجدد</button>
+        </div>`;
+        list.innerHTML = '';
+        return;
+    }
+    scheduleWeekOrders = orders;
+
+    const todayISO = fmtWeekISO(new Date());
+    const byDay = {};
+    for (const o of orders) byDay[o.due_date || ''] = (byDay[o.due_date || ''] || []).concat(o);
+
+    grid.innerHTML = days.map((d, idx) => {
+        const iso = fmtWeekISO(d);
+        const isToday = todayISO === iso;
+        const dayOrders = byDay[iso] || [];
+        const pendingCount = dayOrders.filter(o => o.status === 'PENDING').length;
+        const overdue = dayOrders.some(o => o.status === 'PENDING' && o.due_date && o.due_date < todayISO);
+
+        const itemsHtml = dayOrders.length
+            ? dayOrders.map(o => {
+                const t = WORK_ORDER_TYPE_FA[o.order_type] || { text: o.order_type, color: 'var(--accent)' };
+                const s = WORK_ORDER_STATUS_FA[o.status] || { text: o.status, color: 'var(--text-muted)' };
+                const done = o.status === 'DONE';
+                const clickTarget = o.client_id
+                    ? `onclick="openClientProfile('${o.client_id}')" title="باز کردن پروفایل مشتری"`
+                    : '';
+                return `
+                  <div ${clickTarget} class="p-1.5 rounded-md text-[10px] cursor-pointer mb-1 hover:opacity-85" style="background:${(t.color) + '1a'};border:1px solid ${t.color}55;border-left:3px solid ${t.color};">
+                    <div class="font-bold truncate" style="color:${done ? 'var(--text-muted)' : 'var(--text-main)'};${done ? 'text-decoration:line-through;' : ''}">${escapeHtml(o.client_name || '')}${o.title ? ' · ' + escapeHtml(o.title) : ''}</div>
+                    <div class="flex items-center justify-between mt-0.5" style="color:var(--text-muted);">
+                      <span style="color:${t.color};">${t.text}</span>
+                      <span class="en" style="color:${s.color};">${s.text}</span>
+                    </div>
+                  </div>`;
+              }).join('')
+            : `<div class="text-[10px] text-center py-2" style="color:var(--text-muted);">—</div>`;
+
+        return `
+          <div class="p-1.5 rounded-lg" style="background:${isToday ? 'var(--accent-hover)' : 'var(--bg-main)'};border:1px solid ${isToday ? 'var(--border-color)' : 'var(--border-subtle)'};${overdue ? 'box-shadow:0 0 0 1px rgba(248,113,113,0.4);' : ''}">
+            <div class="flex items-center justify-between mb-1.5" style="padding-bottom:4px;border-bottom:1px solid var(--divider);">
+                <span class="text-[11px] font-black" style="color:${isToday ? 'var(--accent)' : 'var(--text-main)'};">${WEEKDAY_FA[idx]}</span>
+                <span class="text-[10px] en font-bold" style="color:${isToday ? 'var(--accent)' : 'var(--text-muted)'};">${d.getDate()}</span>
+            </div>
+            ${pendingCount ? `<div class="text-[9px] font-bold mb-1" style="color:var(--accent);"><span class="en">${pendingCount}</span> در انتظار</div>` : ''}
+            ${overdue ? `<div class="text-[9px] font-bold mb-1" style="color:#f87171;">⚠ ددلاین گذشته</div>` : ''}
+            ${itemsHtml}
+          </div>`;
+    }).join('');
+
+    if (!orders.length) {
+        list.innerHTML = `<div class="text-xs text-center py-4" style="color:var(--text-muted);">// در این هفته سفارشی ثبت نشده</div>`;
+    } else {
+        orders.sort((a, b) => (a.due_date || '').localeCompare(b.due_date || ''));
+        list.innerHTML = orders.map(o => {
+            const t = WORK_ORDER_TYPE_FA[o.order_type] || { text: o.order_type, color: 'var(--accent)' };
+            const s = WORK_ORDER_STATUS_FA[o.status] || { text: o.status, color: 'var(--text-muted)' };
+            return `
+              <div class="flex items-center justify-between gap-3 p-2.5 rounded-lg text-xs" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
+                <div class="flex items-center gap-2 min-w-0">
+                  <span class="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style="background:${t.color};"></span>
+                  <span class="font-bold en truncate" style="color:var(--text-main);">${escapeHtml(o.client_name || '')}${o.title ? ' — ' + escapeHtml(o.title) : ''}</span>
+                </div>
+                <div class="flex items-center gap-3 shrink-0">
+                  <span class="en font-bold" style="color:${o.due_date ? 'var(--accent)' : 'var(--text-muted)'};">${o.due_date || 'بدون ددلاین'}</span>
+                  <span style="color:${t.color};">${t.text}</span>
+                  <span class="en" style="color:${s.color};">${s.text}</span>
+                  ${o.client_id ? `<button onclick="openClientProfile('${o.client_id}')" class="text-[11px] font-bold px-2 py-1 rounded-md" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">مشتری</button>` : ''}
+                </div>
+              </div>`;
+        }).join('');
+    }
+}
+
 // 
 // ── Invoice view / print / email — a translator needs a signed paper copy
 // for the client's file and often needs to email a copy too, not just see
@@ -3316,12 +3724,15 @@ async function submitInvoiceEmail() {
 
 async function saveClientNotes() {
     if (!currentClientDetailId) return;
+    const notesId = isProfilePageOpen() ? 'cp-notes' : 'cd-notes';
+    const notesEl = document.getElementById(notesId);
+    if (!notesEl) return;
     const token = localStorage.getItem('deept_token');
     try {
         const res = await fetch(`${CORE}/clients/${currentClientDetailId}`, {
             method: 'PATCH',
             headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ notes: document.getElementById('cd-notes').value })
+            body: JSON.stringify({ notes: notesEl.value })
         });
         if (!res.ok) throw new Error();
         showToast('✅ یادداشت ذخیره شد.');
@@ -3340,7 +3751,11 @@ async function removeRelatedPerson(nationalId) {
         });
         if (!res.ok) throw new Error();
         showToast('✅ نفر مرتبط حذف شد.');
-        await openClientDetail(currentClientDetailId);
+        if (isProfilePageOpen()) {
+            await openClientProfile(currentClientDetailId);
+        } else {
+            await openClientDetail(currentClientDetailId);
+        }
     } catch (e) {
         showToast('خطا در حذف نفر مرتبط.');
     }
@@ -3457,6 +3872,25 @@ function applyRouteForPath(path) {
                 openWorkspaceDashboard(false);
                 if (path === '/new-project') openChatInterface(false);
             }
+        } else {
+            navigateTo('/', false);
+            showLandingView();
+            openLogin();
+            showToast('برای دسترسی به این بخش، ابتدا وارد شوید.');
+        }
+    } else if (path === '/schedule') {
+        if (currentUserSession) {
+            openWorkSchedulePage();
+        } else {
+            navigateTo('/', false);
+            showLandingView();
+            openLogin();
+            showToast('برای دسترسی به این بخش، ابتدا وارد شوید.');
+        }
+    } else if (/^\/clients\/[^/]+$/.test(path)) {
+        const clientId = path.split('/')[2];
+        if (currentUserSession) {
+            openClientProfile(clientId);
         } else {
             navigateTo('/', false);
             showLandingView();
@@ -3869,10 +4303,41 @@ function closeSaveClientModal() {
 
 // ── Add a client directly from the Clients section — no passport upload or
 // job needed, for a walk-in whose documents haven't come through DeepT yet. ──
+let clientEditingId = null;
+
 function openAddClientModal() {
+    clientEditingId = null;
     ['ac-first','ac-last','ac-national','ac-father','ac-dob','ac-phone','ac-email','ac-passport','ac-nationality','ac-notes']
         .forEach(id => document.getElementById(id).value = '');
+    document.getElementById('ac-submit-btn').textContent = 'افزودن مشتری';
+    document.querySelector('#addClientModal h3').textContent = '➕ افزودن مشتری جدید';
     document.getElementById('addClientModal').classList.remove('hidden');
+}
+
+async function openAddClientModalForEdit() {
+    if (!currentClientDetailId) return;
+    const token = localStorage.getItem('deept_token');
+    try {
+        const res = await fetch(`${CORE}/clients/${currentClientDetailId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!res.ok) throw new Error();
+        const c = await res.json();
+        clientEditingId = currentClientDetailId;
+        document.getElementById('ac-first').value = c.first_name || '';
+        document.getElementById('ac-last').value = c.last_name || '';
+        document.getElementById('ac-national').value = c.national_id || '';
+        document.getElementById('ac-father').value = c.father_name || '';
+        document.getElementById('ac-dob').value = c.date_of_birth || '';
+        document.getElementById('ac-phone').value = c.phone || '';
+        document.getElementById('ac-email').value = c.email || '';
+        document.getElementById('ac-passport').value = c.passport_number || '';
+        document.getElementById('ac-nationality').value = c.nationality || '';
+        document.getElementById('ac-notes').value = c.notes || '';
+        document.getElementById('ac-submit-btn').textContent = 'ذخیره تغییرات';
+        document.querySelector('#addClientModal h3').textContent = '✏️ ویرایش مشتری';
+        document.getElementById('addClientModal').classList.remove('hidden');
+    } catch (e) {
+        showToast('خطا در دریافت اطلاعات مشتری.');
+    }
 }
 
 function closeAddClientModal() {
@@ -3895,32 +4360,46 @@ async function submitAddClient() {
     btn.disabled = true;
     btn.textContent = 'در حال افزودن...';
     const token = localStorage.getItem('deept_token');
+    const payload = {
+        first_name:  first,
+        last_name:   last,
+        national_id: nationalId,
+        father_name:   document.getElementById('ac-father').value.trim().toUpperCase(),
+        date_of_birth: document.getElementById('ac-dob').value.trim(),
+        phone:           document.getElementById('ac-phone').value.trim()       || null,
+        email:           document.getElementById('ac-email').value.trim()       || null,
+        passport_number: document.getElementById('ac-passport').value.trim()    || null,
+        nationality:     document.getElementById('ac-nationality').value.trim() || null,
+        notes:           document.getElementById('ac-notes').value.trim()       || null,
+    };
     try {
-        const res = await fetch(`${CORE}/clients`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                first_name:  first,
-                last_name:   last,
-                national_id: nationalId,
-                father_name:   document.getElementById('ac-father').value.trim().toUpperCase(),
-                date_of_birth: document.getElementById('ac-dob').value.trim(),
-                phone:           document.getElementById('ac-phone').value.trim()       || null,
-                email:           document.getElementById('ac-email').value.trim()       || null,
-                passport_number: document.getElementById('ac-passport').value.trim()    || null,
-                nationality:     document.getElementById('ac-nationality').value.trim() || null,
-                notes:           document.getElementById('ac-notes').value.trim()       || null,
+        const res = clientEditingId
+            ? await fetch(`${CORE}/clients/${clientEditingId}`, {
+                method: 'PATCH',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
             })
-        });
+            : await fetch(`${CORE}/clients`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
         if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.detail || 'خطای سرور'); }
         closeAddClientModal();
-        showToast('✅ مشتری افزوده شد.');
+        showToast(clientEditingId ? '✅ تغییرات ذخیره شد.' : '✅ مشتری افزوده شد.');
+        const savedId = clientEditingId || (await res.json().catch(()=>({}))).id;
+        clientEditingId = null;
         renderDashboardClients();
+        if (currentUserSession && isProfilePageOpen() && savedId) {
+            await openClientProfile(savedId);
+        } else if (currentUserSession && savedId) {
+            await openClientDetail(savedId);
+        }
     } catch (e) {
-        showToast(`❌ ${e.message || 'افزودن مشتری ناموفق بود.'}`);
+        showToast(`❌ ${e.message || 'ذخیره ناموفق بود.'}`);
     } finally {
         btn.disabled = false;
-        btn.textContent = 'افزودن مشتری';
+        btn.textContent = clientEditingId ? 'ذخیره تغییرات' : 'افزودن مشتری';
     }
 }
 
