@@ -1741,6 +1741,9 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                     <button onclick="openChatForClient()" class="text-[11px] font-black px-3 py-1.5 rounded-lg transition" style="background:var(--accent);color:var(--btn-text-on-accent);">+ پروژه جدید</button>
                 </div>
                 <div id="cp-jobs-list" class="space-y-2"></div>
+
+                <h3 class="text-sm font-black flex items-center gap-1.5 mt-5 mb-3" style="color:var(--text-main);">📄 اسناد سامانه سنام <span class="en" style="color:var(--text-muted);">(<span id="cp-sanam-doc-count">۰</span>)</span></h3>
+                <div id="cp-sanam-docs-list" class="space-y-2"></div>
             </div>
 
             <!-- RIGHT: invoices + calendar -->
@@ -2987,19 +2990,7 @@ async function openClientDetail(clientId) {
             }).join('');
         }
 
-        // Sanam-imported documents -- not a DeepT job (no status/price to
-        // show), just what was translated and when, straight from the
-        // excel import(s) done for this client so far.
-        const sanamDocs = c.sanam_documents || [];
-        document.getElementById('cd-sanam-doc-count').textContent = sanamDocs.length;
-        const sanamBox = document.getElementById('cd-sanam-docs-list');
-        sanamBox.innerHTML = !sanamDocs.length
-            ? `<div class="text-xs text-center py-4" style="color:var(--text-muted);">// سندی از سنام وارد نشده</div>`
-            : sanamDocs.map(d => `
-                <div class="flex items-center gap-2.5 p-2.5 rounded-lg text-xs" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
-                    <span class="flex-1" style="color:var(--text-main);">${escapeHtml(d.description)}${d.quantity > 1 ? ` <span class="en" style="color:var(--text-muted);">×${d.quantity}</span>` : ''}</span>
-                    <span class="en shrink-0" style="color:var(--text-muted);">${d.date ? escapeHtml(d.date.slice(0, 10)) : '—'}</span>
-                </div>`).join('');
+        renderSanamDocuments(c.sanam_documents || []);
 
         renderDraftRows();
         await renderClientInvoices(clientId);
@@ -3008,6 +2999,27 @@ async function openClientDetail(clientId) {
     } catch (e) {
         showToast('خطا در دریافت اطلاعات مشتری.');
     }
+}
+
+// Sanam-imported documents -- not a DeepT job (no status/price to show),
+// just what was translated and when, straight from the excel import(s)
+// done for this client so far. Same isProfilePageOpen() prefix convention
+// as renderClientInvoices()/updateDraftTotal() below, since this renders
+// into whichever of the two client-detail views (the full-window profile
+// page, or the older modal) is actually open.
+function renderSanamDocuments(sanamDocs) {
+    const prefix = isProfilePageOpen() ? 'cp' : 'cd';
+    const countEl = document.getElementById(prefix + '-sanam-doc-count');
+    const box = document.getElementById(prefix + '-sanam-docs-list');
+    if (countEl) countEl.textContent = sanamDocs.length;
+    if (!box) return;
+    box.innerHTML = !sanamDocs.length
+        ? `<div class="text-xs text-center py-4" style="color:var(--text-muted);">// سندی از سنام وارد نشده</div>`
+        : sanamDocs.map(d => `
+            <div class="flex items-center gap-2.5 p-2.5 rounded-lg text-xs" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
+                <span class="flex-1" style="color:var(--text-main);">${escapeHtml(d.description)}${d.quantity > 1 ? ` <span class="en" style="color:var(--text-muted);">×${d.quantity}</span>` : ''}</span>
+                <span class="en shrink-0" style="color:var(--text-muted);">${d.date ? escapeHtml(d.date.slice(0, 10)) : '—'}</span>
+            </div>`).join('');
 }
 
 async function renderClientInvoices(clientId) {
@@ -3525,6 +3537,8 @@ async function openClientProfile(clientId) {
                 </div>`;
             }).join('');
         }
+
+        renderSanamDocuments(c.sanam_documents || []);
 
         renderDraftRows();
         await renderClientInvoices(clientId);
