@@ -1593,6 +1593,105 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                     </table>
                 </div>
             </div>
+
+            <!-- ─── OFFICE FINANCE & PERFORMANCE (امور مالی و عملکرد دفتر): expandable
+                 panel INSIDE the user dashboard only -- never a top-level view, and
+                 never reachable from the landing page or the global header. ─── -->
+            <div class="workspace-panel p-5">
+                <button onclick="toggleFinancePanel()" class="w-full flex items-center justify-between gap-3 text-right" type="button">
+                    <span class="text-sm font-black flex items-center gap-2" style="color:var(--text-main);">
+                        📊 امور مالی و عملکرد دفتر
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full" style="background:var(--bg-main);border:1px solid var(--border-subtle);color:var(--text-muted);">گزارش</span>
+                    </span>
+                    <span id="financeToggleIcon" class="text-base transition-transform" style="color:var(--text-muted);">▾</span>
+                </button>
+                <div id="financePanelBody" class="hidden mt-4 space-y-5">
+                    <!-- time frame -->
+                    <div class="p-4 rounded-xl" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
+                        <div class="flex items-center justify-between gap-3 flex-wrap mb-3">
+                            <h4 class="text-xs font-black" style="color:var(--text-main);">بازه زمانی</h4>
+                            <span class="text-[11px] font-bold en" id="finRangeLabel" style="color:var(--text-muted);">همه زمان‌ها</span>
+                        </div>
+                        <div class="flex items-center gap-2 flex-wrap mb-3">
+                            <button onclick="setFinancePreset('today')" class="text-[11px] font-bold px-3 py-1 rounded-lg transition" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">امروز</button>
+                            <button onclick="setFinancePreset('thisWeek')" class="text-[11px] font-bold px-3 py-1 rounded-lg transition" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">این هفته</button>
+                            <button onclick="setFinancePreset('thisMonth')" class="text-[11px] font-bold px-3 py-1 rounded-lg transition" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">این ماه</button>
+                            <button onclick="setFinancePreset('lastMonth')" class="text-[11px] font-bold px-3 py-1 rounded-lg transition" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">ماه قبل</button>
+                            <button onclick="setFinancePreset('thisYear')" class="text-[11px] font-bold px-3 py-1 rounded-lg transition" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">امسال</button>
+                            <button onclick="setFinancePreset('all')" class="text-[11px] font-bold px-3 py-1 rounded-lg transition" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">همه زمان‌ها</button>
+                        </div>
+                        <div class="flex items-end gap-2 flex-wrap">
+                            <label class="text-[11px]" style="color:var(--text-muted);">از تاریخ
+                                <input type="date" id="finDateFrom" onchange="applyFinanceDateRange()" class="auth-input text-sm en block" style="margin-top:.3rem;" dir="ltr">
+                            </label>
+                            <label class="text-[11px]" style="color:var(--text-muted);">تا تاریخ
+                                <input type="date" id="finDateTo" onchange="applyFinanceDateRange()" class="auth-input text-sm en block" style="margin-top:.3rem;" dir="ltr">
+                            </label>
+                            <button onclick="loadOfficeReport()" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--accent);color:var(--btn-text-on-accent);">محاسبه گزارش</button>
+                        </div>
+                    </div>
+
+                    <!-- headline stats -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="p-4 rounded-xl border" style="background:var(--card-surface);border-color:var(--border-subtle);">
+                            <div class="text-[11px] font-bold" style="color:var(--text-muted);">کارهای انجام‌شده توسط پلتفرم DeepT</div>
+                            <div class="text-2xl font-black mt-2 en" id="finStatWorksCompleted">—</div>
+                            <div class="text-[10px] mt-1" style="color:var(--text-muted);">از مجموع <span class="en" id="finStatWorksTotalSub">—</span> کار</div>
+                        </div>
+                        <div class="p-4 rounded-xl border" style="background:var(--card-surface);border-color:var(--border-subtle);">
+                            <div class="text-[11px] font-bold" style="color:var(--text-muted);">کل کارهای ثبت‌شده در پروفایل مشتریان</div>
+                            <div class="text-2xl font-black mt-2 en" id="finStatWorksTotal">—</div>
+                        </div>
+                        <div class="p-4 rounded-xl border" style="background:var(--card-surface);border-color:var(--border-subtle);">
+                            <div class="text-[11px] font-bold" style="color:var(--text-muted);">مشتریان جدید در این بازه</div>
+                            <div class="text-2xl font-black mt-2 en" id="finStatNewClients">—</div>
+                        </div>
+                        <div class="p-4 rounded-xl border" style="background:var(--card-surface);border-color:var(--border-subtle);">
+                            <div class="text-[11px] font-bold" style="color:var(--text-muted);">مشتری با بیشترین کار</div>
+                            <div class="text-xl font-black mt-2" id="finStatTopClient" style="color:var(--accent);">—</div>
+                            <div class="text-[10px] mt-1 en" id="finStatTopClientWorks" style="color:var(--text-muted);"></div>
+                        </div>
+                    </div>
+
+                    <!-- profit / costs -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <div class="p-4 rounded-xl" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
+                            <div class="text-[11px] font-bold" style="color:var(--text-muted);">درآمد ناخالص (فاکتورها)</div>
+                            <div class="text-2xl font-black mt-2 en" style="color:var(--text-main);" id="finStatGross">—</div>
+                        </div>
+                        <div class="p-4 rounded-xl" style="background:var(--bg-main);border:1px solid #4ade80;box-shadow:var(--shadow-accent);">
+                            <div class="text-[11px] font-bold" style="color:var(--text-muted);">سود خالص دفتر</div>
+                            <div class="text-2xl font-black mt-2 en" id="finStatNet">—</div>
+                        </div>
+                    </div>
+
+                    <div class="p-4 rounded-xl" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
+                        <h4 class="text-xs font-black mb-4" style="color:var(--text-main);">🧾 هزینه‌های دفتر</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div>
+                                <div class="text-[11px] font-bold" style="color:var(--text-muted);">هزینه ترجمه خودکار (DeepT)</div>
+                                <div class="text-xl font-black mt-1.5 en" id="finCostAuto">—</div>
+                            </div>
+                            <div>
+                                <div class="text-[11px] font-bold" style="color:var(--text-muted);">تمبر دادگستری</div>
+                                <div class="text-xl font-black mt-1.5 en" id="finCostStamp">—</div>
+                            </div>
+                            <div>
+                                <div class="text-[11px] font-bold" style="color:var(--text-muted);">مهر وزارت خارجه</div>
+                                <div class="text-xl font-black mt-1.5 en" id="finCostMfaSeal">—</div>
+                            </div>
+                            <div>
+                                <div class="text-[11px] font-bold" style="color:var(--text-muted);">هزینه پیک (ارسال)</div>
+                                <div class="text-xl font-black mt-1.5 en" id="finCostCourier">—</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between mt-4 pt-4 text-sm" style="border-top:1px solid var(--divider);">
+                            <span class="font-bold" style="color:var(--text-muted);">جمع هزینه‌ها</span>
+                            <span class="font-black en" id="finCostTotal" style="color:var(--text-main);">—</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
             <div class="text-center flex flex-col sm:flex-row gap-3 justify-center">
                 <button onclick="openClientsWorkspace()" class="text-xs px-6 py-2 rounded-xl transition font-bold" style="color:var(--accent);border:1px solid var(--border-color);background:var(--card-surface);">👥 مشتریان من ←</button>
                 <button onclick="closeWorkspaceDashboard()" class="text-xs px-6 py-2 rounded-xl transition" style="color:var(--text-muted);border:1px solid var(--border-subtle);background:var(--card-surface);">بازگشت به صفحه اصلی ↩</button>
@@ -2800,6 +2899,131 @@ function closeWorkspaceDashboard(pushHistory = true) {
     document.body.style.overflow = 'auto';
     showLandingView();
     if (pushHistory) navigateTo('/');
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// OFFICE FINANCE & PERFORMANCE (امور مالی و عملکرد دفتر) -- expandable
+// panel inside the workspace dashboard. Lives only inside #workspaceDashboard;
+// never a top-level view and never reachable from the landing page or the
+// global header. Aggregates the logged-in office's own numbers within a
+// user-chosen time frame: works by DeepT vs all registered, new clients, the
+// most-ordered client, invoice gross/net profit, and office costs.
+// ────────────────────────────────────────────────────────────────────────
+let financeRange = { from: null, to: null };
+let financePanelLoaded = false;
+
+function toggleFinancePanel() {
+    const body = document.getElementById('financePanelBody');
+    const icon = document.getElementById('financeToggleIcon');
+    const willOpen = body.classList.contains('hidden');
+    body.classList.toggle('hidden', !willOpen);
+    icon.style.transform = willOpen ? 'rotate(180deg)' : '';
+    if (willOpen && !financePanelLoaded) {
+        financePanelLoaded = true;
+        financeRange = { from: null, to: null };
+        const f = document.getElementById('finDateFrom');
+        const t = document.getElementById('finDateTo');
+        if (f) f.value = '';
+        if (t) t.value = '';
+        loadOfficeReport();
+    }
+}
+
+function finIso(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${dd}`;
+}
+
+function finFaRangeLabel() {
+    const fmt = s => {
+        if (!s) return '';
+        const [y, m, d] = s.split('-').map(Number);
+        return new Date(y, m - 1, d).toLocaleDateString('fa-IR', { day: 'numeric', month: 'long', year: 'numeric' });
+    };
+    if (financeRange.from && financeRange.to) return `${fmt(financeRange.from)} — ${fmt(financeRange.to)}`;
+    if (financeRange.from) return `از ${fmt(financeRange.from)}`;
+    if (financeRange.to) return `تا ${fmt(financeRange.to)}`;
+    return 'همه زمان‌ها';
+}
+
+function setFinancePreset(preset) {
+    const today = new Date();
+    let from = null, to = null;
+    if (preset === 'today') {
+        from = to = finIso(today);
+    } else if (preset === 'thisWeek') {
+        to = finIso(today);
+        from = finIso(startOfPersianWeek(today));
+    } else if (preset === 'thisMonth') {
+        to = finIso(today);
+        from = finIso(new Date(today.getFullYear(), today.getMonth(), 1));
+    } else if (preset === 'lastMonth') {
+        const firstThis = new Date(today.getFullYear(), today.getMonth(), 1);
+        from = finIso(new Date(firstThis.getFullYear(), firstThis.getMonth() - 1, 1));
+        to = finIso(new Date(firstThis.getFullYear(), firstThis.getMonth(), 0));
+    } else if (preset === 'thisYear') {
+        to = finIso(today);
+        from = finIso(new Date(today.getFullYear(), 0, 1));
+    }
+    financeRange = { from, to };
+    document.getElementById('finDateFrom').value = from || '';
+    document.getElementById('finDateTo').value = to || '';
+    document.getElementById('finRangeLabel').textContent = finFaRangeLabel();
+    loadOfficeReport();
+}
+
+function applyFinanceDateRange() {
+    const f = document.getElementById('finDateFrom').value;
+    const t = document.getElementById('finDateTo').value;
+    if (!f && !t) {
+        financeRange = { from: null, to: null };
+        document.getElementById('finRangeLabel').textContent = 'همه زمان‌ها';
+        loadOfficeReport();
+        return;
+    }
+    financeRange = { from: f || null, to: t || null };
+    document.getElementById('finRangeLabel').textContent = finFaRangeLabel();
+    loadOfficeReport();
+}
+
+function fmtToman(n) { return (n || 0).toLocaleString('fa-IR'); }
+
+async function loadOfficeReport() {
+    const token = getToken();
+    if (!token) return;
+    try {
+        const url = new URL(`${CORE}/reports/office`);
+        if (financeRange.from) url.searchParams.set('from', financeRange.from);
+        if (financeRange.to) url.searchParams.set('to', financeRange.to);
+        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!res.ok) throw new Error();
+        const r = await res.json();
+
+        const done = document.getElementById('finStatWorksCompleted');
+        done.textContent = fmtToman(r.works_completed);
+        document.getElementById('finStatWorksTotalSub').textContent = fmtToman(r.works_total);
+        document.getElementById('finStatWorksTotal').textContent = fmtToman(r.works_total);
+        document.getElementById('finStatNewClients').textContent = fmtToman(r.new_clients);
+
+        const best = r.top_client;
+        document.getElementById('finStatTopClient').textContent = best ? best.name : '—';
+        document.getElementById('finStatTopClientWorks').textContent = best ? `${fmtToman(best.works)} کار` : '';
+
+        document.getElementById('finStatGross').textContent = fmtToman(r.gross_revenue);
+        const netEl = document.getElementById('finStatNet');
+        netEl.textContent = fmtToman(r.net_profit);
+        netEl.style.color = r.net_profit >= 0 ? '#4ade80' : '#f87171';
+
+        document.getElementById('finCostAuto').textContent = fmtToman(r.auto_translation_cost);
+        document.getElementById('finCostStamp').textContent = fmtToman(r.expense_stamp);
+        document.getElementById('finCostMfaSeal').textContent = fmtToman(r.expense_mfa_seal);
+        document.getElementById('finCostCourier').textContent = fmtToman(r.expense_courier);
+        document.getElementById('finCostTotal').textContent = fmtToman(r.total_costs);
+    } catch (e) {
+        showToast('خطا در دریافت گزارش مالی.');
+    }
 }
 let allJobsTerminal = false;
 
