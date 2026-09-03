@@ -3694,7 +3694,7 @@ function populateCrmTimeFrameSelects() {
         const nowY = new Date().getFullYear();
         const years = [];
         for (let y = nowY + 1; y >= nowY - 4; y--) years.push(y);
-        yearSel.innerHTML = '<option value="">همهٔ زمان‌ها</option>' + years.map(y => `<option value="${y}">${y.toLocaleString('fa-IR')}</option>`).join('');
+        yearSel.innerHTML = '<option value="">همهٔ زمان‌ها</option>' + years.map(y => `<option value="${y}">${y.toLocaleString('fa-IR', {useGrouping:false})}</option>`).join('');
         monthSel.innerHTML = '<option value="">کل سال</option>' + CRM_GREG_MONTH_LABELS.map((lbl, i) => `<option value="${i+1}">${lbl}</option>`).join('');
     }
     // Restore from localStorage
@@ -3741,9 +3741,9 @@ function getCrmStatsLabel() {
     const yVal = yearSel ? yearSel.value : '';
     const mVal = monthSel ? monthSel.value : '';
     if (!yVal) return 'همهٔ زمان‌ها';
-    if (!mVal) return `سال ${parseInt(yVal,10).toLocaleString('fa-IR')}`;
+    if (!mVal) return `سال ${parseInt(yVal,10).toLocaleString('fa-IR', {useGrouping:false})}`;
     const idx = parseInt(mVal,10) - 1;
-    return `${CRM_GREG_MONTH_LABELS[idx]} ${parseInt(yVal,10).toLocaleString('fa-IR')}`;
+    return `${CRM_GREG_MONTH_LABELS[idx]} ${parseInt(yVal,10).toLocaleString('fa-IR', {useGrouping:false})}`;
 }
 
 function updateCrmTimeFrameLabel() {
