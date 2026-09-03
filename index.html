@@ -1563,7 +1563,7 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                  doc_prefs.py). ─────────────────────────────────────────── -->
             <div class="workspace-panel p-6">
                 <h4 class="text-sm font-black mb-1 flex items-center gap-1.5" style="color:var(--text-main);">📝 تنظیمات ترجمه</h4>
-                <p class="text-[11px] mb-3" style="color:var(--text-muted);">این تنظیمات روی همه ترجمه‌های بعدی شما (در همه انواع سند) اعمال می‌شود. خالی گذاشتن هر مورد یعنی استفاده از پیش‌فرض سیستم.</p>
+                <p class="text-[11px] mb-3" style="color:var(--text-muted);">این تنظیمات روی همه ترجمه‌های بعدی شما (در همه انواع سند) اعمال می‌شود. خالی گذاشتن هر مورد یعنی همان متن/فونت پیش‌فرضی که هر نوع سند همیشه داشته، بدون تغییر — فقط با تکمیل این فیلدها آن مورد جایگزین می‌شود.</p>
 
                 <div class="grid grid-cols-2 gap-2 mb-3">
                     <div>
@@ -1595,13 +1595,13 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
 
                 <label class="auth-label">عبارت ابتدای سند (سرتیتر)</label>
                 <div class="flex items-start gap-1.5 mb-3">
-                    <textarea id="pref-header-text" rows="2" class="auth-input resize-none flex-1 en" dir="ltr" placeholder="CERTIFIED TRANSLATION FROM ORIGINAL PERSIAN" style="font-size:.72rem;"></textarea>
+                    <textarea id="pref-header-text" rows="2" class="auth-input resize-none flex-1 en" dir="ltr" placeholder="(leave blank to keep each document type's own usual heading)" style="font-size:.72rem;"></textarea>
                     <button onclick="resetPrefField('pref-header-text')" title="بازگردانی به پیش‌فرض" class="text-xs font-bold px-2 py-2 rounded-lg shrink-0 transition" style="background:var(--bg-main);color:var(--text-muted);border:1px solid var(--border-subtle);">↺</button>
                 </div>
 
                 <label class="auth-label">عبارت تاییدیه پایان سند</label>
                 <div class="flex items-start gap-1.5 mb-3">
-                    <textarea id="pref-cert-text" rows="3" class="auth-input resize-none flex-1 en" dir="ltr" placeholder="I hereby certify that this text document represents a true, accurate, and faithful English translation of the original Persian Original." style="font-size:.72rem;"></textarea>
+                    <textarea id="pref-cert-text" rows="3" class="auth-input resize-none flex-1 en" dir="ltr" placeholder="(leave blank to keep each document type's own usual certification sentence)" style="font-size:.72rem;"></textarea>
                     <button onclick="resetPrefField('pref-cert-text')" title="بازگردانی به پیش‌فرض" class="text-xs font-bold px-2 py-2 rounded-lg shrink-0 transition" style="background:var(--bg-main);color:var(--text-muted);border:1px solid var(--border-subtle);">↺</button>
                 </div>
 
