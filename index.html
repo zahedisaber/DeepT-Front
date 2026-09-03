@@ -1243,7 +1243,7 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
 
 
 <!-- ─── WORKSPACE DASHBOARD ─── -->
-<div id="workspaceDashboard" class="fixed inset-0 z-40 hidden overflow-y-auto p-4 md:p-8 pt-24" style="background: var(--bg-secondary);">
+<div id="workspaceDashboard" class="fixed inset-0 z-40 hidden overflow-y-auto p-4 md:px-8 md:pb-8 pt-24 md:pt-24" style="background: var(--bg-secondary);">
     <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-6">
         <div class="space-y-5 lg:col-span-1">
             <div class="workspace-panel p-6">
@@ -1326,7 +1326,7 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
     </div>
 </div>
 
-<div id="adminDashboard" class="fixed inset-0 z-40 hidden overflow-y-auto p-4 md:p-8 pt-24" style="background: var(--bg-secondary);">
+<div id="adminDashboard" class="fixed inset-0 z-40 hidden overflow-y-auto p-4 md:px-8 md:pb-8 pt-24 md:pt-24" style="background: var(--bg-secondary);">
     <div class="max-w-6xl mx-auto">
         <div class="flex items-center justify-between mb-6">
             <h2 class="text-2xl font-black" style="color:var(--text-main);">پنل مدیریت</h2>
@@ -2271,20 +2271,22 @@ function submitSupportTicket() {
 // ═══════════════════════════════════════════════════════════
 // WORKSPACE DASHBOARD
 // ═══════════════════════════════════════════════════════════
+// Shared helper: keeps any fixed inset-0 panel (workspace/admin) from being
+// covered by the fixed .header-bar. Measures header height live so it stays
+// correct even when the header wraps to two lines on mobile.
+function syncFixedPanelOffset(panelEl) {
+    const headerEl = document.querySelector('.header-bar');
+    if (headerEl && panelEl) {
+        panelEl.style.paddingTop = (headerEl.offsetHeight + 16) + 'px';
+    }
+}
+
 async function openWorkspaceDashboard(pushHistory = true) {
     if (!currentUserSession) { openAuthModal(); return; }
     const dashboardEl = document.getElementById('workspaceDashboard');
     dashboardEl.classList.remove('hidden');
     dashboardEl.scrollTop = 0;
-
-    // Reserve exactly as much top space as the header actually needs,
-    // measured live -- more reliable than a fixed padding guess, since it
-    // stays correct even if the header's real height ever changes.
-    const headerEl = document.querySelector('.header-bar');
-    if (headerEl) {
-        dashboardEl.style.paddingTop = (headerEl.offsetHeight + 16) + 'px';
-    }
-
+    syncFixedPanelOffset(dashboardEl);
     document.body.style.overflow = 'hidden';
     await renderDashboardActiveProjects();
     refreshWalletBalanceDisplay();
@@ -3390,7 +3392,11 @@ function showAdminDashboard() {
     const lp = document.getElementById('landingPage');
     if (lp) lp.style.display = 'none';
     document.getElementById('workspaceDashboard').classList.add('hidden');
-    document.getElementById('adminDashboard').classList.remove('hidden');
+    const adminEl = document.getElementById('adminDashboard');
+    adminEl.classList.remove('hidden');
+    adminEl.scrollTop = 0;
+    syncFixedPanelOffset(adminEl);
+    document.body.style.overflow = 'hidden';
     switchAdminTab('users');
     loadAdminUsers();
 }
@@ -3404,6 +3410,14 @@ function adminLogout() {
     document.getElementById('adminDashboard').classList.add('hidden');
     location.reload();
 }
+
+// Keep header offset correct when viewport size changes (e.g., header wraps on mobile).
+window.addEventListener('resize', () => {
+    const wd = document.getElementById('workspaceDashboard');
+    if (wd && !wd.classList.contains('hidden')) syncFixedPanelOffset(wd);
+    const ad = document.getElementById('adminDashboard');
+    if (ad && !ad.classList.contains('hidden')) syncFixedPanelOffset(ad);
+});
 
 var adminUsersCache = [];
     
