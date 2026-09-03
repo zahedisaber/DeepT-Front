@@ -1555,6 +1555,69 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                     <button onclick="saveProfileConfiguration()" class="w-full font-black py-1.5 rounded-lg mt-2 transition text-xs" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">بروزرسانی پروفایل</button>
                 </div>
             </div>
+
+            <!-- ─── TRANSLATION PREFERENCES: font, fixed header/certification
+                 wording, and date format applied to every future translation's
+                 generated سند (docx), across every document type. Unset =
+                 use the shared system default (see DeepT-Back-End's
+                 doc_prefs.py). ─────────────────────────────────────────── -->
+            <div class="workspace-panel p-6">
+                <h4 class="text-sm font-black mb-1 flex items-center gap-1.5" style="color:var(--text-main);">📝 تنظیمات ترجمه</h4>
+                <p class="text-[11px] mb-3" style="color:var(--text-muted);">این تنظیمات روی همه ترجمه‌های بعدی شما (در همه انواع سند) اعمال می‌شود. خالی گذاشتن هر مورد یعنی همان متن/فونت پیش‌فرضی که هر نوع سند همیشه داشته، بدون تغییر — فقط با تکمیل این فیلدها آن مورد جایگزین می‌شود.</p>
+
+                <div class="grid grid-cols-2 gap-2 mb-3">
+                    <div>
+                        <label class="auth-label">فونت</label>
+                        <select id="pref-font-name" class="auth-input">
+                            <option value="">پیش‌فرض</option>
+                            <option value="Times New Roman">Times New Roman</option>
+                            <option value="Arial">Arial</option>
+                            <option value="Calibri">Calibri</option>
+                            <option value="Georgia">Georgia</option>
+                            <option value="Cambria">Cambria</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="auth-label">اندازه فونت</label>
+                        <select id="pref-font-size" class="auth-input">
+                            <option value="">پیش‌فرض</option>
+                            <option value="9">۹</option>
+                            <option value="9.5">۹.۵</option>
+                            <option value="10">۱۰</option>
+                            <option value="10.5">۱۰.۵</option>
+                            <option value="11">۱۱</option>
+                            <option value="12">۱۲</option>
+                            <option value="13">۱۳</option>
+                            <option value="14">۱۴</option>
+                        </select>
+                    </div>
+                </div>
+
+                <label class="auth-label">عبارت ابتدای سند (سرتیتر)</label>
+                <div class="flex items-start gap-1.5 mb-3">
+                    <textarea id="pref-header-text" rows="2" class="auth-input resize-none flex-1 en" dir="ltr" placeholder="(leave blank to keep each document type's own usual heading)" style="font-size:.72rem;"></textarea>
+                    <button onclick="resetPrefField('pref-header-text')" title="بازگردانی به پیش‌فرض" class="text-xs font-bold px-2 py-2 rounded-lg shrink-0 transition" style="background:var(--bg-main);color:var(--text-muted);border:1px solid var(--border-subtle);">↺</button>
+                </div>
+
+                <label class="auth-label">عبارت تاییدیه پایان سند</label>
+                <div class="flex items-start gap-1.5 mb-3">
+                    <textarea id="pref-cert-text" rows="3" class="auth-input resize-none flex-1 en" dir="ltr" placeholder="(leave blank to keep each document type's own usual certification sentence)" style="font-size:.72rem;"></textarea>
+                    <button onclick="resetPrefField('pref-cert-text')" title="بازگردانی به پیش‌فرض" class="text-xs font-bold px-2 py-2 rounded-lg shrink-0 transition" style="background:var(--bg-main);color:var(--text-muted);border:1px solid var(--border-subtle);">↺</button>
+                </div>
+
+                <label class="auth-label">قالب تاریخ</label>
+                <select id="pref-date-format" class="auth-input mb-3">
+                    <option value="">پیش‌فرض</option>
+                    <option value="long">April 12, 1985</option>
+                    <option value="short_mdy">04/12/1985</option>
+                    <option value="short_dmy">12/04/1985</option>
+                    <option value="short_ymd">1985-04-12</option>
+                </select>
+
+                <button onclick="savePreferences()" id="pref-save-btn" class="w-full font-black py-1.5 rounded-lg mt-1 transition text-xs" style="background:var(--accent);color:var(--btn-text-on-accent);">ذخیره تنظیمات ترجمه</button>
+                <p id="pref-save-status" class="text-[11px] mt-2 hidden"></p>
+            </div>
+
             <div class="workspace-panel p-6 relative overflow-hidden">
                 <div class="absolute top-0 left-0 px-3 py-0.5 text-[9px] font-mono font-black uppercase rounded-br-lg" style="background:var(--accent);color:var(--btn-text-on-accent);">Shaparak</div>
                 <h4 class="text-xs font-bold uppercase tracking-wide mb-2 mt-2" style="color:var(--text-muted);">کیف پول (تومان)</h4>
@@ -2715,6 +2778,72 @@ function saveProfileConfiguration() {
 }
 
 // ═══════════════════════════════════════════════════════════
+// TRANSLATION PREFERENCES -- font, fixed header/certification wording, and
+// date format applied to every future translation across every document
+// type. A blank field always means "use the system default"; DeepT-Back-
+// End's doc_prefs.py is the one place that default text/size actually
+// lives, so this screen never needs to know or show it verbatim.
+// ═══════════════════════════════════════════════════════════
+async function loadPreferences() {
+    if (!currentUserSession) return;
+    const token = getToken();
+    try {
+        const res = await fetch(`${CORE}/users/me/preferences`, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!res.ok) throw new Error();
+        const p = await res.json();
+        document.getElementById('pref-font-name').value = p.font_name || '';
+        document.getElementById('pref-font-size').value = p.font_size_pt ? String(p.font_size_pt) : '';
+        document.getElementById('pref-header-text').value = p.header_text || '';
+        document.getElementById('pref-cert-text').value = p.certification_text || '';
+        document.getElementById('pref-date-format').value = p.date_format || '';
+    } catch (e) {
+        // Non-critical -- fields just stay blank (= defaults), same as a
+        // translator who never customized anything.
+    }
+}
+
+function resetPrefField(id) {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+}
+
+async function savePreferences() {
+    if (!currentUserSession) return;
+    const btn = document.getElementById('pref-save-btn');
+    const status = document.getElementById('pref-save-status');
+    btn.disabled = true;
+    status.classList.remove('hidden');
+    status.style.color = 'var(--text-muted)';
+    status.textContent = 'در حال ذخیره...';
+
+    const sizeVal = document.getElementById('pref-font-size').value;
+    const body = {
+        font_name: document.getElementById('pref-font-name').value || null,
+        font_size_pt: sizeVal ? parseFloat(sizeVal) : null,
+        header_text: document.getElementById('pref-header-text').value || null,
+        certification_text: document.getElementById('pref-cert-text').value || null,
+        date_format: document.getElementById('pref-date-format').value || null,
+    };
+
+    const token = getToken();
+    try {
+        const res = await fetch(`${CORE}/users/me/preferences`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        if (!res.ok) throw new Error();
+        status.style.color = 'var(--accent)';
+        status.textContent = '✅ ذخیره شد. از سند بعدی اعمال می‌شود.';
+    } catch (e) {
+        status.style.color = '#f87171';
+        status.textContent = '❌ ذخیره تنظیمات ناموفق بود.';
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
 // WALLET
 // ═══════════════════════════════════════════════════════════
 function triggerShaparakPayment() {
@@ -2769,6 +2898,7 @@ async function openWorkspaceDashboard(pushHistory = true) {
     document.body.style.overflow = 'hidden';
     await renderDashboardActiveProjects();
     refreshWalletBalanceDisplay();
+    loadPreferences();
     if (pushHistory) navigateTo('/dashboard');
 }
 
