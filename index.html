@@ -1016,13 +1016,17 @@ body::before {
 /* Invoice print/save-as-PDF: the browser's own print dialog is the "PDF
    generator" here (every browser can print-to-PDF), so nothing needs to be
    rendered server-side -- just show only the invoice sheet on paper and
-   hide the rest of the app chrome (nav, overlay backdrop, buttons). */
+   hide the rest of the app chrome (nav, overlay backdrop, buttons). This is
+   a signable document handed to the translator's own client, so it prints
+   as plain black-on-white with solid ruled table borders regardless of the
+   app's own theme (dark mode, accent color, etc.) -- never colored. */
 @media print {
     body > *:not(#invoiceViewModal) { display: none !important; }
     #invoiceViewModal { position: static !important; display: block !important; background: #fff !important; z-index: auto !important; }
-    #invoiceViewModal > div { max-width: none !important; max-height: none !important; box-shadow: none !important; border: none !important; overflow: visible !important; }
+    #invoiceViewModal > div { max-width: none !important; max-height: none !important; box-shadow: none !important; border: none !important; overflow: visible !important; background: #fff !important; }
     #invoiceViewModal .no-print { display: none !important; }
-    #iv-sheet { color: #000 !important; }
+    #iv-sheet, #iv-sheet * { color: #000 !important; background: #fff !important; border-color: #000 !important; }
+    #iv-sheet table, #iv-sheet th, #iv-sheet td { border: 1px solid #000 !important; }
 }
 </style>
 </head>
@@ -1160,6 +1164,10 @@ body::before {
     <h4 class="text-sm font-black mb-2 flex items-center gap-1.5" style="color:var(--text-main);">📊 سابقه پروژه‌ها (<span class="en" id="cd-job-count">۰</span>)</h4>
     <div id="cd-jobs-list" class="space-y-1.5 mb-5"></div>
 
+    <h4 class="text-sm font-black mb-2 flex items-center gap-1.5" style="color:var(--text-main);">📄 اسناد سامانه سنام (<span class="en" id="cd-sanam-doc-count">۰</span>)</h4>
+    <p class="text-[11px] mb-2" style="color:var(--text-muted);">اسنادی که برای این مشتری از فایل اکسل سنام وارد شده، به همراه تاریخ هر سند — هر بار که فایل سنام دوباره بارگذاری شود، اسناد جدید همین‌جا اضافه می‌شوند.</p>
+    <div id="cd-sanam-docs-list" class="space-y-1.5 mb-5"></div>
+
     <div class="p-3.5 rounded-xl mb-5" style="background:var(--bg-main);border:1px solid var(--border-color);">
       <h4 class="text-sm font-black flex items-center gap-1.5 mb-2.5" style="color:var(--text-main);">🧮 پیش‌نویس فاکتور</h4>
       <div class="flex flex-wrap items-center gap-2 mb-2.5">
@@ -1243,7 +1251,7 @@ body::before {
         </div>
         <div class="text-left">
           <div class="text-sm font-black" id="iv-type-badge" style="color:var(--accent);">فاکتور</div>
-          <div class="text-[11px] en" id="iv-date" style="color:var(--text-muted);">—</div>
+          <div class="text-[11px]" id="iv-date" style="color:var(--text-muted);">—</div>
         </div>
       </div>
 
@@ -1733,6 +1741,9 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                     <button onclick="openChatForClient()" class="text-[11px] font-black px-3 py-1.5 rounded-lg transition" style="background:var(--accent);color:var(--btn-text-on-accent);">+ پروژه جدید</button>
                 </div>
                 <div id="cp-jobs-list" class="space-y-2"></div>
+
+                <h3 class="text-sm font-black flex items-center gap-1.5 mt-5 mb-3" style="color:var(--text-main);">📄 اسناد سامانه سنام <span class="en" style="color:var(--text-muted);">(<span id="cp-sanam-doc-count">۰</span>)</span></h3>
+                <div id="cp-sanam-docs-list" class="space-y-2"></div>
             </div>
 
             <!-- RIGHT: invoices + calendar -->
@@ -2979,6 +2990,8 @@ async function openClientDetail(clientId) {
             }).join('');
         }
 
+        renderSanamDocuments(c.sanam_documents || []);
+
         renderDraftRows();
         await renderClientInvoices(clientId);
         workWeekStart = startOfPersianWeek(new Date());
@@ -2986,6 +2999,27 @@ async function openClientDetail(clientId) {
     } catch (e) {
         showToast('خطا در دریافت اطلاعات مشتری.');
     }
+}
+
+// Sanam-imported documents -- not a DeepT job (no status/price to show),
+// just what was translated and when, straight from the excel import(s)
+// done for this client so far. Same isProfilePageOpen() prefix convention
+// as renderClientInvoices()/updateDraftTotal() below, since this renders
+// into whichever of the two client-detail views (the full-window profile
+// page, or the older modal) is actually open.
+function renderSanamDocuments(sanamDocs) {
+    const prefix = isProfilePageOpen() ? 'cp' : 'cd';
+    const countEl = document.getElementById(prefix + '-sanam-doc-count');
+    const box = document.getElementById(prefix + '-sanam-docs-list');
+    if (countEl) countEl.textContent = sanamDocs.length;
+    if (!box) return;
+    box.innerHTML = !sanamDocs.length
+        ? `<div class="text-xs text-center py-4" style="color:var(--text-muted);">// سندی از سنام وارد نشده</div>`
+        : sanamDocs.map(d => `
+            <div class="flex items-center gap-2.5 p-2.5 rounded-lg text-xs" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
+                <span class="flex-1" style="color:var(--text-main);">${escapeHtml(d.description)}${d.quantity > 1 ? ` <span class="en" style="color:var(--text-muted);">×${d.quantity}</span>` : ''}</span>
+                <span class="en shrink-0" style="color:var(--text-muted);">${d.date ? escapeHtml(d.date.slice(0, 10)) : '—'}</span>
+            </div>`).join('');
 }
 
 async function renderClientInvoices(clientId) {
@@ -3504,6 +3538,8 @@ async function openClientProfile(clientId) {
             }).join('');
         }
 
+        renderSanamDocuments(c.sanam_documents || []);
+
         renderDraftRows();
         await renderClientInvoices(clientId);
         workWeekStart = startOfPersianWeek(new Date());
@@ -3710,10 +3746,16 @@ async function openInvoiceView(invoiceId, autoEdit = false) {
         invoiceViewFinalized = !!inv.finalized_at;
         invoiceEditState = null;
 
+        // This invoice goes to the *translator's own client* (b2b) -- it
+        // must read as coming from their دارالترجمه, never from DeepT.
         const issuer = inv.issuer || {};
-        document.getElementById('iv-issuer-name').textContent = issuer.office_name || issuer.full_name || 'دیپ‌تی';
+        document.getElementById('iv-issuer-name').textContent = issuer.office_name || issuer.full_name || 'دفتر ترجمه رسمی';
         document.getElementById('iv-type-badge').textContent = INVOICE_TYPE_LABELS_FA[inv.invoice_type] || 'فاکتور';
-        document.getElementById('iv-date').textContent = (inv.issue_date || '').slice(0, 10) || '—';
+        // issue_date_shamsi is computed server-side (and, for a Sanam-
+        // imported invoice, passed through as-is since it's already a
+        // Shamsi date from the judiciary's own export) -- see Core's
+        // invoices.py _display_date().
+        document.getElementById('iv-date').textContent = inv.issue_date_shamsi || '—';
 
         const clientName = `${inv.client?.first_name || ''} ${inv.client?.last_name || ''}`.trim();
         document.getElementById('iv-client-name').textContent = clientName || '—';
