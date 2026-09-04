@@ -379,6 +379,45 @@ select.converter-input option {
     margin-bottom: 0.3rem;
 }
 
+/* ─── DOCUMENT-PHRASE TOKEN CHIPS ───
+   A {{token}} placeholder for real document data, rendered as a single
+   non-typeable unit inside an editable field -- never raw "{{...}}" text
+   a translator could hand-edit into something malformed. */
+.dp-token-editor {
+    min-height: 4.4rem;
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+    cursor: text;
+}
+.dp-token-editor:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 10px var(--accent-glow);
+}
+.dp-token-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    background: rgba(52,199,89,.14);
+    color: #34c759;
+    border: 1px solid rgba(52,199,89,.4);
+    border-radius: 5px;
+    padding: 0 4px;
+    margin: 0 1px;
+    font-family: 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace;
+    font-size: 0.68rem;
+    font-weight: 600;
+    line-height: 1.5;
+    user-select: none;
+    white-space: nowrap;
+}
+.dp-token-x {
+    cursor: pointer;
+    opacity: 0.65;
+    font-weight: 800;
+    padding: 0 1px;
+}
+.dp-token-x:hover { opacity: 1; }
+
 /* ─── WORKSPACE DASHBOARD ─── */
 .workspace-panel {
     background: var(--card-surface);
@@ -2990,23 +3029,113 @@ function dpCheckComplex(text, tokens){
     return { valid: missing.length===0 && duplicated.length===0 && !strayBrace, missing, duplicated, strayBrace };
 }
 
-// Repairs a mangled attempt at this token (a stray/missing brace, e.g.
-// "{amount}}" or "{amount}") in place, instead of dropping a fresh
-// "{{amount}}" next to it -- which would compound into nonsense like
-// "{amount{{amount}}}}" if clicked more than once. Falls back to a plain
-// cursor-position insert only when nothing brace-shaped for this token
-// exists anywhere in the text yet.
-function dpFixOrInsertToken(text, key, cursorPos){
-    const brokenRe = new RegExp(`\\{{1,2}\\s*${key}\\s*\\}{1,2}`);
-    const firstMatch = brokenRe.exec(text);
-    if (firstMatch){
-        const canonical = `{{${key}}}`;
-        const fixedText = text.replace(new RegExp(brokenRe.source, "g"), canonical);
-        return { text: fixedText, caret: firstMatch.index + canonical.length };
+// A {{token}} placeholder is never typed or pasted as raw "{{...}}" text --
+// it only ever exists as a non-editable chip element (see dpMakeChip()
+// below), inserted whole by the toolbar buttons and removed whole (native
+// backspace-adjacent-to-chip, or its own × button). This is what actually
+// closes off the earlier bug report: a translator who tried to hand-fix a
+// mangled placeholder by retyping braces around it could end up with
+// nonsense like "{{{first_name}}rst_name}}" -- because a regex-based
+// "repair" can only recognize damage that leaves the token NAME intact,
+// not damage to the name itself (a partially deleted "first_name"). Making
+// the placeholder un-typable removes the whole failure class, rather than
+// trying to pattern-match every way it could go wrong.
+
+function dpMakeChip(key){
+    const span = document.createElement('span');
+    span.className = 'dp-token-chip';
+    span.contentEditable = 'false';
+    span.dataset.token = key;
+    const label = document.createElement('span');
+    label.textContent = `{{${key}}}`;
+    span.appendChild(label);
+    const x = document.createElement('span');
+    x.className = 'dp-token-x';
+    x.dataset.removeChip = '1';
+    x.title = 'حذف این داده از عبارت';
+    x.textContent = '×';
+    span.appendChild(x);
+    return span;
+}
+
+// Rebuilds an editor's contents from a stored "...{{token}}..." string --
+// each recognized token becomes a chip; anything else (including a
+// {{something}}-shaped fragment that ISN'T one of this field's real
+// tokens -- e.g. a value saved before this UI existed) stays as plain,
+// editable text, since it isn't a placeholder this field understands.
+function dpPopulateEditor(div, value, tokenKeys){
+    div.innerHTML = '';
+    const knownKeys = new Set(tokenKeys);
+    const re = /\{\{(\w+)\}\}/g;
+    let lastIndex = 0, m;
+    while ((m = re.exec(value))){
+        if (m.index > lastIndex) div.appendChild(document.createTextNode(value.slice(lastIndex, m.index)));
+        if (knownKeys.has(m[1])) {
+            div.appendChild(dpMakeChip(m[1]));
+        } else {
+            div.appendChild(document.createTextNode(m[0]));
+        }
+        lastIndex = re.lastIndex;
     }
-    const insertion = `{{${key}}}`;
-    const newText = text.slice(0, cursorPos) + insertion + text.slice(cursorPos);
-    return { text: newText, caret: cursorPos + insertion.length };
+    if (lastIndex < value.length) div.appendChild(document.createTextNode(value.slice(lastIndex)));
+    if (!div.childNodes.length) div.appendChild(document.createTextNode(''));
+}
+
+// The inverse of dpPopulateEditor() -- walks the live DOM back into the
+// same "...{{token}}..." string shape the backend expects. A chip always
+// serializes to a well-formed {{key}}; there is no other way for one to
+// exist in this editor's DOM at all.
+function dpSerializeEditor(div){
+    let out = '';
+    div.childNodes.forEach(node => {
+        if (node.nodeType === Node.TEXT_NODE) {
+            out += node.textContent;
+        } else if (node.classList && node.classList.contains('dp-token-chip')) {
+            out += `{{${node.dataset.token}}}`;
+        } else {
+            out += node.textContent;
+        }
+    });
+    return out;
+}
+
+// Strips any literal "{" / "}" a translator typed or pasted directly --
+// the only legitimate way a placeholder enters this editor is as a chip,
+// so a bare brace character can only ever be a mistake, never intended
+// content. Runs after every edit, so a typed "{" is removed on the spot
+// rather than sitting there as the start of something that could later
+// look like a broken placeholder.
+function dpSanitizeEditor(div){
+    const walker = document.createTreeWalker(div, NodeFilter.SHOW_TEXT);
+    const toFix = [];
+    let node;
+    while ((node = walker.nextNode())) {
+        if (/[{}]/.test(node.textContent)) toFix.push(node);
+    }
+    toFix.forEach(n => { n.textContent = n.textContent.replace(/[{}]/g, ''); });
+}
+
+// Inserts a token chip at the current text-caret position inside `div`
+// (falls back to the end of the content if the caret isn't inside this
+// editor -- e.g. focus was on the toolbar button, not the text itself).
+function dpInsertChipAtCaret(div, key){
+    div.focus();
+    const sel = window.getSelection();
+    let range;
+    if (sel && sel.rangeCount && div.contains(sel.anchorNode)) {
+        range = sel.getRangeAt(0);
+    } else {
+        range = document.createRange();
+        range.selectNodeContents(div);
+        range.collapse(false);
+    }
+    range.deleteContents();
+    const chip = dpMakeChip(key);
+    range.insertNode(chip);
+    range.setStartAfter(chip);
+    range.setEndAfter(chip);
+    sel.removeAllRanges();
+    sel.addRange(range);
 }
 
 function populateDocSelect(){
@@ -3055,8 +3184,26 @@ function renderDocumentPhrases(){
             </div>
             <button class="text-[10px] font-bold px-2 py-1 rounded-md shrink-0" data-dp-reset="${f.key}" ${val === f.def ? 'disabled' : ''} style="background:var(--panel-bg);color:var(--text-muted);border:1px solid var(--border-subtle);">↺ بازنشانی</button>
           </div>
-          <textarea class="auth-input resize-none w-full en" dir="ltr" style="font-size:.72rem;" rows="${Math.min(6, Math.max(2, Math.ceil(val.length/70)))}" data-dp-input="${f.key}">${val}</textarea>
         `;
+
+        if (f.kind === 'complex'){
+            const editor = document.createElement('div');
+            editor.className = 'dp-token-editor auth-input w-full en';
+            editor.contentEditable = 'true';
+            editor.dir = 'ltr';
+            editor.dataset.dpInput = f.key;
+            dpPopulateEditor(editor, val, f.tokens.map(t => t.key));
+            card.appendChild(editor);
+        } else {
+            const ta = document.createElement('textarea');
+            ta.className = 'auth-input resize-none w-full en';
+            ta.dir = 'ltr';
+            ta.style.fontSize = '.72rem';
+            ta.rows = Math.min(6, Math.max(2, Math.ceil(val.length / 70)));
+            ta.dataset.dpInput = f.key;
+            ta.value = val;
+            card.appendChild(ta);
+        }
         list.appendChild(card);
 
         if (f.kind === 'complex'){
@@ -3076,7 +3223,8 @@ function dpRenderComplexExtras(card, doc, f, val){
     ttLabel.textContent = 'درج دادهٔ سند:';
     toolbar.appendChild(ttLabel);
     f.tokens.forEach(t => {
-        const present = (val.match(new RegExp(`\\{\\{${t.key}\\}\\}`, 'g'))||[]).length === 1;
+        const count = (val.match(new RegExp(`\\{\\{${t.key}\\}\\}`, 'g'))||[]).length;
+        const present = count === 1;
         const b = document.createElement('button');
         b.type = 'button';
         b.className = 'text-[10px] font-mono font-bold px-1.5 py-0.5 rounded';
@@ -3086,7 +3234,7 @@ function dpRenderComplexExtras(card, doc, f, val){
             : 'border:1px dashed var(--border-subtle);color:var(--text-muted);background:var(--panel-bg);cursor:pointer;';
         b.dataset.dpInsertToken = t.key;
         b.textContent = (present ? '✓ ' : '') + `{{${t.key}}}`;
-        b.title = t.label + (present ? ' — درج شده' : ' — کلیک برای درج در محل مکان‌نما');
+        b.title = t.label + (present ? ' — درج شده (برای حذف، روی × کنار آن در متن بزنید)' : ' — کلیک برای درج در محل مکان‌نما');
         if (present) b.disabled = true;
         toolbar.appendChild(b);
     });
@@ -3133,10 +3281,28 @@ function dpCommitFieldEdit(doc, f, newValue, textareaEl){
 }
 
 document.addEventListener('input', (e) => {
+    if (e.target.matches('.dp-token-editor')){
+        dpSanitizeEditor(e.target);
+        const doc = DP_DOCS.find(d => d.id === dpCurrentDoc);
+        const f = doc.fields.find(f => f.key === e.target.dataset.dpInput);
+        dpCommitFieldEdit(doc, f, dpSerializeEditor(e.target), e.target);
+        return;
+    }
     if (!e.target.matches('[data-dp-input]')) return;
     const doc = DP_DOCS.find(d => d.id === dpCurrentDoc);
     const f = doc.fields.find(f => f.key === e.target.dataset.dpInput);
     dpCommitFieldEdit(doc, f, e.target.value, e.target);
+});
+
+// Plain-text-only paste into a token editor -- blocks pasted HTML/rich
+// formatting, and dpSanitizeEditor() (triggered by the input event this
+// produces) strips any brace characters the pasted text happened to
+// contain, same as typing them directly would.
+document.addEventListener('paste', (e) => {
+    if (!e.target.matches('.dp-token-editor')) return;
+    e.preventDefault();
+    const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+    document.execCommand('insertText', false, text);
 });
 
 document.addEventListener('click', (e) => {
@@ -3150,15 +3316,21 @@ document.addEventListener('click', (e) => {
     const insertBtn = e.target.closest('[data-dp-insert-token]');
     if (insertBtn && !insertBtn.disabled){
         const card = insertBtn.closest('[data-dp-field]');
-        const textarea = card.querySelector('[data-dp-input]');
-        const start = textarea.selectionStart ?? textarea.value.length;
-        const { text: newVal, caret } = dpFixOrInsertToken(textarea.value, insertBtn.dataset.dpInsertToken, start);
-        textarea.value = newVal;
-        textarea.focus();
-        textarea.setSelectionRange(caret, caret);
+        const editor = card.querySelector('.dp-token-editor');
+        dpInsertChipAtCaret(editor, insertBtn.dataset.dpInsertToken);
         const doc = DP_DOCS.find(d => d.id === dpCurrentDoc);
-        const f = doc.fields.find(f => f.key === textarea.dataset.dpInput);
-        dpCommitFieldEdit(doc, f, newVal, textarea);
+        const f = doc.fields.find(f => f.key === editor.dataset.dpInput);
+        dpCommitFieldEdit(doc, f, dpSerializeEditor(editor), editor);
+        return;
+    }
+    const removeChipBtn = e.target.closest('[data-remove-chip]');
+    if (removeChipBtn){
+        const chip = removeChipBtn.closest('.dp-token-chip');
+        const editor = chip.closest('.dp-token-editor');
+        chip.remove();
+        const doc = DP_DOCS.find(d => d.id === dpCurrentDoc);
+        const f = doc.fields.find(f => f.key === editor.dataset.dpInput);
+        dpCommitFieldEdit(doc, f, dpSerializeEditor(editor), editor);
     }
 });
 
