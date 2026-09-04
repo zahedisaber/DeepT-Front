@@ -1626,6 +1626,26 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                 <p id="pref-save-status" class="text-[11px] mt-2 hidden"></p>
             </div>
 
+            <!-- ═══ Per-document-type phrase overrides ═══════════════════
+                 Every other hardcoded phrase a document type has (table
+                 labels, disclaimer paragraphs, legal boilerplate) beyond
+                 the header/certification fields above. Only two document
+                 types are wired on the backend so far (police_certificate,
+                 vehicle_deed); the rest render a "به‌زودی" pending state
+                 rather than fake fields. ─────────────────────────────── -->
+            <div class="workspace-panel p-6">
+                <h4 class="text-sm font-black mb-1 flex items-center gap-1.5" style="color:var(--text-main);">📝 عبارات اختصاصی هر نوع سند</h4>
+                <p class="text-[11px] mb-3" style="color:var(--text-muted);">عبارت ابتدا و انتهای سند بالاست. اینجا بقیهٔ عبارات ثابت هر نوع سند است — برچسب‌ها و بندهای توضیحی. نوع سند را انتخاب کنید و هر عبارت را ویرایش کنید.</p>
+
+                <label class="auth-label">نوع سند</label>
+                <select id="dp-doc-select" class="auth-input mb-3" onchange="renderDocumentPhrases()"></select>
+
+                <div id="dp-field-list" class="flex flex-col gap-3 mb-1"></div>
+
+                <button onclick="saveDocumentPhrases()" id="dp-save-btn" class="w-full font-black py-1.5 rounded-lg mt-2 transition text-xs" style="background:var(--accent);color:var(--btn-text-on-accent);">ذخیرهٔ عبارات این سند</button>
+                <p id="dp-save-status" class="text-[11px] mt-2 hidden"></p>
+            </div>
+
             <div class="workspace-panel p-6 relative overflow-hidden">
                 <div class="absolute top-0 left-0 px-3 py-0.5 text-[9px] font-mono font-black uppercase rounded-br-lg" style="background:var(--accent);color:var(--btn-text-on-accent);">Shaparak</div>
                 <h4 class="text-xs font-bold uppercase tracking-wide mb-2 mt-2" style="color:var(--text-muted);">کیف پول (تومان)</h4>
@@ -2873,6 +2893,336 @@ async function savePreferences() {
 }
 
 // ═══════════════════════════════════════════════════════════
+// PER-DOCUMENT-TYPE PHRASE OVERRIDES -- every other hardcoded phrase a
+// document type has (table labels, disclaimer paragraphs, legal
+// boilerplate), beyond the header/certification fields above. Only two
+// document types are wired on the DeepT-Back-End side so far; the field
+// catalog below must match doc_prefs.py's call sites in those files
+// exactly -- same field keys, same default text -- or a translator's
+// override would silently target the wrong phrase (or none at all).
+// ═══════════════════════════════════════════════════════════
+const DP_DOCS = [
+    { id:"police_certificate", label:"گواهی عدم سوءپیشینه", full:true, fields:[
+        { key:"emblem_line", label:"سطر آرم قضائیه", kind:"simple", def:"Emblem of IRI Judiciary" },
+        { key:"title_block", label:"عنوان سند", kind:"simple", def:"(Criminal Records Department)\nPolice Certificate" },
+        { key:"photo_caption", label:"زیرنویس محل عکس", kind:"simple", def:"(Holder's photo printed)" },
+        { key:"body_intro", label:"جملهٔ آغازین متن گواهی", kind:"complex",
+          tokens:[{key:"first_name",label:"نام"},{key:"last_name",label:"نام خانوادگی"},{key:"father_name",label:"نام پدر"},{key:"date_of_birth",label:"تاریخ تولد"},{key:"national_id",label:"کد ملی"}],
+          def:"Pursuant to Article 13 of Criminal Records By-law enacted in 2019, this is to certify that holder of the above photo, given name: {{first_name}}, surname: {{last_name}}, father's name: {{father_name}}, born on {{date_of_birth}}, holder of national identification number {{national_id}}, has no record of criminal conviction." },
+        { key:"qr_caption", label:"زیرنویس کد QR", kind:"simple", def:"[Printed QR Code]" },
+        { key:"postscript_label", label:"برچسب پی‌نوشت", kind:"simple", def:"Postscript:" },
+        { key:"note_1", label:"پی‌نوشت ۱ — مادهٔ ۶۵۵", kind:"simple", def:"1. By the virtue of Article 655 of Criminal Procedure, the electronic copy of this certificate shall be valid and sufficient, and no seal is required." },
+        { key:"note_2", label:"پی‌نوشت ۲ — استعلام آنلاین", kind:"simple", def:"2. This certificate was issued electronically by inspecting the existing records in accordance with Note 2 of Article 10 of the mentioned By-law. Authenticity can be verified for two months at www.adliran.ir." },
+        { key:"note_3", label:"پی‌نوشت ۳ — مبلغ پرداختی", kind:"complex",
+          tokens:[{key:"amount",label:"مبلغ"},{key:"transaction_number",label:"شمارهٔ تراکنش"}],
+          def:"3. A sum of {{amount}} Rials was received for electronic services through No. {{transaction_number}}." },
+    ]},
+    { id:"vehicle_deed", label:"سند خودرو", full:true, fields:[
+        { key:"notes_intro", label:"مقدمهٔ تذکرات پشت سند", kind:"simple", def:"Owners are required to read the following notes carefully and observe them:" },
+        { key:"note_1", label:"تذکر ۱ — رعایت مقررات راهنمایی", kind:"simple", def:"All drivers must observe traffic rules and regulations in order to respect other’s rights and avoid any damages due to the violation of these rules and regulations. In the new system, all violations will be recorded in the plate owner’s profile; therefore, the plate owner will be liable for others’ use of the vehicle." },
+        { key:"note_2", label:"تذکر ۲ — نگهداری پلاک", kind:"simple", def:"It is crucial to carefully maintain the plate; therefore,\nA: Always keep the plate clean and readable and install it on the specified place.\nB. In case the identification card, ownership deed, or the plate of the vehicle is lost or damaged, the owner is required to notify the nearest police station and refer to traffic police station within 48 hours in order to receive a duplicate of the lost document(s)." },
+        { key:"note_3", label:"تذکر ۳ — انتقال مالکیت", kind:"simple", def:"In case the owner decides to sell or transfer the vehicle to others, both parties to the transaction must refer to Vehicle Transfer department, holding their identity documents including National ID card, birth certificate, completion of military service card or military service exemption card along with identity documents of the vehicle, the certificate of government debts and duties settlement and the vehicle itself." },
+        { key:"note_label", label:"برچسب بخش «نکته»", kind:"simple", def:"Note:" },
+        { key:"note_a", label:"نکتهٔ الف — تسریع انتقال", kind:"simple", def:"To accelerate and facilitate the transfer process, it is highly recommended to plan the transfer to take place in the city where the new owner resides." },
+        { key:"note_b", label:"نکتهٔ ب — تعویض پلاک", kind:"simple", def:"As the plate number is registered under the owner’s name, the former owner’s plates must be removed at transfer units under police supervision, and new plates must be registered under the new owner’s name and installed." },
+        { key:"note_4", label:"تذکر ۴ — کارت شناسایی خودرو", kind:"simple", def:"The vehicle ID card or any other services will be sent to the owner’s residence. According to Article 6 of Traffic Bylaw, the owner is obliged to refer to plate changing centers, vehicle service offices or Police+10 offices to alter his/her address within 10 days in case his/her address changes." },
+    ]},
+    { id:"notary_deed", label:"سند دفترخانه", full:false, fields:[] },
+    { id:"academic_transcript", label:"ریزنمرات دانشگاهی", full:false, fields:[] },
+    { id:"azad_transcript", label:"ریزنمرات دانشگاه آزاد", full:false, fields:[] },
+    { id:"property_deed_owner", label:"سند مالکیت ملک", full:false, fields:[] },
+    { id:"insurance_record", label:"سابقهٔ بیمه", full:false, fields:[] },
+    { id:"consolidated_insurance_record", label:"سابقهٔ بیمهٔ تجمیعی", full:false, fields:[] },
+    { id:"gazette_notice", label:"آگهی روزنامهٔ رسمی", full:false, fields:[] },
+    { id:"high_school_transcript", label:"ریزنمرات دبیرستان", full:false, fields:[] },
+];
+
+let dpServerPhrases = {};   // {doc_type: {field_key: text}} -- last known saved state, from GET
+let dpDraft = {};           // {doc_type: {field_key: text}} -- unsaved edits, kept across doc-type switches
+let dpCurrentDoc = DP_DOCS[0].id;
+
+function dpEffectiveValue(docId, key, def){
+    if (dpDraft[docId] && dpDraft[docId][key] !== undefined) return dpDraft[docId][key];
+    if (dpServerPhrases[docId] && dpServerPhrases[docId][key] !== undefined) return dpServerPhrases[docId][key];
+    return def;
+}
+
+// Structural check for a {{token}}-bearing phrase: every required token
+// must appear exactly once. Missing = that real piece of document data
+// silently disappears from the printed document; a stray single brace
+// is flagged too (the classic "{amount}" typo). Mirrors DeepT-Back-End's
+// own server-side check in doc_prefs.py -- this is a fast first warning
+// for the translator, not a substitute for that check.
+function dpCheckComplex(text, tokens){
+    const counts = {};
+    tokens.forEach(t => counts[t.key] = 0);
+    const re = /\{\{(\w+)\}\}/g;
+    let m;
+    while ((m = re.exec(text))){
+        if (counts.hasOwnProperty(m[1])) counts[m[1]]++;
+    }
+    const missing = tokens.filter(t => counts[t.key] === 0);
+    const duplicated = tokens.filter(t => counts[t.key] > 1);
+    const doubleOpen = (text.match(/\{\{/g)||[]).length;
+    const singleOpen = (text.match(/\{(?!\{)/g)||[]).length - doubleOpen;
+    const doubleClose = (text.match(/\}\}/g)||[]).length;
+    const singleClose = (text.match(/(?<!\})\}/g)||[]).length - doubleClose;
+    const strayBrace = singleOpen > 0 || singleClose > 0;
+    return { valid: missing.length===0 && duplicated.length===0 && !strayBrace, missing, duplicated, strayBrace };
+}
+
+// Repairs a mangled attempt at this token (a stray/missing brace, e.g.
+// "{amount}}" or "{amount}") in place, instead of dropping a fresh
+// "{{amount}}" next to it -- which would compound into nonsense like
+// "{amount{{amount}}}}" if clicked more than once. Falls back to a plain
+// cursor-position insert only when nothing brace-shaped for this token
+// exists anywhere in the text yet.
+function dpFixOrInsertToken(text, key, cursorPos){
+    const brokenRe = new RegExp(`\\{{1,2}\\s*${key}\\s*\\}{1,2}`);
+    const firstMatch = brokenRe.exec(text);
+    if (firstMatch){
+        const canonical = `{{${key}}}`;
+        const fixedText = text.replace(new RegExp(brokenRe.source, "g"), canonical);
+        return { text: fixedText, caret: firstMatch.index + canonical.length };
+    }
+    const insertion = `{{${key}}}`;
+    const newText = text.slice(0, cursorPos) + insertion + text.slice(cursorPos);
+    return { text: newText, caret: cursorPos + insertion.length };
+}
+
+function populateDocSelect(){
+    const sel = document.getElementById('dp-doc-select');
+    if (sel.options.length) return; // already populated
+    DP_DOCS.forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d.id; opt.textContent = d.label;
+        sel.appendChild(opt);
+    });
+}
+
+function renderDocumentPhrases(){
+    const sel = document.getElementById('dp-doc-select');
+    dpCurrentDoc = sel.value || DP_DOCS[0].id;
+    const doc = DP_DOCS.find(d => d.id === dpCurrentDoc);
+    const list = document.getElementById('dp-field-list');
+    list.innerHTML = '';
+    document.getElementById('dp-save-status').classList.add('hidden');
+
+    if (!doc.fields.length){
+        const note = document.createElement('div');
+        note.className = 'text-[11px] p-3 rounded-lg';
+        note.style.cssText = 'background:var(--bg-main);border:1px dashed var(--border-subtle);color:var(--text-muted);line-height:1.9;';
+        note.textContent = 'عبارات ثابت این نوع سند هنوز به این بخش اضافه نشده — به‌زودی.';
+        list.appendChild(note);
+        document.getElementById('dp-save-btn').disabled = true;
+        return;
+    }
+    document.getElementById('dp-save-btn').disabled = false;
+
+    doc.fields.forEach(f => {
+        const val = dpEffectiveValue(doc.id, f.key, f.def);
+        const dirty = !!(dpDraft[doc.id] && dpDraft[doc.id][f.key] !== undefined);
+        const card = document.createElement('div');
+        card.className = 'p-3 rounded-lg';
+        card.style.cssText = `background:var(--bg-main);border:1px solid ${dirty ? 'var(--accent)' : 'var(--border-subtle)'};`;
+        card.dataset.dpField = f.key;
+
+        const kindLabel = f.kind === 'complex' ? 'پیچیده' : 'ساده';
+        card.innerHTML = `
+          <div class="flex items-start justify-between gap-2 mb-1.5">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="text-xs font-bold" style="color:var(--text-main);">${f.label}</span>
+              <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style="background:${f.kind==='complex' ? 'rgba(248,113,113,.12);color:#f87171' : 'rgba(52,199,89,.12);color:#34c759'};">${kindLabel}</span>
+            </div>
+            <button class="text-[10px] font-bold px-2 py-1 rounded-md shrink-0" data-dp-reset="${f.key}" ${val === f.def ? 'disabled' : ''} style="background:var(--panel-bg);color:var(--text-muted);border:1px solid var(--border-subtle);">↺ بازنشانی</button>
+          </div>
+          <textarea class="auth-input resize-none w-full en" dir="ltr" style="font-size:.72rem;" rows="${Math.min(6, Math.max(2, Math.ceil(val.length/70)))}" data-dp-input="${f.key}">${val}</textarea>
+        `;
+        list.appendChild(card);
+
+        if (f.kind === 'complex'){
+            dpRenderComplexExtras(card, doc, f, val);
+        }
+    });
+}
+
+function dpRenderComplexExtras(card, doc, f, val){
+    const result = dpCheckComplex(val, f.tokens);
+
+    const toolbar = document.createElement('div');
+    toolbar.className = 'dp-extra flex flex-wrap items-center gap-1.5 mt-2';
+    const ttLabel = document.createElement('span');
+    ttLabel.className = 'text-[10px]';
+    ttLabel.style.color = 'var(--text-muted)';
+    ttLabel.textContent = 'درج دادهٔ سند:';
+    toolbar.appendChild(ttLabel);
+    f.tokens.forEach(t => {
+        const present = (val.match(new RegExp(`\\{\\{${t.key}\\}\\}`, 'g'))||[]).length === 1;
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'text-[10px] font-mono font-bold px-1.5 py-0.5 rounded';
+        b.dir = 'ltr';
+        b.style.cssText = present
+            ? 'border:1px solid #34c759;color:#34c759;background:rgba(52,199,89,.1);'
+            : 'border:1px dashed var(--border-subtle);color:var(--text-muted);background:var(--panel-bg);cursor:pointer;';
+        b.dataset.dpInsertToken = t.key;
+        b.textContent = (present ? '✓ ' : '') + `{{${t.key}}}`;
+        b.title = t.label + (present ? ' — درج شده' : ' — کلیک برای درج در محل مکان‌نما');
+        if (present) b.disabled = true;
+        toolbar.appendChild(b);
+    });
+    card.appendChild(toolbar);
+
+    const checkRow = document.createElement('div');
+    checkRow.className = 'dp-extra text-[10px] font-bold mt-1.5';
+    checkRow.style.color = result.valid ? '#34c759' : '#f87171';
+    checkRow.textContent = result.valid ? '✓ ساختار عبارت سالم است.' : '! ساختار این عبارت مشکل دارد — ذخیره نمی‌شود.';
+    card.appendChild(checkRow);
+
+    if (!result.valid){
+        const warn = document.createElement('div');
+        warn.className = 'dp-extra text-[10px] mt-1.5 p-2 rounded';
+        warn.style.cssText = 'background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);color:var(--text-main);line-height:1.8;';
+        const parts = [];
+        if (result.missing.length) parts.push(`⚠ ${result.missing.map(t=>t.label).join('، ')} از این عبارت حذف شده.`);
+        if (result.duplicated.length) parts.push(`⚠ ${result.duplicated.map(t=>t.label).join('، ')} بیش از یک‌بار درج شده.`);
+        if (result.strayBrace) parts.push(`⚠ یک آکولاد تک در متن دیده می‌شود — احتمالاً تایپی ناقص.`);
+        warn.innerHTML = parts.join('<br>');
+        card.appendChild(warn);
+    }
+}
+
+function dpCommitFieldEdit(doc, f, newValue, textareaEl){
+    const savedVal = (dpServerPhrases[doc.id] && dpServerPhrases[doc.id][f.key] !== undefined) ? dpServerPhrases[doc.id][f.key] : f.def;
+    if (!dpDraft[doc.id]) dpDraft[doc.id] = {};
+    if (newValue === savedVal){
+        delete dpDraft[doc.id][f.key];
+        if (Object.keys(dpDraft[doc.id]).length === 0) delete dpDraft[doc.id];
+    } else {
+        dpDraft[doc.id][f.key] = newValue;
+    }
+
+    const card = textareaEl.closest('[data-dp-field]');
+    const dirty = !!(dpDraft[doc.id] && dpDraft[doc.id][f.key] !== undefined);
+    card.style.borderColor = dirty ? 'var(--accent)' : 'var(--border-subtle)';
+    card.querySelector('[data-dp-reset]').disabled = (newValue === f.def);
+
+    if (f.kind === 'complex'){
+        card.querySelectorAll('.dp-extra').forEach(el => el.remove());
+        dpRenderComplexExtras(card, doc, f, newValue);
+    }
+}
+
+document.addEventListener('input', (e) => {
+    if (!e.target.matches('[data-dp-input]')) return;
+    const doc = DP_DOCS.find(d => d.id === dpCurrentDoc);
+    const f = doc.fields.find(f => f.key === e.target.dataset.dpInput);
+    dpCommitFieldEdit(doc, f, e.target.value, e.target);
+});
+
+document.addEventListener('click', (e) => {
+    const resetBtn = e.target.closest('[data-dp-reset]');
+    if (resetBtn){
+        const doc = DP_DOCS.find(d => d.id === dpCurrentDoc);
+        if (dpDraft[doc.id]) delete dpDraft[doc.id][resetBtn.dataset.dpReset];
+        renderDocumentPhrases();
+        return;
+    }
+    const insertBtn = e.target.closest('[data-dp-insert-token]');
+    if (insertBtn && !insertBtn.disabled){
+        const card = insertBtn.closest('[data-dp-field]');
+        const textarea = card.querySelector('[data-dp-input]');
+        const start = textarea.selectionStart ?? textarea.value.length;
+        const { text: newVal, caret } = dpFixOrInsertToken(textarea.value, insertBtn.dataset.dpInsertToken, start);
+        textarea.value = newVal;
+        textarea.focus();
+        textarea.setSelectionRange(caret, caret);
+        const doc = DP_DOCS.find(d => d.id === dpCurrentDoc);
+        const f = doc.fields.find(f => f.key === textarea.dataset.dpInput);
+        dpCommitFieldEdit(doc, f, newVal, textarea);
+    }
+});
+
+async function loadDocumentPhrasesCatalog(){
+    populateDocSelect();
+    if (!currentUserSession) { renderDocumentPhrases(); return; }
+    const token = getToken();
+    try {
+        const res = await fetch(`${CORE}/users/me/preferences`, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!res.ok) throw new Error();
+        const p = await res.json();
+        dpServerPhrases = p.document_phrases || {};
+    } catch (e) {
+        dpServerPhrases = {};
+    }
+    dpDraft = {};
+    renderDocumentPhrases();
+}
+
+async function saveDocumentPhrases(){
+    if (!currentUserSession) return;
+    const doc = DP_DOCS.find(d => d.id === dpCurrentDoc);
+    const changes = dpDraft[doc.id] || {};
+    const btn = document.getElementById('dp-save-btn');
+    const status = document.getElementById('dp-save-status');
+
+    // A complex field with a structurally broken draft value is excluded
+    // -- never sent to the backend, and left as-is (with its warning) so
+    // the translator can keep fixing it. Everything else in this document
+    // type's draft is safe to send in the same request.
+    const toSend = {};
+    let blockedCount = 0;
+    for (const key in changes){
+        const f = doc.fields.find(f => f.key === key);
+        if (f.kind === 'complex' && !dpCheckComplex(changes[key], f.tokens).valid){
+            blockedCount++;
+            continue;
+        }
+        toSend[key] = changes[key] === '' ? null : changes[key];
+    }
+
+    status.classList.remove('hidden');
+    if (Object.keys(toSend).length === 0){
+        status.style.color = '#f87171';
+        status.textContent = blockedCount > 0
+            ? '❌ عبارت دارای خطای ساختاری را قبل از ذخیره اصلاح کنید.'
+            : 'تغییری برای ذخیره وجود ندارد.';
+        return;
+    }
+
+    btn.disabled = true;
+    status.style.color = 'var(--text-muted)';
+    status.textContent = 'در حال ذخیره...';
+
+    const token = getToken();
+    try {
+        const res = await fetch(`${CORE}/users/me/preferences`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ document_phrases: { [doc.id]: toSend } })
+        });
+        if (!res.ok) throw new Error();
+        const p = await res.json();
+        dpServerPhrases = p.document_phrases || {};
+        // Only the fields actually sent (the valid ones) are cleared from
+        // the draft -- a blocked complex field stays in draft, with its
+        // warning, even though the rest of this save succeeded.
+        for (const key of Object.keys(toSend)) delete dpDraft[doc.id][key];
+        if (dpDraft[doc.id] && Object.keys(dpDraft[doc.id]).length === 0) delete dpDraft[doc.id];
+        status.style.color = 'var(--accent)';
+        status.textContent = blockedCount > 0
+            ? `✅ ${Object.keys(toSend).length} مورد ذخیره شد؛ ${blockedCount} مورد دارای خطا ذخیره نشد.`
+            : '✅ ذخیره شد. از سند بعدی اعمال می‌شود.';
+        renderDocumentPhrases();
+    } catch (e) {
+        status.style.color = '#f87171';
+        status.textContent = '❌ ذخیره ناموفق بود.';
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
 // WALLET
 // ═══════════════════════════════════════════════════════════
 function triggerShaparakPayment() {
@@ -2928,6 +3278,7 @@ async function openWorkspaceDashboard(pushHistory = true) {
     await renderDashboardActiveProjects();
     refreshWalletBalanceDisplay();
     loadPreferences();
+    loadDocumentPhrasesCatalog();
     if (pushHistory) navigateTo('/dashboard');
 }
 
