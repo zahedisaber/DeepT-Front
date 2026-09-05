@@ -2404,6 +2404,15 @@ function applyRouteForPath(path) {
             openLogin();
             showToast('برای دسترسی به این بخش، ابتدا وارد شوید.');
         }
+    } else if (path === '/admin') {
+        if (currentUserSession && localStorage.getItem('deept_is_admin') === '1') {
+            showAdminDashboard(false);
+        } else {
+            navigateTo('/', false);
+            showLandingView();
+            openLogin();
+            showToast('برای دسترسی به این بخش، ابتدا وارد شوید.');
+        }
     } else if (path === '/schedule') {
         if (currentUserSession) {
             openWorkSchedulePage();
@@ -3756,7 +3765,7 @@ function showDashboardView() {
     openWorkspaceDashboard();
 }
 
-function showAdminDashboard() {
+function showAdminDashboard(pushHistory = true) {
     const lp = document.getElementById('landingPage');
     if (lp) lp.style.display = 'none';
     document.getElementById('workspaceDashboard').classList.add('hidden');
@@ -3764,6 +3773,7 @@ function showAdminDashboard() {
     document.getElementById('adminDashboard').classList.remove('hidden');
     switchAdminTab('users');
     loadAdminUsers();
+    if (pushHistory) navigateTo('/admin');
 }
 
 function adminLogout() {
@@ -3773,6 +3783,7 @@ function adminLogout() {
     localStorage.removeItem('deept_user_email');
     localStorage.removeItem('deept_is_admin');
     document.getElementById('adminDashboard').classList.add('hidden');
+    navigateTo('/');
     location.reload();
 }
 
