@@ -2432,6 +2432,20 @@ function applyRouteForPath(path) {
             openLogin();
             showToast('برای دسترسی به این بخش، ابتدا وارد شوید.');
         }
+    } else if (path === '/admin') {
+        if (currentUserSession && localStorage.getItem('deept_is_admin') === '1') {
+            showAdminDashboard();
+        } else if (currentUserSession) {
+            // Logged in but not an admin -- send them to their own
+            // dashboard rather than bouncing to the login modal.
+            navigateTo('/dashboard', false);
+            openWorkspaceDashboard(false);
+        } else {
+            navigateTo('/', false);
+            showLandingView();
+            openLogin();
+            showToast('برای دسترسی به این بخش، ابتدا وارد شوید.');
+        }
     } else if (path === '/login') {
         showLandingView();
         openLogin();
@@ -3764,6 +3778,11 @@ function showAdminDashboard() {
     document.getElementById('adminDashboard').classList.remove('hidden');
     switchAdminTab('users');
     loadAdminUsers();
+    // Without its own URL, a reload had nowhere to route back to and fell
+    // through to the landing page instead -- navigateTo is a no-op if the
+    // address bar already says /admin (e.g. when applyRouteForPath itself
+    // calls this on a reload), so this is safe to call unconditionally.
+    navigateTo('/admin');
 }
 
 function adminLogout() {
