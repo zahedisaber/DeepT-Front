@@ -1214,7 +1214,8 @@ async function openClientDetail(clientId) {
         document.getElementById('cd-phone').textContent = c.phone || '—';
         document.getElementById('cd-email').textContent = c.email || '—';
         document.getElementById('cd-notes').value = c.notes || '';
-        document.getElementById('cd-job-count').textContent = c.job_count || 0;
+        // cd-job-count's header was replaced by the combined activity
+        // list's own count (cd-activity-count, set in renderClientActivityList).
 
         const related = c.related_persons || [];
         document.getElementById('cd-related-count').textContent = related.length;
@@ -1230,34 +1231,7 @@ async function openClientDetail(clientId) {
                     </span>
                 </div>`).join('');
 
-        const STATUS_LABELS = {
-            queued:     { text: 'در صف',        color: '#94a3b8' },
-            processing: { text: 'در حال پردازش', color: '#fb923c' },
-            completed:  { text: 'آماده',        color: '#4ade80' },
-            failed:     { text: 'ناموفق',       color: '#f87171' },
-        };
-        const jobsBox = document.getElementById('cd-jobs-list');
-        if (!c.jobs || !c.jobs.length) {
-            jobsBox.innerHTML = `<div class="text-xs text-center py-4" style="color:var(--text-muted);">// بدون سابقه پروژه</div>`;
-        } else {
-            jobsBox.innerHTML = c.jobs.map(j => {
-                const st = STATUS_LABELS[j.status] || { text: escapeHtml(j.status), color: 'var(--text-muted)' };
-                const typeLabel = DOCUMENT_REGISTRY[j.document_type]?.label || escapeHtml(j.document_type);
-                // Only a completed job has a settled price worth invoicing --
-                // queued/processing/failed jobs don't get an "add" button.
-                const addBtn = j.status === 'completed'
-                    ? `<button onclick='addJobToDraft(${JSON.stringify(j.id)}, ${JSON.stringify(typeLabel)}, ${j.price_toman || 0})' class="text-[11px] font-bold px-2 py-1 rounded-md transition shrink-0" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">+ افزودن</button>`
-                    : `<span style="width:3.2rem;display:inline-block;"></span>`;
-                return `<div class="flex items-center gap-2.5 p-2.5 rounded-lg text-xs" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
-                    <span class="flex-1" style="color:var(--text-main);">${typeLabel}</span>
-                    <span class="en" style="color:var(--text-muted);">${j.price_toman ? j.price_toman.toLocaleString() + ' ت' : ''}</span>
-                    <span class="status-pill" style="color:${st.color};background:${st.color}1f;">${st.text}</span>
-                    ${addBtn}
-                </div>`;
-            }).join('');
-        }
-
-        renderSanamDocuments(c.sanam_documents || []);
+        renderClientActivityList(c.jobs || [], c.sanam_documents || []);
 
         renderDraftRows();
         await renderClientInvoices(clientId);
@@ -1268,25 +1242,97 @@ async function openClientDetail(clientId) {
     }
 }
 
-// Sanam-imported documents -- not a DeepT job (no status/price to show),
-// just what was translated and when, straight from the excel import(s)
-// done for this client so far. Same isProfilePageOpen() prefix convention
-// as renderClientInvoices()/updateDraftTotal() below, since this renders
-// into whichever of the two client-detail views (the full-window profile
-// page, or the older modal) is actually open.
-function renderSanamDocuments(sanamDocs) {
+// ── Combined activity list: DeepT jobs + Sanam-imported documents ────────
+// One merged, chronological, color-coded list a translator can check items
+// in directly onto the invoice draft below -- replaces the two separate
+// lists (jobs / Sanam docs) and the jobs list's old one-at-a-time "+
+// افزودن" button. Same isProfilePageOpen() prefix convention as
+// renderClientInvoices()/updateDraftTotal(), since this renders into
+// whichever of the two client-detail views (full-window profile page, or
+// the older modal) is actually open.
+const ACTIVITY_STATUS_LABELS = {
+    queued:     { text: 'در صف',        color: '#94a3b8' },
+    processing: { text: 'در حال پردازش', color: '#fb923c' },
+    completed:  { text: 'آماده',        color: '#4ade80' },
+    failed:     { text: 'ناموفق',       color: '#f87171' },
+};
+const ACTIVITY_CATEGORY_COLORS = { job: '#4ade80', sanam: '#38bdf8' };
+
+function activityRowKey(type, id) { return `${type}:${id}`; }
+
+// A row is "checked" whenever it's currently sitting in invoiceDraft --
+// the checkbox IS the draft-membership toggle, no separate selection
+// state to keep in sync.
+function isActivityInDraft(key) {
+    return invoiceDraft.some(row => row._source_key === key);
+}
+
+function toggleActivityInDraft(type, id, description, priceToman, checked) {
+    const key = activityRowKey(type, id);
+    if (checked) {
+        if (isActivityInDraft(key)) return;
+        // job_id is only ever set for a real DeepT job -- a Sanam-sourced
+        // row is a fresh draft line, not a link back to its original
+        // (already-invoiced) Sanam invoice_item.
+        invoiceDraft.push({
+            description, quantity: 1, unit_price_toman: priceToman,
+            job_id: type === 'job' ? id : null, _source_key: key,
+        });
+    } else {
+        invoiceDraft = invoiceDraft.filter(row => row._source_key !== key);
+    }
+    renderDraftRows();
+}
+
+function renderClientActivityList(jobs, sanamDocs) {
     const prefix = isProfilePageOpen() ? 'cp' : 'cd';
-    const countEl = document.getElementById(prefix + '-sanam-doc-count');
-    const box = document.getElementById(prefix + '-sanam-docs-list');
-    if (countEl) countEl.textContent = sanamDocs.length;
+    const box = document.getElementById(prefix + '-activity-list');
+    const countEl = document.getElementById(prefix + '-activity-count');
     if (!box) return;
-    box.innerHTML = !sanamDocs.length
-        ? `<div class="text-xs text-center py-4" style="color:var(--text-muted);">// سندی از سنام وارد نشده</div>`
-        : sanamDocs.map(d => `
-            <div class="flex items-center gap-2.5 p-2.5 rounded-lg text-xs" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
-                <span class="flex-1" style="color:var(--text-main);">${escapeHtml(d.description)}${d.quantity > 1 ? ` <span class="en" style="color:var(--text-muted);">×${d.quantity}</span>` : ''}</span>
-                <span class="en shrink-0" style="color:var(--text-muted);">${d.date ? escapeHtml(d.date.slice(0, 10)) : '—'}</span>
-            </div>`).join('');
+
+    const rows = [];
+    (jobs || []).forEach(j => {
+        rows.push({
+            type: 'job', id: j.id, date: j.created_at,
+            title: DOCUMENT_REGISTRY[j.document_type]?.label || j.document_type,
+            price: j.price_toman || 0, status: j.status,
+            // Only a completed job has a settled price worth invoicing.
+            checkable: j.status === 'completed',
+        });
+    });
+    (sanamDocs || []).forEach(d => {
+        rows.push({
+            type: 'sanam', id: d.id, date: d.date,
+            title: d.description + (d.quantity > 1 ? ` ×${d.quantity}` : ''),
+            price: d.line_total_toman || 0, trackingCode: d.tracking_code,
+            checkable: true,
+        });
+    });
+    rows.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+
+    if (countEl) countEl.textContent = rows.length;
+    box.innerHTML = !rows.length
+        ? `<div class="text-xs text-center py-4" style="color:var(--text-muted);">// بدون سابقه پروژه یا سند</div>`
+        : rows.map(r => {
+            const color = ACTIVITY_CATEGORY_COLORS[r.type];
+            const checked = isActivityInDraft(activityRowKey(r.type, r.id));
+            const st = r.type === 'job' ? (ACTIVITY_STATUS_LABELS[r.status] || { text: escapeHtml(r.status), color: 'var(--text-muted)' }) : null;
+            const idBadge = r.type === 'job'
+                ? `<span class="en" style="color:var(--text-muted);font-size:.65rem;" title="شناسه کار">#${escapeHtml(String(r.id).slice(0, 8))}</span>`
+                : (r.trackingCode ? `<span class="en" style="color:var(--text-muted);font-size:.65rem;">کد پیگیری ${escapeHtml(r.trackingCode)}</span>` : '');
+            const dateStr = r.date ? escapeHtml(String(r.date).slice(0, 10)) : '—';
+            return `<div class="flex items-center gap-2.5 p-2.5 rounded-lg text-xs" style="background:var(--bg-main);border:1px solid var(--border-subtle);border-inline-start:3px solid ${color};">
+                <input type="checkbox" ${checked ? 'checked' : ''} ${r.checkable ? '' : 'disabled'}
+                    data-activity-key="${escapeHtml(activityRowKey(r.type, r.id))}"
+                    onchange='toggleActivityInDraft(${JSON.stringify(r.type)}, ${JSON.stringify(r.id)}, ${JSON.stringify(r.title)}, ${r.price}, this.checked)'
+                    style="width:15px;height:15px;accent-color:${color};flex-shrink:0;cursor:${r.checkable ? 'pointer' : 'not-allowed'};">
+                <span class="flex-1" style="color:var(--text-main);">${escapeHtml(r.title)}</span>
+                ${idBadge}
+                <span class="en shrink-0" style="color:var(--text-muted);">${dateStr}</span>
+                <span class="en font-bold shrink-0" style="color:var(--accent);width:80px;text-align:left;">${r.price ? r.price.toLocaleString() + ' ت' : '—'}</span>
+                ${st ? `<span class="status-pill" style="color:${st.color};background:${st.color}1f;">${st.text}</span>` : ''}
+            </div>`;
+        }).join('');
 }
 
 async function renderClientInvoices(clientId) {
@@ -1312,10 +1358,12 @@ async function renderClientInvoices(clientId) {
         };
         box.innerHTML = invoices.map(inv => {
             const t = TYPE_LABELS[inv.invoice_type] || TYPE_LABELS.invoice;
-            const locked = !!inv.finalized_at;
-            const actions = locked
-                ? `<span class="text-[10px] shrink-0" style="color:var(--text-muted);">🔒 نهایی</span>`
-                : `<button onclick="event.stopPropagation();openInvoiceView('${inv.id}', true)" class="text-[10px] font-bold px-2 py-1 rounded-md shrink-0" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">✏️ ویرایش</button>`;
+            // finalized_at (set once printed/emailed) is purely informational
+            // now -- editing is always allowed, never locked by it.
+            const sentBadge = inv.finalized_at
+                ? `<span class="text-[10px] shrink-0" style="color:var(--text-muted);" title="قبلاً چاپ یا ایمیل شده">✓ ارسال‌شده</span>`
+                : '';
+            const actions = `<button onclick="event.stopPropagation();openInvoiceView('${inv.id}', true)" class="text-[10px] font-bold px-2 py-1 rounded-md shrink-0" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">✏️ ویرایش</button>`;
             return `
             <div onclick="openInvoiceView('${inv.id}')" class="p-2.5 rounded-lg text-xs cursor-pointer transition hover:opacity-80" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
                 <div class="flex items-center justify-between gap-2">
@@ -1325,6 +1373,7 @@ async function renderClientInvoices(clientId) {
                     </span>
                     <span class="flex items-center gap-2">
                         <span class="font-bold en" style="color:var(--accent);">${(inv.total_toman || 0).toLocaleString()} تومان</span>
+                        ${sentBadge}
                         ${actions}
                     </span>
                 </div>
@@ -1336,16 +1385,12 @@ async function renderClientInvoices(clientId) {
 }
 
 // ── Invoice draft builder — prices are volatile enough (and one-off costs
-// like هزینه پیک come up often enough) that every line, whether pulled from
-// a job or typed in from scratch, has to stay editable right up until the
-// translator actually submits the invoice. Quantity × unit price, not just
-// a flat total, since per-item costs (تمبر دادگستری, هر صفحه مهر وزارت
-// خارجه, ...) commonly repeat several times in one order. ──────────────────
-function addJobToDraft(jobId, description, priceToman) {
-    if (invoiceDraft.some(row => row.job_id === jobId)) { showToast('این پروژه قبلاً به فاکتور اضافه شده.'); return; }
-    invoiceDraft.push({ description, quantity: 1, unit_price_toman: priceToman, job_id: jobId });
-    renderDraftRows();
-}
+// like هزینه پیک come up often enough) that every line, whether checked in
+// from the activity list above or typed in from scratch, has to stay
+// editable right up until the translator actually submits the invoice.
+// Quantity × unit price, not just a flat total, since per-item costs
+// (تمبر دادگستری, هر صفحه مهر وزارت خارجه, ...) commonly repeat several
+// times in one order. ──────────────────────────────────────────────────
 
 function addCustomInvoiceRow() {
     invoiceDraft.push({ description: '', quantity: 1, unit_price_toman: 0, job_id: null });
@@ -1367,8 +1412,15 @@ function updateDraftRow(idx, field, value) {
 }
 
 function removeDraftRow(idx) {
+    const removed = invoiceDraft[idx];
     invoiceDraft.splice(idx, 1);
     renderDraftRows();
+    // Keep the activity list's checkbox in sync when a row checked in from
+    // there gets removed via this button instead of unchecking it above.
+    if (removed && removed._source_key) {
+        const cb = document.querySelector(`input[data-activity-key="${CSS.escape(removed._source_key)}"]`);
+        if (cb) cb.checked = false;
+    }
 }
 
 function isProfilePageOpen() {
@@ -1429,6 +1481,10 @@ async function submitDraftInvoice(invoiceType) {
         showToast(`✅ ${label}ی با ${items.length} ردیف ثبت شد.`);
         invoiceDraft = [];
         renderDraftRows();
+        // Uncheck every activity-list checkbox now that the draft they
+        // fed is gone -- no cached jobs/sanam data to re-render the list
+        // properly from here, but this keeps it from lying about state.
+        document.querySelectorAll('input[data-activity-key]').forEach(cb => { cb.checked = false; });
         await renderClientInvoices(currentClientDetailId);
     } catch (e) {
         showToast('❌ ثبت فاکتور ناموفق بود.');
@@ -1780,7 +1836,8 @@ async function openClientProfile(clientId) {
         document.getElementById('cp-phone').textContent = c.phone || '—';
         document.getElementById('cp-email').textContent = c.email || '—';
         document.getElementById('cp-notes').value = c.notes || '';
-        document.getElementById('cp-job-count').textContent = c.job_count || 0;
+        // cp-job-count's header was replaced by the combined activity
+        // list's own count (cp-activity-count, set in renderClientActivityList).
 
         const related = c.related_persons || [];
         const relatedBox = document.getElementById('cp-related-list');
@@ -1795,32 +1852,7 @@ async function openClientProfile(clientId) {
                     </span>
                 </div>`).join('');
 
-        const STATUS_LABELS = {
-            queued:     { text: 'در صف',        color: '#94a3b8' },
-            processing: { text: 'در حال پردازش', color: '#fb923c' },
-            completed:  { text: 'آماده',        color: '#4ade80' },
-            failed:     { text: 'ناموفق',       color: '#f87171' },
-        };
-        const jobsBox = document.getElementById('cp-jobs-list');
-        if (!c.jobs || !c.jobs.length) {
-            jobsBox.innerHTML = `<div class="text-xs text-center py-4" style="color:var(--text-muted);">// بدون سابقه پروژه</div>`;
-        } else {
-            jobsBox.innerHTML = c.jobs.map(j => {
-                const st = STATUS_LABELS[j.status] || { text: j.status, color: 'var(--text-muted)' };
-                const typeLabel = DOCUMENT_REGISTRY[j.document_type]?.label || j.document_type;
-                const addBtn = j.status === 'completed'
-                    ? `<button onclick='addJobToDraft(${JSON.stringify(j.id)}, ${JSON.stringify(typeLabel)}, ${j.price_toman || 0})' class="text-[11px] font-bold px-2 py-1 rounded-md transition shrink-0" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">+ افزودن</button>`
-                    : `<span style="width:3.2rem;display:inline-block;"></span>`;
-                return `<div class="flex items-center gap-2.5 p-2.5 rounded-lg text-xs" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
-                    <span class="flex-1" style="color:var(--text-main);">${typeLabel}</span>
-                    <span class="en" style="color:var(--text-muted);">${j.price_toman ? j.price_toman.toLocaleString() + ' ت' : ''}</span>
-                    <span class="status-pill" style="color:${st.color};background:${st.color}1f;">${st.text}</span>
-                    ${addBtn}
-                </div>`;
-            }).join('');
-        }
-
-        renderSanamDocuments(c.sanam_documents || []);
+        renderClientActivityList(c.jobs || [], c.sanam_documents || []);
 
         renderDraftRows();
         await renderClientInvoices(clientId);
@@ -2090,7 +2122,7 @@ async function renderScheduleWeek() {
 let currentInvoiceView = null; // { id, client } — kept for the email prefill
 
 const INVOICE_TYPE_LABELS_FA = { invoice: 'فاکتور', proforma: 'پیش‌فاکتور' };
-let invoiceViewFinalized = false;     // locked once printed (finalize) or emailed
+let invoiceViewFinalized = false;     // whether it's been printed/emailed -- informational only, no longer a lock
 let invoiceEditState = null;          // { items: [...], invoice_type } while editing
 let invoiceEditType = 'invoice';
 
@@ -2136,14 +2168,15 @@ async function openInvoiceView(invoiceId, autoEdit = false) {
         document.getElementById('iv-email-status').classList.add('hidden');
 
         document.getElementById('iv-edit-editor').classList.add('hidden');
+        // Editing is always allowed now, regardless of finalized_at (see
+        // startInvoiceEdit's comment) -- always show the real edit button.
         const editBtn = document.getElementById('iv-edit-btn');
-        editBtn.classList.toggle('hidden', invoiceViewFinalized);
-        editBtn.textContent = invoiceViewFinalized ? '🔒 فاکتور نهایی‌شده' : '✏️ ویرایش فاکتور';
-        if (invoiceViewFinalized) editBtn.style.color = 'var(--text-muted)';
-        else editBtn.style.color = 'var(--accent)';
+        editBtn.classList.remove('hidden');
+        editBtn.textContent = '✏️ ویرایش فاکتور';
+        editBtn.style.color = 'var(--accent)';
 
         document.getElementById('invoiceViewModal').classList.remove('hidden');
-        if (autoEdit && !invoiceViewFinalized) startInvoiceEdit();
+        if (autoEdit) startInvoiceEdit();
     } catch (e) {
         showToast('خطا در دریافت فاکتور.');
     }
@@ -2177,7 +2210,11 @@ function toggleInvoiceEmailRow() {
 
 // ── Invoice editing (allowed only while not finalized) ───────────────────
 function startInvoiceEdit() {
-    if (invoiceViewFinalized || !currentInvoiceView) return;
+    // Editing used to be blocked once invoiceViewFinalized was set (printed
+    // or emailed) -- that lock was removed at the translator's request;
+    // finalized_at is tracked purely as an informational "was this ever
+    // sent" marker now (see the "✓ ارسال‌شده" badge in renderClientInvoices).
+    if (!currentInvoiceView) return;
     if (invoiceEditState) return;
     const rowsEl = document.getElementById('iv-items');
     const items = Array.from(rowsEl.querySelectorAll('tr')).map(tr => {

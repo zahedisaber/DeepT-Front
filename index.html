@@ -175,12 +175,14 @@
     <textarea id="cd-notes" rows="2" class="auth-input resize-none mb-2" placeholder="یادداشتی برای این مشتری..."></textarea>
     <button type="button" onclick="saveClientNotes()" class="w-full mb-5 py-2 rounded-xl text-xs font-black transition" style="background:var(--bg-main);color:var(--accent);border:1px solid var(--border-color);">ذخیره یادداشت</button>
 
-    <h4 class="text-sm font-black mb-2 flex items-center gap-1.5" style="color:var(--text-main);">📊 سابقه پروژه‌ها (<span class="en" id="cd-job-count">۰</span>)</h4>
-    <div id="cd-jobs-list" class="space-y-1.5 mb-5"></div>
-
-    <h4 class="text-sm font-black mb-2 flex items-center gap-1.5" style="color:var(--text-main);">📄 اسناد سامانه سنام (<span class="en" id="cd-sanam-doc-count">۰</span>)</h4>
-    <p class="text-[11px] mb-2" style="color:var(--text-muted);">اسنادی که برای این مشتری از فایل اکسل سنام وارد شده، به همراه تاریخ هر سند — هر بار که فایل سنام دوباره بارگذاری شود، اسناد جدید همین‌جا اضافه می‌شوند.</p>
-    <div id="cd-sanam-docs-list" class="space-y-1.5 mb-5"></div>
+    <h4 class="text-sm font-black mb-2 flex items-center gap-1.5" style="color:var(--text-main);">📊 سابقه پروژه‌ها و اسناد (<span class="en" id="cd-activity-count">۰</span>)</h4>
+    <div class="flex flex-wrap items-center gap-3 mb-2">
+        <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:50%;background:#4ade80;display:inline-block;"></span>ترجمه ماشینی DeepT</span>
+        <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:50%;background:#38bdf8;display:inline-block;"></span>وارد شده از سنام</span>
+        <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:50%;background:#fbbf24;display:inline-block;"></span>ردیف دستی (پیش‌نویس فاکتور)</span>
+    </div>
+    <p class="text-[11px] mb-2" style="color:var(--text-muted);">برای افزودن هر مورد به پیش‌نویس فاکتور پایین، تیک آن را بزنید.</p>
+    <div id="cd-activity-list" class="space-y-1.5 mb-5"></div>
 
     <div class="p-3.5 rounded-xl mb-5" style="background:var(--bg-main);border:1px solid var(--border-color);">
       <h4 class="text-sm font-black flex items-center gap-1.5 mb-2.5" style="color:var(--text-main);">🧮 پیش‌نویس فاکتور</h4>
@@ -852,13 +854,16 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
             <!-- CENTER: previous jobs/orders + related -->
             <div class="workspace-panel p-5">
                 <div class="flex items-center justify-between mb-3">
-                    <h3 class="text-sm font-black flex items-center gap-1.5" style="color:var(--text-main);">📊 سابقه پروژه‌ها <span class="en" style="color:var(--text-muted);">(<span id="cp-job-count">۰</span>)</span></h3>
+                    <h3 class="text-sm font-black flex items-center gap-1.5" style="color:var(--text-main);">📊 سابقه پروژه‌ها و اسناد <span class="en" style="color:var(--text-muted);">(<span id="cp-activity-count">۰</span>)</span></h3>
                     <button type="button" onclick="openChatForClient()" class="text-[11px] font-black px-3 py-1.5 rounded-lg transition" style="background:var(--accent);color:var(--btn-text-on-accent);">+ پروژه جدید</button>
                 </div>
-                <div id="cp-jobs-list" class="space-y-2"></div>
-
-                <h3 class="text-sm font-black flex items-center gap-1.5 mt-5 mb-3" style="color:var(--text-main);">📄 اسناد سامانه سنام <span class="en" style="color:var(--text-muted);">(<span id="cp-sanam-doc-count">۰</span>)</span></h3>
-                <div id="cp-sanam-docs-list" class="space-y-2"></div>
+                <div class="flex flex-wrap items-center gap-3 mb-2">
+                    <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:50%;background:#4ade80;display:inline-block;"></span>ترجمه ماشینی DeepT</span>
+                    <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:50%;background:#38bdf8;display:inline-block;"></span>وارد شده از سنام</span>
+                    <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:50%;background:#fbbf24;display:inline-block;"></span>ردیف دستی (پیش‌نویس فاکتور)</span>
+                </div>
+                <p class="text-[11px] mb-2" style="color:var(--text-muted);">برای افزودن هر مورد به پیش‌نویس فاکتور، تیک آن را بزنید.</p>
+                <div id="cp-activity-list" class="space-y-2"></div>
             </div>
 
             <!-- RIGHT: invoices + calendar -->
