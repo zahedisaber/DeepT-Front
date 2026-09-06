@@ -3579,10 +3579,10 @@ document.addEventListener('keydown',e=>{
     if(document.getElementById('signupOverlay').classList.contains('open')) handleSignup();
 });
 
-['loginOverlay','signupOverlay'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el) el.addEventListener('click',e=>{ if(e.target===el) closeModals(); });
-});
+// ['loginOverlay','signupOverlay'].forEach(id=>{
+//     const el=document.getElementById(id);
+//     if(el) el.addEventListener('click',e=>{ if(e.target===el) closeModals(); });
+// });
 
 // ── LANDING JS (date converter, quick start pipeline) ──
 
@@ -3607,16 +3607,13 @@ function openQuickStart() {
     document.getElementById('quickStartOverlay').classList.add('open');
 }
 
-
-
-
-['loginOverlay','signupOverlay','quickStartOverlay'].forEach(id => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    el.addEventListener('click', e => {
-        if (e.target === el) closeModals();
-    });
-});
+// ['loginOverlay','signupOverlay','quickStartOverlay'].forEach(id => {
+//     const el = document.getElementById(id);
+//     if (!el) return;
+//     el.addEventListener('click', e => {
+//         if (e.target === el) closeModals();
+//     });
+// });
 
 // ── THEME ──
 (function() {
