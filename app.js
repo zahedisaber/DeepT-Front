@@ -215,25 +215,38 @@ document.addEventListener('click', (e) => {
 /* ============ SECTION: SESSION & PERSISTED STATE ============
    localStorage keys (deept_*) are the source of truth for auth + wallet;
    loadSession() then derived state below. ============ */
+
 function loadSession() {
-    // Real auth session (from DeepT-Core login/signup)
-    const token    = localStorage.getItem('deept_token');
-    const userId   = localStorage.getItem('deept_user_id');
-    const userName = localStorage.getItem('deept_user_name');
-    const email    = localStorage.getItem('deept_user_email');
+    const token = localStorage.getItem('deept_token');
+    const userId = localStorage.getItem('deept_user_id');
+
+    // Real authenticated session
     if (token && userId) {
+        const email = localStorage.getItem('deept_user_email') || '';
+        const userName = localStorage.getItem('deept_user_name') || '';
+
         return {
-            email:    email    || '',
-            username: userName || email.split('@')[0],
-            user_id:  userId,
-            token:    token,
-            type:     'individual',
-            contact:  '',
-            office:   ''
+            token,
+            user_id: userId,
+            email,
+            username: userName || (email ? email.split('@')[0] : ''),
+            type: 'individual',
+            contact: '',
+            office: '',
+            is_admin: localStorage.getItem('deept_is_admin') === '1'
         };
     }
-    // Fallback: old mock session (for ?test=1 mode)
-    return JSON.parse(localStorage.getItem('deept_mock_user')) || null;
+
+    // Test/mock session
+    try {
+        return JSON.parse(
+            localStorage.getItem('deept_mock_user') || 'null'
+        );
+    } catch (error) {
+        console.warn('Invalid mock session:', error);
+        localStorage.removeItem('deept_mock_user');
+        return null;
+    }
 }
 
 let currentUserSession = loadSession();
@@ -368,6 +381,7 @@ function executeLogout() {
     localStorage.removeItem('deept_user_id');
     localStorage.removeItem('deept_user_name');
     localStorage.removeItem('deept_user_email');
+    localStorage.removeItem('deept_is_admin');
     closeLogoutConfirm();
     closeWorkspaceDashboard();
     closeChatInterface();
@@ -970,10 +984,16 @@ async function openWorkspaceDashboard(pushHistory = true) {
     if (!currentUserSession) { openAuthModal(); return; }
     const hb = document.querySelector('.header-bar');
     if (hb) hb.classList.remove('hidden');
+    // landingPage defaults to visible in the static HTML -- hide it here so
+    // a refresh / deep link to an authenticated view doesn't leave the
+    // landing header + content rendered underneath the dashboard.
+    const lp = document.getElementById('landingPage');
+    if (lp) lp.style.display = 'none';
     const dashboardEl = document.getElementById('workspaceDashboard');
     dashboardEl.classList.remove('hidden');
     dashboardEl.scrollTop = 0;
     document.getElementById('clientsWorkspace').classList.add('hidden');
+    document.getElementById('adminDashboard').classList.add('hidden');
     document.getElementById('clientProfilePage').classList.add('hidden');
     document.getElementById('workSchedulePage').classList.add('hidden');
     document.getElementById('settingsPage').classList.add('hidden');
@@ -1044,6 +1064,8 @@ function showLandingView() {
     if (pp) pp.classList.add('hidden');
     const sp = document.getElementById('workSchedulePage');
     if (sp) sp.classList.add('hidden');
+    const st = document.getElementById('settingsPage');
+    if (st) st.classList.add('hidden');
     document.body.style.overflow = 'auto';
 }
 
@@ -2459,27 +2481,37 @@ function navigateTo(path, pushHistory = true) {
     if (pushHistory && location.pathname !== path) {
         history.pushState({ path }, '', path);
     }
+    // applyRouteForPath(path);
 }
 
 // Applies whichever view a given path represents, WITHOUT touching
 // history -- used both by popstate and by the initial page load, so a
 // direct visit or refresh on /dashboard lands on the right screen.
 function applyRouteForPath(path) {
+
     if (path === '/dashboard' || path === '/new-project' || path === '/clients') {
+
         if (currentUserSession) {
+
             if (path === '/clients') {
                 openClientsWorkspace(false);
             } else {
                 openWorkspaceDashboard(false);
-                if (path === '/new-project') openChatInterface(false);
+
+                if (path === '/new-project') {
+                    openChatInterface(false);
+                }
             }
+
         } else {
             navigateTo('/', false);
             showLandingView();
             openLogin();
             showToast('برای دسترسی به این بخش، ابتدا وارد شوید.');
         }
+
     } else if (path === '/schedule') {
+
         if (currentUserSession) {
             openWorkSchedulePage();
         } else {
@@ -2488,8 +2520,11 @@ function applyRouteForPath(path) {
             openLogin();
             showToast('برای دسترسی به این بخش، ابتدا وارد شوید.');
         }
+
     } else if (/^\/clients\/[^/]+$/.test(path)) {
+
         const clientId = path.split('/')[2];
+
         if (currentUserSession) {
             openClientProfile(clientId);
         } else {
@@ -2498,7 +2533,9 @@ function applyRouteForPath(path) {
             openLogin();
             showToast('برای دسترسی به این بخش، ابتدا وارد شوید.');
         }
+
     } else if (path === '/settings') {
+
         if (currentUserSession) {
             openSettingsPage(false);
         } else {
@@ -2507,31 +2544,42 @@ function applyRouteForPath(path) {
             openLogin();
             showToast('برای دسترسی به این بخش، ابتدا وارد شوید.');
         }
+
+    } else if (path === '/login') {
+
+        showLandingView();
+        openLogin();
+
     } else if (path === '/admin') {
-        if (currentUserSession && localStorage.getItem('deept_is_admin') === '1') {
-            showAdminDashboard();
-        } else if (currentUserSession) {
-            // Logged in but not an admin -- send them to their own
-            // dashboard rather than bouncing to the login modal.
-            navigateTo('/dashboard', false);
-            openWorkspaceDashboard(false);
+
+        if (currentUserSession) {
+            // Non-admins have no admin view -- send them to their dashboard
+            // instead of leaving them on a blank/landing screen.
+            if (localStorage.getItem('deept_is_admin') === '1') {
+                showAdminDashboard();
+            } else {
+                openWorkspaceDashboard(false);
+            }
         } else {
             navigateTo('/', false);
             showLandingView();
             openLogin();
             showToast('برای دسترسی به این بخش، ابتدا وارد شوید.');
         }
-    } else if (path === '/login') {
-        showLandingView();
-        openLogin();
+
     } else {
-        showLandingView();
+
+        // Root / unknown route
+        if (currentUserSession) {
+            openWorkspaceDashboard(false);
+        } else {
+            showLandingView();
+        }
     }
 }
 window.addEventListener('popstate', () => {
     applyRouteForPath(location.pathname);
 });
-
 // ═══════════════════════════════════════════════════════════
 // CHAT MODAL — open/close
 // ═══════════════════════════════════════════════════════════
@@ -3445,32 +3493,61 @@ function resetForNextDocument() {
 // INIT
 // ═══════════════════════════════════════════════════════════
 refreshWalletBalanceDisplay();
-(function() {
+(function initializeApp() {
     const params = new URLSearchParams(window.location.search);
-    // ?test=1 — auto-create a test session
+
+    // Restore persisted session FIRST
+    currentUserSession = loadSession();
+
+    // Test session only if there is no real session
     if (params.get('test') === '1' && !currentUserSession) {
         currentUserSession = {
-            email:    'test@deept.ir',
+            email: 'test@deept.ir',
             username: 'مترجم آزمایشی',
-            type:     'office',
-            contact:  '@deept_test',
-            office:   'دارالترجمه آزمایشی DeepT'
+            type: 'office',
+            contact: '@deept_test',
+            office: 'دارالترجمه آزمایشی DeepT'
         };
-        localStorage.setItem('deept_mock_user', JSON.stringify(currentUserSession));
+
+        localStorage.setItem(
+            'deept_mock_user',
+            JSON.stringify(currentUserSession)
+        );
     }
 
-    const savedPath = sessionStorage.getItem('deept_redirect_path');
-    if (savedPath) {
-        sessionStorage.removeItem('deept_redirect_path');
-        history.replaceState({ path: savedPath }, '', savedPath);
-    }
-
+    // Synchronize UI with restored session
     syncUserSessionDOM();
-    applyRouteForPath(location.pathname);
 
-    // Normalize the very first history entry so the back button has a
-    // sane place to land on.
-    history.replaceState({ path: location.pathname }, '', location.pathname);
+    // GitHub Pages has no server routing: a refresh on /dashboard etc. lands
+    // on 404.html, which stashes the intended path in sessionStorage and
+    // redirects to '/'. Restore it here so the route below sees the real
+    // path instead of '/'.
+    let initialPath = window.location.pathname;
+    try {
+        const redirected = sessionStorage.getItem('deept_redirect_path');
+        if (redirected && redirected.startsWith('/') && redirected !== '/') {
+            sessionStorage.removeItem('deept_redirect_path');
+            window.history.replaceState({ path: redirected }, '', redirected);
+            initialPath = redirected;
+        }
+    } catch (e) { /* sessionStorage unavailable -- fall back to location */ }
+
+    // Route only after session has been restored
+    applyRouteForPath(initialPath);
+
+    // Email activation redirect (from DeepT-Core's /auth/activate) --
+    // opens the login modal directly so the user can enter their password
+    // right away, instead of landing on a bare page.
+    const activated = params.get('activated');
+    if (activated === 'success') {
+        showToast('✅ ایمیل شما تایید شد. اکنون وارد شوید.');
+        openLogin();
+        window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (activated === 'error') {
+        showToast('⚠️ لینک فعال‌سازی نامعتبر یا قبلاً استفاده شده است.');
+        openLogin();
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
 })();
 
 // ── AUTH ──
@@ -3486,10 +3563,18 @@ async function corePost(path, body) {
 }
 
 function saveSession(data) {
-    localStorage.setItem('deept_token',      data.token);
-    localStorage.setItem('deept_user_id',    data.user_id);
-    localStorage.setItem('deept_user_name',  data.full_name);
-    localStorage.setItem('deept_user_email', data.email);
+    if (!data || !data.token || !data.user_id) {
+        console.error('Invalid login response. Session was not saved.', data);
+        return false;
+    }
+
+    localStorage.setItem('deept_token', String(data.token));
+    localStorage.setItem('deept_user_id', String(data.user_id));
+    localStorage.setItem('deept_user_name', data.full_name || data.username || '');
+    localStorage.setItem('deept_user_email', data.email || '');
+    localStorage.setItem('deept_is_admin', data.is_admin ? '1' : '0');
+
+    return true;
 }
 
 /* ============ SECTION: LOGIN / SIGNUP / AUTH MODALS ============
@@ -3506,14 +3591,26 @@ async function handleLogin() {
     try {
         const {ok,data} = await corePost('/auth/login', {email, password:pass});
         if (!ok) { err.textContent=data.detail||'ایمیل یا رمز عبور اشتباه است.'; err.classList.add('show'); btn.textContent='ورود'; btn.disabled=false; return; }
-       saveSession(data);
-        localStorage.setItem('deept_is_admin', data.is_admin ? '1' : '0');
-        document.getElementById('loginForm').style.display='none';
-        document.getElementById('loginSuccess').classList.add('show');
-        setTimeout(()=>{
-            closeModals(); currentUserSession=loadSession(); syncUserSessionDOM();
-            if (data.is_admin) { showAdminDashboard(); } else { showDashboardView(); }
-        }, 1400);
+       if (!saveSession(data)) {
+    console.error('Login succeeded but session could not be saved.');
+    return;
+}
+
+document.getElementById('loginForm').style.display = 'none';
+document.getElementById('loginSuccess').classList.add('show');
+
+currentUserSession = loadSession();
+syncUserSessionDOM();
+
+setTimeout(() => {
+    closeModals();
+
+    if (currentUserSession?.is_admin) {
+        showAdminDashboard();
+    } else {
+        showDashboardView();
+    }
+}, 1400);
     } catch(e) { err.textContent='خطا در اتصال.'; err.classList.add('show'); btn.textContent='ورود'; btn.disabled=false; }
 }
 
@@ -3858,6 +3955,9 @@ function showAdminDashboard() {
     if (hb) hb.classList.remove('hidden');
     document.getElementById('workspaceDashboard').classList.add('hidden');
     document.getElementById('clientsWorkspace').classList.add('hidden');
+    document.getElementById('clientProfilePage').classList.add('hidden');
+    document.getElementById('workSchedulePage').classList.add('hidden');
+    document.getElementById('settingsPage').classList.add('hidden');
     document.getElementById('adminDashboard').classList.remove('hidden');
     switchAdminTab('users');
     loadAdminUsers();
@@ -3869,12 +3969,17 @@ function showAdminDashboard() {
 }
 
 function adminLogout() {
+    currentUserSession = null;
+
+    localStorage.removeItem('deept_mock_user');
     localStorage.removeItem('deept_token');
     localStorage.removeItem('deept_user_id');
     localStorage.removeItem('deept_user_name');
     localStorage.removeItem('deept_user_email');
     localStorage.removeItem('deept_is_admin');
-    document.getElementById('adminDashboard').classList.add('hidden');
+
+    document.getElementById('adminDashboard')?.classList.add('hidden');
+
     location.reload();
 }
 
@@ -4526,52 +4631,15 @@ function toggleTheme() { toggleGlobalTheme(); }
 })();
 
 // ── INIT ──
+// SECONDARY INIT — runs after initializeApp(); only handles things that
+// don't belong in the primary init block (hero logo, CRM selects).
+// Theme restore, test session, syncUserSessionDOM, activation redirect
+// and routing all live in initializeApp() and must NOT be duplicated here.
 (function(){
-    // Restore theme
-    const saved=localStorage.getItem('deept_theme')||'dark';
-    if(saved==='light'){
-        document.body.setAttribute('data-theme','light');
-        document.getElementById('themeBtnIcon').textContent='☀️';
-        document.getElementById('themeBtnText').textContent='تاریک';
-    }
-
     // Set hero logo
     const heroLogo=document.getElementById('heroLogo');
-    if(heroLogo) heroLogo.src="data:image/png;base64,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AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACcEmAAgAQSUp2yh2gAAAAASUVORK5CYII=";
+    if(heroLogo) heroLogo.src="data:image/png;base64,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AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACcEmAAgAQSUp2yh2gAAAAASUVORK5CYII=";
 
     // CRM time-frame selects — init early so they are ready when admin opens CRM
     try { populateCrmTimeFrameSelects(); } catch(e) {}
-
-    // Wallet display
-    refreshWalletBalanceDisplay();
-
-    // Test mode
-    const params=new URLSearchParams(window.location.search);
-    if(params.get('test')==='1' && !currentUserSession){
-        localStorage.setItem('deept_user_name','مترجم آزمایشی');
-        localStorage.setItem('deept_user_email','test@deept.ir');
-        localStorage.setItem('deept_token','test-token');
-        localStorage.setItem('deept_user_id','test-id');
-        currentUserSession=loadSession();
-    }
-
-        syncUserSessionDOM();
-
-    // Email activation redirect (from DeepT-Core's /auth/activate) --
-    // opens the login modal directly so the user can enter their password
-    // right away, instead of landing on a bare page.
-    const activated = params.get('activated');
-    if (activated === 'success') {
-        showToast('✅ ایمیل شما تایید شد. اکنون وارد شوید.');
-        openLogin();
-        window.history.replaceState({}, document.title, window.location.pathname);
-    } else if (activated === 'error') {
-        showToast('⚠️ لینک فعال‌سازی نامعتبر یا قبلاً استفاده شده است.');
-        openLogin();
-        window.history.replaceState({}, document.title, window.location.pathname);
-    }
-
-    // Routing decision is made once, by applyRouteForPath, based on the
-    // actual URL -- not here, to avoid overriding it with a path-blind
-    // "logged in = dashboard" rule.
 })();

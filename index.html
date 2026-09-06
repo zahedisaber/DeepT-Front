@@ -44,7 +44,11 @@
 <div id="toast"></div>
 
 <!-- ── VIEW 01 · app header bar (fixed; auth + workspace nav) ── -->
-<div class="header-bar fixed top-0 left-0 right-0 z-50 px-4 py-3 flex items-center justify-between gap-2">
+<!-- Starts hidden: showLandingView() keeps it hidden on the public landing
+     page, and openWorkspaceDashboard()/showFullView()/showAdminDashboard()
+     unhide it for authenticated views. Without this, the first paint before
+     app.js runs shows the dashboard header above the landing header. -->
+<div class="header-bar hidden fixed top-0 left-0 right-0 z-50 px-4 py-3 flex items-center justify-between gap-2">
   <div class="flex items-center gap-2 flex-wrap">
     <button type="button" onclick="toggleGlobalTheme()" class="header-btn" id="themeBtn">
       <span id="themeBtnIcon">🌙</span><span id="themeBtnText">روشن</span>
