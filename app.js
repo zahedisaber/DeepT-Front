@@ -1503,6 +1503,221 @@ function closeClientDetailModal() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════
+// JALALI (PERSIAN) CALENDAR PICKER — every date elsewhere in the app is
+// shown in Persian (fa-IR), but a plain <input type="date"> only ever
+// gives the browser's own native, Gregorian-first picker. This renders a
+// real, clickable Jalali calendar the translator can pick a day from --
+// currently used for a work order's مهلت (ددلاین). The value stored and
+// sent to the backend stays a Gregorian ISO string throughout (work-orders
+// due-date filtering in DeepT-Core compares these as plain strings), so
+// only the *display* is Persian -- nothing downstream has to change.
+// ═══════════════════════════════════════════════════════════════════════
+const PERSIAN_MONTHS_FA = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور',
+                            'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'];
+const PERSIAN_WEEKDAYS_FA = ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج']; // شنبه..جمعه, single-letter headers
+
+function toPersianDigits(input) {
+    const fa = ['۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'];
+    return String(input).replace(/[0-9]/g, d => fa[+d]);
+}
+
+// Civil-calendar conversion algorithm (the same one used by most Jalali
+// date libraries) -- round-trips exactly for every date, leap years
+// included, verified against known Nowruz dates (1403-1405).
+function gregorianToJalali(gy, gm, gd) {
+    const g_d_m = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
+    const gy2 = (gm > 2) ? (gy + 1) : gy;
+    let days = 355666 + (365 * gy) + Math.floor((gy2 + 3) / 4) - Math.floor((gy2 + 99) / 100)
+        + Math.floor((gy2 + 399) / 400) + gd + g_d_m[gm - 1];
+    let jy = -1595 + (33 * Math.floor(days / 12053));
+    days %= 12053;
+    jy += 4 * Math.floor(days / 1461);
+    days %= 1461;
+    if (days > 365) {
+        jy += Math.floor((days - 1) / 365);
+        days = (days - 1) % 365;
+    }
+    let jm, jd;
+    if (days < 186) {
+        jm = 1 + Math.floor(days / 31);
+        jd = 1 + (days % 31);
+    } else {
+        jm = 7 + Math.floor((days - 186) / 30);
+        jd = 1 + ((days - 186) % 30);
+    }
+    return [jy, jm, jd];
+}
+
+function jalaliToGregorian(jy, jm, jd) {
+    jy += 1595;
+    let days = -355668 + (365 * jy) + (Math.floor(jy / 33) * 8) + Math.floor(((jy % 33) + 3) / 4)
+        + jd + ((jm < 7) ? (jm - 1) * 31 : ((jm - 7) * 30) + 186);
+    let gy = 400 * Math.floor(days / 146097);
+    days %= 146097;
+    if (days > 36524) {
+        gy += 100 * Math.floor(--days / 36524);
+        days %= 36524;
+        if (days >= 365) days++;
+    }
+    gy += 4 * Math.floor(days / 1461);
+    days %= 1461;
+    if (days > 365) {
+        gy += Math.floor((days - 1) / 365);
+        days = (days - 1) % 365;
+    }
+    const gd0 = days + 1;
+    const sal_a = [0, 31, ((gy % 4 === 0 && gy % 100 !== 0) || (gy % 400 === 0)) ? 29 : 28,
+        31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+    let gm = 0, gd = gd0;
+    for (; gm < 13; gm++) {
+        const v = sal_a[gm];
+        if (gd <= v) break;
+        gd -= v;
+    }
+    return [gy, gm, gd];
+}
+
+// Month 1-6 are always 31 days, 7-11 always 30 -- only month 12 (28/29
+// days, esfand) varies by leap year. Rather than re-deriving the 33-year
+// leap-year rule (easy to get subtly wrong), just measure this Jalali
+// year's real length via the already-verified conversion above.
+function jalaliYearLength(jy) {
+    const [gy1, gm1, gd1] = jalaliToGregorian(jy, 1, 1);
+    const [gy2, gm2, gd2] = jalaliToGregorian(jy + 1, 1, 1);
+    return Math.round((Date.UTC(gy2, gm2 - 1, gd2) - Date.UTC(gy1, gm1 - 1, gd1)) / 86400000);
+}
+
+function jalaliMonthLength(jy, jm) {
+    if (jm <= 6) return 31;
+    if (jm <= 11) return 30;
+    return jalaliYearLength(jy) - 336; // 336 = 6×31 + 5×30, the first 11 months
+}
+
+function formatIsoAsJalaliDisplay(iso) {
+    if (!iso) return '';
+    const [gy, gm, gd] = iso.split('-').map(Number);
+    const [jy, jm, jd] = gregorianToJalali(gy, gm, gd);
+    return `${toPersianDigits(jd)} ${PERSIAN_MONTHS_FA[jm - 1]} ${toPersianDigits(jy)}`;
+}
+
+let jalaliCalendarOpenFor = null;  // e.g. 'wo-due', or null when closed
+let jalaliCalendarViewYear = null;
+let jalaliCalendarViewMonth = null;
+
+function toggleJalaliCalendar(baseId) {
+    if (jalaliCalendarOpenFor === baseId) { closeJalaliCalendar(); return; }
+    const popup = document.getElementById(baseId + '-calendar');
+    const hidden = document.getElementById(baseId);
+    if (!popup || !hidden) return;
+
+    jalaliCalendarOpenFor = baseId;
+    const today = new Date();
+    if (hidden.value) {
+        const [gy, gm, gd] = hidden.value.split('-').map(Number);
+        [jalaliCalendarViewYear, jalaliCalendarViewMonth] = gregorianToJalali(gy, gm, gd);
+    } else {
+        [jalaliCalendarViewYear, jalaliCalendarViewMonth] =
+            gregorianToJalali(today.getFullYear(), today.getMonth() + 1, today.getDate());
+    }
+    renderJalaliCalendar();
+    popup.classList.remove('hidden');
+}
+
+function closeJalaliCalendar() {
+    if (!jalaliCalendarOpenFor) return;
+    document.getElementById(jalaliCalendarOpenFor + '-calendar')?.classList.add('hidden');
+    jalaliCalendarOpenFor = null;
+}
+
+function jalaliCalendarShiftMonth(n) {
+    jalaliCalendarViewMonth += n;
+    if (jalaliCalendarViewMonth > 12) { jalaliCalendarViewMonth = 1; jalaliCalendarViewYear++; }
+    if (jalaliCalendarViewMonth < 1) { jalaliCalendarViewMonth = 12; jalaliCalendarViewYear--; }
+    renderJalaliCalendar();
+}
+
+function renderJalaliCalendar() {
+    const baseId = jalaliCalendarOpenFor;
+    if (!baseId) return;
+    const popup = document.getElementById(baseId + '-calendar');
+    const hidden = document.getElementById(baseId);
+    if (!popup || !hidden) return;
+
+    const jy = jalaliCalendarViewYear, jm = jalaliCalendarViewMonth;
+    let selJ = null;
+    if (hidden.value) {
+        const [gy, gm, gd] = hidden.value.split('-').map(Number);
+        selJ = gregorianToJalali(gy, gm, gd);
+    }
+    const today = new Date();
+    const [ty, tm, td] = gregorianToJalali(today.getFullYear(), today.getMonth() + 1, today.getDate());
+
+    const [gy1, gm1, gd1] = jalaliToGregorian(jy, jm, 1);
+    const jsWeekday = new Date(gy1, gm1 - 1, gd1).getDay(); // JS: 0=Sun..6=Sat
+    const startOffset = (jsWeekday + 1) % 7;                // shift so 0=Sat (شنبه)
+    const monthLen = jalaliMonthLength(jy, jm);
+
+    let cells = '';
+    for (let i = 0; i < startOffset; i++) cells += `<div></div>`;
+    for (let d = 1; d <= monthLen; d++) {
+        const isSel = !!(selJ && selJ[0] === jy && selJ[1] === jm && selJ[2] === d);
+        const isToday = ty === jy && tm === jm && td === d;
+        cells += `<button type="button" onclick="selectJalaliDate('${baseId}',${jy},${jm},${d})"
+            class="text-[11px] rounded-md py-1.5 en" style="
+                background:${isSel ? 'var(--accent)' : 'transparent'};
+                color:${isSel ? 'var(--btn-text-on-accent)' : (isToday ? 'var(--accent)' : 'var(--text-main)')};
+                font-weight:${isSel || isToday ? '900' : '600'};
+                border:${isToday && !isSel ? '1px solid var(--accent)' : '1px solid transparent'};
+                cursor:pointer;">${toPersianDigits(d)}</button>`;
+    }
+
+    popup.innerHTML = `
+        <div class="flex items-center justify-between mb-2">
+            <button type="button" onclick="jalaliCalendarShiftMonth(-1)" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:.95rem;padding:0 .4rem;">‹</button>
+            <span class="text-xs font-black" style="color:var(--text-main);">${PERSIAN_MONTHS_FA[jm - 1]} ${toPersianDigits(jy)}</span>
+            <button type="button" onclick="jalaliCalendarShiftMonth(1)" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:.95rem;padding:0 .4rem;">›</button>
+        </div>
+        <div class="grid grid-cols-7 gap-0.5 mb-1">
+            ${PERSIAN_WEEKDAYS_FA.map(w => `<div class="text-[10px] text-center font-bold" style="color:var(--text-muted);">${w}</div>`).join('')}
+        </div>
+        <div class="grid grid-cols-7 gap-0.5">${cells}</div>
+        <div class="flex items-center justify-between mt-2 pt-2" style="border-top:1px solid var(--divider);">
+            <button type="button" onclick="jalaliCalendarGoToday('${baseId}')" class="text-[10px] font-bold" style="background:none;border:none;color:var(--accent);cursor:pointer;">امروز</button>
+            <button type="button" onclick="clearJalaliDate('${baseId}')" class="text-[10px] font-bold" style="background:none;border:none;color:#f87171;cursor:pointer;">پاک کردن</button>
+        </div>`;
+}
+
+function selectJalaliDate(baseId, jy, jm, jd) {
+    const [gy, gm, gd] = jalaliToGregorian(jy, jm, jd);
+    const iso = `${gy}-${String(gm).padStart(2, '0')}-${String(gd).padStart(2, '0')}`;
+    const hidden = document.getElementById(baseId);
+    const display = document.getElementById(baseId + '-display');
+    if (hidden) hidden.value = iso;
+    if (display) display.value = formatIsoAsJalaliDisplay(iso);
+    closeJalaliCalendar();
+}
+
+function clearJalaliDate(baseId) {
+    const hidden = document.getElementById(baseId);
+    const display = document.getElementById(baseId + '-display');
+    if (hidden) hidden.value = '';
+    if (display) display.value = '';
+    closeJalaliCalendar();
+}
+
+function jalaliCalendarGoToday(baseId) {
+    const today = new Date();
+    const [jy, jm, jd] = gregorianToJalali(today.getFullYear(), today.getMonth() + 1, today.getDate());
+    selectJalaliDate(baseId, jy, jm, jd);
+}
+
+document.addEventListener('click', (e) => {
+    if (!jalaliCalendarOpenFor) return;
+    const wrapper = document.getElementById(jalaliCalendarOpenFor + '-display')?.closest('.relative');
+    if (wrapper && !wrapper.contains(e.target)) closeJalaliCalendar();
+});
+
 // WORK SCHEDULE / CALENDAR — weekly calendar of orders added from within a
 // client's profile. Distinguishes سفارش های تاییدی from سفارش های مهر مترجم
 // (type badges + filter) and surfaces deadlines so the translator stays on
@@ -1679,6 +1894,7 @@ function openWorkOrderModal() {
     document.getElementById('wo-submit-btn').textContent = 'ثبت سفارش';
     document.getElementById('wo-title').value = '';
     document.getElementById('wo-due').value = '';
+    document.getElementById('wo-due-display').value = '';
     document.getElementById('wo-notes').value = '';
     document.getElementById('wo-status').value = 'PENDING';
     document.getElementById('wo-status').disabled = true;
@@ -1696,6 +1912,7 @@ function openWorkOrderEdit(orderId) {
     document.getElementById('wo-submit-btn').textContent = 'ذخیره تغییرات';
     document.getElementById('wo-title').value = o.title || '';
     document.getElementById('wo-due').value = o.due_date || '';
+    document.getElementById('wo-due-display').value = formatIsoAsJalaliDisplay(o.due_date || '');
     document.getElementById('wo-notes').value = o.notes || '';
     document.getElementById('wo-status').value = o.status || 'PENDING';
     document.getElementById('wo-status').disabled = false;
@@ -1707,6 +1924,7 @@ function openWorkOrderEdit(orderId) {
 function closeWorkOrderModal() {
     document.getElementById('workOrderModal').classList.add('hidden');
     workOrderEditingId = null;
+    closeJalaliCalendar();
 }
 
 function selectWorkOrderType(type) {
