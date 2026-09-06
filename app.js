@@ -967,6 +967,8 @@ function submitSupportTicket() {
 /* ============ SECTION: VIEW NAVIGATION (workspace/clients/landing) ============ */
 async function openWorkspaceDashboard(pushHistory = true) {
     if (!currentUserSession) { openAuthModal(); return; }
+    const hb = document.querySelector('.header-bar');
+    if (hb) hb.classList.remove('hidden');
     const dashboardEl = document.getElementById('workspaceDashboard');
     dashboardEl.classList.remove('hidden');
     dashboardEl.scrollTop = 0;
@@ -995,6 +997,8 @@ async function openWorkspaceDashboard(pushHistory = true) {
 // from translation_jobs via client_id, not duplicated anywhere.
 async function openClientsWorkspace(pushHistory = true) {
     if (!currentUserSession) { openAuthModal(); return; }
+    const hb = document.querySelector('.header-bar');
+    if (hb) hb.classList.remove('hidden');
     const el = document.getElementById('clientsWorkspace');
     el.classList.remove('hidden');
     el.scrollTop = 0;
@@ -1024,6 +1028,8 @@ function closeClientsWorkspace(pushHistory = true) {
 function showLandingView() {
     const lp = document.getElementById('landingPage');
     if (lp) lp.style.display = '';
+    const hb = document.querySelector('.header-bar');
+    if (hb) hb.classList.add('hidden');
     const wd = document.getElementById('workspaceDashboard');
     if (wd) wd.classList.add('hidden');
     const ad = document.getElementById('adminDashboard');
@@ -1699,6 +1705,7 @@ function hideWorkspaceViews() {
 function showFullView(id) {
     hideWorkspaceViews();
     const headerEl = document.querySelector('.header-bar');
+	if (headerEl) headerEl.classList.remove('hidden');
     const el = document.getElementById(id);
     el.classList.remove('hidden');
     el.scrollTop = 0;
@@ -3759,6 +3766,8 @@ function showDashboardView() {
 function showAdminDashboard() {
     const lp = document.getElementById('landingPage');
     if (lp) lp.style.display = 'none';
+    const hb = document.querySelector('.header-bar');
+    if (hb) hb.classList.remove('hidden');
     document.getElementById('workspaceDashboard').classList.add('hidden');
     document.getElementById('clientsWorkspace').classList.add('hidden');
     document.getElementById('adminDashboard').classList.remove('hidden');
