@@ -228,8 +228,12 @@
         <input type="text" id="wo-title" class="auth-input" placeholder="مثلاً تأیید ترجمه سند ازدواج">
       </div>
       <div>
-        <label class="auth-label" for="wo-due">مهلت (ددلاین)</label>
-        <input type="date" id="wo-due" class="auth-input en" dir="ltr">
+        <label class="auth-label" for="wo-due-display">مهلت (ددلاین)</label>
+        <div class="relative">
+          <input type="text" id="wo-due-display" class="auth-input" readonly placeholder="انتخاب تاریخ از تقویم..." onclick="toggleJalaliCalendar('wo-due')" style="cursor:pointer;">
+          <input type="hidden" id="wo-due">
+          <div id="wo-due-calendar" class="hidden" style="position:absolute;top:calc(100% + 4px);right:0;z-index:20;width:264px;background:var(--card-surface);border:1px solid var(--border-color);border-radius:.75rem;padding:.6rem;box-shadow:0 8px 24px rgba(0,0,0,.3);"></div>
+        </div>
       </div>
       <div>
         <label class="auth-label" for="wo-status">وضعیت</label>
