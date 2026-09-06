@@ -333,6 +333,7 @@ function syncUserSessionDOM() {
     toggle('clientsHeaderBtn',   !loggedIn);
     toggle('scheduleHeaderBtn',  !loggedIn);
     toggle('settingsHeaderBtn',  !loggedIn);
+    toggle('adminPanelHeaderBtn', !loggedIn || localStorage.getItem('deept_is_admin') !== '1');
     toggle('logoutHeaderBtn',    !loggedIn);
     const ub = document.getElementById('userBadge');
     if (ub) { ub.classList.toggle('hidden', !loggedIn); ub.style.display = loggedIn ? 'flex' : 'none'; }
@@ -967,6 +968,11 @@ function submitSupportTicket() {
 /* ============ SECTION: VIEW NAVIGATION (workspace/clients/landing) ============ */
 async function openWorkspaceDashboard(pushHistory = true) {
     if (!currentUserSession) { openAuthModal(); return; }
+    // Same fix as hideWorkspaceViews(): reaching this directly (a reload
+    // on /dashboard, not via a click that already had the landing page
+    // hidden) left its header showing over the dashboard's own content.
+    const lp = document.getElementById('landingPage');
+    if (lp) lp.style.display = 'none';
     const dashboardEl = document.getElementById('workspaceDashboard');
     dashboardEl.classList.remove('hidden');
     dashboardEl.scrollTop = 0;
@@ -995,6 +1001,9 @@ async function openWorkspaceDashboard(pushHistory = true) {
 // from translation_jobs via client_id, not duplicated anywhere.
 async function openClientsWorkspace(pushHistory = true) {
     if (!currentUserSession) { openAuthModal(); return; }
+    // Same fix as openWorkspaceDashboard() above.
+    const lp = document.getElementById('landingPage');
+    if (lp) lp.style.display = 'none';
     const el = document.getElementById('clientsWorkspace');
     el.classList.remove('hidden');
     el.scrollTop = 0;
@@ -1689,6 +1698,14 @@ async function deleteWorkOrder(orderId) {
 /* ============ SECTION: VIEW SHOW/HIDE + FULL-WINDOW VIEWS ============
    showFullView toggles the fixed overlay screens; hideWorkspaceViews resets. ============ */
 function hideWorkspaceViews() {
+    // landingPage defaults to visible and is only ever explicitly hidden
+    // by showDashboardView()/showAdminDashboard() -- any authenticated
+    // view reached directly (a reload, or a deep link via
+    // applyRouteForPath) skipped that step and left the landing page's
+    // own header/content showing underneath, e.g. on /settings, /schedule
+    // and /clients/:id, all of which route through this function.
+    const lp = document.getElementById('landingPage');
+    if (lp) lp.style.display = 'none';
     ['workspaceDashboard', 'clientsWorkspace', 'adminDashboard',
      'clientProfilePage', 'workSchedulePage', 'settingsPage'].forEach(id => {
         const el = document.getElementById(id);
