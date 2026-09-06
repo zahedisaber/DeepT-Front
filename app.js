@@ -1256,7 +1256,7 @@ const ACTIVITY_STATUS_LABELS = {
     completed:  { text: 'آماده',        color: '#4ade80' },
     failed:     { text: 'ناموفق',       color: '#f87171' },
 };
-const ACTIVITY_CATEGORY_COLORS = { job: '#4ade80', sanam: '#38bdf8' };
+const ACTIVITY_CATEGORY_COLORS = { job: '#4ade80', sanam: '#38bdf8', manual: '#fbbf24' };
 
 function activityRowKey(type, id) { return `${type}:${id}`; }
 
@@ -1322,6 +1322,7 @@ function renderClientActivityList(jobs, sanamDocs) {
                 : (r.trackingCode ? `<span class="en" style="color:var(--text-muted);font-size:.65rem;">کد پیگیری ${escapeHtml(r.trackingCode)}</span>` : '');
             const dateStr = r.date ? escapeHtml(String(r.date).slice(0, 10)) : '—';
             return `<div class="flex items-center gap-2.5 p-2.5 rounded-lg text-xs" style="background:var(--bg-main);border:1px solid var(--border-subtle);border-inline-start:3px solid ${color};">
+                <span title="${r.type === 'job' ? 'ترجمه ماشینی DeepT' : 'وارد شده از سنام'}" style="width:9px;height:9px;border-radius:50%;background:${color};display:inline-block;flex-shrink:0;"></span>
                 <input type="checkbox" ${checked ? 'checked' : ''} ${r.checkable ? '' : 'disabled'}
                     data-activity-key="${escapeHtml(activityRowKey(r.type, r.id))}"
                     onchange='toggleActivityInDraft(${JSON.stringify(r.type)}, ${JSON.stringify(r.id)}, ${JSON.stringify(r.title)}, ${r.price}, this.checked)'
@@ -1444,8 +1445,13 @@ function renderDraftRows() {
     empty.classList.toggle('hidden', invoiceDraft.length > 0);
     box.innerHTML = invoiceDraft.map((row, idx) => {
         const lineTotal = (row.quantity || 0) * (row.unit_price_toman || 0);
+        // Same color as the source it came from in the activity list above
+        // (amber for a row typed fresh, with no _source_key at all) -- so
+        // the draft keeps showing the same category coding end to end.
+        const dotColor = ACTIVITY_CATEGORY_COLORS[(row._source_key || '').split(':')[0]] || ACTIVITY_CATEGORY_COLORS.manual;
         return `
-        <div class="flex items-center gap-1.5 p-2 rounded-lg" style="background:var(--card-surface);border:1px solid var(--border-subtle);">
+        <div class="flex items-center gap-1.5 p-2 rounded-lg" style="background:var(--card-surface);border:1px solid var(--border-subtle);border-inline-start:3px solid ${dotColor};">
+            <span style="width:8px;height:8px;border-radius:50%;background:${dotColor};display:inline-block;flex-shrink:0;"></span>
             <input type="text" value="${row.description.replace(/"/g,'&quot;')}" placeholder="شرح ردیف (مثلاً هزینه پیک)" oninput="updateDraftRow(${idx},'description',this.value)" class="auth-input flex-1" style="padding:.4rem .6rem;font-size:.78rem;">
             <input type="number" min="1" value="${row.quantity}" title="تعداد" oninput="updateDraftRow(${idx},'quantity',this.value)" class="auth-input en" dir="ltr" style="width:52px;padding:.4rem .4rem;font-size:.78rem;text-align:center;">
             <span class="text-[10px] shrink-0" style="color:var(--text-muted);">×</span>
