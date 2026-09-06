@@ -1798,12 +1798,68 @@ function closeClientProfilePage() {
 }
 
 // Start a new project tied to the currently open client profile.
-function openChatForClient() {
+// Auto-populates the multi-passport list from what's already on file --
+// the main contact plus any نفرات مرتبط (related persons, e.g. a spouse
+// or child whose passport was confirmed alongside this client's on an
+// earlier job) -- instead of making the translator re-upload passports
+// DeepT already has. Mints a fresh session for each via the same
+// /passport/confirm endpoint the manual upload flow uses (it only needs
+// identity fields, not an actual image), so nothing downstream needs to
+// know these came from a saved profile rather than a fresh scan. Every
+// person added this way still shows up in the normal confirmed-passports
+// list with its own remove button, so a translator can drop anyone not
+// needed for this particular job before continuing.
+async function openChatForClient() {
     if (!currentClientDetailId) return;
     selectedClientId = currentClientDetailId;
     mainContactClientId = currentClientDetailId;
+
+    try {
+        const token = localStorage.getItem('deept_token');
+        const res = await fetch(`${CORE}/clients/${currentClientDetailId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+            const client = await res.json();
+            const people = [client, ...(client.related_persons || [])];
+            let addedCount = 0;
+            for (const p of people) {
+                if (!(p.first_name || '').trim() && !(p.last_name || '').trim()) continue;
+                // Don't re-add someone already in the list (e.g. the
+                // translator clicked "New Project" for this client twice).
+                if (p.national_id && confirmedPassports.some(cp => cp.national_id === p.national_id)) continue;
+                const first  = (p.first_name  || '').trim().toUpperCase();
+                const last   = (p.last_name   || '').trim().toUpperCase();
+                const father = (p.father_name || '').trim().toUpperCase();
+                const dob    = (p.date_of_birth || '').trim();
+                const national = (p.national_id || '').trim();
+                try {
+                    const r = await fetch(`${getActiveBackendOrigin()}/passport/confirm`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ first_name: first, last_name: last, father_name: father, date_of_birth: dob, national_id: national })
+                    });
+                    if (r.ok) {
+                        const d = await r.json();
+                        confirmedPassports.push({ session_id: d.session_id, first_name: first, last_name: last, father_name: father, date_of_birth: dob, national_id: national });
+                        addedCount++;
+                    }
+                } catch (e) { /* one person's session failing shouldn't block the rest */ }
+            }
+            if (addedCount > 0) {
+                updateClientBadge();
+                showToast(addedCount > 1
+                    ? `✅ اطلاعات ${addedCount} نفر از پروفایل این مشتری بارگذاری شد`
+                    : `✅ اطلاعات مشتری از پروفایل بارگذاری شد`);
+            }
+        }
+    } catch (e) { /* fall through -- worst case, translator uploads a passport manually as before */ }
+
     navigateTo('/new-project');
-    openChatInterface(false);
+    // Force 'doctype': a document type still needs picking regardless of
+    // whether identity info came pre-filled -- see openChatInterface()'s
+    // forceStage doc comment.
+    openChatInterface(false, 'doctype');
 }
 
 // ── Open the office-wide weekly work schedule ──────────────────────────
@@ -2462,10 +2518,18 @@ window.addEventListener('popstate', () => {
 // ═══════════════════════════════════════════════════════════
 /* ============ SECTION: TRANSLATION PIPELINE (chat modal) ============
    Stages: doc type -> passport -> document; multi-passport; chunk upload. ============ */
-function openChatInterface(pushHistory = true) {
+// forceStage lets a caller override the usual "resume where the passport
+// step left off" guess -- needed by openChatForClient(), which populates
+// confirmedPassports from a saved client profile BEFORE the doctype has
+// ever been picked in this session; without it, a non-empty
+// confirmedPassports would (correctly, for every OTHER caller here) jump
+// straight past doctype selection into the document-upload stage.
+function openChatInterface(pushHistory = true, forceStage = null) {
     document.getElementById('chatModal').classList.remove('hidden');
     document.body.style.overflow = 'hidden';
-    if (confirmedPassports.length > 0) {
+    if (forceStage) {
+        showOnlyStage(forceStage);
+    } else if (confirmedPassports.length > 0) {
         showOnlyStage('document');
     } else {
         showOnlyStage('doctype');
