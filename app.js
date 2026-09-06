@@ -1216,14 +1216,14 @@ async function openClientDetail(clientId) {
         } else {
             jobsBox.innerHTML = c.jobs.map(j => {
                 const st = STATUS_LABELS[j.status] || { text: escapeHtml(j.status), color: 'var(--text-muted)' };
-                const typeLabel = DOCUMENT_REGISTRY[j.document_type]?.label || j.document_type;
+                const typeLabel = DOCUMENT_REGISTRY[j.document_type]?.label || escapeHtml(j.document_type);
                 // Only a completed job has a settled price worth invoicing --
                 // queued/processing/failed jobs don't get an "add" button.
                 const addBtn = j.status === 'completed'
                     ? `<button onclick='addJobToDraft(${JSON.stringify(j.id)}, ${JSON.stringify(typeLabel)}, ${j.price_toman || 0})' class="text-[11px] font-bold px-2 py-1 rounded-md transition shrink-0" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">+ افزودن</button>`
                     : `<span style="width:3.2rem;display:inline-block;"></span>`;
                 return `<div class="flex items-center gap-2.5 p-2.5 rounded-lg text-xs" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
-                    <span class="flex-1" style="color:var(--text-main);">${escapeHtml(typeLabel)}</span>
+                    <span class="flex-1" style="color:var(--text-main);">${typeLabel}</span>
                     <span class="en" style="color:var(--text-muted);">${j.price_toman ? j.price_toman.toLocaleString() + ' ت' : ''}</span>
                     <span class="status-pill" style="color:${st.color};background:${st.color}1f;">${st.text}</span>
                     ${addBtn}
@@ -1295,7 +1295,7 @@ async function renderClientInvoices(clientId) {
                 <div class="flex items-center justify-between gap-2">
                     <span class="flex items-center gap-1.5" style="color:var(--text-main);">
                         🧾 <span class="status-pill" style="color:${t.color};background:${t.color}1f;">${t.text}</span>
-                        ${SOURCE_LABELS[inv.source] || escapeHtml(inv.source)}${inv.tracking_code ? ' · کد پیگیری ' + escapeHtml(inv.tracking_code) : ''}
+                        ${SOURCE_LABELS[inv.source] || inv.source}${inv.tracking_code ? ' · کد پیگیری ' + escapeHtml(inv.tracking_code) : ''}
                     </span>
                     <span class="flex items-center gap-2">
                         <span class="font-bold en" style="color:var(--accent);">${(inv.total_toman || 0).toLocaleString()} تومان</span>
@@ -1552,8 +1552,8 @@ async function renderWorkWeek() {
 
         const ordersHtml = orders.length
             ? orders.map(o => {
-                const t = WORK_ORDER_TYPE_FA[o.order_type] || { text: escapeHtml(o.order_type), color: 'var(--accent)' };
-                const s = WORK_ORDER_STATUS_FA[o.status] || { text: escapeHtml(o.status), color: 'var(--text-muted)' };
+                const t = WORK_ORDER_TYPE_FA[o.order_type] || { text: o.order_type, color: 'var(--accent)' };
+                const s = WORK_ORDER_STATUS_FA[o.status] || { text: o.status, color: 'var(--text-muted)' };
                 const done = o.status === 'DONE';
                 return `
                   <div onclick="openWorkOrderEdit('${o.id}')" class="p-1.5 rounded-md text-[10px] cursor-pointer mb-1 hover:opacity-85" style="background:${(t.color) + '1a'};border:1px solid ${t.color}55;border-left:3px solid ${t.color};">
@@ -1772,13 +1772,13 @@ async function openClientProfile(clientId) {
             jobsBox.innerHTML = `<div class="text-xs text-center py-4" style="color:var(--text-muted);">// بدون سابقه پروژه</div>`;
         } else {
             jobsBox.innerHTML = c.jobs.map(j => {
-                const st = STATUS_LABELS[j.status] || { text: escapeHtml(j.status), color: 'var(--text-muted)' };
+                const st = STATUS_LABELS[j.status] || { text: j.status, color: 'var(--text-muted)' };
                 const typeLabel = DOCUMENT_REGISTRY[j.document_type]?.label || j.document_type;
                 const addBtn = j.status === 'completed'
                     ? `<button onclick='addJobToDraft(${JSON.stringify(j.id)}, ${JSON.stringify(typeLabel)}, ${j.price_toman || 0})' class="text-[11px] font-bold px-2 py-1 rounded-md transition shrink-0" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">+ افزودن</button>`
                     : `<span style="width:3.2rem;display:inline-block;"></span>`;
                 return `<div class="flex items-center gap-2.5 p-2.5 rounded-lg text-xs" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
-                    <span class="flex-1" style="color:var(--text-main);">${escapeHtml(typeLabel)}</span>
+                    <span class="flex-1" style="color:var(--text-main);">${typeLabel}</span>
                     <span class="en" style="color:var(--text-muted);">${j.price_toman ? j.price_toman.toLocaleString() + ' ت' : ''}</span>
                     <span class="status-pill" style="color:${st.color};background:${st.color}1f;">${st.text}</span>
                     ${addBtn}
@@ -1937,8 +1937,8 @@ async function renderScheduleWeek() {
 
         const itemsHtml = dayOrders.length
             ? dayOrders.map(o => {
-                const t = WORK_ORDER_TYPE_FA[o.order_type] || { text: escapeHtml(o.order_type), color: 'var(--accent)' };
-                const s = WORK_ORDER_STATUS_FA[o.status] || { text: escapeHtml(o.status), color: 'var(--text-muted)' };
+                const t = WORK_ORDER_TYPE_FA[o.order_type] || { text: o.order_type, color: 'var(--accent)' };
+                const s = WORK_ORDER_STATUS_FA[o.status] || { text: o.status, color: 'var(--text-muted)' };
                 const done = o.status === 'DONE';
                 const clickTarget = o.client_id
                     ? `onclick="openClientProfile('${o.client_id}')" title="باز کردن پروفایل مشتری"`
@@ -1971,8 +1971,8 @@ async function renderScheduleWeek() {
     } else {
         orders.sort((a, b) => (a.due_date || '').localeCompare(b.due_date || ''));
         list.innerHTML = orders.map(o => {
-                const t = WORK_ORDER_TYPE_FA[o.order_type] || { text: escapeHtml(o.order_type), color: 'var(--accent)' };
-                const s = WORK_ORDER_STATUS_FA[o.status] || { text: escapeHtml(o.status), color: 'var(--text-muted)' };
+            const t = WORK_ORDER_TYPE_FA[o.order_type] || { text: o.order_type, color: 'var(--accent)' };
+            const s = WORK_ORDER_STATUS_FA[o.status] || { text: o.status, color: 'var(--text-muted)' };
             return `
               <div class="flex items-center justify-between gap-3 p-2.5 rounded-lg text-xs" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
                 <div class="flex items-center gap-2 min-w-0">
@@ -3403,7 +3403,8 @@ function saveSession(data) {
 }
 
 /* ============ SECTION: LOGIN / SIGNUP / AUTH MODALS ============
-   Esc-close + overlay backdrop click close; success panels. ============ */
+   Auth modals close only via explicit ✕ / switch links / success; only
+   quickStartOverlay keeps backdrop-click close. Success panels. ============ */
 async function handleLogin() {
     const email = document.getElementById('li-email').value.trim();
     const pass  = document.getElementById('li-pass').value;
@@ -3958,8 +3959,8 @@ async function adminViewUserJobs(userId, email) {
             tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">این کاربر پروژه‌ای ندارد.</td></tr>`;
             return;
         }
-        const typeLabel = (t) => DOCUMENT_REGISTRY[t]?.label || escapeHtml(t);
-        const statusLabel = (s) => ({queued:'در صف', processing:'در حال پردازش', completed:'تکمیل شده', failed:'ناموفق'}[s] || escapeHtml(s));
+        const typeLabel = (t) => DOCUMENT_REGISTRY[t]?.label || t;
+        const statusLabel = (s) => ({queued:'در صف', processing:'در حال پردازش', completed:'تکمیل شده', failed:'ناموفق'}[s] || s);
         tbody.innerHTML = jobs.map(j => `
             <tr style="border-bottom:1px solid var(--divider);">
                 <td class="py-2 px-2" style="color:var(--text-main);">${typeLabel(j.document_type)}</td>
@@ -4335,13 +4336,13 @@ function applyCrmFilters() {
         return;
     }
     
-    const typeLabel = (t) => DOCUMENT_REGISTRY[t]?.label || escapeHtml(t);
+    const typeLabel = (t) => DOCUMENT_REGISTRY[t]?.label || t;
     const statusLabel = (s) => ({
         queued: 'در صف',
         processing: 'در حال پردازش',
         completed: 'تکمیل شده',
         failed: 'ناموفق'
-    }[s] || escapeHtml(s));
+    }[s] || s);
     
     const statusBadgeStyle = (s) => {
         if (s === 'completed') return 'background:#4ade80; color:#000; font-weight:bold;';
