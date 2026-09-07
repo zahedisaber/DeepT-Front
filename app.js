@@ -1320,7 +1320,7 @@ function renderClientActivityList(jobs, sanamDocs) {
     if (!rows.length) {
         const emptyMsg = '// بدون سابقه پروژه یا سند';
         box.innerHTML = prefix === 'cp'
-            ? `<tr><td colspan="7" class="text-xs text-center py-4" style="color:var(--text-muted);">${emptyMsg}</td></tr>`
+            ? `<tr><td colspan="6" class="text-xs text-center py-4" style="color:var(--text-muted);">${emptyMsg}</td></tr>`
             : `<div class="text-xs text-center py-4" style="color:var(--text-muted);">${emptyMsg}</div>`;
         return;
     }
@@ -1346,7 +1346,6 @@ function renderClientActivityList(jobs, sanamDocs) {
                 <td class="en" style="padding:.6rem;color:var(--text-muted);">${idBadge || '—'}</td>
                 <td class="en" style="padding:.6rem;color:var(--text-muted);">${dateStr}</td>
                 <td class="en font-bold" style="padding:.6rem;color:var(--accent);">${r.price ? r.price.toLocaleString() + ' ت' : '—'}</td>
-                <td style="padding:.6rem;">${st ? `<span class="status-pill" style="color:${st.color};background:${st.color}1f;">${st.text}</span>` : '<span style="color:var(--text-muted);">—</span>'}</td>
                 <td style="padding:.6rem;text-align:center;">${checkbox}</td>
             </tr>`;
         }
