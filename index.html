@@ -901,20 +901,23 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                     <p class="text-[11px] mb-2" style="color:var(--text-muted);">برای افزودن هر مورد به پیش‌نویس فاکتور، تیک آن را بزنید.</p>
                     <!-- Capped height + its own scrollbar: a long history must
                          not push فاکتورها all the way down the page. Horizontal
-                         scroll (with nowrap cells, via overflow-x-auto below)
-                         keeps rows on one tidy line on narrow/phone widths
-                         instead of each cell wrapping onto a broken second line. -->
+                         scroll (with nowrap cells) keeps rows on one tidy line
+                         on narrow/phone widths instead of each cell wrapping
+                         onto a broken second line. (No sticky header here --
+                         position:sticky on individual <th>s desyncs the
+                         header's column widths from the body's, which is
+                         what was crushing every header label together.) -->
                     <div style="max-height:420px;overflow-y:auto;overflow-x:auto;border-radius:.6rem;">
-                        <table class="ws-table" style="width:100%;min-width:560px;white-space:nowrap;">
+                        <table class="ws-table" style="width:100%;min-width:560px;white-space:nowrap;border-spacing:0;">
                             <thead>
                                 <tr>
-                                    <th style="width:22px;position:sticky;top:0;background:var(--card-surface);"></th>
-                                    <th style="position:sticky;top:0;background:var(--card-surface);">شرح</th>
-                                    <th style="position:sticky;top:0;background:var(--card-surface);">شناسه / کد پیگیری</th>
-                                    <th style="position:sticky;top:0;background:var(--card-surface);">تاریخ</th>
-                                    <th style="position:sticky;top:0;background:var(--card-surface);">مبلغ</th>
-                                    <th style="position:sticky;top:0;background:var(--card-surface);">وضعیت</th>
-                                    <th style="width:70px;text-align:center;position:sticky;top:0;background:var(--card-surface);">فاکتور</th>
+                                    <th style="width:22px;padding:.5rem .6rem;"></th>
+                                    <th style="text-align:right;padding:.5rem .6rem;">شرح</th>
+                                    <th style="text-align:right;padding:.5rem .6rem;">شناسه / کد پیگیری</th>
+                                    <th style="text-align:right;padding:.5rem .6rem;">تاریخ</th>
+                                    <th style="text-align:right;padding:.5rem .6rem;">مبلغ</th>
+                                    <th style="text-align:right;padding:.5rem .6rem;">وضعیت</th>
+                                    <th style="width:70px;text-align:center;padding:.5rem .6rem;">فاکتور</th>
                                 </tr>
                             </thead>
                             <tbody id="cp-activity-list"></tbody>
