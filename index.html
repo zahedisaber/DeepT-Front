@@ -825,58 +825,103 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
             </div>
             <div class="flex items-center gap-2">
                 <button type="button" onclick="openChatForClient()" class="text-xs font-black px-4 py-2 rounded-xl transition" style="background:var(--accent);color:var(--btn-text-on-accent);">🚀 شروع پروژه جدید</button>
-                <button type="button" onclick="openAddClientModalForEdit()" class="text-xs font-bold px-3 py-2 rounded-xl transition" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">✏️ ویرایش</button>
             </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
-            <!-- LEFT: contact & passport -->
-            <div class="workspace-panel p-5">
-                <h3 class="text-sm font-black mb-3 flex items-center gap-1.5" style="color:var(--text-main);">👤 اطلاعات تماس و پاسپورت</h3>
-                <div class="space-y-2.5 text-xs">
-                    <div class="flex items-center justify-between pb-2" style="border-bottom:1px solid var(--divider);"><span style="color:var(--text-muted);">نام</span><span class="font-bold en" id="cp-first" style="color:var(--text-main);">—</span></div>
-                    <div class="flex items-center justify-between pb-2" style="border-bottom:1px solid var(--divider);"><span style="color:var(--text-muted);">نام خانوادگی</span><span class="font-bold en" id="cp-last" style="color:var(--text-main);">—</span></div>
-                    <div class="flex items-center justify-between pb-2" style="border-bottom:1px solid var(--divider);"><span style="color:var(--text-muted);">نام (فارسی)</span><span class="font-bold" id="cp-first-fa" style="color:var(--text-main);">—</span></div>
-                    <div class="flex items-center justify-between pb-2" style="border-bottom:1px solid var(--divider);"><span style="color:var(--text-muted);">نام خانوادگی (فارسی)</span><span class="font-bold" id="cp-last-fa" style="color:var(--text-main);">—</span></div>
-                    <div class="flex items-center justify-between pb-2" style="border-bottom:1px solid var(--divider);"><span style="color:var(--text-muted);">نام پدر</span><span class="font-bold en" id="cp-father" style="color:var(--text-main);">—</span></div>
-                    <div class="flex items-center justify-between pb-2" style="border-bottom:1px solid var(--divider);"><span style="color:var(--text-muted);">تاریخ تولد</span><span class="font-bold en" id="cp-dob" style="color:var(--text-main);">—</span></div>
-                    <div class="flex items-center justify-between pb-2" style="border-bottom:1px solid var(--divider);"><span style="color:var(--text-muted);">کد ملی</span><span class="font-bold en" id="cp-national" style="color:var(--text-main);">—</span></div>
-                    <div class="flex items-center justify-between pb-2" style="border-bottom:1px solid var(--divider);"><span style="color:var(--text-muted);">شماره پاسپورت</span><span class="font-bold en" id="cp-passport" style="color:var(--text-main);">—</span></div>
-                    <div class="flex items-center justify-between pb-2" style="border-bottom:1px solid var(--divider);"><span style="color:var(--text-muted);">ملیت</span><span class="font-bold" id="cp-nationality" style="color:var(--text-main);">—</span></div>
-                    <div class="flex items-center justify-between pb-2" style="border-bottom:1px solid var(--divider);"><span style="color:var(--text-muted);">شماره تماس</span><span class="font-bold en" id="cp-phone" style="color:var(--text-main);">—</span></div>
-                    <div class="flex items-center justify-between pb-2" style="border-bottom:1px solid var(--divider);"><span style="color:var(--text-muted);">ایمیل</span><span class="font-bold en" id="cp-email" style="color:var(--text-main);">—</span></div>
-                </div>
-
-                <h3 class="text-sm font-black mt-5 mb-3 flex items-center gap-1.5" style="color:var(--text-main);">👨‍👩‍👧‍👦 نفرات مرتبط</h3>
-                <div id="cp-related-list" class="space-y-1.5 mb-4"></div>
-
-                <label for="cp-notes" class="auth-label">یادداشت</label>
-                <textarea id="cp-notes" rows="3" class="auth-input resize-none mb-2" placeholder="یادداشتی برای این مشتری..."></textarea>
-                <button type="button" onclick="saveClientNotes()" class="w-full py-2 rounded-xl text-xs font-black transition" style="background:var(--bg-main);color:var(--accent);border:1px solid var(--border-color);">ذخیره یادداشت</button>
+        <!-- Quick stats -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+            <div class="workspace-panel p-4">
+                <div class="text-[11px] font-bold mb-1" style="color:var(--text-muted);">تعداد پروژه‌ها و اسناد</div>
+                <div class="en text-xl font-black" id="cp-stat-count" style="color:var(--text-main);">۰</div>
             </div>
-
-            <!-- CENTER: previous jobs/orders + related -->
-            <div class="workspace-panel p-5">
-                <div class="flex items-center justify-between mb-3">
-                    <h3 class="text-sm font-black flex items-center gap-1.5" style="color:var(--text-main);">📊 سابقه پروژه‌ها و اسناد <span class="en" style="color:var(--text-muted);">(<span id="cp-activity-count">۰</span>)</span></h3>
-                    <button type="button" onclick="openChatForClient()" class="text-[11px] font-black px-3 py-1.5 rounded-lg transition" style="background:var(--accent);color:var(--btn-text-on-accent);">+ پروژه جدید</button>
-                </div>
-                <div class="flex flex-wrap items-center gap-3 mb-2">
-                    <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:50%;background:#4ade80;display:inline-block;"></span>ترجمه ماشینی DeepT</span>
-                    <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:50%;background:#38bdf8;display:inline-block;"></span>وارد شده از سنام</span>
-                    <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:50%;background:#fbbf24;display:inline-block;"></span>ردیف دستی (پیش‌نویس فاکتور)</span>
-                </div>
-                <p class="text-[11px] mb-2" style="color:var(--text-muted);">برای افزودن هر مورد به پیش‌نویس فاکتور، تیک آن را بزنید.</p>
-                <div id="cp-activity-list" class="space-y-2"></div>
+            <div class="workspace-panel p-4">
+                <div class="text-[11px] font-bold mb-1" style="color:var(--text-muted);">مجموع درآمد</div>
+                <div class="text-xl font-black" style="color:var(--accent);"><span class="en" id="cp-stat-revenue">۰</span> تومان</div>
             </div>
+            <div class="workspace-panel p-4">
+                <div class="text-[11px] font-bold mb-1" style="color:var(--text-muted);">در حال پردازش</div>
+                <div class="en text-xl font-black" id="cp-stat-pending" style="color:#fbbf24;">۰</div>
+            </div>
+            <div class="workspace-panel p-4">
+                <div class="text-[11px] font-bold mb-1" style="color:var(--text-muted);">آخرین فعالیت</div>
+                <div class="en text-xl font-black" id="cp-stat-last" style="color:var(--text-main);">—</div>
+            </div>
+        </div>
 
-            <!-- RIGHT: invoices + calendar -->
-            <div class="space-y-4">
+        <!-- Tabs -->
+        <div class="flex items-center gap-6 mb-5" style="border-bottom:1px solid var(--border-subtle);">
+            <button type="button" onclick="switchClientProfileTab('overview')" id="cp-tab-btn-overview" class="text-sm font-black pb-3" style="background:none;border:none;border-bottom:3px solid var(--accent);color:var(--accent);cursor:pointer;">نمای کلی</button>
+            <button type="button" onclick="switchClientProfileTab('calendar')" id="cp-tab-btn-calendar" class="text-sm font-black pb-3" style="background:none;border:none;border-bottom:3px solid transparent;color:var(--text-muted);cursor:pointer;">📅 تقویم کاری</button>
+        </div>
+
+        <!-- TAB: نمای کلی -->
+        <div id="cp-tab-overview">
+            <div class="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-4 items-start mb-4">
+                <!-- Sidebar: contact & passport -->
                 <div class="workspace-panel p-5">
                     <div class="flex items-center justify-between mb-3">
-                        <h3 class="text-sm font-black flex items-center gap-1.5" style="color:var(--text-main);">🧾 فاکتورها <span class="en" style="color:var(--text-muted);">(<span id="cp-invoice-count">۰</span>)</span></h3>
+                        <h3 class="text-sm font-black flex items-center gap-1.5" style="color:var(--text-main);">👤 اطلاعات تماس و پاسپورت</h3>
+                        <button type="button" onclick="openAddClientModalForEdit()" title="ویرایش اطلاعات" class="transition" style="width:28px;height:28px;border-radius:.5rem;background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);cursor:pointer;font-size:.75rem;">✏️</button>
                     </div>
-                    <div class="p-3 rounded-xl mb-3" style="background:var(--bg-main);border:1px solid var(--border-color);">
+                    <div class="space-y-2.5 text-xs">
+                        <div class="flex items-center justify-between pb-2" style="border-bottom:1px solid var(--divider);"><span style="color:var(--text-muted);">نام</span><span class="font-bold en" id="cp-first" style="color:var(--text-main);">—</span></div>
+                        <div class="flex items-center justify-between pb-2" style="border-bottom:1px solid var(--divider);"><span style="color:var(--text-muted);">نام خانوادگی</span><span class="font-bold en" id="cp-last" style="color:var(--text-main);">—</span></div>
+                        <div class="flex items-center justify-between pb-2" style="border-bottom:1px solid var(--divider);"><span style="color:var(--text-muted);">نام (فارسی)</span><span class="font-bold" id="cp-first-fa" style="color:var(--text-main);">—</span></div>
+                        <div class="flex items-center justify-between pb-2" style="border-bottom:1px solid var(--divider);"><span style="color:var(--text-muted);">نام خانوادگی (فارسی)</span><span class="font-bold" id="cp-last-fa" style="color:var(--text-main);">—</span></div>
+                        <div class="flex items-center justify-between pb-2" style="border-bottom:1px solid var(--divider);"><span style="color:var(--text-muted);">نام پدر</span><span class="font-bold en" id="cp-father" style="color:var(--text-main);">—</span></div>
+                        <div class="flex items-center justify-between pb-2" style="border-bottom:1px solid var(--divider);"><span style="color:var(--text-muted);">تاریخ تولد</span><span class="font-bold en" id="cp-dob" style="color:var(--text-main);">—</span></div>
+                        <div class="flex items-center justify-between pb-2" style="border-bottom:1px solid var(--divider);"><span style="color:var(--text-muted);">کد ملی</span><span class="font-bold en" id="cp-national" style="color:var(--text-main);">—</span></div>
+                        <div class="flex items-center justify-between pb-2" style="border-bottom:1px solid var(--divider);"><span style="color:var(--text-muted);">شماره پاسپورت</span><span class="font-bold en" id="cp-passport" style="color:var(--text-main);">—</span></div>
+                        <div class="flex items-center justify-between pb-2" style="border-bottom:1px solid var(--divider);"><span style="color:var(--text-muted);">ملیت</span><span class="font-bold" id="cp-nationality" style="color:var(--text-main);">—</span></div>
+                        <div class="flex items-center justify-between pb-2" style="border-bottom:1px solid var(--divider);"><span style="color:var(--text-muted);">شماره تماس</span><span class="font-bold en" id="cp-phone" style="color:var(--text-main);">—</span></div>
+                        <div class="flex items-center justify-between pb-2" style="border-bottom:1px solid var(--divider);"><span style="color:var(--text-muted);">ایمیل</span><span class="font-bold en" id="cp-email" style="color:var(--text-main);">—</span></div>
+                    </div>
+
+                    <h3 class="text-sm font-black mt-5 mb-3 flex items-center gap-1.5" style="color:var(--text-main);">👨‍👩‍👧‍👦 نفرات مرتبط</h3>
+                    <div id="cp-related-list" class="space-y-1.5 mb-4"></div>
+
+                    <label for="cp-notes" class="auth-label">یادداشت</label>
+                    <textarea id="cp-notes" rows="3" class="auth-input resize-none mb-2" placeholder="یادداشتی برای این مشتری..."></textarea>
+                    <button type="button" onclick="saveClientNotes()" class="w-full py-2 rounded-xl text-xs font-black transition" style="background:var(--bg-main);color:var(--accent);border:1px solid var(--border-color);">ذخیره یادداشت</button>
+                </div>
+
+                <!-- Wide activity table -->
+                <div class="workspace-panel p-5">
+                    <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+                        <h3 class="text-sm font-black flex items-center gap-1.5" style="color:var(--text-main);">📊 سابقه پروژه‌ها و اسناد <span class="en" style="color:var(--text-muted);">(<span id="cp-activity-count">۰</span>)</span></h3>
+                        <button type="button" onclick="openChatForClient()" class="text-[11px] font-black px-3 py-1.5 rounded-lg transition" style="background:var(--accent);color:var(--btn-text-on-accent);">+ پروژه جدید</button>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-3 mb-2">
+                        <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:50%;background:#4ade80;display:inline-block;"></span>ترجمه ماشینی DeepT</span>
+                        <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:50%;background:#38bdf8;display:inline-block;"></span>وارد شده از سنام</span>
+                        <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:50%;background:#fbbf24;display:inline-block;"></span>ردیف دستی (پیش‌نویس فاکتور)</span>
+                    </div>
+                    <p class="text-[11px] mb-2" style="color:var(--text-muted);">برای افزودن هر مورد به پیش‌نویس فاکتور، تیک آن را بزنید.</p>
+                    <div class="overflow-x-auto">
+                        <table class="ws-table" style="width:100%;">
+                            <thead>
+                                <tr>
+                                    <th style="width:22px;"></th>
+                                    <th>شرح</th>
+                                    <th>شناسه / کد پیگیری</th>
+                                    <th>تاریخ</th>
+                                    <th>مبلغ</th>
+                                    <th>وضعیت</th>
+                                    <th style="width:70px;text-align:center;">فاکتور</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cp-activity-list"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Invoices row -->
+            <div class="workspace-panel p-5">
+                <h3 class="text-sm font-black mb-3 flex items-center gap-1.5" style="color:var(--text-main);">🧾 فاکتورها <span class="en" style="color:var(--text-muted);">(<span id="cp-invoice-count">۰</span>)</span></h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="p-3 rounded-xl" style="background:var(--bg-main);border:1px solid var(--border-color);">
+                        <h4 class="text-xs font-black mb-2.5 flex items-center gap-1.5" style="color:var(--text-main);">🧮 پیش‌نویس فاکتور</h4>
                         <div class="flex flex-wrap items-center gap-2 mb-2">
                             <button type="button" onclick="addCustomInvoiceRow()" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">+ ردیف دلخواه</button>
                             <button type="button" onclick="addPresetInvoiceRow('تمبر دادگستری', 60000)" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">+ تمبر</button>
@@ -894,25 +939,23 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                     </div>
                     <div id="cp-invoices-list" class="space-y-2"></div>
                 </div>
+            </div>
+        </div>
 
-                <div class="workspace-panel p-5">
-                    <div class="flex items-center justify-between mb-3">
-                        <h3 class="text-sm font-black flex items-center gap-1.5" style="color:var(--text-main);">📅 تقویم کاری</h3>
-                    </div>
-                    <div class="flex items-center gap-2 mb-3 flex-wrap">
-                        <button type="button" onclick="shiftWorkWeek(-1)" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--bg-main);color:var(--accent);border:1px solid var(--border-color);">‹</button>
-                        <button type="button" onclick="setWorkWeekToToday()" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">امروز</button>
-                        <button type="button" onclick="shiftWorkWeek(1)" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--bg-main);color:var(--accent);border:1px solid var(--border-color);">›</button>
-                        <span class="text-[11px] font-black en flex-1 text-left" id="workWeekLabel" style="color:var(--text-main);">—</span>
-                    </div>
-                    <div class="flex items-center gap-2 mb-3 flex-wrap">
-                        <button type="button" onclick="setWorkOrderTypeFilter(null)" id="wft-all" class="text-[11px] font-bold px-3 py-1 rounded-lg transition" style="background:var(--accent);color:var(--btn-text-on-accent);border:1px solid transparent;">همه</button>
-                        <button type="button" onclick="setWorkOrderTypeFilter('TAYIDI')" id="wft-TAYIDI" class="text-[11px] font-bold px-3 py-1 rounded-lg transition" style="background:var(--bg-main);border:1px solid #38bdf8;color:#38bdf8;">تاییدی</button>
-                        <button type="button" onclick="setWorkOrderTypeFilter('MEHR_MOTARJEM')" id="wft-MEHR_MOTARJEM" class="text-[11px] font-bold px-3 py-1 rounded-lg transition" style="background:var(--bg-main);border:1px solid #c084fc;color:#c084fc;">مهر مترجم</button>
-                        <button type="button" onclick="openWorkOrderModal()" class="text-[11px] font-black px-3 py-1.5 rounded-lg transition ms-auto" style="background:var(--accent);color:var(--btn-text-on-accent);">+ سفارش</button>
-                    </div>
-                    <div id="workWeekGrid" style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px;overflow-x:auto;"></div>
+        <!-- TAB: تقویم کاری -->
+        <div id="cp-tab-calendar" class="hidden">
+            <div class="workspace-panel p-5">
+                <div class="flex items-center gap-2 mb-4 flex-wrap">
+                    <button type="button" onclick="shiftWorkWeek(-1)" class="text-xs font-bold px-3 py-1.5 rounded-lg transition" style="background:var(--bg-main);color:var(--accent);border:1px solid var(--border-color);">‹</button>
+                    <button type="button" onclick="setWorkWeekToToday()" class="text-xs font-bold px-3 py-1.5 rounded-lg transition" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">امروز</button>
+                    <button type="button" onclick="shiftWorkWeek(1)" class="text-xs font-bold px-3 py-1.5 rounded-lg transition" style="background:var(--bg-main);color:var(--accent);border:1px solid var(--border-color);">›</button>
+                    <span class="text-xs font-black en flex-1 text-left" id="workWeekLabel" style="color:var(--text-main);">—</span>
+                    <button type="button" onclick="setWorkOrderTypeFilter(null)" id="wft-all" class="text-[11px] font-bold px-3 py-1 rounded-lg transition" style="background:var(--accent);color:var(--btn-text-on-accent);border:1px solid transparent;">همه</button>
+                    <button type="button" onclick="setWorkOrderTypeFilter('TAYIDI')" id="wft-TAYIDI" class="text-[11px] font-bold px-3 py-1 rounded-lg transition" style="background:var(--bg-main);border:1px solid #38bdf8;color:#38bdf8;">تاییدی</button>
+                    <button type="button" onclick="setWorkOrderTypeFilter('MEHR_MOTARJEM')" id="wft-MEHR_MOTARJEM" class="text-[11px] font-bold px-3 py-1 rounded-lg transition" style="background:var(--bg-main);border:1px solid #c084fc;color:#c084fc;">مهر مترجم</button>
+                    <button type="button" onclick="openWorkOrderModal()" class="text-[11px] font-black px-3 py-1.5 rounded-lg transition" style="background:var(--accent);color:var(--btn-text-on-accent);">+ سفارش</button>
                 </div>
+                <div id="workWeekGrid" style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;overflow-x:auto;"></div>
             </div>
         </div>
     </div>
