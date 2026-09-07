@@ -3689,9 +3689,16 @@ if (docDef.usePassportSession) {
             if (sid) fd.append('session_id', sid);
         } else {
             confirmedPassports.forEach(p => fd.append('session_ids', p.session_id));
-            if (selectedClientId) fd.append('client_id', selectedClientId);
         }
     }
+    // Every document-type route now accepts client_id (see DeepT-Back-End) --
+    // this used to live inside the non-legacy branch above, which meant
+    // police-certificate (legacySingleSession) never linked a job to its
+    // client at all, so the auto-email-on-completion feature could never
+    // fire for it. Send it unconditionally whenever a saved client is
+    // actually in play, regardless of which passport-session contract this
+    // document type uses.
+    if (selectedClientId) fd.append('client_id', selectedClientId);
 
     const url = docDef.endpoint;
     const token = localStorage.getItem('deept_token');
