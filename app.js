@@ -1284,6 +1284,10 @@ function toggleActivityInDraft(type, id, description, priceToman, checked) {
     renderDraftRows();
 }
 
+// The full-window profile page (cp-) shows this as a real <table> (it has
+// the width for real columns); the older, narrower client-detail modal
+// (cd-) keeps the original compact card-row layout, which is what it has
+// room for. Both read from the same computed `rows` array below.
 function renderClientActivityList(jobs, sanamDocs) {
     const prefix = isProfilePageOpen() ? 'cp' : 'cd';
     const box = document.getElementById(prefix + '-activity-list');
@@ -1311,29 +1315,72 @@ function renderClientActivityList(jobs, sanamDocs) {
     rows.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
     if (countEl) countEl.textContent = rows.length;
-    box.innerHTML = !rows.length
-        ? `<div class="text-xs text-center py-4" style="color:var(--text-muted);">// بدون سابقه پروژه یا سند</div>`
-        : rows.map(r => {
-            const color = ACTIVITY_CATEGORY_COLORS[r.type];
-            const checked = isActivityInDraft(activityRowKey(r.type, r.id));
-            const st = r.type === 'job' ? (ACTIVITY_STATUS_LABELS[r.status] || { text: escapeHtml(r.status), color: 'var(--text-muted)' }) : null;
-            const idBadge = r.type === 'job'
-                ? `<span class="en" style="color:var(--text-muted);font-size:.65rem;" title="شناسه کار">#${escapeHtml(String(r.id).slice(0, 8))}</span>`
-                : (r.trackingCode ? `<span class="en" style="color:var(--text-muted);font-size:.65rem;">کد پیگیری ${escapeHtml(r.trackingCode)}</span>` : '');
-            const dateStr = r.date ? escapeHtml(String(r.date).slice(0, 10)) : '—';
-            return `<div class="flex items-center gap-2.5 p-2.5 rounded-lg text-xs" style="background:var(--bg-main);border:1px solid var(--border-subtle);border-inline-start:3px solid ${color};">
-                <span title="${r.type === 'job' ? 'ترجمه ماشینی DeepT' : 'وارد شده از سنام'}" style="width:9px;height:9px;border-radius:50%;background:${color};display:inline-block;flex-shrink:0;"></span>
-                <input type="checkbox" ${checked ? 'checked' : ''} ${r.checkable ? '' : 'disabled'}
-                    data-activity-key="${escapeHtml(activityRowKey(r.type, r.id))}"
-                    onchange='toggleActivityInDraft(${JSON.stringify(r.type)}, ${JSON.stringify(r.id)}, ${JSON.stringify(r.title)}, ${r.price}, this.checked)'
-                    style="width:15px;height:15px;accent-color:${color};flex-shrink:0;cursor:${r.checkable ? 'pointer' : 'not-allowed'};">
-                <span class="flex-1" style="color:var(--text-main);">${escapeHtml(r.title)}</span>
-                ${idBadge}
-                <span class="en shrink-0" style="color:var(--text-muted);">${dateStr}</span>
-                <span class="en font-bold shrink-0" style="color:var(--accent);width:80px;text-align:left;">${r.price ? r.price.toLocaleString() + ' ت' : '—'}</span>
-                ${st ? `<span class="status-pill" style="color:${st.color};background:${st.color}1f;">${st.text}</span>` : ''}
-            </div>`;
-        }).join('');
+    if (prefix === 'cp') renderClientStats(rows);
+
+    if (!rows.length) {
+        const emptyMsg = '// بدون سابقه پروژه یا سند';
+        box.innerHTML = prefix === 'cp'
+            ? `<tr><td colspan="7" class="text-xs text-center py-4" style="color:var(--text-muted);">${emptyMsg}</td></tr>`
+            : `<div class="text-xs text-center py-4" style="color:var(--text-muted);">${emptyMsg}</div>`;
+        return;
+    }
+
+    box.innerHTML = rows.map(r => {
+        const color = ACTIVITY_CATEGORY_COLORS[r.type];
+        const checked = isActivityInDraft(activityRowKey(r.type, r.id));
+        const st = r.type === 'job' ? (ACTIVITY_STATUS_LABELS[r.status] || { text: escapeHtml(r.status), color: 'var(--text-muted)' }) : null;
+        const idBadge = r.type === 'job'
+            ? `<span class="en" style="color:var(--text-muted);font-size:.65rem;" title="شناسه کار">#${escapeHtml(String(r.id).slice(0, 8))}</span>`
+            : (r.trackingCode ? `<span class="en" style="color:var(--text-muted);font-size:.65rem;">کد پیگیری ${escapeHtml(r.trackingCode)}</span>` : '');
+        const dateStr = r.date ? escapeHtml(String(r.date).slice(0, 10)) : '—';
+        const dotTitle = r.type === 'job' ? 'ترجمه ماشینی DeepT' : (r.type === 'sanam' ? 'وارد شده از سنام' : 'ردیف دستی');
+        const checkbox = `<input type="checkbox" ${checked ? 'checked' : ''} ${r.checkable ? '' : 'disabled'}
+            data-activity-key="${escapeHtml(activityRowKey(r.type, r.id))}"
+            onchange='toggleActivityInDraft(${JSON.stringify(r.type)}, ${JSON.stringify(r.id)}, ${JSON.stringify(r.title)}, ${r.price}, this.checked)'
+            style="width:15px;height:15px;accent-color:${color};flex-shrink:0;cursor:${r.checkable ? 'pointer' : 'not-allowed'};">`;
+
+        if (prefix === 'cp') {
+            return `<tr>
+                <td><span title="${dotTitle}" style="width:9px;height:9px;border-radius:50%;background:${color};display:inline-block;"></span></td>
+                <td style="color:var(--text-main);font-weight:700;">${escapeHtml(r.title)}</td>
+                <td class="en" style="color:var(--text-muted);">${idBadge || '—'}</td>
+                <td class="en" style="color:var(--text-muted);">${dateStr}</td>
+                <td class="en font-bold" style="color:var(--accent);">${r.price ? r.price.toLocaleString() + ' ت' : '—'}</td>
+                <td>${st ? `<span class="status-pill" style="color:${st.color};background:${st.color}1f;">${st.text}</span>` : '<span style="color:var(--text-muted);">—</span>'}</td>
+                <td style="text-align:center;">${checkbox}</td>
+            </tr>`;
+        }
+        return `<div class="flex items-center gap-2.5 p-2.5 rounded-lg text-xs" style="background:var(--bg-main);border:1px solid var(--border-subtle);border-inline-start:3px solid ${color};">
+            <span title="${dotTitle}" style="width:9px;height:9px;border-radius:50%;background:${color};display:inline-block;flex-shrink:0;"></span>
+            ${checkbox}
+            <span class="flex-1" style="color:var(--text-main);">${escapeHtml(r.title)}</span>
+            ${idBadge}
+            <span class="en shrink-0" style="color:var(--text-muted);">${dateStr}</span>
+            <span class="en font-bold shrink-0" style="color:var(--accent);width:80px;text-align:left;">${r.price ? r.price.toLocaleString() + ' ت' : '—'}</span>
+            ${st ? `<span class="status-pill" style="color:${st.color};background:${st.color}1f;">${st.text}</span>` : ''}
+        </div>`;
+    }).join('');
+}
+
+// Quick-glance numbers above the profile's activity table -- a failed job
+// never actually charged the client (see the wallet-refund-on-failure
+// fix), so it's excluded from "مجموع درآمد" same as it would be from a
+// real invoice.
+function renderClientStats(rows) {
+    const countEl = document.getElementById('cp-stat-count');
+    const revenueEl = document.getElementById('cp-stat-revenue');
+    const pendingEl = document.getElementById('cp-stat-pending');
+    const lastEl = document.getElementById('cp-stat-last');
+    if (!countEl) return;
+
+    const revenue = rows.reduce((sum, r) => sum + (r.status === 'failed' ? 0 : (r.price || 0)), 0);
+    const pending = rows.filter(r => r.status === 'processing' || r.status === 'queued').length;
+    const last = rows.length ? (rows[0].date || '').slice(0, 10) : '';
+
+    countEl.textContent = rows.length;
+    revenueEl.textContent = revenue.toLocaleString();
+    pendingEl.textContent = pending;
+    lastEl.textContent = last || '—';
 }
 
 async function renderClientInvoices(clientId) {
@@ -2030,12 +2077,30 @@ function showFullView(id) {
 // ── Open a client's full profile page ──────────────────────────────────
 /* ============ SECTION: CLIENT PROFILE (CRM layout) ============
    Contact/passport, past jobs, Sanam docs, invoices + weekly calendar. ============ */
+// The profile page has two tabs -- تقویم کاری gets a whole tab of its own
+// (rather than sharing a cramped column with everything else) since a
+// weekly grid needs real width to be readable; everything else (contact
+// info, activity table, invoices) shares the "نمای کلی" tab.
+function switchClientProfileTab(tab) {
+    const isCalendar = tab === 'calendar';
+    document.getElementById('cp-tab-overview').classList.toggle('hidden', isCalendar);
+    document.getElementById('cp-tab-calendar').classList.toggle('hidden', !isCalendar);
+    ['overview', 'calendar'].forEach(t => {
+        const btn = document.getElementById('cp-tab-btn-' + t);
+        if (!btn) return;
+        const active = t === tab;
+        btn.style.color = active ? 'var(--accent)' : 'var(--text-muted)';
+        btn.style.borderBottomColor = active ? 'var(--accent)' : 'transparent';
+    });
+}
+
 async function openClientProfile(clientId) {
     if (!currentUserSession) { openAuthModal(); return; }
     currentClientDetailId = clientId;
     invoiceDraft = [];
     showFullView('clientProfilePage');
     navigateTo('/clients/' + clientId);
+    switchClientProfileTab('overview');
 
     const token = localStorage.getItem('deept_token');
     try {
@@ -2053,6 +2118,7 @@ async function openClientProfile(clientId) {
         document.getElementById('cp-first').textContent = c.first_name || '—';
         document.getElementById('cp-first-fa').textContent = c.first_name_fa || '—';
         document.getElementById('cp-last-fa').textContent = c.last_name_fa || '—';
+        document.getElementById('cp-father').textContent = c.father_name || '—';
         document.getElementById('cp-dob').textContent = c.date_of_birth || '—';
         document.getElementById('cp-national').textContent = c.national_id || '—';
         document.getElementById('cp-passport').textContent = c.passport_number || '—';
