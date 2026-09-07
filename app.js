@@ -1320,7 +1320,7 @@ function renderClientActivityList(jobs, sanamDocs) {
     if (!rows.length) {
         const emptyMsg = '// بدون سابقه پروژه یا سند';
         box.innerHTML = prefix === 'cp'
-            ? `<tr><td colspan="7" class="text-xs text-center py-4" style="color:var(--text-muted);">${emptyMsg}</td></tr>`
+            ? `<tr><td colspan="6" class="text-xs text-center py-4" style="color:var(--text-muted);">${emptyMsg}</td></tr>`
             : `<div class="text-xs text-center py-4" style="color:var(--text-muted);">${emptyMsg}</div>`;
         return;
     }
@@ -1341,13 +1341,12 @@ function renderClientActivityList(jobs, sanamDocs) {
 
         if (prefix === 'cp') {
             return `<tr>
-                <td><span title="${dotTitle}" style="width:9px;height:9px;border-radius:50%;background:${color};display:inline-block;"></span></td>
-                <td style="color:var(--text-main);font-weight:700;">${escapeHtml(r.title)}</td>
-                <td class="en" style="color:var(--text-muted);">${idBadge || '—'}</td>
-                <td class="en" style="color:var(--text-muted);">${dateStr}</td>
-                <td class="en font-bold" style="color:var(--accent);">${r.price ? r.price.toLocaleString() + ' ت' : '—'}</td>
-                <td>${st ? `<span class="status-pill" style="color:${st.color};background:${st.color}1f;">${st.text}</span>` : '<span style="color:var(--text-muted);">—</span>'}</td>
-                <td style="text-align:center;">${checkbox}</td>
+                <td style="padding:.6rem;"><span title="${dotTitle}" style="width:9px;height:9px;border-radius:50%;background:${color};display:inline-block;"></span></td>
+                <td style="padding:.6rem;color:var(--text-main);font-weight:700;">${escapeHtml(r.title)}</td>
+                <td class="en" style="padding:.6rem;color:var(--text-muted);">${idBadge || '—'}</td>
+                <td class="en" style="padding:.6rem;color:var(--text-muted);">${dateStr}</td>
+                <td class="en font-bold" style="padding:.6rem;color:var(--accent);">${r.price ? r.price.toLocaleString() + ' ت' : '—'}</td>
+                <td style="padding:.6rem;text-align:center;">${checkbox}</td>
             </tr>`;
         }
         return `<div class="flex items-center gap-2.5 p-2.5 rounded-lg text-xs" style="background:var(--bg-main);border:1px solid var(--border-subtle);border-inline-start:3px solid ${color};">
