@@ -482,12 +482,13 @@ async function savePreferences() {
             headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
         });
-        if (!res.ok) throw new Error();
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || 'خطای سرور');
         status.style.color = 'var(--accent)';
         status.textContent = '✅ ذخیره شد. از سند بعدی اعمال می‌شود.';
     } catch (e) {
         status.style.color = '#f87171';
-        status.textContent = '❌ ذخیره تنظیمات ناموفق بود.';
+        status.textContent = `❌ ذخیره تنظیمات ناموفق بود: ${e.message || 'خطای نامشخص'}`;
     } finally {
         btn.disabled = false;
     }
@@ -921,8 +922,8 @@ async function saveDocumentPhrases(){
             headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({ document_phrases: { [doc.id]: toSend } })
         });
-        if (!res.ok) throw new Error();
-        const p = await res.json();
+        const p = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(p.detail || 'خطای سرور');
         dpServerPhrases = p.document_phrases || {};
         // Only the fields actually sent (the valid ones) are cleared from
         // the draft -- a blocked complex field stays in draft, with its
@@ -936,7 +937,7 @@ async function saveDocumentPhrases(){
         renderDocumentPhrases();
     } catch (e) {
         status.style.color = '#f87171';
-        status.textContent = '❌ ذخیره ناموفق بود.';
+        status.textContent = `❌ ذخیره ناموفق بود: ${e.message || 'خطای نامشخص'}`;
     } finally {
         btn.disabled = false;
     }
