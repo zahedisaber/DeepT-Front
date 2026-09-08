@@ -944,6 +944,164 @@ async function saveDocumentPhrases(){
 }
 
 // ═══════════════════════════════════════════════════════════
+// نرخنامه من (MY PRICE LIST) -- a translator's own base-price override for
+// every row of the official tariff catalog (price-catalog.js, loaded as a
+// separate script -- see PRICE_CATALOG/PRICE_CATALOG_BY_ID). Persisted as
+// pref_price_list on DeepT-Core (PATCH /users/me/preferences, sparse
+// merge, same convention as document_phrases above). This is what the
+// invoice draft-row "+ افزودن از نرخنامه" picker (see addDraftRowFromPriceList
+// / addInvoiceEditRowFromPriceList) reads its price from.
+// ═══════════════════════════════════════════════════════════
+let myPriceListServer = {};  // {item_id: price} -- last known saved overrides, from GET
+let myPriceListDraft  = {};  // {item_id: price} -- unsaved edits
+
+// The price actually shown/used for an item right now: an unsaved edit
+// wins over a saved override, which wins over the catalog's own default.
+function myplEffectivePrice(itemId) {
+    if (myPriceListDraft[itemId] !== undefined) return myPriceListDraft[itemId];
+    if (myPriceListServer[itemId] !== undefined) return myPriceListServer[itemId];
+    return PRICE_CATALOG_BY_ID[itemId].base;
+}
+
+async function loadMyPriceListCatalog() {
+    if (!currentUserSession) { renderMyPriceList(); return; }
+    const token = getToken();
+    try {
+        const res = await fetch(`${CORE}/users/me/preferences`, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!res.ok) throw new Error();
+        const p = await res.json();
+        myPriceListServer = p.price_list || {};
+    } catch (e) {
+        myPriceListServer = {};
+    }
+    myPriceListDraft = {};
+    renderMyPriceList();
+}
+
+function renderMyPriceList() {
+    const list = document.getElementById('mypl-list');
+    if (!list) return;
+    const query = (document.getElementById('mypl-search').value || '').trim();
+    list.innerHTML = '';
+
+    PRICE_CATALOG.forEach(group => {
+        const matches = group.items.filter(item => !query || item.label.includes(query));
+        if (!matches.length) return;
+
+        const header = document.createElement('div');
+        header.className = 'text-[11px] font-black px-1 pt-2 pb-1 sticky top-0';
+        header.style.cssText = 'color:var(--accent);background:var(--panel-bg);';
+        header.textContent = group.category;
+        list.appendChild(header);
+
+        matches.forEach(item => {
+            const effective = myplEffectivePrice(item.id);
+            const dirty = myPriceListDraft[item.id] !== undefined;
+            const row = document.createElement('div');
+            row.className = 'flex items-center gap-2 p-2 rounded-lg';
+            row.style.cssText = `background:var(--bg-main);border:1px solid ${dirty ? 'var(--accent)' : 'var(--border-subtle)'};`;
+            row.dataset.myplItem = item.id;
+
+            const info = document.createElement('div');
+            info.className = 'flex-1 min-w-0';
+            info.innerHTML = `
+              <div class="text-xs font-bold truncate" style="color:var(--text-main);" title="${escapeHtml(item.label)}">${escapeHtml(item.label)}${item.addition ? ' <span class="font-normal" style="color:var(--text-muted);">(افزوده)</span>' : ''}</div>
+              ${item.extra ? `<div class="text-[10px]" style="color:var(--text-muted);">+ ${item.extra.toLocaleString()} تومان به ازای ${escapeHtml(item.unit)}</div>` : ''}
+            `;
+            row.appendChild(info);
+
+            const input = document.createElement('input');
+            input.type = 'number';
+            input.value = effective;
+            input.dir = 'ltr';
+            input.className = 'auth-input en shrink-0';
+            input.style.cssText = 'width:110px;padding:.4rem .5rem;font-size:.78rem;';
+            input.addEventListener('input', () => myplCommit(item.id, input.value));
+            row.appendChild(input);
+
+            const resetBtn = document.createElement('button');
+            resetBtn.type = 'button';
+            resetBtn.title = 'بازگشت به نرخ پیش‌فرض رسمی (' + item.base.toLocaleString() + ' تومان)';
+            resetBtn.className = 'text-xs font-bold px-2 py-2 rounded-lg shrink-0 transition';
+            resetBtn.style.cssText = 'background:var(--panel-bg);color:var(--text-muted);border:1px solid var(--border-subtle);';
+            resetBtn.textContent = '↺';
+            resetBtn.disabled = effective === item.base;
+            resetBtn.addEventListener('click', () => {
+                input.value = item.base;
+                myplCommit(item.id, item.base);
+                renderMyPriceList();
+            });
+            row.appendChild(resetBtn);
+
+            list.appendChild(row);
+        });
+    });
+
+    if (!list.children.length) {
+        const empty = document.createElement('div');
+        empty.className = 'text-[11px] text-center py-6';
+        empty.style.color = 'var(--text-muted)';
+        empty.textContent = 'موردی یافت نشد.';
+        list.appendChild(empty);
+    }
+}
+
+function myplCommit(itemId, rawValue) {
+    const price = parseInt(rawValue, 10);
+    const savedVal = myPriceListServer[itemId] !== undefined ? myPriceListServer[itemId] : PRICE_CATALOG_BY_ID[itemId].base;
+    if (!Number.isFinite(price) || price === savedVal) {
+        delete myPriceListDraft[itemId];
+    } else {
+        myPriceListDraft[itemId] = price;
+    }
+    const row = document.querySelector(`[data-mypl-item="${itemId}"]`);
+    if (row) row.style.borderColor = myPriceListDraft[itemId] !== undefined ? 'var(--accent)' : 'var(--border-subtle)';
+}
+
+function resetAllMyPriceListDrafts() {
+    myPriceListDraft = {};
+    renderMyPriceList();
+}
+
+async function saveMyPriceList() {
+    if (!currentUserSession) return;
+    const btn = document.getElementById('mypl-save-btn');
+    const status = document.getElementById('mypl-save-status');
+    status.classList.remove('hidden');
+
+    if (!Object.keys(myPriceListDraft).length) {
+        status.style.color = '#f87171';
+        status.textContent = 'تغییری برای ذخیره وجود ندارد.';
+        return;
+    }
+
+    btn.disabled = true;
+    status.style.color = 'var(--text-muted)';
+    status.textContent = 'در حال ذخیره...';
+
+    const token = getToken();
+    try {
+        const res = await fetch(`${CORE}/users/me/preferences`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ price_list: myPriceListDraft })
+        });
+        const p = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(p.detail || 'خطای سرور');
+        myPriceListServer = p.price_list || {};
+        myPriceListDraft = {};
+        status.style.color = 'var(--accent)';
+        status.textContent = '✅ نرخنامه ذخیره شد.';
+        renderMyPriceList();
+    } catch (e) {
+        status.style.color = '#f87171';
+        status.textContent = `❌ ذخیره ناموفق بود: ${e.message || 'خطای نامشخص'}`;
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+// ═══════════════════════════════════════════════════════════
 // WALLET
 // ═══════════════════════════════════════════════════════════
 /* ============ SECTION: WALLET, PAYMENT & SUPPORT ============
@@ -1452,6 +1610,44 @@ function addPresetInvoiceRow(description, unitPriceToman) {
     invoiceDraft.push({ description, quantity: 1, unit_price_toman: unitPriceToman, job_id: null });
     renderDraftRows();
 }
+
+// نرخنامه picker -- selecting an item from a translator's own price list
+// (its base price, effective override or catalog default -- see
+// myplEffectivePrice()) adds it as a normal editable draft row, same as
+// the fixed تمبر/مهر presets above. The official per-line extra (if any)
+// isn't auto-added; the translator bumps the row's price up by hand for
+// however many extra lines the actual document has.
+function addDraftRowFromMyPriceList(selectEl) {
+    const itemId = selectEl.value;
+    if (!itemId) return;
+    const item = PRICE_CATALOG_BY_ID[itemId];
+    addPresetInvoiceRow(item.label, myplEffectivePrice(itemId));
+    selectEl.value = '';
+}
+
+// Populates every نرخنامه <select> picker (invoice draft ×2, invoice-edit
+// ×1) with the full catalog, grouped into <optgroup>s by category --
+// called once at load (see the price-list-select IIFE at the bottom of
+// this section) since the catalog itself never changes at runtime.
+function populateMyPriceListSelects() {
+    ['cd-mypl-select', 'cp-mypl-select', 'ive-mypl-select'].forEach(id => {
+        const sel = document.getElementById(id);
+        if (!sel || sel.dataset.populated) return;
+        PRICE_CATALOG.forEach(group => {
+            const optgroup = document.createElement('optgroup');
+            optgroup.label = group.category;
+            group.items.forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item.id;
+                opt.textContent = `${item.label} (${item.base.toLocaleString()})`;
+                optgroup.appendChild(opt);
+            });
+            sel.appendChild(optgroup);
+        });
+        sel.dataset.populated = '1';
+    });
+}
+populateMyPriceListSelects();
 
 function updateDraftRow(idx, field, value) {
     if (!invoiceDraft[idx]) return;
@@ -2257,6 +2453,7 @@ function openSettingsPage(pushHistory = true) {
     if (pushHistory) navigateTo('/settings');
     loadPreferences();
     loadDocumentPhrasesCatalog();
+    loadMyPriceListCatalog();
 }
 
 function closeSettingsPage() {
@@ -2583,6 +2780,21 @@ function addInvoiceEditRow() {
     if (!invoiceEditState) return;
     invoiceEditState.items.push({ description: '', quantity: 1, unit_price_toman: 0, line_total_toman: 0 });
     renderInvoiceEditRows();
+}
+
+// نرخنامه picker for an invoice already being edited -- same idea as
+// addDraftRowFromMyPriceList() below, just against invoiceEditState
+// instead of the not-yet-submitted invoiceDraft.
+function addInvoiceEditRowFromMyPriceList(selectEl) {
+    const itemId = selectEl.value;
+    if (!itemId || !invoiceEditState) { selectEl.value = ''; return; }
+    const item = PRICE_CATALOG_BY_ID[itemId];
+    invoiceEditState.items.push({
+        description: item.label, quantity: 1,
+        unit_price_toman: myplEffectivePrice(itemId), line_total_toman: 0,
+    });
+    renderInvoiceEditRows();
+    selectEl.value = '';
 }
 
 function updateInvoiceEditTotal() {
@@ -3844,6 +4056,12 @@ refreshWalletBalanceDisplay();
 
     // Synchronize UI with restored session
     syncUserSessionDOM();
+
+    // Preload نرخنامه من overrides in the background (not just when Settings
+    // happens to be opened) so the invoice draft-row picker reflects a
+    // translator's own saved prices from the very first invoice of the
+    // session, not just the catalog defaults.
+    if (currentUserSession) loadMyPriceListCatalog();
 
     // GitHub Pages has no server routing: a refresh on /dashboard etc. lands
     // on 404.html, which stashes the intended path in sessionStorage and

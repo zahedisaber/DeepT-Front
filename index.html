@@ -190,6 +190,9 @@
         <button type="button" onclick="addCustomInvoiceRow()" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">+ ردیف دلخواه</button>
         <button type="button" onclick="addPresetInvoiceRow('تمبر دادگستری', 60000)" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">+ تمبر دادگستری <span class="en" style="color:var(--text-muted);">(۶۰,۰۰۰)</span></button>
         <button type="button" onclick="addPresetInvoiceRow('مهر وزارت خارجه (هر صفحه)', 50000)" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">+ مهر وزارت خارجه <span class="en" style="color:var(--text-muted);">(۵۰,۰۰۰/صفحه)</span></button>
+        <select id="cd-mypl-select" onchange="addDraftRowFromMyPriceList(this)" class="auth-input text-[11px]" style="width:auto;max-width:220px;padding:.35rem .5rem;">
+          <option value="">+ افزودن از نرخنامه...</option>
+        </select>
       </div>
       <p class="text-[11px] mb-2" style="color:var(--text-muted);">از سابقه پروژه‌ها «+ افزودن» بزنید، یا ردیف دلخواه اضافه کنید. تعداد و قیمت واحد هر ردیف قابل ویرایش است.</p>
       <div id="cd-draft-rows" class="space-y-1.5"></div>
@@ -325,6 +328,9 @@
       </div>
       <div class="flex flex-wrap items-center gap-2 mb-3">
         <button type="button" onclick="addInvoiceEditRow()" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">+ ردیف</button>
+        <select id="ive-mypl-select" onchange="addInvoiceEditRowFromMyPriceList(this)" class="auth-input text-[11px]" style="width:auto;max-width:220px;padding:.35rem .5rem;">
+          <option value="">+ افزودن از نرخنامه...</option>
+        </select>
         <span class="text-[11px]" style="color:var(--text-muted);">تعداد و قیمت هر ردیف را می‌توانید تغییر دهید.</span>
       </div>
       <div id="ive-rows" class="space-y-1.5"></div>
@@ -811,6 +817,27 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                 <p id="dp-save-status" class="text-[11px] mt-2 hidden"></p>
             </div>
         </div>
+
+        <!-- ═══ نرخنامه من (My Price List) ═══════════════════════════════
+             A translator's own base-price override for every row of the
+             official tariff catalog (price-catalog.js). An item with no
+             override here falls back to the catalog's own default price.
+             This is what a new invoice draft row's "+ افزودن از نرخنامه"
+             picker reads its price from -- see mypl* in app.js. ────────── -->
+        <div class="workspace-panel p-6">
+            <h4 class="text-sm font-black mb-1 flex items-center gap-1.5" style="color:var(--text-main);">💰 نرخنامه من</h4>
+            <p class="text-[11px] mb-3" style="color:var(--text-muted);">قیمت پایهٔ هر نوع سند را بر اساس نرخ خودتان تنظیم کنید. این قیمت‌ها هنگام افزودن ردیف از «نرخنامه» به فاکتور، به‌صورت خودکار پیشنهاد می‌شوند. عدد سمت راست هر ردیف، افزودهٔ رسمی هر سطر/آیتم اضافه است — صرفاً راهنماست و در فاکتور خودکار جمع نمی‌شود.</p>
+
+            <input type="text" id="mypl-search" placeholder="جستجوی نوع سند..." oninput="renderMyPriceList()" class="auth-input mb-3 w-full">
+
+            <div id="mypl-list" class="flex flex-col gap-1 mb-1" style="max-height:70vh;overflow-y:auto;"></div>
+
+            <div class="flex items-center gap-2 mt-3">
+                <button type="button" onclick="saveMyPriceList()" id="mypl-save-btn" class="flex-1 font-black py-1.5 rounded-lg transition text-xs" style="background:var(--accent);color:var(--btn-text-on-accent);">ذخیرهٔ نرخنامه</button>
+                <button type="button" onclick="resetAllMyPriceListDrafts()" class="text-xs font-bold px-3 py-1.5 rounded-lg transition shrink-0" style="background:var(--bg-main);color:var(--text-muted);border:1px solid var(--border-subtle);">لغو تغییرات</button>
+            </div>
+            <p id="mypl-save-status" class="text-[11px] mt-2 hidden"></p>
+        </div>
     </div>
 </section>
 
@@ -935,6 +962,9 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                             <button type="button" onclick="addCustomInvoiceRow()" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">+ ردیف دلخواه</button>
                             <button type="button" onclick="addPresetInvoiceRow('تمبر دادگستری', 60000)" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">+ تمبر</button>
                             <button type="button" onclick="addPresetInvoiceRow('مهر وزارت خارجه (هر صفحه)', 50000)" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">+ مهر خارجه</button>
+                            <select id="cp-mypl-select" onchange="addDraftRowFromMyPriceList(this)" class="auth-input text-[11px]" style="width:auto;max-width:200px;padding:.35rem .5rem;">
+                              <option value="">+ افزودن از نرخنامه...</option>
+                            </select>
                         </div>
                         <div id="cp-draft-rows" class="space-y-1.5"></div>
                         <div id="cp-draft-empty" class="text-xs text-center py-3" style="color:var(--text-muted);">// هنوز ردیفی اضافه نشده</div>
@@ -1512,6 +1542,7 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
 
 </div>
 
+<script src="price-catalog.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
