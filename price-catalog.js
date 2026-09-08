@@ -8,23 +8,33 @@
    (myPriceListOverrides) -- this file only ever supplies the catalog's own
    defaults and is never itself written to.
 
-   Each item:
-     id    -> the tariff sheet's own row number (e.g. "56", or "9-1" for a
-              lettered sub-item/addition under row 9) -- stable, used as
-              the override key sent to the backend. Never reuse or renumber
-              an id; that would silently repoint anyone's saved override.
-     label -> Persian document name, as printed.
-     base  -> flat/base price in Toman for the whole document.
-     extra -> the official per-line/per-item/etc. addition for a document
-              longer than the base assumes, or null if the price is flat
-              with no such addition. This is reference info shown next to
-              the editable base-price field -- never auto-multiplied into
-              an invoice row (a translator adds it to the row's price by
-              hand for however many extra lines the actual document has).
-     unit  -> Persian label for what `extra` is charged per (e.g. "هر
-              سطر"), or null when extra is null.
+   Each item has up to two independently priced components -- both editable
+   in "نرخنامه من", both entered as live, independently-editable quantities
+   on an invoice row (see mypl* in app.js), never auto-multiplied together:
+
+     id       -> the tariff sheet's own row number (e.g. "56", or "9-1" for
+                 a lettered sub-item/addition under row 9) -- stable, used
+                 as the override key sent to the backend. Never reuse or
+                 renumber an id; that would silently repoint anyone's saved
+                 override.
+     label    -> Persian document name, as printed.
+     base     -> the document's base price in Toman.
+     baseUnit -> null when `base` is a flat, one-off price for the whole
+                 document (the common case). A string ("صفحه"/"ترم"/"سال")
+                 when the tariff sheet itself prices `base` PER that unit
+                 (~90 rows are printed "(هر صفحه)" etc.) -- an invoice row
+                 for one of these needs a "تعداد {baseUnit}" quantity, not
+                 just a flat add, e.g. a 3-page سند مالکیت is base × 3.
+     extra    -> the official per-line/per-item/etc. addition for a
+                 document with more than the base assumes (e.g. extra
+                 lines of text, extra courses on a transcript), or null if
+                 there's no such addition. Independent of baseUnit -- e.g.
+                 ریزنمرات دانشگاه (id "58") is base per ترم PLUS extra per
+                 درس, two separate counts on the same row.
+     unit     -> Persian label for what `extra` is charged per (e.g. "هر
+                 سطر"), or null when extra is null.
      addition -> true for a lettered sub-item that is only ever an add-on
-              to its parent row (e.g. "9-1"), never invoiced on its own.
+                 to its parent row (e.g. "9-1"), never invoiced on its own.
    ======================================================================== */
 const PRICE_CATALOG = [
   { category: "احکام کارگزینی و حقوق و دستمزد", items: [
@@ -42,25 +52,25 @@ const PRICE_CATALOG = [
     { id: "9-1", label: "وقایع شناسنامه (ازدواج، طلاق یا فوت همسر، مشخصات هریک از فرزندان، فوت)", base: 25000, extra: null, unit: null, addition: true },
     { id: "10", label: "پروانه زناشویی (برگه موقت)", base: 293760, extra: null, unit: null },
     { id: "11", label: "سند ازدواج یا رونوشت آن", base: 477360, extra: 10000, unit: "هر سطر توضیحات، مهریه، شهود و معرفین" },
-    { id: "12", label: "سند طلاق (دفترچه) (هر صفحه)", base: 550800, extra: 20000, unit: "هر سطر توضیحات، مهریه، شهود و معرفین" },
-    { id: "13", label: "طلاق نامه (ورقه) (هر صفحه)", base: 550800, extra: 20000, unit: "هر سطر توضیحات، مهریه، شهود و معرفین" },
+    { id: "12", label: "سند طلاق (دفترچه) (هر صفحه)", base: 550800, extra: 20000, unit: "هر سطر توضیحات، مهریه، شهود و معرفین", baseUnit: "صفحه" },
+    { id: "13", label: "طلاق نامه (ورقه) (هر صفحه)", base: 550800, extra: 20000, unit: "هر سطر توضیحات، مهریه، شهود و معرفین", baseUnit: "صفحه" },
     { id: "14", label: "کارت ملی", base: 146880, extra: null, unit: null },
     { id: "15", label: "نکاح خط (مخصوص اتباع افغانی)", base: 700000, extra: 20000, unit: "هر سطر توضیحات، مهریه، شهود و معرفین" },
   ]},
   { category: "اسناد بانکی", items: [
-    { id: "16", label: "گواهی‌های بانکی (موجودی، سپرده، تمکن مالی و غیره) (هر صفحه)", base: 265200, extra: 15000, unit: "هر سطر" },
-    { id: "17", label: "پرینت بانکی (هر صفحه)", base: 269280, extra: 15000, unit: "هر سطر" },
+    { id: "16", label: "گواهی‌های بانکی (موجودی، سپرده، تمکن مالی و غیره) (هر صفحه)", base: 265200, extra: 15000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "17", label: "پرینت بانکی (هر صفحه)", base: 269280, extra: 15000, unit: "هر سطر", baseUnit: "صفحه" },
     { id: "18", label: "گواهی عدم پرداخت چک", base: 265200, extra: 15000, unit: "هر سطر" },
     { id: "19", label: "واخواست‌نامه", base: 265200, extra: 15000, unit: "هر سطر" },
   ]},
   { category: "اسناد بیمه", items: [
-    { id: "20", label: "گواهی بیمه اتومبیل و بیمه شخص ثالث (هر صفحه)", base: 359040, extra: 10000, unit: "هر سطر" },
-    { id: "21", label: "بیمه‌نامه اتومبیل و سایر وسائط نقلیه (هر صفحه)", base: 354960, extra: 20000, unit: "هر خط" },
-    { id: "22", label: "قرارداد بیمه آتش‌سوزی و حوادث ساختمان (هر صفحه)", base: 354960, extra: 20000, unit: "هر سطر" },
+    { id: "20", label: "گواهی بیمه اتومبیل و بیمه شخص ثالث (هر صفحه)", base: 359040, extra: 10000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "21", label: "بیمه‌نامه اتومبیل و سایر وسائط نقلیه (هر صفحه)", base: 354960, extra: 20000, unit: "هر خط", baseUnit: "صفحه" },
+    { id: "22", label: "قرارداد بیمه آتش‌سوزی و حوادث ساختمان (هر صفحه)", base: 354960, extra: 20000, unit: "هر سطر", baseUnit: "صفحه" },
     { id: "23", label: "دفترچه بیمه", base: 204000, extra: null, unit: null },
-    { id: "24", label: "سابقه بیمه با ریز دستمزد (هر صفحه)", base: 277440, extra: 15000, unit: "هر سطر" },
-    { id: "25", label: "برگ سابقه بیمه تأمین اجتماعی (هر صفحه)", base: 277440, extra: 15000, unit: "هر ردیف" },
-    { id: "26", label: "لیست بیمه کارکنان (هر صفحه)", base: 265200, extra: 6000, unit: "هر سطر" },
+    { id: "24", label: "سابقه بیمه با ریز دستمزد (هر صفحه)", base: 277440, extra: 15000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "25", label: "برگ سابقه بیمه تأمین اجتماعی (هر صفحه)", base: 277440, extra: 15000, unit: "هر ردیف", baseUnit: "صفحه" },
+    { id: "26", label: "لیست بیمه کارکنان (هر صفحه)", base: 265200, extra: 6000, unit: "هر سطر", baseUnit: "صفحه" },
   ]},
   { category: "اسناد پزشکی", items: [
     { id: "27", label: "گزارش پزشکی و بیمارستانی", base: 354960, extra: 15000, unit: "هر سطر" },
@@ -75,12 +85,12 @@ const PRICE_CATALOG = [
     { id: "36", label: "گواهی سلامت دانش‌آموز (شناسنامه سلامت)", base: 354960, extra: 15000, unit: "هر سطر" },
   ]},
   { category: "اسناد تجاری - شرکت", items: [
-    { id: "37", label: "اساسنامه شرکت‌ها و سازمان‌ها (هر صفحه)", base: 265200, extra: 15000, unit: "هر سطر" },
-    { id: "38", label: "ترازنامه یا سایر صورت‌های مالی (سود و زیان، گردش وجه نقد و غیره) (هر صفحه)", base: 408000, extra: 20000, unit: "هر سطر جدول" },
+    { id: "37", label: "اساسنامه شرکت‌ها و سازمان‌ها (هر صفحه)", base: 265200, extra: 15000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "38", label: "ترازنامه یا سایر صورت‌های مالی (سود و زیان، گردش وجه نقد و غیره) (هر صفحه)", base: 408000, extra: 20000, unit: "هر سطر جدول", baseUnit: "صفحه" },
     // Two-part addition in the source (۲۰،۰۰۰ هر سطر + ۵،۰۰۰ هر آیتم جدول) --
     // `extra` carries the per-line figure; the per-table-item figure is
     // noted here since the {base, extra, unit} shape only fits one.
-    { id: "39", label: "گزارش حسابرسی (هر صفحه)", base: 408000, extra: 20000, unit: "هر سطر (+ ۵٬۰۰۰ هر آیتم جدول)" },
+    { id: "39", label: "گزارش حسابرسی (هر صفحه)", base: 408000, extra: 20000, unit: "هر سطر (+ ۵٬۰۰۰ هر آیتم جدول)", baseUnit: "صفحه" },
     { id: "40", label: "اظهارنامه، تقاضای ثبت شرکت، شرکت‌نامه (پشت و رو)", base: 685440, extra: null, unit: null },
     { id: "41", label: "اوراق سهام", base: 293760, extra: null, unit: null },
     { id: "42", label: "اوراق مشارکت و اوراق قرضه", base: 293760, extra: null, unit: null },
@@ -90,19 +100,19 @@ const PRICE_CATALOG = [
     { id: "46", label: "معرفی‌نامه نماینده شرکت", base: 293760, extra: null, unit: null },
   ]},
   { category: "اسناد تجاری - گمرکی", items: [
-    { id: "47", label: "بارنامه گمرکی (اسناد صادرات و واردات، دریایی، هوایی، زمینی، فیاتا و غیره) (هر صفحه)", base: 497760, extra: 25000, unit: "هر ردیف، توضیحات، جدول" },
-    { id: "48", label: "برگ سبز گمرکی (هر صفحه)", base: 462400, extra: 15000, unit: "هر سطر" },
+    { id: "47", label: "بارنامه گمرکی (اسناد صادرات و واردات، دریایی، هوایی، زمینی، فیاتا و غیره) (هر صفحه)", base: 497760, extra: 25000, unit: "هر ردیف، توضیحات، جدول", baseUnit: "صفحه" },
+    { id: "48", label: "برگ سبز گمرکی (هر صفحه)", base: 462400, extra: 15000, unit: "هر سطر", baseUnit: "صفحه" },
     { id: "48-1", label: "هر ظهرنویسی و مهر", base: 30000, extra: null, unit: null, addition: true },
-    { id: "49", label: "دفترچه ترانزیت (هر صفحه)", base: 367200, extra: 20000, unit: "هر مهر، تمدید، توضیحات" },
+    { id: "49", label: "دفترچه ترانزیت (هر صفحه)", base: 367200, extra: 20000, unit: "هر مهر، تمدید، توضیحات", baseUnit: "صفحه" },
   ]},
   { category: "اسناد تحصیلی دانش‌آموزی", items: [
     { id: "50", label: "توصیه‌نامه تحصیلی (بعد از تحصیلات سوم راهنمایی)", base: 179250, extra: 5000, unit: "هر سطر و هر مهر" },
     { id: "51", label: "دیپلم پایان تحصیلات متوسطه یا پیش‌دانشگاهی", base: 204000, extra: null, unit: null },
     { id: "51-1", label: "مهرها، ظهرنویسی، توضیحات", base: 20000, extra: null, unit: null, addition: true },
     { id: "52", label: "گواهی رتبه قبولی در دانشگاه‌های دولتی و آزاد", base: 204000, extra: 15000, unit: "هر سطر" },
-    { id: "53", label: "ریزنمرات دبیرستان یا پیش‌دانشگاهی (هر ترم)", base: 89760, extra: 5000, unit: "هر درس" },
+    { id: "53", label: "ریزنمرات دبیرستان یا پیش‌دانشگاهی (هر ترم)", base: 89760, extra: 5000, unit: "هر درس", baseUnit: "ترم" },
     { id: "53-1", label: "شرح ابتدایی، مهرها، ظهرنویسی، توضیحات", base: 20000, extra: null, unit: null, addition: true },
-    { id: "54", label: "ریزنمرات دبستان، راهنمایی (هر سال)", base: 179250, extra: 5000, unit: "هر درس" },
+    { id: "54", label: "ریزنمرات دبستان، راهنمایی (هر سال)", base: 179250, extra: 5000, unit: "هر درس", baseUnit: "سال" },
     { id: "54-1", label: "شرح ابتدایی، مهرها، ظهرنویسی، توضیحات", base: 20000, extra: null, unit: null, addition: true },
     { id: "55", label: "کارنامه توصیفی ابتدائی", base: 273360, extra: 20000, unit: "هر درس" },
     { id: "55-1", label: "شرح ابتدایی، مهرها، ظهرنویسی، توضیحات", base: 20000, extra: null, unit: null, addition: true },
@@ -110,12 +120,12 @@ const PRICE_CATALOG = [
   { category: "اسناد دانشگاهی", items: [
     { id: "56", label: "گواهی پایان تحصیلات و دانشنامه (کاردانی، کارشناسی، کارشناسی ارشد، دکترا)، گواهی فارغ‌التحصیلی", base: 293760, extra: 20000, unit: "به ازای هر مهر، توضیحات ظهر سند" },
     { id: "57", label: "گواهی ریزنمرات دانشگاهی", base: 179250, extra: 15000, unit: "هر سطر" },
-    { id: "58", label: "ریزنمرات دانشگاه (هر ترم)", base: 97920, extra: 5000, unit: "هر درس" },
+    { id: "58", label: "ریزنمرات دانشگاه (هر ترم)", base: 97920, extra: 5000, unit: "هر درس", baseUnit: "ترم" },
     { id: "58-1", label: "شرح ابتدایی، مهرها، ظهرنویسی، توضیحات", base: 20000, extra: null, unit: null, addition: true },
-    { id: "59", label: "سرفصل دروس دانشگاهی (هر صفحه)", base: 265200, extra: 20000, unit: "هر سطر" },
+    { id: "59", label: "سرفصل دروس دانشگاهی (هر صفحه)", base: 265200, extra: 20000, unit: "هر سطر", baseUnit: "صفحه" },
     { id: "60", label: "کارت دانشجویی", base: 250000, extra: null, unit: null },
     { id: "61", label: "گواهی رتبه دانشجو و فارغ‌التحصیل", base: 204000, extra: 15000, unit: "هر سطر" },
-    { id: "62", label: "گواهی و لیست دروس تدریس استاد و ساعات تدریس (هر صفحه)", base: 391680, extra: 10000, unit: "هر سطر" },
+    { id: "62", label: "گواهی و لیست دروس تدریس استاد و ساعات تدریس (هر صفحه)", base: 391680, extra: 10000, unit: "هر سطر", baseUnit: "صفحه" },
     { id: "63", label: "دانشنامه دانشگاه خارجی", base: 500000, extra: null, unit: null },
     { id: "63-1", label: "هر مهر و توضیحات، ظهرنویسی", base: 20000, extra: null, unit: null, addition: true },
     { id: "64", label: "ریزنمرات دانشگاه خارجی", base: 1200000, extra: 15000, unit: "هر سطر" },
@@ -128,13 +138,13 @@ const PRICE_CATALOG = [
     { id: "67", label: "اجرائیه ثبتی (اسناد لازم‌الاجرا)", base: 550000, extra: null, unit: null },
     { id: "68", label: "استعلامات ثبتی", base: 350000, extra: null, unit: null },
     { id: "69", label: "پاسخ استعلامات ثبتی", base: 350000, extra: null, unit: null },
-    { id: "70", label: "گواهی ثبت علائم تجاری (هر صفحه)", base: 277440, extra: 10000, unit: "هر سطر" },
-    { id: "71", label: "گواهی ثبت اختراع (هر صفحه)", base: 277440, extra: 10000, unit: "هر سطر" },
-    { id: "72", label: "صورت‌مجلس تفکیکی (هر صفحه)", base: 340000, extra: 20000, unit: "هر سطر" },
+    { id: "70", label: "گواهی ثبت علائم تجاری (هر صفحه)", base: 277440, extra: 10000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "71", label: "گواهی ثبت اختراع (هر صفحه)", base: 277440, extra: 10000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "72", label: "صورت‌مجلس تفکیکی (هر صفحه)", base: 340000, extra: 20000, unit: "هر سطر", baseUnit: "صفحه" },
   ]},
   { category: "اسناد ملکی عرصه و اعیان", items: [
-    { id: "73", label: "برگ نظریه ارزیابی و کارشناسی ملک (هر صفحه)", base: 489600, extra: 15000, unit: "هر سطر" },
-    { id: "74", label: "مبایعه‌نامه خودنویس (هر صفحه)", base: 428400, extra: 20000, unit: "هر سطر" },
+    { id: "73", label: "برگ نظریه ارزیابی و کارشناسی ملک (هر صفحه)", base: 489600, extra: 15000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "74", label: "مبایعه‌نامه خودنویس (هر صفحه)", base: 428400, extra: 20000, unit: "هر سطر", baseUnit: "صفحه" },
     { id: "75", label: "پروانه یا گواهی عدم خلاف ساختمان", base: 391680, extra: 5000, unit: "هر آیتم" },
     // Printed exactly as 91,680 in the source sheet, well below sibling
     // row 75's 391,680 -- possibly a typo in the official PDF, kept
@@ -146,25 +156,25 @@ const PRICE_CATALOG = [
     { id: "78-1", label: "هر نقل و انتقال، رهن و غیره", base: 50000, extra: null, unit: null, addition: true },
     { id: "79", label: "پروانه پایان کار ساختمان", base: 391680, extra: 5000, unit: "هر آیتم" },
     { id: "80", label: "قرارداد فروش غیرثبتی روستایی با مهر شورا برای املاک فاقد سند", base: 428400, extra: 20000, unit: "هر سطر" },
-    { id: "81", label: "اجاره‌نامه (هر صفحه)", base: 354960, extra: 20000, unit: "هر سطر" },
-    { id: "82", label: "بنچاق (هر صفحه)", base: 354960, extra: 20000, unit: "هر سطر" },
-    { id: "83", label: "صلح‌نامه محضری (هر صفحه)", base: 354960, extra: 20000, unit: "هر سطر" },
-    { id: "84", label: "قولنامه رسمی (هر صفحه)", base: 428400, extra: 20000, unit: "هر سطر" },
-    { id: "85", label: "مبایعه‌نامه (هر صفحه)", base: 428400, extra: 20000, unit: "هر سطر" },
-    { id: "86", label: "مبایعه‌نامه با کد رهگیری (هر صفحه)", base: 428400, extra: 20000, unit: "هر سطر" },
+    { id: "81", label: "اجاره‌نامه (هر صفحه)", base: 354960, extra: 20000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "82", label: "بنچاق (هر صفحه)", base: 354960, extra: 20000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "83", label: "صلح‌نامه محضری (هر صفحه)", base: 354960, extra: 20000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "84", label: "قولنامه رسمی (هر صفحه)", base: 428400, extra: 20000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "85", label: "مبایعه‌نامه (هر صفحه)", base: 428400, extra: 20000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "86", label: "مبایعه‌نامه با کد رهگیری (هر صفحه)", base: 428400, extra: 20000, unit: "هر سطر", baseUnit: "صفحه" },
   ]},
   { category: "اسناد مالیاتی", items: [
-    { id: "87", label: "اظهارنامه مالیاتی (هر صفحه)", base: 408000, extra: 10000, unit: "هر سطر" },
-    { id: "88", label: "برگ تشخیص مالیات، مالیات قطعی (هر صفحه)", base: 342720, extra: 15000, unit: "هر سطر" },
+    { id: "87", label: "اظهارنامه مالیاتی (هر صفحه)", base: 408000, extra: 10000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "88", label: "برگ تشخیص مالیات، مالیات قطعی (هر صفحه)", base: 342720, extra: 15000, unit: "هر سطر", baseUnit: "صفحه" },
     { id: "89", label: "گواهی مالیاتی", base: 342720, extra: 15000, unit: "هر سطر" },
-    { id: "90", label: "مالیات بر ارث (هر صفحه)", base: 440640, extra: 20000, unit: "هر سطر" },
-    { id: "91", label: "برگ گواهی ماده ۱۸۷ قانون مالیات‌های مستقیم (هر صفحه)", base: 342720, extra: 15000, unit: "هر سطر" },
+    { id: "90", label: "مالیات بر ارث (هر صفحه)", base: 440640, extra: 20000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "91", label: "برگ گواهی ماده ۱۸۷ قانون مالیات‌های مستقیم (هر صفحه)", base: 342720, extra: 15000, unit: "هر سطر", baseUnit: "صفحه" },
   ]},
   { category: "اسناد مخابراتی و رسانه", items: [
-    { id: "92", label: "ریز مکالمات تلفن (هر صفحه)", base: 224400, extra: 5000, unit: "هر سطر" },
+    { id: "92", label: "ریز مکالمات تلفن (هر صفحه)", base: 224400, extra: 5000, unit: "هر سطر", baseUnit: "صفحه" },
     { id: "93", label: "سند تلفن همراه", base: 195840, extra: null, unit: null },
-    { id: "94", label: "فکس، تلکس، نمابر و پست الکترونیک (منوط به اجازه مراجع ذیربط یا طبق قانون) (هر صفحه)", base: 300000, extra: 20000, unit: "هر سطر (در صورت وجود ریسک مسئولیت، بین ۲۰٬۰۰۰ تا ۳۵٬۰۰۰)" },
-    { id: "95", label: "چت‌های خصوصی و فرسته‌ها در فضای مجازی (منوط به اجازه مراجع ذیربط یا طبق قانون) (هر صفحه)", base: 300000, extra: 15000, unit: "هر سطر (در صورت وجود ریسک مسئولیت، بین ۲۰٬۰۰۰ تا ۳۵٬۰۰۰)" },
+    { id: "94", label: "فکس، تلکس، نمابر و پست الکترونیک (منوط به اجازه مراجع ذیربط یا طبق قانون) (هر صفحه)", base: 300000, extra: 20000, unit: "هر سطر (در صورت وجود ریسک مسئولیت، بین ۲۰٬۰۰۰ تا ۳۵٬۰۰۰)", baseUnit: "صفحه" },
+    { id: "95", label: "چت‌های خصوصی و فرسته‌ها در فضای مجازی (منوط به اجازه مراجع ذیربط یا طبق قانون) (هر صفحه)", base: 300000, extra: 15000, unit: "هر سطر (در صورت وجود ریسک مسئولیت، بین ۲۰٬۰۰۰ تا ۳۵٬۰۰۰)", baseUnit: "صفحه" },
   ]},
   { category: "اسناد (احکام) ورزشی", items: [
     { id: "96", label: "احکام صادره از اداره کل تربیت بدنی و فدراسیون‌ها", base: 265200, extra: 15000, unit: "هر سطر" },
@@ -173,11 +183,11 @@ const PRICE_CATALOG = [
     { id: "99", label: "حکم قهرمانی", base: 265200, extra: 15000, unit: "هر سطر" },
   ]},
   { category: "اسناد وسائل نقلیه", items: [
-    { id: "100", label: "سند ثبت، تابعیت و مالکیت هواپیما (هر صفحه)", base: 306000, extra: 30000, unit: "هر سطر" },
+    { id: "100", label: "سند ثبت، تابعیت و مالکیت هواپیما (هر صفحه)", base: 306000, extra: 30000, unit: "هر سطر", baseUnit: "صفحه" },
     { id: "101", label: "سند وسائط نقلیه سبک", base: 306000, extra: 15000, unit: "هر سطر" },
     { id: "102", label: "سند خودرو (نقلیه سنگین)", base: 306000, extra: 20000, unit: "هر سطر" },
     { id: "103", label: "سند ماشین‌آلات سنگین راهسازی و ساختمانی", base: 306000, extra: 30000, unit: "هر سطر" },
-    { id: "104", label: "سند مالکیت یا انتقال شناورها (کشتی، لنج، نفتکش و غیره) (هر صفحه)", base: 306000, extra: 30000, unit: "هر سطر" },
+    { id: "104", label: "سند مالکیت یا انتقال شناورها (کشتی، لنج، نفتکش و غیره) (هر صفحه)", base: 306000, extra: 30000, unit: "هر سطر", baseUnit: "صفحه" },
   ]},
   { category: "اسناد وظیفه عمومی", items: [
     { id: "105", label: "کارت پایان خدمت", base: 195840, extra: null, unit: null },
@@ -189,7 +199,7 @@ const PRICE_CATALOG = [
     { id: "108-1", label: "روادید، برای هر نفر", base: 25000, extra: null, unit: null, addition: true },
     { id: "109", label: "کارت اقامت موقت اتباع خارجی", base: 195840, extra: null, unit: null },
     { id: "110", label: "کارت/برگ تردد اتباع خارجی", base: 195840, extra: null, unit: null },
-    { id: "111", label: "گزارش ورود و خروج از کشور (هر صفحه)", base: 179250, extra: 10000, unit: "هر ردیف" },
+    { id: "111", label: "گزارش ورود و خروج از کشور (هر صفحه)", base: 179250, extra: 10000, unit: "هر ردیف", baseUnit: "صفحه" },
   ]},
   { category: "انواع پروانه و جواز اشتغال به کار واحدهای صنفی و صنعتی", items: [
     { id: "112", label: "جواز اشتغال به کار", base: 179250, extra: 10000, unit: "هر سطر" },
@@ -217,13 +227,13 @@ const PRICE_CATALOG = [
     { id: "132", label: "قبض اجرای دادگستری", base: 244800, extra: 5000, unit: "هر قلم" },
   ]},
   { category: "قراردادها", items: [
-    { id: "133", label: "قرارداد استخدامی (هر صفحه)", base: 500000, extra: 15000, unit: "هر سطر" },
-    { id: "134", label: "قرارداد بیمه (هر صفحه)", base: 500000, extra: 15000, unit: "هر سطر" },
-    { id: "135", label: "قرارداد بین اشخاص حقیقی، محضری یا دارای گواهی امضا و ممهور به مهر یک مرجع رسمی (هر صفحه)", base: 500000, extra: 15000, unit: "هر سطر" },
-    { id: "136", label: "قرارداد بین دو شرکت مربوط به خرید کالا یا خدمات (هر صفحه)", base: 500000, extra: 30000, unit: "هر سطر" },
-    { id: "137", label: "قرارداد کار اشخاص با دولت، مؤسسه یا شرکت (هر صفحه)", base: 500000, extra: 30000, unit: "هر سطر" },
-    { id: "138", label: "قراردادهای دیجیتال و استارت‌آپ (هر صفحه)", base: 500000, extra: 15000, unit: "هر سطر" },
-    { id: "139", label: "قراردادهای مربوط به پروژه‌ها (هر صفحه)", base: 500000, extra: 15000, unit: "هر سطر" },
+    { id: "133", label: "قرارداد استخدامی (هر صفحه)", base: 500000, extra: 15000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "134", label: "قرارداد بیمه (هر صفحه)", base: 500000, extra: 15000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "135", label: "قرارداد بین اشخاص حقیقی، محضری یا دارای گواهی امضا و ممهور به مهر یک مرجع رسمی (هر صفحه)", base: 500000, extra: 15000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "136", label: "قرارداد بین دو شرکت مربوط به خرید کالا یا خدمات (هر صفحه)", base: 500000, extra: 30000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "137", label: "قرارداد کار اشخاص با دولت، مؤسسه یا شرکت (هر صفحه)", base: 500000, extra: 30000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "138", label: "قراردادهای دیجیتال و استارت‌آپ (هر صفحه)", base: 500000, extra: 15000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "139", label: "قراردادهای مربوط به پروژه‌ها (هر صفحه)", base: 500000, extra: 15000, unit: "هر سطر", baseUnit: "صفحه" },
   ]},
   { category: "انواع گواهی", items: [
     { id: "140", label: "گواهی اداری و استخدامی", base: 265200, extra: 10000, unit: "هر سطر" },
@@ -236,8 +246,8 @@ const PRICE_CATALOG = [
     { id: "147", label: "گواهی اشتغال و تدریس استادان و اعضاء هیأت علمی", base: 265200, extra: 10000, unit: "هر سطر" },
     { id: "148", label: "گواهی امضاء محضری", base: 265200, extra: 10000, unit: "هر سطر" },
     { id: "149", label: "گواهی آموزشی", base: 265200, extra: 10000, unit: "هر سطر" },
-    { id: "150", label: "گواهی بازرسی کالا (هر صفحه)", base: 265200, extra: 20000, unit: "هر سطر" },
-    { id: "151", label: "گواهی بهداشتی غذایی، دارویی و آرایشی (کالا) (هر صفحه)", base: 265200, extra: 20000, unit: "هر سطر" },
+    { id: "150", label: "گواهی بازرسی کالا (هر صفحه)", base: 265200, extra: 20000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "151", label: "گواهی بهداشتی غذایی، دارویی و آرایشی (کالا) (هر صفحه)", base: 265200, extra: 20000, unit: "هر سطر", baseUnit: "صفحه" },
     { id: "152", label: "گواهی پرداخت عوارض شهری", base: 265200, extra: 10000, unit: "هر سطر" },
     { id: "153", label: "گواهی تألیف و انتشار", base: 265200, extra: 10000, unit: "هر سطر" },
     { id: "154", label: "گواهی تجرد و/یا گواهی احوال شخصیه", base: 195840, extra: null, unit: null },
@@ -248,24 +258,24 @@ const PRICE_CATALOG = [
     { id: "159", label: "گواهی ریزنمرات دانشگاهی", base: 204000, extra: null, unit: null },
     { id: "160", label: "گواهی سرمایه‌گذاری، یا مالکیت بازرگانی و غیره", base: 265200, extra: 10000, unit: "هر سطر" },
     { id: "161", label: "گواهی عدم پرداخت چک", base: 265200, extra: 10000, unit: "هر سطر" },
-    { id: "162", label: "گواهی عدم خسارت خودرو (هر صفحه)", base: 179250, extra: 12240, unit: "هر سطر" },
+    { id: "162", label: "گواهی عدم خسارت خودرو (هر صفحه)", base: 179250, extra: 12240, unit: "هر سطر", baseUnit: "صفحه" },
     { id: "163", label: "گواهی عدم سوءپیشینه", base: 195840, extra: null, unit: null },
     { id: "164", label: "گواهی فارغ‌التحصیلی (ابتدائی، متوسطه و دبیرستان)", base: 204000, extra: null, unit: null },
     { id: "165", label: "گواهی سلامت کالا و قابلیت عرضه به بازار", base: 497760, extra: null, unit: null },
-    { id: "166", label: "گواهی کارکرد (کارمند و کارگر) (هر صفحه)", base: 265200, extra: 10000, unit: "هر سطر" },
+    { id: "166", label: "گواهی کارکرد (کارمند و کارگر) (هر صفحه)", base: 265200, extra: 10000, unit: "هر سطر", baseUnit: "صفحه" },
     { id: "167", label: "گواهی کنترل کیفیت (گواهینامه‌های استاندارد، ایزو)", base: 265200, extra: 10000, unit: "هر سطر" },
     { id: "168", label: "گواهی فنی و حرفه‌ای", base: 293760, extra: null, unit: null },
-    { id: "169", label: "گواهی مبدأ (هر صفحه)", base: 497760, extra: 25000, unit: "هر سطر توضیحات" },
+    { id: "169", label: "گواهی مبدأ (هر صفحه)", base: 497760, extra: 25000, unit: "هر سطر توضیحات", baseUnit: "صفحه" },
     { id: "170", label: "گواهی محل اقامت (تغییر، کدپستی)", base: 265200, extra: 10000, unit: "هر سطر" },
-    { id: "171", label: "گواهی‌های اشتغال به کار (شرح وظایف شغلی) (هر صفحه)", base: 265200, extra: 10000, unit: "هر سطر" },
+    { id: "171", label: "گواهی‌های اشتغال به کار (شرح وظایف شغلی) (هر صفحه)", base: 265200, extra: 10000, unit: "هر سطر", baseUnit: "صفحه" },
     { id: "172", label: "گواهی موقت پایان تحصیلات کاردانی، کارشناسی، کارشناسی ارشد، دکترا (منوط به عدم قید فقد اعتبار برای ترجمه)", base: 293760, extra: null, unit: null },
     { id: "173", label: "گواهی‌های آموزشی (حضور در سمینار، کارگاه و غیره)", base: 265200, extra: 10000, unit: "هر سطر" },
     { id: "174", label: "گواهی‌های انجمن مهندسین", base: 265200, extra: 10000, unit: "هر سطر" },
-    { id: "175", label: "گواهی کار پزشکان و پرستاران و غیره (هر صفحه)", base: 265200, extra: 10000, unit: "هر سطر" },
-    { id: "176", label: "گواهی اعطای نمایندگی شرکت خارجی به ایرانی (هر صفحه)", base: 497760, extra: 25000, unit: "هر سطر توضیحات" },
-    { id: "177", label: "گواهی اعطای نمایندگی شرکت ایرانی به خارجی (هر صفحه)", base: 497760, extra: 25000, unit: "هر سطر توضیحات" },
-    { id: "178", label: "انواع استعلامات (هر صفحه)", base: 265200, extra: 10000, unit: "هر سطر" },
-    { id: "179", label: "سایر گواهی‌ها (هر صفحه)", base: 265200, extra: 10000, unit: "هر سطر" },
+    { id: "175", label: "گواهی کار پزشکان و پرستاران و غیره (هر صفحه)", base: 265200, extra: 10000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "176", label: "گواهی اعطای نمایندگی شرکت خارجی به ایرانی (هر صفحه)", base: 497760, extra: 25000, unit: "هر سطر توضیحات", baseUnit: "صفحه" },
+    { id: "177", label: "گواهی اعطای نمایندگی شرکت ایرانی به خارجی (هر صفحه)", base: 497760, extra: 25000, unit: "هر سطر توضیحات", baseUnit: "صفحه" },
+    { id: "178", label: "انواع استعلامات (هر صفحه)", base: 265200, extra: 10000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "179", label: "سایر گواهی‌ها (هر صفحه)", base: 265200, extra: 10000, unit: "هر سطر", baseUnit: "صفحه" },
   ]},
   { category: "گواهینامه‌های غیر تحصیلی و کاری", items: [
     { id: "180", label: "گواهینامه رانندگی", base: 195840, extra: null, unit: null },
@@ -276,43 +286,43 @@ const PRICE_CATALOG = [
     // Source prints this row's addition as "۲۰،۰۰۰ ریال" -- every other
     // addition in the whole sheet is Toman, so this looks like a stray
     // typo; treated as 20,000 Toman for consistency with its neighbors.
-    { id: "185", label: "شناسنامه دریانوردی (هر صفحه)", base: 293760, extra: 20000, unit: "هر سطر" },
-    { id: "186", label: "گواهینامه راهبری قطار و مترو (هر صفحه)", base: 293760, extra: 20000, unit: "هر سطر" },
-    { id: "187", label: "دفترچه/اجازه کار برای اتباع بیگانه (هر صفحه)", base: 293760, extra: 20000, unit: "هر سطر" },
+    { id: "185", label: "شناسنامه دریانوردی (هر صفحه)", base: 293760, extra: 20000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "186", label: "گواهینامه راهبری قطار و مترو (هر صفحه)", base: 293760, extra: 20000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "187", label: "دفترچه/اجازه کار برای اتباع بیگانه (هر صفحه)", base: 293760, extra: 20000, unit: "هر سطر", baseUnit: "صفحه" },
     { id: "188", label: "سایر گواهینامه‌ها", base: 293760, extra: 20000, unit: "هر سطر" },
   ]},
   { category: "اوراق و اسناد قضایی و قانون", items: [
-    { id: "189", label: "دادخواست و لوایح (هر صفحه)", base: 700000, extra: 35000, unit: "هر سطر" },
-    { id: "190", label: "ابلاغیه، اخطاریه (هر صفحه)", base: 195840, extra: 25000, unit: "هر سطر" },
-    { id: "191", label: "اجرائیه (هر صفحه)", base: 350000, extra: 35000, unit: "هر سطر" },
-    { id: "192", label: "برگ جلب، احضاریه (هر صفحه)", base: 350000, extra: 25000, unit: "هر سطر" },
-    { id: "193", label: "احکام دادگاه خانواده (فرزندخواندگی، حکم حضانت و سرپرستی اطفال و غیره) (هر صفحه)", base: 700000, extra: 35000, unit: "هر سطر" },
-    { id: "194", label: "قرارها و احکام دادگاه‌های حقوقی، کیفری، خانواده و غیره (دادنامه) (هر صفحه)", base: 700000, extra: 35000, unit: "هر سطر" },
-    { id: "195", label: "احکام داوری ایران (هر صفحه)", base: 700000, extra: 35000, unit: "هر سطر" },
-    { id: "196", label: "حکم/قرار شناسایی، اجرای آراء محاکم/داوری خارجی (هر صفحه)", base: 700000, extra: 35000, unit: "هر سطر" },
-    { id: "197", label: "آراء مراجع شبه‌قضائی (هیأت‌های اداری، انتظامی) (هر صفحه)", base: 700000, extra: 35000, unit: "هر سطر" },
-    { id: "198", label: "اظهارنامه (هر صفحه)", base: 350000, extra: 25000, unit: "هر سطر" },
-    { id: "199", label: "قیم‌نامه (هر صفحه)", base: 452880, extra: 25000, unit: "هر سطر" },
-    { id: "200", label: "صورتجلسه تحقیق و بازپرسی و دادگاه (هر صفحه)", base: 700000, extra: 35000, unit: "هر سطر" },
-    { id: "201", label: "شکایت کیفری (هر صفحه)", base: 350000, extra: 25000, unit: "هر سطر" },
-    { id: "202", label: "گزارش اصلاحی (سازش و ...) (هر صفحه)", base: 700000, extra: 35000, unit: "هر سطر" },
-    { id: "203", label: "گواهی حصر وراثت (هر صفحه)", base: 354960, extra: 25000, unit: "هر سطر" },
-    { id: "204", label: "درخواست استرداد مجرمین (هر صفحه)", base: 700000, extra: 35000, unit: "هر سطر" },
-    { id: "205", label: "مکاتبات قضائی بین‌المللی (هر صفحه)", base: 700000, extra: 35000, unit: "هر سطر" },
-    { id: "206", label: "درخواست معاضدت قضایی (هر صفحه)", base: 700000, extra: 35000, unit: "هر سطر" },
-    { id: "207", label: "صورتجلسات کلانتری و آگاهی (هر صفحه)", base: 350000, extra: 25000, unit: "هر سطر" },
-    { id: "208", label: "احکام دادگاه خارجی (هر صفحه)", base: 700000, extra: 35000, unit: "هر سطر" },
-    { id: "209", label: "آراء داوری خارجی (هر صفحه)", base: 700000, extra: 35000, unit: "هر سطر" },
-    { id: "210", label: "قانون (در صورت ترجمه، به شرط رضایت یا پرداخت مناسب به مترجم) (هر صفحه)", base: 700000, extra: 35000, unit: "هر سطر" },
+    { id: "189", label: "دادخواست و لوایح (هر صفحه)", base: 700000, extra: 35000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "190", label: "ابلاغیه، اخطاریه (هر صفحه)", base: 195840, extra: 25000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "191", label: "اجرائیه (هر صفحه)", base: 350000, extra: 35000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "192", label: "برگ جلب، احضاریه (هر صفحه)", base: 350000, extra: 25000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "193", label: "احکام دادگاه خانواده (فرزندخواندگی، حکم حضانت و سرپرستی اطفال و غیره) (هر صفحه)", base: 700000, extra: 35000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "194", label: "قرارها و احکام دادگاه‌های حقوقی، کیفری، خانواده و غیره (دادنامه) (هر صفحه)", base: 700000, extra: 35000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "195", label: "احکام داوری ایران (هر صفحه)", base: 700000, extra: 35000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "196", label: "حکم/قرار شناسایی، اجرای آراء محاکم/داوری خارجی (هر صفحه)", base: 700000, extra: 35000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "197", label: "آراء مراجع شبه‌قضائی (هیأت‌های اداری، انتظامی) (هر صفحه)", base: 700000, extra: 35000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "198", label: "اظهارنامه (هر صفحه)", base: 350000, extra: 25000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "199", label: "قیم‌نامه (هر صفحه)", base: 452880, extra: 25000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "200", label: "صورتجلسه تحقیق و بازپرسی و دادگاه (هر صفحه)", base: 700000, extra: 35000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "201", label: "شکایت کیفری (هر صفحه)", base: 350000, extra: 25000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "202", label: "گزارش اصلاحی (سازش و ...) (هر صفحه)", base: 700000, extra: 35000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "203", label: "گواهی حصر وراثت (هر صفحه)", base: 354960, extra: 25000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "204", label: "درخواست استرداد مجرمین (هر صفحه)", base: 700000, extra: 35000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "205", label: "مکاتبات قضائی بین‌المللی (هر صفحه)", base: 700000, extra: 35000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "206", label: "درخواست معاضدت قضایی (هر صفحه)", base: 700000, extra: 35000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "207", label: "صورتجلسات کلانتری و آگاهی (هر صفحه)", base: 350000, extra: 25000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "208", label: "احکام دادگاه خارجی (هر صفحه)", base: 700000, extra: 35000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "209", label: "آراء داوری خارجی (هر صفحه)", base: 700000, extra: 35000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "210", label: "قانون (در صورت ترجمه، به شرط رضایت یا پرداخت مناسب به مترجم) (هر صفحه)", base: 700000, extra: 35000, unit: "هر سطر", baseUnit: "صفحه" },
   ]},
   { category: "اوراق محضری", items: [
-    { id: "211", label: "استشهادیه (هر صفحه)", base: 489600, extra: 20000, unit: "هر شاهد و گواهی دفترخانه" },
-    { id: "212", label: "استشهادیه کفالت (والدین یا فرزندان) (هر صفحه)", base: 489600, extra: 20000, unit: "هر شاهد و گواهی دفترخانه" },
-    { id: "213", label: "برابر اصل مدارک خارجی (هر صفحه)", base: 15000, extra: null, unit: null },
-    { id: "214", label: "تعهدنامه، رضایت‌نامه، اقرارنامه، شهادتنامه و اسناد مشابه (هر صفحه)", base: 489600, extra: 30000, unit: "هر سطر" },
-    { id: "215", label: "وصیت‌نامه محضری (هر صفحه)", base: 489600, extra: 30000, unit: "هر سطر" },
-    { id: "216", label: "وکالت‌نامه (سایز A4) (هر صفحه)", base: 514080, extra: 25000, unit: "هر سطر" },
-    { id: "217", label: "وکالت‌نامه بزرگ (سایز A3) (هر صفحه)", base: 440640, extra: 25000, unit: "هر سطر" },
+    { id: "211", label: "استشهادیه (هر صفحه)", base: 489600, extra: 20000, unit: "هر شاهد و گواهی دفترخانه", baseUnit: "صفحه" },
+    { id: "212", label: "استشهادیه کفالت (والدین یا فرزندان) (هر صفحه)", base: 489600, extra: 20000, unit: "هر شاهد و گواهی دفترخانه", baseUnit: "صفحه" },
+    { id: "213", label: "برابر اصل مدارک خارجی (هر صفحه)", base: 15000, extra: null, unit: null, baseUnit: "صفحه" },
+    { id: "214", label: "تعهدنامه، رضایت‌نامه، اقرارنامه، شهادتنامه و اسناد مشابه (هر صفحه)", base: 489600, extra: 30000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "215", label: "وصیت‌نامه محضری (هر صفحه)", base: 489600, extra: 30000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "216", label: "وکالت‌نامه (سایز A4) (هر صفحه)", base: 514080, extra: 25000, unit: "هر سطر", baseUnit: "صفحه" },
+    { id: "217", label: "وکالت‌نامه بزرگ (سایز A3) (هر صفحه)", base: 440640, extra: 25000, unit: "هر سطر", baseUnit: "صفحه" },
   ]},
   { category: "کارت‌ها", items: [
     { id: "218", label: "کارت شناسائی", base: 146880, extra: null, unit: null },

@@ -58,6 +58,7 @@
     <button type="button" id="clientsHeaderBtn" onclick="openClientsWorkspace()" class="header-btn header-btn-workspace hidden">مشتریان</button>
     <button type="button" id="scheduleHeaderBtn" onclick="openWorkSchedulePage()" class="header-btn header-btn-workspace hidden">📅 برنامه کاری دفتر</button>
     <button type="button" id="settingsHeaderBtn" onclick="openSettingsPage()" class="header-btn header-btn-workspace hidden">⚙️ تنظیمات</button>
+    <button type="button" id="priceListHeaderBtn" onclick="openMyPriceListPage()" class="header-btn header-btn-workspace hidden">💰 نرخنامه من</button>
     <button type="button" id="adminPanelHeaderBtn" onclick="showAdminDashboard()" class="header-btn header-btn-workspace hidden">🛡️ پنل مدیریت</button>
     <button type="button" id="logoutHeaderBtn" onclick="confirmLogout()" class="header-btn header-btn-logout hidden">
       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
@@ -817,16 +818,28 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                 <p id="dp-save-status" class="text-[11px] mt-2 hidden"></p>
             </div>
         </div>
+    </div>
+</section>
 
-        <!-- ═══ نرخنامه من (My Price List) ═══════════════════════════════
-             A translator's own base-price override for every row of the
-             official tariff catalog (price-catalog.js). An item with no
-             override here falls back to the catalog's own default price.
-             This is what a new invoice draft row's "+ افزودن از نرخنامه"
-             picker reads its price from -- see mypl* in app.js. ────────── -->
+<!-- ── VIEW · نرخنامه من (My Price List) ── a translator's own price
+     overrides for every row of the official tariff catalog
+     (price-catalog.js) -- its own top-level page (not a settings card),
+     reachable from the header's own "💰 نرخنامه من" button. Each item can
+     have up to two independently-priced, independently-overridable
+     components ("base" and "extra" -- see price-catalog.js); this is what
+     an invoice row's "+ افزودن از نرخنامه" picker reads its live prices
+     from -- see mypl* in app.js. ──────────────────────────────────────── -->
+<section id="myPriceListPage" class="fixed inset-0 z-40 hidden overflow-y-auto p-4 pt-24 md:p-8 md:pt-24" style="background: var(--bg-secondary);">
+    <div class="max-w-4xl mx-auto space-y-5">
+        <div class="flex items-center justify-between gap-3 flex-wrap">
+            <h2 class="text-xl font-black flex items-center gap-2" style="color:var(--text-main);">
+                💰 نرخنامه من
+            </h2>
+            <button type="button" onclick="closeMyPriceListPage()" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">میز کار ترجمه ←</button>
+        </div>
+
         <div class="workspace-panel p-6">
-            <h4 class="text-sm font-black mb-1 flex items-center gap-1.5" style="color:var(--text-main);">💰 نرخنامه من</h4>
-            <p class="text-[11px] mb-3" style="color:var(--text-muted);">قیمت پایهٔ هر نوع سند را بر اساس نرخ خودتان تنظیم کنید. این قیمت‌ها هنگام افزودن ردیف از «نرخنامه» به فاکتور، به‌صورت خودکار پیشنهاد می‌شوند. عدد سمت راست هر ردیف، افزودهٔ رسمی هر سطر/آیتم اضافه است — صرفاً راهنماست و در فاکتور خودکار جمع نمی‌شود.</p>
+            <p class="text-[11px] mb-3" style="color:var(--text-muted);">قیمت هر نوع سند را بر اساس نرخ خودتان تنظیم کنید. این قیمت‌ها هنگام افزودن ردیف از «نرخنامه» به فاکتور، به‌صورت خودکار پیشنهاد می‌شوند. برای سندی که «افزوده» دارد (مثلاً هر سطر یا هر درس اضافه)، هر دو مقدار در همین‌جا قابل تنظیم است.</p>
 
             <input type="text" id="mypl-search" placeholder="جستجوی نوع سند..." oninput="renderMyPriceList()" class="auth-input mb-3 w-full">
 

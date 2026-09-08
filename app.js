@@ -346,6 +346,7 @@ function syncUserSessionDOM() {
     toggle('clientsHeaderBtn',   !loggedIn);
     toggle('scheduleHeaderBtn',  !loggedIn);
     toggle('settingsHeaderBtn',  !loggedIn);
+    toggle('priceListHeaderBtn', !loggedIn);
     toggle('adminPanelHeaderBtn', !loggedIn || localStorage.getItem('deept_is_admin') !== '1');
     toggle('logoutHeaderBtn',    !loggedIn);
     const ub = document.getElementById('userBadge');
@@ -944,23 +945,81 @@ async function saveDocumentPhrases(){
 }
 
 // ═══════════════════════════════════════════════════════════
-// نرخنامه من (MY PRICE LIST) -- a translator's own base-price override for
+// نرخنامه من (MY PRICE LIST) -- a translator's own price overrides for
 // every row of the official tariff catalog (price-catalog.js, loaded as a
-// separate script -- see PRICE_CATALOG/PRICE_CATALOG_BY_ID). Persisted as
-// pref_price_list on DeepT-Core (PATCH /users/me/preferences, sparse
-// merge, same convention as document_phrases above). This is what the
-// invoice draft-row "+ افزودن از نرخنامه" picker (see addDraftRowFromPriceList
-// / addInvoiceEditRowFromPriceList) reads its price from.
+// separate script -- see PRICE_CATALOG/PRICE_CATALOG_BY_ID). An item can
+// have up to two independently-priced components -- "base" (sometimes
+// itself per-page/term/etc., see item.baseUnit) and "extra" (a per-line/
+// per-item addition, see item.extra/item.unit) -- both overridable here,
+// both entered as live quantities on an invoice row (see mypl* further
+// down for that). Persisted as pref_price_list on DeepT-Core (PATCH
+// /users/me/preferences, two-level sparse merge, same convention as
+// document_phrases above).
 // ═══════════════════════════════════════════════════════════
-let myPriceListServer = {};  // {item_id: price} -- last known saved overrides, from GET
-let myPriceListDraft  = {};  // {item_id: price} -- unsaved edits
+let myPriceListServer = {};  // {item_id: {base?, extra?}} -- last known saved overrides, from GET
+let myPriceListDraft  = {};  // {item_id: {base?, extra?}} -- unsaved edits
 
-// The price actually shown/used for an item right now: an unsaved edit
-// wins over a saved override, which wins over the catalog's own default.
-function myplEffectivePrice(itemId) {
-    if (myPriceListDraft[itemId] !== undefined) return myPriceListDraft[itemId];
-    if (myPriceListServer[itemId] !== undefined) return myPriceListServer[itemId];
-    return PRICE_CATALOG_BY_ID[itemId].base;
+// The price actually shown/used for one component ("base" or "extra") of
+// an item right now: an unsaved edit wins over a saved override, which
+// wins over the catalog's own default for that component.
+function myplEffective(itemId, component) {
+    const draftVal = myPriceListDraft[itemId] && myPriceListDraft[itemId][component];
+    if (draftVal !== undefined) return draftVal;
+    const savedVal = myPriceListServer[itemId] && myPriceListServer[itemId][component];
+    if (savedVal !== undefined) return savedVal;
+    return PRICE_CATALOG_BY_ID[itemId][component];
+}
+
+// Both components at once -- what an invoice row actually needs to
+// compute its price. `extra` is null when the item has no such component
+// at all (not just "not overridden").
+function myplEffectiveComponents(itemId) {
+    const item = PRICE_CATALOG_BY_ID[itemId];
+    return {
+        base: myplEffective(itemId, 'base'),
+        extra: item.extra !== null ? myplEffective(itemId, 'extra') : null,
+    };
+}
+
+// Recomputes a نرخنامه-linked invoice row's unit_price_toman from its own
+// live base/extra quantities and the item's current effective per-unit
+// prices -- e.g. ریزنمرات دانشگاه (id "58") at 2 ترم + 10 درس becomes
+// base×2 + extra×10. No-op for a plain manually-typed row (no
+// _mypl_item_id). Called on every quantity edit, and re-derives from
+// نرخنامه's *current* prices each time rather than freezing them at
+// add-time -- if the translator tweaks نرخنامه mid-session, a
+// not-yet-submitted row picks that up too.
+function myplRecomputeRowPrice(row) {
+    if (!row._mypl_item_id) return;
+    const c = myplEffectiveComponents(row._mypl_item_id);
+    const baseQty = row._mypl_base_qty || 0;
+    const extraQty = row._mypl_extra_qty || 0;
+    row.unit_price_toman = baseQty * c.base + (c.extra !== null ? extraQty * c.extra : 0);
+}
+
+// The "تعداد ..." quantity inputs shown under a نرخنامه-linked row, one
+// per component the item actually has (an item with a flat one-off base
+// and no extra shows none of these -- same as adding it used to work
+// before variable pricing existed). Shared by the invoice draft and
+// invoice-edit renderers; `updateFn` names which row-mutating function to
+// wire the inputs to (updateDraftRow or updateInvoiceEditRow).
+function myplRowQtyControlsHtml(row, idx, updateFn) {
+    if (!row._mypl_item_id) return '';
+    const item = PRICE_CATALOG_BY_ID[row._mypl_item_id];
+    if (!item.baseUnit && item.extra === null) return '';
+    let html = '<div class="flex items-center gap-3 flex-wrap w-full mt-1" style="padding-inline-start:1.75rem;">';
+    if (item.baseUnit) {
+        html += `<label class="text-[10px] flex items-center gap-1" style="color:var(--text-muted);">تعداد ${escapeHtml(item.baseUnit)}
+            <input type="number" min="0" value="${row._mypl_base_qty}" oninput="${updateFn}(${idx},'myplBaseQty',this.value)" class="auth-input en" dir="ltr" style="width:52px;padding:.25rem .35rem;font-size:.72rem;text-align:center;">
+        </label>`;
+    }
+    if (item.extra !== null) {
+        html += `<label class="text-[10px] flex items-center gap-1" style="color:var(--text-muted);">تعداد (${escapeHtml(item.unit)})
+            <input type="number" min="0" value="${row._mypl_extra_qty}" oninput="${updateFn}(${idx},'myplExtraQty',this.value)" class="auth-input en" dir="ltr" style="width:52px;padding:.25rem .35rem;font-size:.72rem;text-align:center;">
+        </label>`;
+    }
+    html += '</div>';
+    return html;
 }
 
 async function loadMyPriceListCatalog() {
@@ -976,6 +1035,33 @@ async function loadMyPriceListCatalog() {
     }
     myPriceListDraft = {};
     renderMyPriceList();
+}
+
+// One labeled number input for a single component ("base" or "extra") of
+// an item -- shared by both components below since they behave
+// identically, just against a different key and default.
+function myplMakeComponentField(item, component, labelText) {
+    const wrap = document.createElement('div');
+    wrap.className = 'flex flex-col shrink-0';
+    wrap.style.width = '128px';
+
+    const label = document.createElement('span');
+    label.className = 'text-[9px] mb-0.5 truncate';
+    label.style.color = 'var(--text-muted);';
+    label.title = labelText;
+    label.textContent = labelText;
+    wrap.appendChild(label);
+
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.value = myplEffective(item.id, component);
+    input.dir = 'ltr';
+    input.className = 'auth-input en';
+    input.style.cssText = 'padding:.35rem .5rem;font-size:.76rem;width:100%;';
+    input.addEventListener('input', () => myplCommit(item.id, component, input.value));
+    wrap.appendChild(input);
+
+    return wrap;
 }
 
 function renderMyPriceList() {
@@ -995,40 +1081,35 @@ function renderMyPriceList() {
         list.appendChild(header);
 
         matches.forEach(item => {
-            const effective = myplEffectivePrice(item.id);
-            const dirty = myPriceListDraft[item.id] !== undefined;
+            const dirty = !!myPriceListDraft[item.id];
             const row = document.createElement('div');
-            row.className = 'flex items-center gap-2 p-2 rounded-lg';
+            row.className = 'flex items-center gap-2 p-2 rounded-lg flex-wrap';
             row.style.cssText = `background:var(--bg-main);border:1px solid ${dirty ? 'var(--accent)' : 'var(--border-subtle)'};`;
             row.dataset.myplItem = item.id;
 
             const info = document.createElement('div');
             info.className = 'flex-1 min-w-0';
-            info.innerHTML = `
-              <div class="text-xs font-bold truncate" style="color:var(--text-main);" title="${escapeHtml(item.label)}">${escapeHtml(item.label)}${item.addition ? ' <span class="font-normal" style="color:var(--text-muted);">(افزوده)</span>' : ''}</div>
-              ${item.extra ? `<div class="text-[10px]" style="color:var(--text-muted);">+ ${item.extra.toLocaleString()} تومان به ازای ${escapeHtml(item.unit)}</div>` : ''}
-            `;
+            info.style.minWidth = '160px';
+            info.innerHTML = `<div class="text-xs font-bold truncate" style="color:var(--text-main);" title="${escapeHtml(item.label)}">${escapeHtml(item.label)}${item.addition ? ' <span class="font-normal" style="color:var(--text-muted);">(افزوده)</span>' : ''}</div>`;
             row.appendChild(info);
 
-            const input = document.createElement('input');
-            input.type = 'number';
-            input.value = effective;
-            input.dir = 'ltr';
-            input.className = 'auth-input en shrink-0';
-            input.style.cssText = 'width:110px;padding:.4rem .5rem;font-size:.78rem;';
-            input.addEventListener('input', () => myplCommit(item.id, input.value));
-            row.appendChild(input);
+            row.appendChild(myplMakeComponentField(item, 'base', item.baseUnit ? `قیمت هر ${item.baseUnit}` : 'قیمت پایه'));
+            if (item.extra !== null) {
+                row.appendChild(myplMakeComponentField(item, 'extra', `افزوده به ازای ${item.unit}`));
+            }
 
             const resetBtn = document.createElement('button');
             resetBtn.type = 'button';
-            resetBtn.title = 'بازگشت به نرخ پیش‌فرض رسمی (' + item.base.toLocaleString() + ' تومان)';
+            resetBtn.title = 'بازگشت به نرخ پیش‌فرض رسمی';
             resetBtn.className = 'text-xs font-bold px-2 py-2 rounded-lg shrink-0 transition';
             resetBtn.style.cssText = 'background:var(--panel-bg);color:var(--text-muted);border:1px solid var(--border-subtle);';
             resetBtn.textContent = '↺';
-            resetBtn.disabled = effective === item.base;
+            const atDefault = myplEffective(item.id, 'base') === item.base
+                && (item.extra === null || myplEffective(item.id, 'extra') === item.extra);
+            resetBtn.disabled = atDefault;
             resetBtn.addEventListener('click', () => {
-                input.value = item.base;
-                myplCommit(item.id, item.base);
+                myplCommit(item.id, 'base', item.base);
+                if (item.extra !== null) myplCommit(item.id, 'extra', item.extra);
                 renderMyPriceList();
             });
             row.appendChild(resetBtn);
@@ -1046,16 +1127,22 @@ function renderMyPriceList() {
     }
 }
 
-function myplCommit(itemId, rawValue) {
+function myplCommit(itemId, component, rawValue) {
     const price = parseInt(rawValue, 10);
-    const savedVal = myPriceListServer[itemId] !== undefined ? myPriceListServer[itemId] : PRICE_CATALOG_BY_ID[itemId].base;
+    const savedVal = (myPriceListServer[itemId] && myPriceListServer[itemId][component] !== undefined)
+        ? myPriceListServer[itemId][component]
+        : PRICE_CATALOG_BY_ID[itemId][component];
     if (!Number.isFinite(price) || price === savedVal) {
-        delete myPriceListDraft[itemId];
+        if (myPriceListDraft[itemId]) {
+            delete myPriceListDraft[itemId][component];
+            if (!Object.keys(myPriceListDraft[itemId]).length) delete myPriceListDraft[itemId];
+        }
     } else {
-        myPriceListDraft[itemId] = price;
+        myPriceListDraft[itemId] = myPriceListDraft[itemId] || {};
+        myPriceListDraft[itemId][component] = price;
     }
     const row = document.querySelector(`[data-mypl-item="${itemId}"]`);
-    if (row) row.style.borderColor = myPriceListDraft[itemId] !== undefined ? 'var(--accent)' : 'var(--border-subtle)';
+    if (row) row.style.borderColor = myPriceListDraft[itemId] ? 'var(--accent)' : 'var(--border-subtle)';
 }
 
 function resetAllMyPriceListDrafts() {
@@ -1612,16 +1699,23 @@ function addPresetInvoiceRow(description, unitPriceToman) {
 }
 
 // نرخنامه picker -- selecting an item from a translator's own price list
-// (its base price, effective override or catalog default -- see
-// myplEffectivePrice()) adds it as a normal editable draft row, same as
-// the fixed تمبر/مهر presets above. The official per-line extra (if any)
-// isn't auto-added; the translator bumps the row's price up by hand for
-// however many extra lines the actual document has.
+// adds it as a draft row linked to that catalog item (_mypl_item_id),
+// starting at 1×base + 0×extra. If the item has a variable component
+// (baseUnit and/or extra), renderDraftRows() shows live "تعداد ..."
+// inputs under the row for each one -- see myplRowQtyControlsHtml() and
+// myplRecomputeRowPrice(). A flat, no-extra item (the common case) just
+// adds instantly with no further input needed, same as before.
 function addDraftRowFromMyPriceList(selectEl) {
     const itemId = selectEl.value;
     if (!itemId) return;
     const item = PRICE_CATALOG_BY_ID[itemId];
-    addPresetInvoiceRow(item.label, myplEffectivePrice(itemId));
+    const row = {
+        description: item.label, quantity: 1, unit_price_toman: 0, job_id: null,
+        _mypl_item_id: itemId, _mypl_base_qty: 1, _mypl_extra_qty: 0,
+    };
+    myplRecomputeRowPrice(row);
+    invoiceDraft.push(row);
+    renderDraftRows();
     selectEl.value = '';
 }
 
@@ -1650,8 +1744,16 @@ function populateMyPriceListSelects() {
 populateMyPriceListSelects();
 
 function updateDraftRow(idx, field, value) {
-    if (!invoiceDraft[idx]) return;
-    invoiceDraft[idx][field] = field === 'description' ? value : (parseInt(value, 10) || 0);
+    const row = invoiceDraft[idx];
+    if (!row) return;
+    if (field === 'myplBaseQty' || field === 'myplExtraQty') {
+        const qty = Math.max(0, parseInt(value, 10) || 0);
+        row[field === 'myplBaseQty' ? '_mypl_base_qty' : '_mypl_extra_qty'] = qty;
+        myplRecomputeRowPrice(row);
+        renderDraftRows();
+        return;
+    }
+    row[field] = field === 'description' ? value : (parseInt(value, 10) || 0);
     if (field === 'quantity' || field === 'unit_price_toman') renderDraftRows();
 }
 
@@ -1692,15 +1794,21 @@ function renderDraftRows() {
         // (amber for a row typed fresh, with no _source_key at all) -- so
         // the draft keeps showing the same category coding end to end.
         const dotColor = ACTIVITY_CATEGORY_COLORS[(row._source_key || '').split(':')[0]] || ACTIVITY_CATEGORY_COLORS.manual;
+        // A نرخنامه-linked row's price is computed from its own quantity
+        // inputs below (see myplRowQtyControlsHtml) -- shown, not typed.
+        const priceField = row._mypl_item_id
+            ? `<span class="auth-input en" dir="ltr" title="محاسبه‌شده از تعداد زیر" style="width:100px;padding:.4rem .6rem;font-size:.78rem;display:inline-flex;align-items:center;opacity:.75;">${row.unit_price_toman.toLocaleString()}</span>`
+            : `<input type="number" value="${row.unit_price_toman}" title="قیمت واحد (تومان)" oninput="updateDraftRow(${idx},'unit_price_toman',this.value)" class="auth-input en" dir="ltr" style="width:100px;padding:.4rem .6rem;font-size:.78rem;">`;
         return `
-        <div class="flex items-center gap-1.5 p-2 rounded-lg" style="background:var(--card-surface);border:1px solid var(--border-subtle);border-inline-start:3px solid ${dotColor};">
+        <div class="flex flex-wrap items-center gap-1.5 p-2 rounded-lg" style="background:var(--card-surface);border:1px solid var(--border-subtle);border-inline-start:3px solid ${dotColor};">
             <span style="width:8px;height:8px;border-radius:50%;background:${dotColor};display:inline-block;flex-shrink:0;"></span>
             <input type="text" value="${row.description.replace(/"/g,'&quot;')}" placeholder="شرح ردیف (مثلاً هزینه پیک)" oninput="updateDraftRow(${idx},'description',this.value)" class="auth-input flex-1" style="padding:.4rem .6rem;font-size:.78rem;">
             <input type="number" min="1" value="${row.quantity}" title="تعداد" oninput="updateDraftRow(${idx},'quantity',this.value)" class="auth-input en" dir="ltr" style="width:52px;padding:.4rem .4rem;font-size:.78rem;text-align:center;">
             <span class="text-[10px] shrink-0" style="color:var(--text-muted);">×</span>
-            <input type="number" value="${row.unit_price_toman}" title="قیمت واحد (تومان)" oninput="updateDraftRow(${idx},'unit_price_toman',this.value)" class="auth-input en" dir="ltr" style="width:100px;padding:.4rem .6rem;font-size:.78rem;">
+            ${priceField}
             <span class="text-[11px] font-bold en shrink-0" style="width:95px;text-align:left;color:var(--accent);">${lineTotal.toLocaleString()}</span>
             <button onclick="removeDraftRow(${idx})" style="color:#f87171;background:none;border:none;cursor:pointer;font-weight:700;padding:0 .25rem;">✕</button>
+            ${myplRowQtyControlsHtml(row, idx, 'updateDraftRow')}
         </div>`;
     }).join('');
     updateDraftTotal();
@@ -2253,7 +2361,7 @@ function hideWorkspaceViews() {
     const lp = document.getElementById('landingPage');
     if (lp) lp.style.display = 'none';
     ['workspaceDashboard', 'clientsWorkspace', 'adminDashboard',
-     'clientProfilePage', 'workSchedulePage', 'settingsPage'].forEach(id => {
+     'clientProfilePage', 'workSchedulePage', 'settingsPage', 'myPriceListPage'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.add('hidden');
     });
@@ -2453,11 +2561,26 @@ function openSettingsPage(pushHistory = true) {
     if (pushHistory) navigateTo('/settings');
     loadPreferences();
     loadDocumentPhrasesCatalog();
-    loadMyPriceListCatalog();
 }
 
 function closeSettingsPage() {
     document.getElementById('settingsPage').classList.add('hidden');
+    document.body.style.overflow = 'auto';
+    openWorkspaceDashboard(false);
+}
+
+// نرخنامه من -- its own top-level page (see the header's dedicated button),
+// not a settings card, since it's a long, frequently-referenced list a
+// translator jumps to directly while building an invoice.
+function openMyPriceListPage(pushHistory = true) {
+    if (!currentUserSession) { openAuthModal(); return; }
+    showFullView('myPriceListPage');
+    if (pushHistory) navigateTo('/price-list');
+    loadMyPriceListCatalog();
+}
+
+function closeMyPriceListPage() {
+    document.getElementById('myPriceListPage').classList.add('hidden');
     document.body.style.overflow = 'auto';
     openWorkspaceDashboard(false);
 }
@@ -2746,14 +2869,20 @@ function renderInvoiceEditRows() {
     box.innerHTML = invoiceEditState.items.map((row, idx) => {
         const lineTotal = (row.quantity || 1) * (row.unit_price_toman || 0);
         row.line_total_toman = lineTotal;
+        // A نرخنامه-linked row's price is computed from its own quantity
+        // inputs below (see myplRowQtyControlsHtml) -- shown, not typed.
+        const priceField = row._mypl_item_id
+            ? `<span class="auth-input en" dir="ltr" title="محاسبه‌شده از تعداد زیر" style="width:100px;padding:.4rem .6rem;font-size:.78rem;display:inline-flex;align-items:center;opacity:.75;">${row.unit_price_toman.toLocaleString()}</span>`
+            : `<input type="number" value="${row.unit_price_toman}" oninput="updateInvoiceEditRow(${idx},'unit_price_toman',this.value)" class="auth-input en" dir="ltr" style="width:100px;padding:.4rem .6rem;font-size:.78rem;">`;
         return `
-        <div class="flex items-center gap-1.5 p-2 rounded-lg" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
+        <div class="flex flex-wrap items-center gap-1.5 p-2 rounded-lg" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
             <input type="text" value="${row.description.replace(/"/g,'&quot;')}" oninput="updateInvoiceEditRow(${idx},'description',this.value)" class="auth-input flex-1" style="padding:.4rem .6rem;font-size:.78rem;">
             <input type="number" min="1" value="${row.quantity}" oninput="updateInvoiceEditRow(${idx},'quantity',this.value)" class="auth-input en" dir="ltr" style="width:52px;padding:.4rem .4rem;font-size:.78rem;text-align:center;">
             <span class="text-[10px] shrink-0" style="color:var(--text-muted);">×</span>
-            <input type="number" value="${row.unit_price_toman}" oninput="updateInvoiceEditRow(${idx},'unit_price_toman',this.value)" class="auth-input en" dir="ltr" style="width:100px;padding:.4rem .6rem;font-size:.78rem;">
-            <span class="text-[11px] font-bold en shrink-0" style="width:92px;text-align:left;color:var(--accent);">${lineTotal.toLocaleString()}</span>
+            ${priceField}
+            <span class="ive-line-total text-[11px] font-bold en shrink-0" style="width:92px;text-align:left;color:var(--accent);">${lineTotal.toLocaleString()}</span>
             <button onclick="removeInvoiceEditRow(${idx})" style="color:#f87171;background:none;border:none;cursor:pointer;font-weight:700;padding:0 .25rem;">✕</button>
+            ${myplRowQtyControlsHtml(row, idx, 'updateInvoiceEditRow')}
         </div>`;
     }).join('');
     updateInvoiceEditTotal();
@@ -2762,11 +2891,18 @@ function renderInvoiceEditRows() {
 function updateInvoiceEditRow(idx, field, value) {
     if (!invoiceEditState || !invoiceEditState.items[idx]) return;
     const row = invoiceEditState.items[idx];
+    if (field === 'myplBaseQty' || field === 'myplExtraQty') {
+        const qty = Math.max(0, parseInt(value, 10) || 0);
+        row[field === 'myplBaseQty' ? '_mypl_base_qty' : '_mypl_extra_qty'] = qty;
+        myplRecomputeRowPrice(row);
+        renderInvoiceEditRows();
+        return;
+    }
     if (field === 'description') row.description = value;
     else if (field === 'quantity') row.quantity = parseInt(value, 10) || 1;
     else if (field === 'unit_price_toman') row.unit_price_toman = parseInt(value, 10) || 0;
     row.line_total_toman = (row.quantity || 1) * (row.unit_price_toman || 0);
-    document.getElementById('ive-rows').children[idx].querySelector('span').textContent = row.line_total_toman.toLocaleString();
+    document.getElementById('ive-rows').children[idx].querySelector('.ive-line-total').textContent = row.line_total_toman.toLocaleString();
     updateInvoiceEditTotal();
 }
 
@@ -2783,16 +2919,18 @@ function addInvoiceEditRow() {
 }
 
 // نرخنامه picker for an invoice already being edited -- same idea as
-// addDraftRowFromMyPriceList() below, just against invoiceEditState
+// addDraftRowFromMyPriceList() above, just against invoiceEditState
 // instead of the not-yet-submitted invoiceDraft.
 function addInvoiceEditRowFromMyPriceList(selectEl) {
     const itemId = selectEl.value;
     if (!itemId || !invoiceEditState) { selectEl.value = ''; return; }
     const item = PRICE_CATALOG_BY_ID[itemId];
-    invoiceEditState.items.push({
-        description: item.label, quantity: 1,
-        unit_price_toman: myplEffectivePrice(itemId), line_total_toman: 0,
-    });
+    const row = {
+        description: item.label, quantity: 1, unit_price_toman: 0, line_total_toman: 0,
+        _mypl_item_id: itemId, _mypl_base_qty: 1, _mypl_extra_qty: 0,
+    };
+    myplRecomputeRowPrice(row);
+    invoiceEditState.items.push(row);
     renderInvoiceEditRows();
     selectEl.value = '';
 }
@@ -3077,6 +3215,17 @@ function applyRouteForPath(path) {
 
         if (currentUserSession) {
             openSettingsPage(false);
+        } else {
+            navigateTo('/', false);
+            showLandingView();
+            openLogin();
+            showToast('برای دسترسی به این بخش، ابتدا وارد شوید.');
+        }
+
+    } else if (path === '/price-list') {
+
+        if (currentUserSession) {
+            openMyPriceListPage(false);
         } else {
             navigateTo('/', false);
             showLandingView();
