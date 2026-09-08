@@ -191,9 +191,10 @@
         <button type="button" onclick="addCustomInvoiceRow()" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">+ ردیف دلخواه</button>
         <button type="button" onclick="addPresetInvoiceRow('تمبر دادگستری', 60000)" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">+ تمبر دادگستری <span class="en" style="color:var(--text-muted);">(۶۰,۰۰۰)</span></button>
         <button type="button" onclick="addPresetInvoiceRow('مهر وزارت خارجه (هر صفحه)', 50000)" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">+ مهر وزارت خارجه <span class="en" style="color:var(--text-muted);">(۵۰,۰۰۰/صفحه)</span></button>
-        <select id="cd-mypl-select" onchange="addDraftRowFromMyPriceList(this)" class="auth-input text-[11px]" style="width:auto;max-width:220px;padding:.35rem .5rem;">
-          <option value="">+ افزودن از نرخنامه...</option>
-        </select>
+        <div class="relative" style="width:220px;">
+          <input type="text" id="cd-mypl-search" class="auth-input text-[11px]" style="padding:.35rem .5rem;" placeholder="🔍 افزودن از نرخنامه..." autocomplete="off" oninput="filterMyPriceListDropdown('cd')" onfocus="filterMyPriceListDropdown('cd')">
+          <div id="cd-mypl-options" class="hidden z-50 rounded-lg" style="background:var(--card-surface); border:1px solid var(--border-color);"></div>
+        </div>
       </div>
       <p class="text-[11px] mb-2" style="color:var(--text-muted);">از سابقه پروژه‌ها «+ افزودن» بزنید، یا ردیف دلخواه اضافه کنید. تعداد و قیمت واحد هر ردیف قابل ویرایش است.</p>
       <div id="cd-draft-rows" class="space-y-1.5"></div>
@@ -329,9 +330,10 @@
       </div>
       <div class="flex flex-wrap items-center gap-2 mb-3">
         <button type="button" onclick="addInvoiceEditRow()" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">+ ردیف</button>
-        <select id="ive-mypl-select" onchange="addInvoiceEditRowFromMyPriceList(this)" class="auth-input text-[11px]" style="width:auto;max-width:220px;padding:.35rem .5rem;">
-          <option value="">+ افزودن از نرخنامه...</option>
-        </select>
+        <div class="relative" style="width:220px;">
+          <input type="text" id="ive-mypl-search" class="auth-input text-[11px]" style="padding:.35rem .5rem;" placeholder="🔍 افزودن از نرخنامه..." autocomplete="off" oninput="filterMyPriceListDropdown('ive')" onfocus="filterMyPriceListDropdown('ive')">
+          <div id="ive-mypl-options" class="hidden z-50 rounded-lg" style="background:var(--card-surface); border:1px solid var(--border-color);"></div>
+        </div>
         <span class="text-[11px]" style="color:var(--text-muted);">تعداد و قیمت هر ردیف را می‌توانید تغییر دهید.</span>
       </div>
       <div id="ive-rows" class="space-y-1.5"></div>
@@ -975,9 +977,10 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                             <button type="button" onclick="addCustomInvoiceRow()" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">+ ردیف دلخواه</button>
                             <button type="button" onclick="addPresetInvoiceRow('تمبر دادگستری', 60000)" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">+ تمبر</button>
                             <button type="button" onclick="addPresetInvoiceRow('مهر وزارت خارجه (هر صفحه)', 50000)" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">+ مهر خارجه</button>
-                            <select id="cp-mypl-select" onchange="addDraftRowFromMyPriceList(this)" class="auth-input text-[11px]" style="width:auto;max-width:200px;padding:.35rem .5rem;">
-                              <option value="">+ افزودن از نرخنامه...</option>
-                            </select>
+                            <div class="relative" style="width:200px;">
+                              <input type="text" id="cp-mypl-search" class="auth-input text-[11px]" style="padding:.35rem .5rem;" placeholder="🔍 افزودن از نرخنامه..." autocomplete="off" oninput="filterMyPriceListDropdown('cp')" onfocus="filterMyPriceListDropdown('cp')">
+                              <div id="cp-mypl-options" class="hidden z-50 rounded-lg" style="background:var(--card-surface); border:1px solid var(--border-color);"></div>
+                            </div>
                         </div>
                         <div id="cp-draft-rows" class="space-y-1.5"></div>
                         <div id="cp-draft-empty" class="text-xs text-center py-3" style="color:var(--text-muted);">// هنوز ردیفی اضافه نشده</div>
