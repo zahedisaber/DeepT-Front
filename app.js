@@ -4610,13 +4610,13 @@ function openQuickStart() {
 // });
 
 // ── THEME ──
-(function() {
-    const saved = localStorage.getItem('deept_theme') || 'dark';
-    if (saved === 'light') {
-        document.body.setAttribute('data-theme', 'light');
-        document.getElementById('themeBtn').textContent = '☀️';
-    }
-})();
+// (Theme restore + button label live in the single init block near
+// toggleGlobalTheme() above. A duplicate block used to live here targeting
+// getElementById('themeBtn') — since that id exists on two elements (the
+// app header button and the landing header button), it silently overwrote
+// the app header button's icon/text child spans with plain text, breaking
+// the next toggle for anyone with a saved 'light' theme. Removed rather
+// than fixed twice.)
 
 
 // ── TOAST ──

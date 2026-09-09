@@ -48,6 +48,13 @@
     --text-muted: #9ca3af;
     --panel-bg: rgba(0, 0, 0, 0.75);
     --accent: #00d4ff;
+    /* Big buttons only (hero CTA + app nav pills) — everything else keeps
+       the original neon-cyan --accent above, unchanged from before this
+       round of theme work. */
+    --accent-gradient: linear-gradient(135deg, #4338ca 0%, #2563eb 100%);
+    --accent-gradient-glow: rgba(37,99,235,0.32);
+    --accent-gradient-hover: rgba(37,99,235,0.14);
+    --accent-gradient-shadow: 0 8px 24px rgba(37,99,235,0.20);
     --accent-glow: rgba(0, 255, 255, 0.25);
     --accent-hover: rgba(0, 255, 255, 0.15);
     --card-surface: rgba(18, 18, 18, 0.9);
@@ -119,6 +126,10 @@
     --text:        #0f0f1a;
     --muted:       #5c5c72;
     --accent:      #0072a8;
+    --accent-gradient: var(--accent);
+    --accent-gradient-glow: var(--accent-glow);
+    --accent-gradient-hover: var(--accent-hover);
+    --accent-gradient-shadow: var(--shadow-accent);
     --accent-dim:  rgba(0,114,168,0.10);
     --accent-btn:  #ffffff;
     --modal-bg:    rgba(15,15,26,0.75);
@@ -210,20 +221,19 @@ body::before {
     font-weight: 700;
     cursor: pointer;
     border: none;
-    background: var(--accent);
-    color: var(--accent-btn);
-    box-shadow: 0 0 30px var(--accent-glow);
+    background: var(--accent-gradient);
+    color: #fff;
+    box-shadow: var(--accent-gradient-shadow);
     transition: .2s;
     font-family: 'Vazirmatn', sans-serif;
     text-decoration: none;
     display: inline-block;
 }
 .btn-primary:hover, .btn:hover {
-    background: var(--accent);
-    color: var(--btn-text-on-accent);
-    box-shadow: 0 0 40px var(--accent);
+    filter: brightness(1.08);
+    box-shadow: 0 10px 28px var(--accent-gradient-glow), 0 2px 10px rgba(0,0,0,.18);
 }
-.btn-primary:hover { opacity: .87; transform: translateY(-1px); }
+.btn-primary:hover { opacity: 1; transform: translateY(-1px); }
 
 /* Small header/toolbar buttons */
 .btn-ghost {
@@ -442,14 +452,16 @@ select.converter-input option {
     color: var(--text-main);
 }
 .header-btn-workspace {
-    background: var(--accent);
-    color: var(--btn-text-on-accent);
+    background: var(--accent-gradient);
+    color: #fff;
+    text-shadow: 0 1px 1px rgba(0,0,0,.15);
     border-color: transparent;
     font-weight: 900;
+    box-shadow: 0 2px 10px var(--accent-gradient-hover);
 }
 .header-btn-workspace:hover {
-    background: var(--accent);
-    opacity: 0.85;
+    filter: brightness(1.08);
+    box-shadow: 0 4px 16px var(--accent-gradient-glow);
 }
 .header-btn-logout {
     color: #f87171;
