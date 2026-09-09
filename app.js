@@ -5127,7 +5127,16 @@ async function loadAdminCrmData() {
     }
     
     try {
-        const res = await fetch(`${CORE}/jobs/admin/all`, {
+        // Scope the fetch to the persisted time-frame (if any) instead of
+        // always pulling every job ever created -- see GET /jobs/admin/all's
+        // own docstring. "همهٔ زمان‌ها" (no saved year) still fetches
+        // everything, same as before this existed.
+        const tf = getSavedCrmTimeFrame();
+        const qs = new URLSearchParams();
+        if (tf.year) qs.set('year', tf.year);
+        if (tf.year && tf.month) qs.set('month', tf.month);
+        const url = `${CORE}/jobs/admin/all${qs.toString() ? '?' + qs.toString() : ''}`;
+        const res = await fetch(url, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!res.ok) {
@@ -5162,6 +5171,19 @@ function populateCrmDocTypeFilter() {
 // ── CRM Time-Frame (Gregorian, persisted) ────────────────────────
 const CRM_TF_KEY = 'deept_crm_timeframe';
 const CRM_GREG_MONTH_LABELS = ['ژانویه','فوریه','مارس','آوریل','مه','ژوئن','ژوئیه','اوت','سپتامبر','اکتبر','نوامبر','دسامبر'];
+
+// Reads the persisted year/month selection directly from localStorage --
+// used by loadAdminCrmData() to decide what to *fetch* (year/month query
+// params, see GET /jobs/admin/all), independent of whether the <select>
+// elements happen to be populated yet (populateCrmTimeFrameSelects() only
+// runs after the fetch, same as before this scoping existed).
+function getSavedCrmTimeFrame() {
+    try {
+        const saved = JSON.parse(localStorage.getItem(CRM_TF_KEY) || 'null');
+        if (saved && typeof saved.year !== 'undefined') return { year: saved.year || '', month: saved.month || '' };
+    } catch (e) {}
+    return { year: '', month: '' };
+}
 
 function populateCrmTimeFrameSelects() {
     const yearSel = document.getElementById('crmStatsYear');
@@ -5239,7 +5261,12 @@ function onCrmTimeFrameChange() {
     try {
         localStorage.setItem(CRM_TF_KEY, JSON.stringify({ year: yearSel.value || '', month: monthSel.value || '' }));
     } catch(e) {}
-    updateCrmDashboard();
+    // Re-fetch scoped to the newly-picked time-frame, rather than
+    // re-filtering whatever's already in adminCrmJobsCache -- that cache
+    // may only ever have held the PREVIOUS time-frame's jobs to begin
+    // with (see loadAdminCrmData()), so a wider or different selection
+    // needs its own fetch, not just a re-filter of what's already local.
+    loadAdminCrmData();
 }
 
 function resetCrmTimeFrame() {
@@ -5250,7 +5277,9 @@ function resetCrmTimeFrame() {
     try { localStorage.removeItem(CRM_TF_KEY); } catch(e) {}
     syncCrmMonthDisabled();
     updateCrmTimeFrameLabel();
-    updateCrmDashboard();
+    // Same reasoning as onCrmTimeFrameChange() above -- "همهٔ زمان‌ها" needs
+    // a full re-fetch (everything), not a re-filter of a possibly-scoped cache.
+    loadAdminCrmData();
 }
 
 function updateCrmDashboard() {
