@@ -35,8 +35,28 @@
                  سطر"), or null when extra is null.
      addition -> true for a lettered sub-item that is only ever an add-on
                  to its parent row (e.g. "9-1"), never invoiced on its own.
+
+   A category can also carry `pinned: true` -- a translator's own everyday
+   service fees (courier, scanning, stamps, ...), not part of the official
+   tariff sheet at all, so ids "224"+ continue past the sheet's own last
+   row ("223") rather than looking like one of its numbered rows. Must
+   stay the FIRST entry in this array: renderMyPriceList() in app.js relies
+   on plain array order to show pinned categories first, with a
+   distinguishing style, rather than re-sorting at render time.
    ======================================================================== */
 const PRICE_CATALOG = [
+  { category: "هزینه‌های رایج (پیش‌فرض قابل تغییر)", pinned: true, items: [
+    { id: "224", label: "تمبر دادگستری", base: 60000, extra: null, unit: null },
+    { id: "225", label: "مهر خارجه", base: 50000, extra: null, unit: null },
+    { id: "226", label: "هزینه خدمات به ازای هر سند", base: 200000, extra: null, unit: null },
+    { id: "227", label: "هزینه مهر برابر با اصل برای هر صفحه", base: 5000, extra: null, unit: null, baseUnit: "صفحه" },
+    { id: "228", label: "هزینه پیک", base: 200000, extra: null, unit: null },
+    { id: "229", label: "هزینه اسکن هر صفحه", base: 8000, extra: null, unit: null, baseUnit: "صفحه" },
+    { id: "230", label: "هزینه استعلام دانشگاه آزاد", base: 300000, extra: null, unit: null },
+    { id: "231", label: "هزینه استعلام سجاد", base: 80000, extra: null, unit: null },
+    { id: "232", label: "هزینه استعلام بیمه", base: 80000, extra: null, unit: null },
+    { id: "233", label: "هزینه استعلام سند ملکی", base: 80000, extra: null, unit: null },
+  ]},
   { category: "احکام کارگزینی و حقوق و دستمزد", items: [
     { id: "1", label: "حکم اعضای هیئت علمی", base: 391680, extra: 10000, unit: "هر سطر" },
     { id: "2", label: "حکم کارگزینی", base: 391680, extra: 10000, unit: "هر سطر" },

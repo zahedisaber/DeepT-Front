@@ -1074,17 +1074,28 @@ function renderMyPriceList() {
         const matches = group.items.filter(item => !query || item.label.includes(query));
         if (!matches.length) return;
 
+        // پinned (e.g. "هزینه‌های رایج") isn't part of the official tariff --
+        // a translator's own everyday fees (courier, scanning, stamps...),
+        // shown first (guaranteed by array order -- see price-catalog.js)
+        // in a visibly different amber box so they read as "yours to set",
+        // not one more row of the government sheet below them.
         const header = document.createElement('div');
-        header.className = 'text-[11px] font-black px-1 pt-2 pb-1 sticky top-0';
-        header.style.cssText = 'color:var(--accent);background:var(--panel-bg);';
-        header.textContent = group.category;
+        header.className = 'text-[11px] font-black px-1 pt-2 pb-1 sticky top-0 flex items-center gap-1.5';
+        header.style.cssText = group.pinned
+            ? 'color:#fbbf24;background:var(--panel-bg);'
+            : 'color:var(--accent);background:var(--panel-bg);';
+        header.innerHTML = group.pinned
+            ? `⭐ ${escapeHtml(group.category)}`
+            : escapeHtml(group.category);
         list.appendChild(header);
 
         matches.forEach(item => {
             const dirty = !!myPriceListDraft[item.id];
             const row = document.createElement('div');
             row.className = 'flex items-center gap-2 p-2 rounded-lg flex-wrap';
-            row.style.cssText = `background:var(--bg-main);border:1px solid ${dirty ? 'var(--accent)' : 'var(--border-subtle)'};`;
+            row.style.cssText = group.pinned
+                ? `background:rgba(251,191,36,.08);border:1px solid ${dirty ? 'var(--accent)' : 'rgba(251,191,36,.35)'};`
+                : `background:var(--bg-main);border:1px solid ${dirty ? 'var(--accent)' : 'var(--border-subtle)'};`;
             row.dataset.myplItem = item.id;
 
             const info = document.createElement('div');
@@ -1687,14 +1698,6 @@ async function renderClientInvoices(clientId) {
 
 function addCustomInvoiceRow() {
     invoiceDraft.push({ description: '', quantity: 1, unit_price_toman: 0, job_id: null });
-    renderDraftRows();
-}
-
-// Quick-add for per-item official fees that repeat across an order --
-// تمبر دادگستری (۶۰,۰۰۰ هر سند) و مهر وزارت خارجه (۵۰,۰۰۰ هر صفحه) --
-// prefilled with today's default price, quantity still fully editable.
-function addPresetInvoiceRow(description, unitPriceToman) {
-    invoiceDraft.push({ description, quantity: 1, unit_price_toman: unitPriceToman, job_id: null });
     renderDraftRows();
 }
 

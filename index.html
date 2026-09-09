@@ -189,8 +189,8 @@
       <h4 class="text-sm font-black flex items-center gap-1.5 mb-2.5" style="color:var(--text-main);">🧮 پیش‌نویس فاکتور</h4>
       <div class="flex flex-wrap items-center gap-2 mb-2.5">
         <button type="button" onclick="addCustomInvoiceRow()" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">+ ردیف دلخواه</button>
-        <button type="button" onclick="addPresetInvoiceRow('تمبر دادگستری', 60000)" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">+ تمبر دادگستری <span class="en" style="color:var(--text-muted);">(۶۰,۰۰۰)</span></button>
-        <button type="button" onclick="addPresetInvoiceRow('مهر وزارت خارجه (هر صفحه)', 50000)" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">+ مهر وزارت خارجه <span class="en" style="color:var(--text-muted);">(۵۰,۰۰۰/صفحه)</span></button>
+        <button type="button" onclick="selectMyPriceListItem('cd','224')" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">+ تمبر دادگستری</button>
+        <button type="button" onclick="selectMyPriceListItem('cd','225')" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">+ مهر خارجه</button>
         <div class="relative" style="width:220px;">
           <input type="text" id="cd-mypl-search" class="auth-input text-[11px]" style="padding:.35rem .5rem;" placeholder="🔍 افزودن از نرخنامه..." autocomplete="off" oninput="filterMyPriceListDropdown('cd')" onfocus="filterMyPriceListDropdown('cd')">
           <div id="cd-mypl-options" class="hidden z-50 rounded-lg" style="background:var(--card-surface); border:1px solid var(--border-color);"></div>
@@ -975,8 +975,8 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                         <h4 class="text-xs font-black mb-2.5 flex items-center gap-1.5" style="color:var(--text-main);">🧮 پیش‌نویس فاکتور</h4>
                         <div class="flex flex-wrap items-center gap-2 mb-2">
                             <button type="button" onclick="addCustomInvoiceRow()" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">+ ردیف دلخواه</button>
-                            <button type="button" onclick="addPresetInvoiceRow('تمبر دادگستری', 60000)" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">+ تمبر</button>
-                            <button type="button" onclick="addPresetInvoiceRow('مهر وزارت خارجه (هر صفحه)', 50000)" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">+ مهر خارجه</button>
+                            <button type="button" onclick="selectMyPriceListItem('cp','224')" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">+ تمبر</button>
+                            <button type="button" onclick="selectMyPriceListItem('cp','225')" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">+ مهر خارجه</button>
                             <div class="relative" style="width:200px;">
                               <input type="text" id="cp-mypl-search" class="auth-input text-[11px]" style="padding:.35rem .5rem;" placeholder="🔍 افزودن از نرخنامه..." autocomplete="off" oninput="filterMyPriceListDropdown('cp')" onfocus="filterMyPriceListDropdown('cp')">
                               <div id="cp-mypl-options" class="hidden z-50 rounded-lg" style="background:var(--card-surface); border:1px solid var(--border-color);"></div>
