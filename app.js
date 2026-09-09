@@ -311,21 +311,39 @@ function showToast(msg, duration=2500) {
 // ═══════════════════════════════════════════════════════════
 // THEME
 // ═══════════════════════════════════════════════════════════
+const THEME_CYCLE = ['dark', 'light', 'modern'];
+const THEME_BUTTON_META = {
+    dark:   { icon: '🌙', text: 'تاریک' },
+    light:  { icon: '☀️', text: 'روشن' },
+    modern: { icon: '✨', text: 'مدرن' },
+};
+// Button always previews the theme ONE MORE click (from where we are now)
+// would land on — e.g. while in dark mode it shows "light" as the target.
+function applyThemeButtonLabel(appliedTheme) {
+    const iconEl = document.getElementById('themeBtnIcon');
+    const textEl = document.getElementById('themeBtnText');
+    if (!iconEl || !textEl) return;
+    const idx = THEME_CYCLE.indexOf(appliedTheme);
+    const upcoming = THEME_CYCLE[((idx === -1 ? 0 : idx) + 1) % THEME_CYCLE.length];
+    const meta = THEME_BUTTON_META[upcoming];
+    iconEl.textContent = meta.icon;
+    textEl.textContent = meta.text;
+}
 function toggleGlobalTheme() {
     const body = document.body;
-    const next = (body.getAttribute('data-theme') || 'dark') === 'dark' ? 'light' : 'dark';
+    const current = body.getAttribute('data-theme') || 'dark';
+    const idx = THEME_CYCLE.indexOf(current);
+    const next = THEME_CYCLE[((idx === -1 ? 0 : idx) + 1) % THEME_CYCLE.length];
     body.setAttribute('data-theme', next);
-    document.getElementById('themeBtnIcon').textContent = next === 'light' ? '🌙' : '☀️';
-    document.getElementById('themeBtnText').textContent = next === 'light' ? 'تاریک' : 'روشن';
+    applyThemeButtonLabel(next);
     localStorage.setItem('deept_theme', next);
 }
 (function(){
     const saved = localStorage.getItem('deept_theme');
-    if (saved === 'light') {
-        document.body.setAttribute('data-theme','light');
-        document.getElementById('themeBtnIcon').textContent = '🌙';
-        document.getElementById('themeBtnText').textContent = 'تاریک';
+    if (saved === 'light' || saved === 'modern') {
+        document.body.setAttribute('data-theme', saved);
     }
+    applyThemeButtonLabel(document.body.getAttribute('data-theme') || 'dark');
 })();
 
 // ═══════════════════════════════════════════════════════════
@@ -4610,13 +4628,12 @@ function openQuickStart() {
 // });
 
 // ── THEME ──
-(function() {
-    const saved = localStorage.getItem('deept_theme') || 'dark';
-    if (saved === 'light') {
-        document.body.setAttribute('data-theme', 'light');
-        document.getElementById('themeBtn').textContent = '☀️';
-    }
-})();
+// (Theme restore + button label now live in the single init block near
+// applyThemeButtonLabel()/toggleGlobalTheme() above. A duplicate block used
+// to live here targeting getElementById('themeBtn') — since that id exists
+// on two elements (the app header button and the landing header button),
+// it silently overwrote the app header button's icon/text child spans with
+// plain text, breaking the next toggle. Removed rather than fixed twice.)
 
 
 // ── TOAST ──
@@ -5492,8 +5509,10 @@ function toggleTheme() { toggleGlobalTheme(); }
         W = canvas.width  = window.innerWidth;
         H = canvas.height = window.innerHeight;
         ctx.clearRect(0, 0, W, H);
-        const light = document.body.getAttribute('data-theme') === 'light';
-        canvas.style.opacity = light ? '0.12' : '0.55';
+        const theme = document.body.getAttribute('data-theme') || 'dark';
+        const light = theme === 'light';
+        const modern = theme === 'modern';
+        canvas.style.opacity = light ? '0.12' : (modern ? '0.5' : '0.55');
         for (let i = 0; i < nodes.length; i++) {
             for (let j = i + 1; j < nodes.length; j++) {
                 const dx = nodes[i].x - nodes[j].x;
@@ -5505,14 +5524,16 @@ function toggleTheme() { toggleGlobalTheme(); }
                     ctx.lineTo(nodes[j].x, nodes[j].y);
                     ctx.strokeStyle = light
                         ? `rgba(0,114,168,${(1-d/160)*.18})`
-                        : `rgba(0,212,255,${(1-d/160)*.65})`;
+                        : modern
+                            ? `rgba(167,139,250,${(1-d/160)*.5})`
+                            : `rgba(0,212,255,${(1-d/160)*.65})`;
                     ctx.lineWidth = .8;
                     ctx.stroke();
                 }
             }
             ctx.beginPath();
             ctx.arc(nodes[i].x, nodes[i].y, 1.7, 0, Math.PI*2);
-            ctx.fillStyle = light ? '#0072a8' : '#00d4ff';
+            ctx.fillStyle = light ? '#0072a8' : (modern ? '#a78bfa' : '#00d4ff');
             ctx.fill();
             nodes[i].x += nodes[i].vx;
             nodes[i].y += nodes[i].vy;

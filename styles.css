@@ -5,7 +5,8 @@
    --------------------------------------------------------------------------
    Architecture (layers, top to bottom):
      1. Fonts            — @import above (must stay the first statement)
-     2. Design tokens    — :root + [data-theme="light"]; single source of truth
+     2. Design tokens    — :root + [data-theme="light"] + [data-theme="modern"];
+                            single source of truth
      3. Reset & base     — box model, html/body, typography roots, canvas layer
      4. Utilities        — direction helpers (.en)
      5. Buttons          — every button family and its states
@@ -123,6 +124,78 @@
     --accent-btn:  #ffffff;
     --modal-bg:    rgba(15,15,26,0.75);
     --logo-filter: invert(0);
+}
+
+/* ── MODERN THEME (both namespaces; effective --accent is #8b5cf6) ──
+   Glassmorphism: a soft violet/cyan gradient backdrop behind frosted,
+   semi-transparent cards. The frosting itself (backdrop-filter) can't live
+   in a custom property, so it's applied separately just below. */
+[data-theme="modern"] {
+    --bg-main: #15112b;
+    --bg-secondary: #1b1638;
+    --text-main: #f4f2ff;
+    --text-muted: rgba(244,242,255,0.62);
+    --panel-bg: rgba(21,17,43,0.55);
+    --accent: #8b5cf6;
+    --accent-glow: rgba(139,92,246,0.35);
+    --accent-hover: rgba(139,92,246,0.16);
+    --card-surface: rgba(255,255,255,0.07);
+    --border-color: rgba(139,92,246,0.35);
+    --border-subtle: rgba(255,255,255,0.10);
+    --input-bg: rgba(255,255,255,0.05);
+    --input-border: rgba(255,255,255,0.18);
+    --shadow-accent: 0 8px 32px rgba(139,92,246,0.28);
+    --node-color: #a78bfa;
+    --node-line: rgba(167,139,250,1);
+    --canvas-opacity: 0.5;
+    --header-bg: rgba(21,17,43,0.45);
+    --table-header-text: rgba(244,242,255,0.5);
+    --row-hover: rgba(139,92,246,0.08);
+    --divider: rgba(255,255,255,0.10);
+    --btn-text-on-accent: #ffffff;
+    --modal-overlay: rgba(10,8,22,0.55);
+    --toast-bg: rgba(27,22,56,0.9);
+    --toast-border: rgba(139,92,246,0.4);
+
+    --bg: radial-gradient(circle at 15% 20%, rgba(139,92,246,0.22) 0%, transparent 45%),
+          radial-gradient(circle at 85% 10%, rgba(56,189,248,0.16) 0%, transparent 45%),
+          radial-gradient(circle at 50% 100%, rgba(217,70,239,0.12) 0%, transparent 55%),
+          linear-gradient(160deg, #0f0c22 0%, #171233 45%, #100b23 100%);
+    --bg2:         rgba(255,255,255,0.06);
+    --surface:     rgba(255,255,255,0.06);
+    --surface2:    rgba(255,255,255,0.11);
+    --border:      rgba(255,255,255,0.14);
+    --border2:     rgba(255,255,255,0.22);
+    --text:        #f4f2ff;
+    --muted:       rgba(244,242,255,0.6);
+    --accent-dim:  rgba(139,92,246,0.16);
+    --accent-btn:  #ffffff;
+    --modal-bg:    rgba(21,17,43,0.55);
+    --logo-filter: invert(1);
+}
+
+/* Frosted-glass surfaces: backdrop-filter can't be baked into the tokens
+   above, so the card/panel surfaces get it here instead. Attribute
+   selectors target the many inline `style="background:var(--card-surface)…"`
+   elements without touching index.html markup. */
+[data-theme="modern"] [style*="var(--card-surface)"],
+[data-theme="modern"] [style*="var(--panel-bg)"],
+[data-theme="modern"] .workspace-panel,
+[data-theme="modern"] .feature,
+[data-theme="modern"] .chat-window,
+[data-theme="modern"] #logoutConfirm,
+[data-theme="modern"] .modal,
+[data-theme="modern"] .overlay .modal {
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+}
+[data-theme="modern"] body {
+    background-attachment: fixed;
+}
+[data-theme="modern"] body::before {
+    background-image:
+        linear-gradient(rgba(139,92,246,0.07) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(139,92,246,0.07) 1px, transparent 1px);
 }
 
 /* ── 3. RESET & BASE ────────────────────────────────────────────────────── */
@@ -472,6 +545,7 @@ header {
     transition: background .3s, border-color .3s;
 }
 [data-theme="light"] header { background: rgba(244,246,251,0.92); }
+[data-theme="modern"] header { background: rgba(21,17,43,0.55); }
 .header-wordmark {
     font-family: 'Inter', system-ui, sans-serif;
     font-size: 1.25rem;
@@ -548,6 +622,7 @@ header {
     margin-bottom: 1.1rem;
 }
 [data-theme="light"] .step-num { border-color: rgba(0,114,168,.3); }
+[data-theme="modern"] .step-num { border-color: rgba(139,92,246,.35); }
 .step-card h3 { font-size: 1rem; font-weight: 700; color: var(--text); margin-bottom: .45rem; }
 .step-card p  { font-size: .88rem; color: var(--muted); line-height: 1.75; }
 
