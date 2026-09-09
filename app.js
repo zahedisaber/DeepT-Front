@@ -14,8 +14,8 @@
 /* ============ CONFIGURATION & BACKEND ENDPOINTS ============ Core = auth/wallet/jobs/clients/invoices; BackEnd = translation + passport.
    QS_* point at a legacy quick-start server override; getActiveBackendOrigin()
    is the live switch. ============ */
-const CORE    = 'https://core.deept.ir';
-const BACKEND = 'https://backend.deept.ir';
+const CORE    = 'https://core-ir.deept.ir';
+const BACKEND = 'https://backend-ir.deept.ir';
 
 // ═══════════════════════════════════════════════════════════
 // DOCUMENT REGISTRY
@@ -100,13 +100,6 @@ const DOCUMENT_REGISTRY = {
         active:              true,
         usePassportSession:  true,
     },
-    'police-certificate': {
-    label:               'گواهی عدم سوء پیشینه',
-    endpoint:            'https://deept-back-end.onrender.com/api/translate/police-certificate',
-    // or your proxied domain, e.g. backend.deept.ir/api/translate/police-certificate
-    active:              true,
-    usePassportSession:  true,
-},
 };
 
 // Populate the hidden native select (kept so every other part of the app
