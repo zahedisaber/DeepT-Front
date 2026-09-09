@@ -113,6 +113,27 @@
   </div>
 </div>
 
+<!-- ── VIEW 03-B · reprice an invoice draft row from نرخنامه ── a Sanam-
+     imported row (and a manually-typed one) carries whatever price it
+     came in with -- Sanam's own, possibly out of date -- with no link to
+     the نرخنامه catalog at all. This lets the translator pick the right
+     catalog item and replace that one row's description/price with it,
+     turning it into a normal نرخنامه-linked row (live قیمت + quantity
+     controls) from then on. One shared modal for every invoice-row list
+     (client-detail draft, full-profile draft, invoice-edit view) rather
+     than a picker duplicated per row -- see mypl-reprice* in app.js. ── -->
+<div role="dialog" aria-modal="true" id="myplRepriceModal" class="modal-overlay fixed inset-0 z-[75] hidden flex items-center justify-center p-4">
+  <div class="w-full max-w-md p-6" style="background:var(--card-surface);border:1px solid var(--border-color);border-radius:1rem;">
+    <div class="flex items-center justify-between mb-1">
+      <h3 class="text-base font-black" style="color:var(--text-main);">🔄 به‌روزرسانی قیمت از نرخنامه</h3>
+      <button type="button" onclick="closeMyPriceListRepriceModal()" style="color:var(--text-muted);background:none;border:none;cursor:pointer;font-size:1.1rem;">✕</button>
+    </div>
+    <p class="text-[11px] mb-3" style="color:var(--text-muted);">نوع سند صحیح را از نرخنامهٔ خودتان انتخاب کنید — شرح و قیمت این ردیف با آن جایگزین می‌شود.</p>
+    <input type="text" id="mypl-reprice-search" class="auth-input mb-2 w-full" placeholder="جستجوی نوع سند..." autocomplete="off" oninput="filterMyPriceListRepriceModal()">
+    <div id="mypl-reprice-results" class="flex flex-col" style="max-height:45vh;overflow-y:auto;"></div>
+  </div>
+</div>
+
 <!-- ── VIEW 04 · add/edit client dialog (standalone; no passport/job) ── -->
 <div role="dialog" aria-modal="true" id="addClientModal" class="modal-overlay fixed inset-0 z-[70] hidden flex items-center justify-center p-4">
   <div class="w-full max-w-md p-6" style="background:var(--card-surface);border:1px solid var(--border-color);border-radius:1rem;max-height:88vh;overflow-y:auto;">

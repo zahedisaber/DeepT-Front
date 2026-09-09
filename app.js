@@ -393,6 +393,9 @@ function executeLogout() {
 document.getElementById('logoutOverlay').addEventListener('click', function(e) {
     if (e.target === this) closeLogoutConfirm();
 });
+document.getElementById('myplRepriceModal').addEventListener('click', function(e) {
+    if (e.target === this) closeMyPriceListRepriceModal();
+});
 
 // ═══════════════════════════════════════════════════════════
 // PROFILE
@@ -1051,6 +1054,18 @@ function myplRowQtyControlsHtml(row, idx, updateFn) {
     }
     html += '</div>';
     return html;
+}
+
+// A small "🔄" button shown only on a row with no تie to نرخنامه yet --
+// a Sanam-imported job (often carrying Sanam's own, possibly stale
+// price), a settled job's price, or anything typed from scratch. Once a
+// row IS نرخنامه-linked it already has its own live price, so the button
+// disappears -- there'd be nothing left to reprice it against. `kind`
+// is 'draft' (client-detail/full-profile invoice draft) or 'ive'
+// (an already-created invoice's edit view); see openMyPriceListRepriceModal().
+function myplRepriceButtonHtml(kind, idx, row) {
+    if (row._mypl_item_id) return '';
+    return `<button type="button" onclick="openMyPriceListRepriceModal('${kind}',${idx})" title="به‌روزرسانی قیمت از نرخنامه" style="color:var(--accent);background:none;border:none;cursor:pointer;font-size:.9rem;padding:0 .25rem;">🔄</button>`;
 }
 
 async function loadMyPriceListCatalog() {
@@ -1752,10 +1767,13 @@ function myplDropdownIds(instance) {
     return { search: `${instance}-mypl-search`, options: `${instance}-mypl-options` };
 }
 
-function renderMyPriceListDropdown(instance, query) {
-    const { options } = myplDropdownIds(instance);
-    const list = document.getElementById(options);
-    if (!list) return;
+// Filters the full catalog by keyword (matching anywhere in the label,
+// not just a prefix) and renders the results into `list`, calling
+// `onSelect(itemId)` when one is clicked. Shared by the three
+// add-a-row dropdowns above and the reprice-an-existing-row modal below
+// -- both are "search the catalog, do something with what got picked",
+// differing only in what "do something" means.
+function renderMyPriceListMatches(list, query, onSelect) {
     list.innerHTML = '';
 
     const q = (query || '').trim();
@@ -1775,7 +1793,7 @@ function renderMyPriceListDropdown(instance, query) {
         return;
     }
 
-    // A blank query matches all 236 -- rendering every one of them just to
+    // A blank query matches all 246 -- rendering every one of them just to
     // scroll past is wasted work; cap the list and nudge toward typing.
     const capped = matches.slice(0, 80);
     capped.forEach(item => {
@@ -1785,7 +1803,7 @@ function renderMyPriceListDropdown(instance, query) {
         row.textContent = `${item.label} (${item.base.toLocaleString()})`;
         row.addEventListener('mouseenter', () => { row.style.background = 'var(--accent-hover)'; });
         row.addEventListener('mouseleave', () => { row.style.background = ''; });
-        row.addEventListener('click', () => selectMyPriceListItem(instance, item.id));
+        row.addEventListener('click', () => onSelect(item.id));
         list.appendChild(row);
     });
     if (matches.length > capped.length) {
@@ -1795,6 +1813,12 @@ function renderMyPriceListDropdown(instance, query) {
         more.textContent = `و ${(matches.length - capped.length).toLocaleString()} مورد دیگر — برای محدود کردن نتایج تایپ کنید`;
         list.appendChild(more);
     }
+}
+
+function renderMyPriceListDropdown(instance, query) {
+    const list = document.getElementById(myplDropdownIds(instance).options);
+    if (!list) return;
+    renderMyPriceListMatches(list, query, (itemId) => selectMyPriceListItem(instance, itemId));
 }
 
 function filterMyPriceListDropdown(instance) {
@@ -1832,6 +1856,56 @@ function closeMyPriceListDropdown(instance) {
         if (wrapper && !wrapper.contains(e.target)) closeMyPriceListDropdown(instance);
     });
 });
+
+// ── Reprice an existing row from نرخنامه ──────────────────────────────
+// A row that isn't نرخنامه-linked (a Sanam-imported job -- possibly
+// carrying Sanam's own, out-of-date price -- a job's settled price, or
+// one typed from scratch) has no live tie to نرخنامه at all. This lets
+// the translator pick the matching catalog item and swap that one row's
+// description/price for it, turning it into a normal نرخنامه-linked row
+// (live price + quantity controls) from then on -- see the "🔄" button
+// rendered in renderDraftRows()/renderInvoiceEditRows() for any row
+// missing _mypl_item_id.
+let myplRepriceTarget = null;  // { kind: 'draft'|'ive', idx } while the modal is open
+
+function openMyPriceListRepriceModal(kind, idx) {
+    myplRepriceTarget = { kind, idx };
+    document.getElementById('myplRepriceModal').classList.remove('hidden');
+    const search = document.getElementById('mypl-reprice-search');
+    search.value = '';
+    search.focus();
+    filterMyPriceListRepriceModal();
+}
+
+function closeMyPriceListRepriceModal() {
+    myplRepriceTarget = null;
+    document.getElementById('myplRepriceModal').classList.add('hidden');
+}
+
+function filterMyPriceListRepriceModal() {
+    const list = document.getElementById('mypl-reprice-results');
+    const query = document.getElementById('mypl-reprice-search').value;
+    renderMyPriceListMatches(list, query, applyMyPriceListReprice);
+}
+
+function applyMyPriceListReprice(itemId) {
+    if (!myplRepriceTarget) return;
+    const { kind, idx } = myplRepriceTarget;
+    const items = kind === 'ive' ? (invoiceEditState && invoiceEditState.items) : invoiceDraft;
+    const row = items && items[idx];
+    if (!row) { closeMyPriceListRepriceModal(); return; }
+
+    const item = PRICE_CATALOG_BY_ID[itemId];
+    row.description = item.label;
+    row._mypl_item_id = itemId;
+    row._mypl_base_qty = 1;
+    row._mypl_extra_qty = 0;
+    row._mypl_mohr_qty = 0;
+    myplRecomputeRowPrice(row);
+
+    closeMyPriceListRepriceModal();
+    if (kind === 'ive') renderInvoiceEditRows(); else renderDraftRows();
+}
 
 // Picking an item adds a draft row linked to that catalog item
 // (_mypl_item_id), starting at 1×base + 0×extra. If the item has a
@@ -1947,6 +2021,7 @@ function renderDraftRows() {
             <span class="text-[10px] shrink-0" style="color:var(--text-muted);">×</span>
             ${priceField}
             <span class="draft-line-total text-[11px] font-bold en shrink-0" style="width:95px;text-align:left;color:var(--accent);">${lineTotal.toLocaleString()}</span>
+            ${myplRepriceButtonHtml('draft', idx, row)}
             <button onclick="removeDraftRow(${idx})" style="color:#f87171;background:none;border:none;cursor:pointer;font-weight:700;padding:0 .25rem;">✕</button>
             ${myplRowQtyControlsHtml(row, idx, 'updateDraftRow')}
         </div>`;
@@ -3021,6 +3096,7 @@ function renderInvoiceEditRows() {
             <span class="text-[10px] shrink-0" style="color:var(--text-muted);">×</span>
             ${priceField}
             <span class="ive-line-total text-[11px] font-bold en shrink-0" style="width:92px;text-align:left;color:var(--accent);">${lineTotal.toLocaleString()}</span>
+            ${myplRepriceButtonHtml('ive', idx, row)}
             <button onclick="removeInvoiceEditRow(${idx})" style="color:#f87171;background:none;border:none;cursor:pointer;font-weight:700;padding:0 .25rem;">✕</button>
             ${myplRowQtyControlsHtml(row, idx, 'updateInvoiceEditRow')}
         </div>`;
