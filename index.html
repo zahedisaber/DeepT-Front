@@ -134,6 +134,29 @@
   </div>
 </div>
 
+<!-- ── VIEW 03b · نرخنامه bulk percentage increase (inflation adjustment) --
+     applies to every catalog item's current effective price (default or
+     already-overridden alike) via myplCommit(); see applyMyplBulkIncrease()
+     in app.js. Still a draft until "ذخیرهٔ نرخنامه" is pressed. ── -->
+<div role="dialog" aria-modal="true" id="myplBulkIncreaseModal" class="modal-overlay fixed inset-0 z-[75] hidden flex items-center justify-center p-4">
+  <div class="w-full max-w-sm p-6" style="background:var(--card-surface);border:1px solid var(--border-color);border-radius:1rem;">
+    <div class="flex items-center justify-between mb-1">
+      <h3 class="text-base font-black" style="color:var(--text-main);">📈 افزایش نرخ‌ها</h3>
+      <button type="button" onclick="closeMyplBulkIncreaseModal()" style="color:var(--text-muted);background:none;border:none;cursor:pointer;font-size:1.1rem;">✕</button>
+    </div>
+    <p class="text-[11px] mb-3" style="color:var(--text-muted);">همهٔ قیمت‌های فعلی نرخنامه (چه نرخ رسمی پیش‌فرض و چه نرخ خودتان) یکجا با این درصد افزایش می‌یابند. پیش از ذخیره می‌توانید نتیجه را در لیست پایین بررسی و در صورت نیاز هر ردیف را جداگانه ویرایش کنید.</p>
+    <label class="text-xs font-bold mb-1 block" style="color:var(--text-main);">درصد افزایش</label>
+    <div class="flex items-center gap-2 mb-4">
+      <input type="number" id="mypl-bulk-increase-pct" class="auth-input en" dir="ltr" step="1" placeholder="مثلاً 15" style="flex:1;" onkeydown="if(event.key==='Enter')applyMyplBulkIncrease()">
+      <span class="text-sm font-bold" style="color:var(--text-muted);">٪</span>
+    </div>
+    <div class="flex items-center gap-2">
+      <button type="button" onclick="applyMyplBulkIncrease()" class="flex-1 font-black py-2 rounded-lg text-xs transition" style="background:var(--accent);color:var(--btn-text-on-accent);">اعمال روی همهٔ نرخنامه</button>
+      <button type="button" onclick="closeMyplBulkIncreaseModal()" class="text-xs font-bold px-3 py-2 rounded-lg transition shrink-0" style="background:var(--bg-main);color:var(--text-muted);border:1px solid var(--border-subtle);">انصراف</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── VIEW 04 · add/edit client dialog (standalone; no passport/job) ── -->
 <div role="dialog" aria-modal="true" id="addClientModal" class="modal-overlay fixed inset-0 z-[70] hidden flex items-center justify-center p-4">
   <div class="w-full max-w-md p-6" style="background:var(--card-surface);border:1px solid var(--border-color);border-radius:1rem;max-height:88vh;overflow-y:auto;">
@@ -861,7 +884,10 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
             <h2 class="text-xl font-black flex items-center gap-2" style="color:var(--text-main);">
                 💰 نرخنامه من
             </h2>
-            <button type="button" onclick="closeMyPriceListPage()" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">میز کار ترجمه ←</button>
+            <div class="flex items-center gap-2">
+                <button type="button" onclick="openMyplBulkIncreaseModal()" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">📈 افزایش نرخ‌ها</button>
+                <button type="button" onclick="closeMyPriceListPage()" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">میز کار ترجمه ←</button>
+            </div>
         </div>
 
         <div class="workspace-panel p-6">
