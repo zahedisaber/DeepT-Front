@@ -1285,6 +1285,7 @@ async function openWorkspaceDashboard(pushHistory = true) {
     document.getElementById('clientProfilePage').classList.add('hidden');
     document.getElementById('workSchedulePage').classList.add('hidden');
     document.getElementById('settingsPage').classList.add('hidden');
+    document.getElementById('myPriceListPage').classList.add('hidden');
 
     // Reserve exactly as much top space as the header actually needs,
     // measured live -- more reliable than a fixed padding guess, since it
@@ -1319,6 +1320,7 @@ async function openClientsWorkspace(pushHistory = true) {
     document.getElementById('clientProfilePage').classList.add('hidden');
     document.getElementById('workSchedulePage').classList.add('hidden');
     document.getElementById('settingsPage').classList.add('hidden');
+    document.getElementById('myPriceListPage').classList.add('hidden');
 
     const headerEl = document.querySelector('.header-bar');
     if (headerEl) {
@@ -1354,6 +1356,8 @@ function showLandingView() {
     if (sp) sp.classList.add('hidden');
     const st = document.getElementById('settingsPage');
     if (st) st.classList.add('hidden');
+    const pl = document.getElementById('myPriceListPage');
+    if (pl) pl.classList.add('hidden');
     document.body.style.overflow = 'auto';
 }
 
@@ -4775,6 +4779,7 @@ function showAdminDashboard() {
     document.getElementById('clientProfilePage').classList.add('hidden');
     document.getElementById('workSchedulePage').classList.add('hidden');
     document.getElementById('settingsPage').classList.add('hidden');
+    document.getElementById('myPriceListPage').classList.add('hidden');
     document.getElementById('adminDashboard').classList.remove('hidden');
     switchAdminTab('users');
     loadAdminUsers();
