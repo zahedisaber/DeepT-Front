@@ -5505,14 +5505,14 @@ function toggleTheme() { toggleGlobalTheme(); }
                     ctx.lineTo(nodes[j].x, nodes[j].y);
                     ctx.strokeStyle = light
                         ? `rgba(0,114,168,${(1-d/160)*.18})`
-                        : `rgba(59,130,246,${(1-d/160)*.55})`;
+                        : `rgba(0,212,255,${(1-d/160)*.65})`;
                     ctx.lineWidth = .8;
                     ctx.stroke();
                 }
             }
             ctx.beginPath();
             ctx.arc(nodes[i].x, nodes[i].y, 1.7, 0, Math.PI*2);
-            ctx.fillStyle = light ? '#0072a8' : '#3b82f6';
+            ctx.fillStyle = light ? '#0072a8' : '#00d4ff';
             ctx.fill();
             nodes[i].x += nodes[i].vx;
             nodes[i].y += nodes[i].vy;
