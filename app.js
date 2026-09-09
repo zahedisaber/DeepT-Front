@@ -4610,13 +4610,13 @@ function openQuickStart() {
 // });
 
 // ── THEME ──
-(function() {
-    const saved = localStorage.getItem('deept_theme') || 'dark';
-    if (saved === 'light') {
-        document.body.setAttribute('data-theme', 'light');
-        document.getElementById('themeBtn').textContent = '☀️';
-    }
-})();
+// (Theme restore + button label live in the single init block near
+// toggleGlobalTheme() above. A duplicate block used to live here targeting
+// getElementById('themeBtn') — since that id exists on two elements (the
+// app header button and the landing header button), it silently overwrote
+// the app header button's icon/text child spans with plain text, breaking
+// the next toggle for anyone with a saved 'light' theme. Removed rather
+// than fixed twice.)
 
 
 // ── TOAST ──
@@ -5505,14 +5505,14 @@ function toggleTheme() { toggleGlobalTheme(); }
                     ctx.lineTo(nodes[j].x, nodes[j].y);
                     ctx.strokeStyle = light
                         ? `rgba(0,114,168,${(1-d/160)*.18})`
-                        : `rgba(0,212,255,${(1-d/160)*.65})`;
+                        : `rgba(56,189,248,${(1-d/160)*.55})`;
                     ctx.lineWidth = .8;
                     ctx.stroke();
                 }
             }
             ctx.beginPath();
             ctx.arc(nodes[i].x, nodes[i].y, 1.7, 0, Math.PI*2);
-            ctx.fillStyle = light ? '#0072a8' : '#00d4ff';
+            ctx.fillStyle = light ? '#0072a8' : '#38bdf8';
             ctx.fill();
             nodes[i].x += nodes[i].vx;
             nodes[i].y += nodes[i].vy;
