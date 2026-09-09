@@ -515,7 +515,7 @@ header {
 /* Hero */
 .hero-logo-wrap { margin-bottom: 1.5rem; }
 .hero-logo {
-    width: 360px;
+    width: clamp(300px, 34vw, 480px);
     height: auto;
     filter: var(--logo-filter);
     transition: filter .3s;
