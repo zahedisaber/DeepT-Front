@@ -1207,6 +1207,44 @@ function resetAllMyPriceListDrafts() {
     renderMyPriceList();
 }
 
+// Bulk inflation adjustment: bump every catalog item's *current* effective
+// price (whether that's still the official default or an already-saved
+// override) by a percentage, all at once. Reuses myplCommit() per
+// component so it gets the exact same draft/dirty-marking/reset-to-default
+// behavior as a manual edit -- this is just many manual edits done at
+// once, still nothing but a draft until "ذخیرهٔ نرخنامه" is pressed.
+function openMyplBulkIncreaseModal() {
+    document.getElementById('mypl-bulk-increase-pct').value = '';
+    document.getElementById('myplBulkIncreaseModal').classList.remove('hidden');
+    document.getElementById('mypl-bulk-increase-pct').focus();
+}
+
+function closeMyplBulkIncreaseModal() {
+    document.getElementById('myplBulkIncreaseModal').classList.add('hidden');
+}
+
+function applyMyplBulkIncrease() {
+    const pct = parseFloat(document.getElementById('mypl-bulk-increase-pct').value);
+    if (!Number.isFinite(pct) || pct === 0) {
+        showToast('یک درصد معتبر و غیرصفر وارد کنید.');
+        return;
+    }
+    const factor = 1 + pct / 100;
+    PRICE_CATALOG.forEach(group => {
+        group.items.forEach(item => {
+            const newBase = Math.max(0, Math.round(myplEffective(item.id, 'base') * factor));
+            myplCommit(item.id, 'base', newBase);
+            if (item.extra !== null) {
+                const newExtra = Math.max(0, Math.round(myplEffective(item.id, 'extra') * factor));
+                myplCommit(item.id, 'extra', newExtra);
+            }
+        });
+    });
+    closeMyplBulkIncreaseModal();
+    renderMyPriceList();
+    showToast(`قیمت‌ها ${pct > 0 ? '📈 افزایش' : '📉 کاهش'} یافت — برای ثبت نهایی «ذخیرهٔ نرخنامه» را بزنید.`);
+}
+
 async function saveMyPriceList() {
     if (!currentUserSession) return;
     const btn = document.getElementById('mypl-save-btn');
