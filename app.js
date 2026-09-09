@@ -981,11 +981,30 @@ function myplEffectiveComponents(itemId) {
     };
 }
 
+// "مهر برابر با اصل" (certified-true-copy stamp) is priced per page by its
+// own pinned catalog item (id "227", هزینه مهر برابر با اصل برای هر
+// صفحه) but isn't tied to any one document type -- almost any actual
+// translated document (never a pinned service fee like پیک/اسکن, and not
+// item 227 itself) can additionally need some number of its pages
+// stamped. So every non-pinned row gets this as a universal third
+// quantity, on top of whatever base/extra components the item itself has.
+const MOHR_BARABAR_ASL_ITEM_ID = '227';
+
+// Maps an updateDraftRow()/updateInvoiceEditRow() field name to the row
+// property it actually mutates -- shared so both functions handle all
+// three نرخنامه quantities identically rather than repeating the
+// three-way branch.
+const MYPL_QTY_FIELD_MAP = {
+    myplBaseQty:  '_mypl_base_qty',
+    myplExtraQty: '_mypl_extra_qty',
+    myplMohrQty:  '_mypl_mohr_qty',
+};
+
 // Recomputes a نرخنامه-linked invoice row's unit_price_toman from its own
-// live base/extra quantities and the item's current effective per-unit
-// prices -- e.g. ریزنمرات دانشگاه (id "58") at 2 ترم + 10 درس becomes
-// base×2 + extra×10. No-op for a plain manually-typed row (no
-// _mypl_item_id). Called on every quantity edit, and re-derives from
+// live base/extra/مهر quantities and each component's current effective
+// price -- e.g. ریزنمرات دانشگاه (id "58") at 2 ترم + 10 درس + 3 صفحه مهر
+// becomes base×2 + extra×10 + مهر×3. No-op for a plain manually-typed row
+// (no _mypl_item_id). Called on every quantity edit, and re-derives from
 // نرخنامه's *current* prices each time rather than freezing them at
 // add-time -- if the translator tweaks نرخنامه mid-session, a
 // not-yet-submitted row picks that up too.
@@ -994,19 +1013,26 @@ function myplRecomputeRowPrice(row) {
     const c = myplEffectiveComponents(row._mypl_item_id);
     const baseQty = row._mypl_base_qty || 0;
     const extraQty = row._mypl_extra_qty || 0;
-    row.unit_price_toman = baseQty * c.base + (c.extra !== null ? extraQty * c.extra : 0);
+    let total = baseQty * c.base + (c.extra !== null ? extraQty * c.extra : 0);
+    if (!PINNED_ITEM_IDS.has(row._mypl_item_id)) {
+        const mohrQty = row._mypl_mohr_qty || 0;
+        total += mohrQty * myplEffective(MOHR_BARABAR_ASL_ITEM_ID, 'base');
+    }
+    row.unit_price_toman = total;
 }
 
-// The "تعداد ..." quantity inputs shown under a نرخنامه-linked row, one
-// per component the item actually has (an item with a flat one-off base
-// and no extra shows none of these -- same as adding it used to work
-// before variable pricing existed). Shared by the invoice draft and
+// The "تعداد ..." quantity inputs shown under a نرخنامه-linked row: one
+// per component the item itself has (an item with a flat one-off base and
+// no extra shows neither of those two -- same as before variable pricing
+// existed), plus the universal مهر برابر با اصل page count for any actual
+// document (not a pinned service fee). Shared by the invoice draft and
 // invoice-edit renderers; `updateFn` names which row-mutating function to
 // wire the inputs to (updateDraftRow or updateInvoiceEditRow).
 function myplRowQtyControlsHtml(row, idx, updateFn) {
     if (!row._mypl_item_id) return '';
     const item = PRICE_CATALOG_BY_ID[row._mypl_item_id];
-    if (!item.baseUnit && item.extra === null) return '';
+    const showMohr = !PINNED_ITEM_IDS.has(row._mypl_item_id);
+    if (!item.baseUnit && item.extra === null && !showMohr) return '';
     let html = '<div class="flex items-center gap-3 flex-wrap w-full mt-1" style="padding-inline-start:1.75rem;">';
     if (item.baseUnit) {
         html += `<label class="text-[10px] flex items-center gap-1" style="color:var(--text-muted);">تعداد ${escapeHtml(item.baseUnit)}
@@ -1016,6 +1042,11 @@ function myplRowQtyControlsHtml(row, idx, updateFn) {
     if (item.extra !== null) {
         html += `<label class="text-[10px] flex items-center gap-1" style="color:var(--text-muted);">تعداد (${escapeHtml(item.unit)})
             <input type="number" min="0" value="${row._mypl_extra_qty}" oninput="${updateFn}(${idx},'myplExtraQty',this.value)" class="auth-input en" dir="ltr" style="width:52px;padding:.25rem .35rem;font-size:.72rem;text-align:center;">
+        </label>`;
+    }
+    if (showMohr) {
+        html += `<label class="text-[10px] flex items-center gap-1" style="color:var(--text-muted);">تعداد صفحه (مهر برابر با اصل)
+            <input type="number" min="0" value="${row._mypl_mohr_qty || 0}" oninput="${updateFn}(${idx},'myplMohrQty',this.value)" class="auth-input en" dir="ltr" style="width:52px;padding:.25rem .35rem;font-size:.72rem;text-align:center;">
         </label>`;
     }
     html += '</div>';
@@ -1809,7 +1840,7 @@ function selectMyPriceListItem(instance, itemId) {
     const item = PRICE_CATALOG_BY_ID[itemId];
     const row = {
         description: item.label, quantity: 1, unit_price_toman: 0,
-        _mypl_item_id: itemId, _mypl_base_qty: 1, _mypl_extra_qty: 0,
+        _mypl_item_id: itemId, _mypl_base_qty: 1, _mypl_extra_qty: 0, _mypl_mohr_qty: 0,
     };
     myplRecomputeRowPrice(row);
 
@@ -1841,9 +1872,9 @@ function selectMyPriceListItem(instance, itemId) {
 function updateDraftRow(idx, field, value) {
     const row = invoiceDraft[idx];
     if (!row) return;
-    if (field === 'myplBaseQty' || field === 'myplExtraQty') {
+    if (MYPL_QTY_FIELD_MAP[field]) {
         const qty = Math.max(0, parseInt(value, 10) || 0);
-        row[field === 'myplBaseQty' ? '_mypl_base_qty' : '_mypl_extra_qty'] = qty;
+        row[MYPL_QTY_FIELD_MAP[field]] = qty;
         myplRecomputeRowPrice(row);
     } else if (field === 'description') {
         row.description = value;
@@ -2999,9 +3030,9 @@ function renderInvoiceEditRows() {
 function updateInvoiceEditRow(idx, field, value) {
     if (!invoiceEditState || !invoiceEditState.items[idx]) return;
     const row = invoiceEditState.items[idx];
-    if (field === 'myplBaseQty' || field === 'myplExtraQty') {
+    if (MYPL_QTY_FIELD_MAP[field]) {
         const qty = Math.max(0, parseInt(value, 10) || 0);
-        row[field === 'myplBaseQty' ? '_mypl_base_qty' : '_mypl_extra_qty'] = qty;
+        row[MYPL_QTY_FIELD_MAP[field]] = qty;
         myplRecomputeRowPrice(row);
     } else if (field === 'description') row.description = value;
     else if (field === 'quantity') row.quantity = parseInt(value, 10) || 1;

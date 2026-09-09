@@ -358,8 +358,17 @@ const PRICE_CATALOG = [
 // app.js (rendering, effective-price lookup, invoice-picker search) wants
 // O(1) access by id rather than re-scanning the category tree each time.
 const PRICE_CATALOG_BY_ID = {};
+// Ids belonging to a pinned category (a translator's own everyday service
+// fees -- courier, scanning, stamps, ... -- see price-catalog.js's header
+// comment) rather than an actual translated document from the official
+// tariff sheet. app.js uses this to keep the universal "مهر برابر با اصل"
+// page-count variable (MOHR_BARABAR_ASL_ITEM_ID) off of these rows -- a
+// courier fee doesn't have pages to certify, and the مهر fee item itself
+// would otherwise show it as an add-on to itself.
+const PINNED_ITEM_IDS = new Set();
 PRICE_CATALOG.forEach(group => {
   group.items.forEach(item => {
     PRICE_CATALOG_BY_ID[item.id] = item;
+    if (group.pinned) PINNED_ITEM_IDS.add(item.id);
   });
 });
