@@ -478,7 +478,13 @@ select.converter-input option {
    #sideRail in index.html). */
 .side-rail {
     display: flex;
-    z-index: 40;
+    /* Every full-screen workspace view (clientsWorkspace, myPriceListPage,
+       etc.) is `fixed inset-0 z-40` with its own solid full-viewport
+       background, and comes later in the DOM than this rail -- at equal
+       z-index, that later element paints on top and fully hides the rail
+       behind its opaque background. 45 keeps it above all of those while
+       staying below the header-bar (z-50) and every modal (z-[70]+). */
+    z-index: 45;
     box-shadow: 0 8px 24px rgba(0,0,0,0.25);
 }
 .side-rail-btn {
