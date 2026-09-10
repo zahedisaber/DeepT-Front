@@ -349,6 +349,15 @@ function syncUserSessionDOM() {
     toggle('priceListHeaderBtn', !loggedIn);
     toggle('adminPanelHeaderBtn', !loggedIn || localStorage.getItem('deept_is_admin') !== '1');
     toggle('logoutHeaderBtn',    !loggedIn);
+    // Side rail: same destinations/visibility as the header-bar pills
+    // above, just also shown/hidden here (see #sideRail in index.html).
+    toggle('sideRail',           !loggedIn);
+    toggle('railWorkspaceBtn',   !loggedIn);
+    toggle('railClientsBtn',     !loggedIn);
+    toggle('railScheduleBtn',    !loggedIn);
+    toggle('railPriceListBtn',   !loggedIn);
+    toggle('railSettingsBtn',    !loggedIn);
+    toggle('railAdminPanelBtn',  !loggedIn || localStorage.getItem('deept_is_admin') !== '1');
     const ub = document.getElementById('userBadge');
     if (ub) { ub.classList.toggle('hidden', !loggedIn); ub.style.display = loggedIn ? 'flex' : 'none'; }
     if (loggedIn) {
