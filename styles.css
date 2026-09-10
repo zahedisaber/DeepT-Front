@@ -502,8 +502,8 @@ select.converter-input option {
     color: var(--accent);
 }
 .side-rail-icon {
-    font-size: 1.15rem;
-    line-height: 1;
+    width: 20px;
+    height: 20px;
 }
 .side-rail-label {
     font-size: .58rem;
