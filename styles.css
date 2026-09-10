@@ -473,6 +473,50 @@ select.converter-input option {
     color: #f87171;
 }
 
+/* Secondary shortcut rail -- same workspace destinations as the header-btn-
+   workspace pills above, as a persistent vertical icon+label rail (see
+   #sideRail in index.html). */
+.side-rail {
+    display: flex;
+    z-index: 40;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+}
+.side-rail-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: .15rem;
+    width: 100%;
+    flex-shrink: 0;
+    padding: .55rem .25rem;
+    border-radius: .65rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: background .2s, color .2s;
+}
+.side-rail-btn:hover {
+    background: var(--accent-hover);
+    color: var(--accent);
+}
+.side-rail-icon {
+    font-size: 1.15rem;
+    line-height: 1;
+}
+.side-rail-label {
+    font-size: .58rem;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+}
+@media (max-width: 900px) {
+    /* Narrow viewports keep the header-bar's own (wrapping) nav only --
+       no room for a second, fixed vertical rail alongside the content. */
+    #sideRail { display: none !important; }
+}
+
 /* Landing header */
 header {
     position: fixed; top: 0; right: 0; left: 0; z-index: 100;

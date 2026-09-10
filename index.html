@@ -71,6 +71,33 @@
   </div>
 </div>
 
+<!-- ── Secondary shortcut rail — same destinations as the header-bar's
+     header-btn-workspace pills above, just as a persistent vertical icon
+     rail on the RTL "start" (right) edge, for quick access without
+     scrolling back up to the header. Shown/hidden by the exact same
+     syncUserSessionDOM() calls as their header-pill counterparts (see
+     app.js), just targeting these ids too. ── -->
+<nav id="sideRail" class="side-rail hidden" style="position:fixed;top:88px;bottom:16px;right:16px;width:66px;background:var(--card-surface);border:1px solid var(--border-subtle);border-radius:1rem;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);padding:.6rem .3rem;flex-direction:column;align-items:center;gap:.3rem;overflow-y:auto;">
+  <button type="button" id="railWorkspaceBtn" onclick="openWorkspaceDashboard()" class="side-rail-btn hidden" title="میز کار دیجیتال">
+    <span class="side-rail-icon">🖥️</span><span class="side-rail-label">میز کار</span>
+  </button>
+  <button type="button" id="railClientsBtn" onclick="openClientsWorkspace()" class="side-rail-btn hidden" title="مشتریان">
+    <span class="side-rail-icon">👥</span><span class="side-rail-label">مشتریان</span>
+  </button>
+  <button type="button" id="railScheduleBtn" onclick="openWorkSchedulePage()" class="side-rail-btn hidden" title="برنامه کاری دفتر">
+    <span class="side-rail-icon">📅</span><span class="side-rail-label">برنامه</span>
+  </button>
+  <button type="button" id="railPriceListBtn" onclick="openMyPriceListPage()" class="side-rail-btn hidden" title="نرخنامه من">
+    <span class="side-rail-icon">💰</span><span class="side-rail-label">نرخنامه</span>
+  </button>
+  <button type="button" id="railSettingsBtn" onclick="openSettingsPage()" class="side-rail-btn hidden" title="تنظیمات">
+    <span class="side-rail-icon">⚙️</span><span class="side-rail-label">تنظیمات</span>
+  </button>
+  <button type="button" id="railAdminPanelBtn" onclick="showAdminDashboard()" class="side-rail-btn hidden" title="پنل مدیریت">
+    <span class="side-rail-icon">🛡️</span><span class="side-rail-label">مدیریت</span>
+  </button>
+</nav>
+
 <!-- ── VIEW 02 · logout confirm dialog ── -->
 <div role="dialog" aria-modal="true" id="logoutOverlay" class="modal-overlay fixed inset-0 z-[70] hidden flex items-center justify-center p-4">
   <div id="logoutConfirm" class="w-full max-w-sm p-8 text-center" style="background:var(--card-surface);border:1px solid var(--border-color);border-radius:1rem;">
