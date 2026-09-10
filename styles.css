@@ -694,15 +694,31 @@ footer {
     background: var(--row-hover);
 }
 
-/* Chat / translation surface */
+/* Chat / translation surface -- DeepT Engine, the actual translation
+   pipeline and the app's main tool, so it gets a fully solid background
+   (--bg-secondary, not the translucent --card-surface every smaller
+   dialog uses) rather than looking like just another lightweight popup. */
 .chat-window {
     border: 1px solid var(--border-color);
     box-shadow: 0 24px 48px rgba(0,0,0,0.45), 0 0 32px var(--accent-glow);
-    background: var(--card-surface);
+    background: var(--bg-secondary);
     transition: background 0.35s, border-color 0.35s;
 }
 
 /* ── 10. OVERLAYS & MODALS ─────────────────────────────────────────────── */
+/* Every newer dialog (chatModal, addClientModal, saveClientModal, the
+   نرخنامه reprice/bulk-increase modals, etc.) is built as
+   `class="modal-overlay fixed inset-0 z-* hidden flex ..."` -- Tailwind
+   utilities handle its position/hide-show, but nothing anywhere ever gave
+   the wrapper itself a dimmed/blurred backdrop the way the older .overlay
+   system (below) has always had, so the dashboard behind any of these
+   dialogs stayed in plain view. One rule fixes every one of them. */
+.modal-overlay {
+    background: var(--modal-overlay, rgba(0, 0, 0, 0.7));
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+}
+
 .overlay {
     position: fixed;
     inset: 0;
