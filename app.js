@@ -3806,6 +3806,15 @@ async function saveOrAttachClient(identity) {
                 const client = await res.json();
                 mainContactClientId = client.id;
                 mainContactNationalId = identity.national_id;
+                // The whole point of auto-saving a client here (vs. only
+                // via the explicit "select existing client" picker) is so
+                // this job still ends up in that client's سابقه پروژه‌ها --
+                // which only happens if the job is actually submitted with
+                // this client_id. Backend upserts by national_id (see
+                // upsert_client_by_national_id in DeepT-Core), so this is
+                // the same client record every time this person's document
+                // is translated, not a fresh duplicate.
+                selectedClientId = client.id;
                 showToast(`👤 ${identity.first_name} ${identity.last_name} به‌عنوان مخاطب اصلی ذخیره شد.`, 1800);
             }
         } catch (e) { /* best-effort -- the job itself must not fail because of this */ }
