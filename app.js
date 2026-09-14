@@ -251,6 +251,7 @@ function loadSession() {
 
 let currentUserSession = loadSession();
 let trackingProjectsDatabase = [];
+let resetPasswordToken = null; // carried from ?reset_token=... on page load through to handleResetPassword()
 
 // ─── PASSPORT SESSION STATE ───
 let confirmedPassports = [];   // every confirmed passport lives here -- no more "first one is special"
@@ -4501,6 +4502,15 @@ refreshWalletBalanceDisplay();
         openLogin();
         window.history.replaceState({}, document.title, window.location.pathname);
     }
+
+    // Password reset link (from DeepT-Core's send_password_reset_email) --
+    // opens the "set new password" modal directly with the token already
+    // in hand, same idea as the activation redirect above.
+    const resetToken = params.get('reset_token');
+    if (resetToken) {
+        openResetPassword(resetToken);
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
 })();
 
 // ── AUTH ──
@@ -4613,8 +4623,35 @@ function openSignup() {
     document.getElementById('signupOverlay').classList.add('open');
 }
 function openAuthModal() { openLogin(); }
+function openForgotPassword() {
+    const form = document.getElementById('forgotPasswordForm');
+    const succ = document.getElementById('forgotPasswordSuccess');
+    if (form) form.style.display = '';
+    if (succ) succ.classList.remove('show');
+    const err = document.getElementById('fp-error');
+    if (err) { err.textContent=''; err.classList.remove('show'); }
+    const btn = document.querySelector('#forgotPasswordForm .modal-btn');
+    if (btn) { btn.textContent='ارسال لینک بازیابی'; btn.disabled=false; }
+    document.getElementById('fp-email').value = '';
+    closeModals();
+    setTimeout(() => document.getElementById('forgotPasswordOverlay').classList.add('open'), 80);
+}
+function openResetPassword(token) {
+    resetPasswordToken = token;
+    const form = document.getElementById('resetPasswordForm');
+    const succ = document.getElementById('resetPasswordSuccess');
+    if (form) form.style.display = '';
+    if (succ) succ.classList.remove('show');
+    const err = document.getElementById('rp-error');
+    if (err) { err.textContent=''; err.classList.remove('show'); }
+    const btn = document.querySelector('#resetPasswordForm .modal-btn');
+    if (btn) { btn.textContent='تنظیم رمز عبور'; btn.disabled=false; }
+    document.getElementById('rp-pass').value = '';
+    document.getElementById('rp-pass-confirm').value = '';
+    document.getElementById('resetPasswordOverlay').classList.add('open');
+}
 function closeModals()   {
-    ['loginOverlay','signupOverlay','quickStartOverlay'].forEach(id=>{
+    ['loginOverlay','signupOverlay','quickStartOverlay','forgotPasswordOverlay','resetPasswordOverlay'].forEach(id=>{
         const el=document.getElementById(id); if(el) el.classList.remove('open');
     });
 }
@@ -4623,10 +4660,69 @@ function switchToLogin()  { closeModals(); setTimeout(openLogin,80); }
 function closeAuthModal() { closeModals(); }
 function switchAuthState(s) { if(s==='signup') switchToSignup(); else switchToLogin(); }
 
+async function handleForgotPassword() {
+    const email = document.getElementById('fp-email').value.trim();
+    const err = document.getElementById('fp-error');
+    const btn = document.querySelector('#forgotPasswordForm .modal-btn');
+    err.classList.remove('show');
+    if (!email) { err.textContent='لطفاً ایمیل خود را وارد کنید.'; err.classList.add('show'); return; }
+    btn.textContent='در حال ارسال...'; btn.disabled=true;
+    try {
+        await corePost('/auth/forgot-password', { email });
+        // Same success state regardless of the response body -- the
+        // backend deliberately never reveals whether this email is
+        // actually registered (see DeepT-Core's /auth/forgot-password).
+        document.getElementById('forgotPasswordForm').style.display='none';
+        document.getElementById('forgotPasswordSuccess').classList.add('show');
+    } catch(e) {
+        err.textContent='خطا در اتصال.'; err.classList.add('show'); btn.textContent='ارسال لینک بازیابی'; btn.disabled=false;
+    }
+}
+
+async function handleResetPassword() {
+    const pass    = document.getElementById('rp-pass').value;
+    const confirm = document.getElementById('rp-pass-confirm').value;
+    const err = document.getElementById('rp-error');
+    const btn = document.querySelector('#resetPasswordForm .modal-btn');
+    err.classList.remove('show');
+    if (!pass || !confirm)   { err.textContent='لطفاً همه فیلدها را پر کنید.'; err.classList.add('show'); return; }
+    if (pass.length < 8)     { err.textContent='رمز عبور باید حداقل ۸ کاراکتر باشد.'; err.classList.add('show'); return; }
+    if (pass !== confirm)    { err.textContent='رمز عبور و تکرار آن یکسان نیستند.'; err.classList.add('show'); return; }
+    if (!resetPasswordToken) { err.textContent='لینک بازیابی نامعتبر است.'; err.classList.add('show'); return; }
+    btn.textContent='در حال ثبت...'; btn.disabled=true;
+    try {
+        const {ok,data} = await corePost('/auth/reset-password', { token: resetPasswordToken, new_password: pass });
+        if (!ok) { err.textContent=data.detail||'لینک بازیابی نامعتبر یا منقضی شده است.'; err.classList.add('show'); btn.textContent='تنظیم رمز عبور'; btn.disabled=false; return; }
+        if (!saveSession(data)) {
+            console.error('Password reset succeeded but session could not be saved.');
+            return;
+        }
+
+        document.getElementById('resetPasswordForm').style.display='none';
+        document.getElementById('resetPasswordSuccess').classList.add('show');
+
+        currentUserSession = loadSession();
+        syncUserSessionDOM();
+
+        setTimeout(() => {
+            closeModals();
+            resetPasswordToken = null;
+            window.history.replaceState({}, document.title, window.location.pathname);
+            if (currentUserSession?.is_admin) {
+                showAdminDashboard();
+            } else {
+                showDashboardView();
+            }
+        }, 1400);
+    } catch(e) { err.textContent='خطا در اتصال.'; err.classList.add('show'); btn.textContent='تنظیم رمز عبور'; btn.disabled=false; }
+}
+
 document.addEventListener('keydown',e=>{
     if(e.key!=='Enter') return;
-    if(document.getElementById('loginOverlay').classList.contains('open'))  handleLogin();
-    if(document.getElementById('signupOverlay').classList.contains('open')) handleSignup();
+    if(document.getElementById('loginOverlay').classList.contains('open'))          handleLogin();
+    if(document.getElementById('signupOverlay').classList.contains('open'))         handleSignup();
+    if(document.getElementById('forgotPasswordOverlay').classList.contains('open')) handleForgotPassword();
+    if(document.getElementById('resetPasswordOverlay').classList.contains('open'))  handleResetPassword();
 });
 
 // ['loginOverlay','signupOverlay'].forEach(id=>{
