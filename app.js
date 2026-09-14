@@ -4473,16 +4473,25 @@ refreshWalletBalanceDisplay();
     if (currentUserSession) loadMyPriceListCatalog();
 
     // GitHub Pages has no server routing: a refresh on /dashboard etc. lands
-    // on 404.html, which stashes the intended path in sessionStorage and
+    // on 404.html, which stashes the intended path (+ query string, e.g. a
+    // password-reset link is /login/?reset_token=...) in sessionStorage and
     // redirects to '/'. Restore it here so the route below sees the real
-    // path instead of '/'.
+    // path instead of '/' -- and merge the query string back into `params`
+    // above, since that was built from '/'s own (empty) location.search,
+    // not the original request's.
     let initialPath = window.location.pathname;
     try {
         const redirected = sessionStorage.getItem('deept_redirect_path');
         if (redirected && redirected.startsWith('/') && redirected !== '/') {
             sessionStorage.removeItem('deept_redirect_path');
-            window.history.replaceState({ path: redirected }, '', redirected);
-            initialPath = redirected;
+            const [redirectedPath, redirectedQuery] = redirected.split('?');
+            window.history.replaceState({ path: redirectedPath }, '', redirected);
+            initialPath = redirectedPath;
+            if (redirectedQuery) {
+                for (const [k, v] of new URLSearchParams(redirectedQuery)) {
+                    params.set(k, v);
+                }
+            }
         }
     } catch (e) { /* sessionStorage unavailable -- fall back to location */ }
 
