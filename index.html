@@ -438,6 +438,7 @@
       <input class="modal-input" type="email" id="li-email" placeholder="name@example.com" autocomplete="email">
       <label for="li-pass">رمز عبور</label>
       <input class="modal-input" type="password" id="li-pass" placeholder="••••••••" autocomplete="current-password">
+      <p class="modal-switch" style="margin-top:.4rem;font-size:.78rem;"><a href="javascript:void(0)" onclick="openForgotPassword()">فراموشی رمز عبور؟</a></p>
       <p class="modal-error" id="li-error"></p>
       <button type="button" class="modal-btn" onclick="handleLogin()">ورود</button>
     </div>
@@ -471,6 +472,50 @@
       <p>لطفاً ایمیل (شامل پوشه اسپم و Junk mail) خود را بررسی کنید و روی لینک فعال‌سازی کلیک کنید.</p>
     </div>
     <p class="modal-switch">قبلاً ثبت‌نام کردید؟ <a href="javascript:void(0)" onclick="switchToLogin()">وارد شوید</a></p>
+  </div>
+</div>
+
+<!-- ── VIEW 09b · forgot/reset password (single copy -- new, not part of the
+     login/signup landing-page duplication above; see openForgotPassword()/
+     openResetPassword() in app.js) ── -->
+<div role="dialog" aria-modal="true" class="overlay" id="forgotPasswordOverlay">
+  <div class="modal">
+    <button type="button" class="modal-close" onclick="closeModals()">بستن ✕</button>
+    <div id="forgotPasswordForm">
+      <h2>بازیابی رمز عبور</h2>
+      <p class="modal-sub">ایمیل حساب خود را وارد کنید تا لینک بازیابی برایتان ارسال شود</p>
+      <label for="fp-email">ایمیل</label>
+      <input class="modal-input" type="email" id="fp-email" placeholder="name@example.com" autocomplete="email">
+      <p class="modal-error" id="fp-error"></p>
+      <button type="button" class="modal-btn" onclick="handleForgotPassword()">ارسال لینک بازیابی</button>
+    </div>
+    <div class="modal-success" id="forgotPasswordSuccess">
+      <div class="icon">📧</div>
+      <strong>ایمیل ارسال شد</strong>
+      <p>اگر این ایمیل در سیستم ثبت شده باشد، لینک بازیابی رمز عبور برایتان ارسال شد. لطفاً ایمیل (شامل پوشه اسپم) خود را بررسی کنید.</p>
+    </div>
+    <p class="modal-switch">رمز عبور خود را به یاد آوردید؟ <a href="javascript:void(0)" onclick="switchToLogin()">وارد شوید</a></p>
+  </div>
+</div>
+
+<div role="dialog" aria-modal="true" class="overlay" id="resetPasswordOverlay">
+  <div class="modal">
+    <button type="button" class="modal-close" onclick="closeModals()">بستن ✕</button>
+    <div id="resetPasswordForm">
+      <h2>تنظیم رمز عبور جدید</h2>
+      <p class="modal-sub">یک رمز عبور جدید برای حساب خود انتخاب کنید</p>
+      <label for="rp-pass">رمز عبور جدید (حداقل ۸ کاراکتر)</label>
+      <input class="modal-input" type="password" id="rp-pass" placeholder="••••••••" autocomplete="new-password">
+      <label for="rp-pass-confirm">تکرار رمز عبور جدید</label>
+      <input class="modal-input" type="password" id="rp-pass-confirm" placeholder="••••••••" autocomplete="new-password">
+      <p class="modal-error" id="rp-error"></p>
+      <button type="button" class="modal-btn" onclick="handleResetPassword()">تنظیم رمز عبور</button>
+    </div>
+    <div class="modal-success" id="resetPasswordSuccess">
+      <div class="icon">✅</div>
+      <strong>رمز عبور با موفقیت تغییر کرد</strong>
+      <p>در حال انتقال به پنل ترجمه...</p>
+    </div>
   </div>
 </div>
 
@@ -1314,6 +1359,7 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
       <input class="modal-input" type="email" id="li-email" placeholder="name@example.com" autocomplete="email">
       <label for="li-pass">رمز عبور</label>
       <input class="modal-input" type="password" id="li-pass" placeholder="••••••••" autocomplete="current-password">
+      <p class="modal-switch" style="margin-top:.4rem;font-size:.78rem;"><a href="javascript:void(0)" onclick="openForgotPassword()">فراموشی رمز عبور؟</a></p>
       <p class="modal-error" id="li-error"></p>
       <button type="button" class="modal-btn" onclick="handleLogin()">ورود</button>
     </div>
