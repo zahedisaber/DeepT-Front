@@ -27,13 +27,6 @@ const BACKEND = 'https://backend.deept.ir';
 //   usePassportSession → true means session_id is sent with the request
 // ═══════════════════════════════════════════════════════════
 const DOCUMENT_REGISTRY = {
-    'police-certificate': {
-        label:               'گواهی عدم سوء پیشینه',
-        endpoint: 'https://police.deept.ir/api/translate/police-certificate',
-        active:              true,
-        usePassportSession:  true,
-        legacySingleSession: true,   // old backend contract -- singular session_id, not yet updated
-    },
     'vehicle-deed': {
         label:               'سند مالکیت خودرو (برگ سبز)',
         endpoint: 'https://backend.deept.ir/api/translate/vehicle-deed',
@@ -101,12 +94,11 @@ const DOCUMENT_REGISTRY = {
         usePassportSession:  true,
     },
     'police-certificate': {
-    label:               'گواهی عدم سوء پیشینه',
-    endpoint:            'https://deept-back-end.onrender.com/api/translate/police-certificate',
-    // or your proxied domain, e.g. backend.deept.ir/api/translate/police-certificate
-    active:              true,
-    usePassportSession:  true,
-},
+        label:               'گواهی عدم سوء پیشینه',
+        endpoint: 'https://backend.deept.ir/api/translate/police-certificate',
+        active:              true,
+        usePassportSession:  true,
+    },
 };
 
 // Populate the hidden native select (kept so every other part of the app
