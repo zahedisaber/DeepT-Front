@@ -29,7 +29,7 @@ const BACKEND = 'https://backend-ir.deept.ir';
 const DOCUMENT_REGISTRY = {
     'police-certificate': {
         label:               'گواهی عدم سوء پیشینه',
-        endpoint: 'https://police.deept.ir/api/translate/police-certificate',
+        endpoint: `${BACKEND}/api/translate/police-certificate`,
         active:              true,
         usePassportSession:  true,
         legacySingleSession: true,   // old backend contract -- singular session_id, not yet updated
