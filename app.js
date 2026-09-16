@@ -4415,6 +4415,12 @@ function resetForNextDocument() {
 // INIT
 // ═══════════════════════════════════════════════════════════
 refreshWalletBalanceDisplay();
+
+// Pending password-reset token (set by openResetPassword from the emailed
+// link, consumed by handleResetPassword). Declared before initializeApp so
+// the IIFE below can call openResetPassword without hitting the `let` TDZ.
+let pendingResetToken = null;
+
 (function initializeApp() {
     const params = new URLSearchParams(window.location.search);
 
@@ -4474,6 +4480,14 @@ refreshWalletBalanceDisplay();
     } else if (activated === 'error') {
         showToast('⚠️ لینک فعال‌سازی نامعتبر یا قبلاً استفاده شده است.');
         openLogin();
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
+    // Password reset link (?reset=<token>) from DeepT-Core's /auth/forgot-password
+    // email -- opens the "set new password" modal directly.
+    const resetToken = params.get('reset');
+    if (resetToken) {
+        openResetPassword(resetToken);
         window.history.replaceState({}, document.title, window.location.pathname);
     }
 })();
@@ -4564,6 +4578,77 @@ async function handleSignup() {
     } catch(e) { err.textContent='خطا در اتصال.'; err.classList.add('show'); btn.textContent='ساخت حساب'; btn.disabled=false; }
 }
 
+// ── PASSWORD RESET ("بازیابی رمز عبور") ──
+// openForgotPassword() is triggered by the link under the login form; it
+// asks for an email and calls /auth/forgot-password. When the user clicks
+// the emailed link (?reset=<token>), openResetPassword() shows the
+// new-password form and handleResetPassword() calls /auth/reset-password.
+
+function openForgotPassword() {
+    closeModals();
+    const form = document.getElementById('forgotForm');
+    const succ = document.getElementById('forgotSuccess');
+    if (form) form.style.display = '';
+    if (succ) succ.classList.remove('show');
+    const err = document.getElementById('fp-error');
+    if (err) { err.textContent=''; err.classList.remove('show'); }
+    const btn = document.querySelector('#forgotForm .modal-btn');
+    if (btn) { btn.textContent='ارسال لینک بازیابی'; btn.disabled=false; }
+    const input = document.getElementById('fp-email');
+    if (input) input.value = '';
+    document.getElementById('forgotOverlay').classList.add('open');
+}
+
+async function handleForgotPassword() {
+    const email = document.getElementById('fp-email').value.trim();
+    const err   = document.getElementById('fp-error');
+    const btn   = document.querySelector('#forgotForm .modal-btn');
+    err.classList.remove('show');
+    if (!email) { err.textContent='لطفاً ایمیل خود را وارد کنید.'; err.classList.add('show'); return; }
+    if (!email.includes('@')) { err.textContent='یک ایمیل معتبر وارد کنید.'; err.classList.add('show'); return; }
+    btn.textContent='در حال ارسال...'; btn.disabled=true;
+    try {
+        const {ok,data} = await corePost('/auth/forgot-password', {email});
+        if (!ok) { err.textContent=data.detail||'خطا در ارسال درخواست.'; err.classList.add('show'); btn.textContent='ارسال لینک بازیابی'; btn.disabled=false; return; }
+        document.getElementById('forgotForm').style.display='none';
+        document.getElementById('forgotSuccess').classList.add('show');
+    } catch(e) { err.textContent='خطا در اتصال.'; err.classList.add('show'); btn.textContent='ارسال لینک بازیابی'; btn.disabled=false; }
+}
+
+function openResetPassword(token) {
+    pendingResetToken = token || null;
+    closeModals();
+    const form = document.getElementById('resetForm');
+    const succ = document.getElementById('resetSuccess');
+    if (form) form.style.display = '';
+    if (succ) succ.classList.remove('show');
+    const err = document.getElementById('rp-error');
+    if (err) { err.textContent=''; err.classList.remove('show'); }
+    const btn = document.querySelector('#resetForm .modal-btn');
+    if (btn) { btn.textContent='ثبت رمز عبور جدید'; btn.disabled=false; }
+    const input = document.getElementById('rp-pass');
+    if (input) input.value = '';
+    document.getElementById('resetOverlay').classList.add('open');
+}
+
+async function handleResetPassword() {
+    const pass = document.getElementById('rp-pass').value;
+    const err  = document.getElementById('rp-error');
+    const btn  = document.querySelector('#resetForm .modal-btn');
+    err.classList.remove('show');
+    if (!pendingResetToken) { err.textContent='لینک بازیابی نامعتبر است.'; err.classList.add('show'); return; }
+    if (!pass) { err.textContent='لطفاً رمز عبور جدید را وارد کنید.'; err.classList.add('show'); return; }
+    if (pass.length<8) { err.textContent='رمز عبور باید حداقل ۸ کاراکتر باشد.'; err.classList.add('show'); return; }
+    btn.textContent='در حال ثبت...'; btn.disabled=true;
+    try {
+        const {ok,data} = await corePost('/auth/reset-password', {token: pendingResetToken, new_password: pass});
+        if (!ok) { err.textContent=data.detail||'لینک بازیابی نامعتبر است.'; err.classList.add('show'); btn.textContent='ثبت رمز عبور جدید'; btn.disabled=false; return; }
+        pendingResetToken = null;
+        document.getElementById('resetForm').style.display='none';
+        document.getElementById('resetSuccess').classList.add('show');
+    } catch(e) { err.textContent='خطا در اتصال.'; err.classList.add('show'); btn.textContent='ثبت رمز عبور جدید'; btn.disabled=false; }
+}
+
 // ── MODAL FUNCTIONS ──
 function openLogin() {
     const form = document.getElementById('loginForm');
@@ -4589,7 +4674,7 @@ function openSignup() {
 }
 function openAuthModal() { openLogin(); }
 function closeModals()   {
-    ['loginOverlay','signupOverlay','quickStartOverlay'].forEach(id=>{
+    ['loginOverlay','signupOverlay','forgotOverlay','resetOverlay','quickStartOverlay'].forEach(id=>{
         const el=document.getElementById(id); if(el) el.classList.remove('open');
     });
 }
@@ -4602,6 +4687,8 @@ document.addEventListener('keydown',e=>{
     if(e.key!=='Enter') return;
     if(document.getElementById('loginOverlay').classList.contains('open'))  handleLogin();
     if(document.getElementById('signupOverlay').classList.contains('open')) handleSignup();
+    if(document.getElementById('forgotOverlay').classList.contains('open')) handleForgotPassword();
+    if(document.getElementById('resetOverlay').classList.contains('open'))  handleResetPassword();
 });
 
 // ['loginOverlay','signupOverlay'].forEach(id=>{
