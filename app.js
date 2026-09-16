@@ -244,6 +244,7 @@ function loadSession() {
 
 let currentUserSession = loadSession();
 let trackingProjectsDatabase = [];
+let resetPasswordToken = null; // carried from ?reset_token=... on page load through to handleResetPassword()
 
 // ─── PASSPORT SESSION STATE ───
 let confirmedPassports = [];   // every confirmed passport lives here -- no more "first one is special"
@@ -342,6 +343,15 @@ function syncUserSessionDOM() {
     toggle('priceListHeaderBtn', !loggedIn);
     toggle('adminPanelHeaderBtn', !loggedIn || localStorage.getItem('deept_is_admin') !== '1');
     toggle('logoutHeaderBtn',    !loggedIn);
+    // Side rail: same destinations/visibility as the header-bar pills
+    // above, just also shown/hidden here (see #sideRail in index.html).
+    toggle('sideRail',           !loggedIn);
+    toggle('railWorkspaceBtn',   !loggedIn);
+    toggle('railClientsBtn',     !loggedIn);
+    toggle('railScheduleBtn',    !loggedIn);
+    toggle('railPriceListBtn',   !loggedIn);
+    toggle('railSettingsBtn',    !loggedIn);
+    toggle('railAdminPanelBtn',  !loggedIn || localStorage.getItem('deept_is_admin') !== '1');
     const ub = document.getElementById('userBadge');
     if (ub) { ub.classList.toggle('hidden', !loggedIn); ub.style.display = loggedIn ? 'flex' : 'none'; }
     if (loggedIn) {
@@ -3790,6 +3800,15 @@ async function saveOrAttachClient(identity) {
                 const client = await res.json();
                 mainContactClientId = client.id;
                 mainContactNationalId = identity.national_id;
+                // The whole point of auto-saving a client here (vs. only
+                // via the explicit "select existing client" picker) is so
+                // this job still ends up in that client's سابقه پروژه‌ها --
+                // which only happens if the job is actually submitted with
+                // this client_id. Backend upserts by national_id (see
+                // upsert_client_by_national_id in DeepT-Core), so this is
+                // the same client record every time this person's document
+                // is translated, not a fresh duplicate.
+                selectedClientId = client.id;
                 showToast(`👤 ${identity.first_name} ${identity.last_name} به‌عنوان مخاطب اصلی ذخیره شد.`, 1800);
             }
         } catch (e) { /* best-effort -- the job itself must not fail because of this */ }
@@ -4453,16 +4472,25 @@ let pendingResetToken = null;
     if (currentUserSession) loadMyPriceListCatalog();
 
     // GitHub Pages has no server routing: a refresh on /dashboard etc. lands
-    // on 404.html, which stashes the intended path in sessionStorage and
+    // on 404.html, which stashes the intended path (+ query string, e.g. a
+    // password-reset link is /login/?reset_token=...) in sessionStorage and
     // redirects to '/'. Restore it here so the route below sees the real
-    // path instead of '/'.
+    // path instead of '/' -- and merge the query string back into `params`
+    // above, since that was built from '/'s own (empty) location.search,
+    // not the original request's.
     let initialPath = window.location.pathname;
     try {
         const redirected = sessionStorage.getItem('deept_redirect_path');
         if (redirected && redirected.startsWith('/') && redirected !== '/') {
             sessionStorage.removeItem('deept_redirect_path');
-            window.history.replaceState({ path: redirected }, '', redirected);
-            initialPath = redirected;
+            const [redirectedPath, redirectedQuery] = redirected.split('?');
+            window.history.replaceState({ path: redirectedPath }, '', redirected);
+            initialPath = redirectedPath;
+            if (redirectedQuery) {
+                for (const [k, v] of new URLSearchParams(redirectedQuery)) {
+                    params.set(k, v);
+                }
+            }
         }
     } catch (e) { /* sessionStorage unavailable -- fall back to location */ }
 
@@ -4482,10 +4510,10 @@ let pendingResetToken = null;
         openLogin();
         window.history.replaceState({}, document.title, window.location.pathname);
     }
-
-    // Password reset link (?reset=<token>) from DeepT-Core's /auth/forgot-password
-    // email -- opens the "set new password" modal directly.
-    const resetToken = params.get('reset');
+    // Password reset link (from DeepT-Core's send_password_reset_email) --
+    // opens the "set new password" modal directly with the token already
+    // in hand, same idea as the activation redirect above.
+    const resetToken = params.get('reset_token');
     if (resetToken) {
         openResetPassword(resetToken);
         window.history.replaceState({}, document.title, window.location.pathname);
@@ -4681,8 +4709,35 @@ function togglePasswordVisibility(btn) {
     btn.classList.toggle('showing', show);
     btn.setAttribute('aria-label', show ? 'پنهان کردن رمز عبور' : 'نمایش رمز عبور');
 }
+function openForgotPassword() {
+    const form = document.getElementById('forgotPasswordForm');
+    const succ = document.getElementById('forgotPasswordSuccess');
+    if (form) form.style.display = '';
+    if (succ) succ.classList.remove('show');
+    const err = document.getElementById('fp-error');
+    if (err) { err.textContent=''; err.classList.remove('show'); }
+    const btn = document.querySelector('#forgotPasswordForm .modal-btn');
+    if (btn) { btn.textContent='ارسال لینک بازیابی'; btn.disabled=false; }
+    document.getElementById('fp-email').value = '';
+    closeModals();
+    setTimeout(() => document.getElementById('forgotPasswordOverlay').classList.add('open'), 80);
+}
+function openResetPassword(token) {
+    resetPasswordToken = token;
+    const form = document.getElementById('resetPasswordForm');
+    const succ = document.getElementById('resetPasswordSuccess');
+    if (form) form.style.display = '';
+    if (succ) succ.classList.remove('show');
+    const err = document.getElementById('rp-error');
+    if (err) { err.textContent=''; err.classList.remove('show'); }
+    const btn = document.querySelector('#resetPasswordForm .modal-btn');
+    if (btn) { btn.textContent='تنظیم رمز عبور'; btn.disabled=false; }
+    document.getElementById('rp-pass').value = '';
+    document.getElementById('rp-pass-confirm').value = '';
+    document.getElementById('resetPasswordOverlay').classList.add('open');
+}
 function closeModals()   {
-    ['loginOverlay','signupOverlay','forgotOverlay','resetOverlay','quickStartOverlay'].forEach(id=>{
+    ['loginOverlay','signupOverlay','quickStartOverlay','forgotPasswordOverlay','resetPasswordOverlay'].forEach(id=>{
         const el=document.getElementById(id); if(el) el.classList.remove('open');
     });
 }
@@ -4691,12 +4746,69 @@ function switchToLogin()  { closeModals(); setTimeout(openLogin,80); }
 function closeAuthModal() { closeModals(); }
 function switchAuthState(s) { if(s==='signup') switchToSignup(); else switchToLogin(); }
 
+async function handleForgotPassword() {
+    const email = document.getElementById('fp-email').value.trim();
+    const err = document.getElementById('fp-error');
+    const btn = document.querySelector('#forgotPasswordForm .modal-btn');
+    err.classList.remove('show');
+    if (!email) { err.textContent='لطفاً ایمیل خود را وارد کنید.'; err.classList.add('show'); return; }
+    btn.textContent='در حال ارسال...'; btn.disabled=true;
+    try {
+        await corePost('/auth/forgot-password', { email });
+        // Same success state regardless of the response body -- the
+        // backend deliberately never reveals whether this email is
+        // actually registered (see DeepT-Core's /auth/forgot-password).
+        document.getElementById('forgotPasswordForm').style.display='none';
+        document.getElementById('forgotPasswordSuccess').classList.add('show');
+    } catch(e) {
+        err.textContent='خطا در اتصال.'; err.classList.add('show'); btn.textContent='ارسال لینک بازیابی'; btn.disabled=false;
+    }
+}
+
+async function handleResetPassword() {
+    const pass    = document.getElementById('rp-pass').value;
+    const confirm = document.getElementById('rp-pass-confirm').value;
+    const err = document.getElementById('rp-error');
+    const btn = document.querySelector('#resetPasswordForm .modal-btn');
+    err.classList.remove('show');
+    if (!pass || !confirm)   { err.textContent='لطفاً همه فیلدها را پر کنید.'; err.classList.add('show'); return; }
+    if (pass.length < 8)     { err.textContent='رمز عبور باید حداقل ۸ کاراکتر باشد.'; err.classList.add('show'); return; }
+    if (pass !== confirm)    { err.textContent='رمز عبور و تکرار آن یکسان نیستند.'; err.classList.add('show'); return; }
+    if (!resetPasswordToken) { err.textContent='لینک بازیابی نامعتبر است.'; err.classList.add('show'); return; }
+    btn.textContent='در حال ثبت...'; btn.disabled=true;
+    try {
+        const {ok,data} = await corePost('/auth/reset-password', { token: resetPasswordToken, new_password: pass });
+        if (!ok) { err.textContent=data.detail||'لینک بازیابی نامعتبر یا منقضی شده است.'; err.classList.add('show'); btn.textContent='تنظیم رمز عبور'; btn.disabled=false; return; }
+        if (!saveSession(data)) {
+            console.error('Password reset succeeded but session could not be saved.');
+            return;
+        }
+
+        document.getElementById('resetPasswordForm').style.display='none';
+        document.getElementById('resetPasswordSuccess').classList.add('show');
+
+        currentUserSession = loadSession();
+        syncUserSessionDOM();
+
+        setTimeout(() => {
+            closeModals();
+            resetPasswordToken = null;
+            window.history.replaceState({}, document.title, window.location.pathname);
+            if (currentUserSession?.is_admin) {
+                showAdminDashboard();
+            } else {
+                showDashboardView();
+            }
+        }, 1400);
+    } catch(e) { err.textContent='خطا در اتصال.'; err.classList.add('show'); btn.textContent='تنظیم رمز عبور'; btn.disabled=false; }
+}
+
 document.addEventListener('keydown',e=>{
     if(e.key!=='Enter') return;
-    if(document.getElementById('loginOverlay').classList.contains('open'))  handleLogin();
-    if(document.getElementById('signupOverlay').classList.contains('open')) handleSignup();
-    if(document.getElementById('forgotOverlay').classList.contains('open')) handleForgotPassword();
-    if(document.getElementById('resetOverlay').classList.contains('open'))  handleResetPassword();
+    if(document.getElementById('loginOverlay').classList.contains('open'))          handleLogin();
+    if(document.getElementById('signupOverlay').classList.contains('open'))         handleSignup();
+    if(document.getElementById('forgotPasswordOverlay').classList.contains('open')) handleForgotPassword();
+    if(document.getElementById('resetPasswordOverlay').classList.contains('open'))  handleResetPassword();
 });
 
 // ['loginOverlay','signupOverlay'].forEach(id=>{
