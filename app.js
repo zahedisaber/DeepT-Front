@@ -4673,6 +4673,14 @@ function openSignup() {
     document.getElementById('signupOverlay').classList.add('open');
 }
 function openAuthModal() { openLogin(); }
+function togglePasswordVisibility(btn) {
+    const input = btn.parentElement.querySelector('input');
+    if (!input) return;
+    const show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    btn.classList.toggle('showing', show);
+    btn.setAttribute('aria-label', show ? 'پنهان کردن رمز عبور' : 'نمایش رمز عبور');
+}
 function closeModals()   {
     ['loginOverlay','signupOverlay','forgotOverlay','resetOverlay','quickStartOverlay'].forEach(id=>{
         const el=document.getElementById(id); if(el) el.classList.remove('open');

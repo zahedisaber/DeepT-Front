@@ -357,6 +357,21 @@ select.converter-input option {
 .modal-input:focus { border-color: var(--accent); }
 .modal label { display: block; font-size: .76rem; color: var(--muted); font-weight: 600; margin-bottom: .3rem; }
 
+/* Password input with show/hide toggle (eye) */
+.password-wrap { position: relative; margin-bottom: .9rem; }
+.password-wrap .modal-input { padding-right: 2.6rem; margin-bottom: 0; }
+.password-toggle {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    right: .7rem; border: none; background: none; cursor: pointer;
+    color: var(--muted); padding: .2rem; line-height: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    transition: color .2s;
+}
+.password-toggle:hover { color: var(--accent); }
+.password-toggle .eye-off { display: none; }
+.password-toggle.showing .eye-open { display: none; }
+.password-toggle.showing .eye-off { display: inline; }
+
 /* File drop zones */
 .drop-zone-chat {
     border: 2px dashed var(--border-color);
