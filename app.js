@@ -1353,14 +1353,15 @@ function printMyPriceList() {
     header { text-align: center; margin-bottom: 3mm; }
     header h1 { font-size: 13px; margin: 0 0 1mm; }
     header .meta { font-size: 8px; color: #444; }
-    .cols { column-count: 2; column-gap: 6mm; }
-    table { width: 100%; border-collapse: collapse; }
+    .cols { column-count: 3; column-gap: 5mm; }
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
     tr.cat-row { break-after: avoid; break-inside: avoid; }
     tr { break-inside: avoid; }
-    th, td { border: 0.5px solid #999; padding: .4mm 1mm; font-size: 6px; line-height: 1.25; text-align: right; vertical-align: top; }
-    .cat-title { background: #e5e5e5; font-weight: bold; text-align: center; font-size: 6.5px; padding: .6mm 1mm; }
-    .col-id { width: 6%; text-align: center; }
-    .col-price { width: 32%; text-align: left; white-space: nowrap; }
+    th, td { border: 0.5px solid #999; padding: .5mm 1mm; font-size: 7.5px; line-height: 1.25; text-align: right; vertical-align: top; overflow-wrap: break-word; }
+    .cat-title { background: #e5e5e5; font-weight: bold; text-align: center; font-size: 7.5px; padding: .7mm 1mm; }
+    .col-id { width: 7%; text-align: center; }
+    .col-label { width: 62%; }
+    .col-price { width: 31%; text-align: left; }
     @media print { .no-print { display: none !important; } }
 </style>
 </head>
