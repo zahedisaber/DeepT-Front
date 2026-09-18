@@ -223,6 +223,14 @@
         <div><label for="ac-passport" class="auth-label">شماره پاسپورت</label><input type="text" id="ac-passport" class="auth-input en" dir="ltr" placeholder="A12345678"></div>
         <div><label for="ac-nationality" class="auth-label">ملیت</label><input type="text" id="ac-nationality" class="auth-input" placeholder="ایرانی"></div>
       </div>
+      <div><label for="ac-target-lang" class="auth-label">زبان مقصد ترجمه</label>
+        <select id="ac-target-lang" class="auth-input">
+          <option value="">English (پیش‌فرض)</option>
+          <option value="French">فرانسوی</option>
+          <option value="Italian">ایتالیایی</option>
+          <option value="Spanish">اسپانیایی</option>
+        </select>
+      </div>
       <div><label for="ac-notes" class="auth-label">یادداشت</label><textarea id="ac-notes" rows="2" class="auth-input resize-none" placeholder="یادداشت اختیاری..."></textarea></div>
     </div>
     <button type="button" onclick="submitAddClient()" id="ac-submit-btn" class="w-full mt-5 py-2.5 rounded-xl text-sm font-black transition" style="background:var(--accent);color:var(--btn-text-on-accent);">افزودن مشتری</button>
@@ -1051,6 +1059,15 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
 
                     <h3 class="text-sm font-black mt-5 mb-3 flex items-center gap-1.5" style="color:var(--text-main);">👨‍👩‍👧‍👦 نفرات مرتبط</h3>
                     <div id="cp-related-list" class="space-y-1.5 mb-4"></div>
+
+                    <label for="cp-target-lang" class="auth-label">زبان مقصد ترجمه</label>
+                    <select id="cp-target-lang" class="auth-input mb-1" onchange="saveClientTargetLanguage()">
+                        <option value="">English (پیش‌فرض)</option>
+                        <option value="French">فرانسوی</option>
+                        <option value="Italian">ایتالیایی</option>
+                        <option value="Spanish">اسپانیایی</option>
+                    </select>
+                    <p class="text-[11px] mb-3" style="color:var(--text-muted);">این زبان برای تمام ترجمه‌های آینده این مشتری استفاده می‌شود.</p>
 
                     <label for="cp-notes" class="auth-label">یادداشت</label>
                     <textarea id="cp-notes" rows="3" class="auth-input resize-none mb-2" placeholder="یادداشتی برای این مشتری..."></textarea>

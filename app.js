@@ -2693,6 +2693,15 @@ async function openClientProfile(clientId) {
         document.getElementById('cp-phone').textContent = c.phone || '—';
         document.getElementById('cp-email').textContent = c.email || '—';
         document.getElementById('cp-notes').value = c.notes || '';
+        // target_language: null/undefined or anything other than the three
+        // named languages falls back to the empty option, which means
+        // English -- matches how DeepT-Core/Back-End treat a missing or
+        // unrecognized value.
+        const targetLangSel = document.getElementById('cp-target-lang');
+        if (targetLangSel) {
+            const validLangs = ['French', 'Italian', 'Spanish'];
+            targetLangSel.value = validLangs.includes(c.target_language) ? c.target_language : '';
+        }
         // cp-job-count's header was replaced by the combined activity
         // list's own count (cp-activity-count, set in renderClientActivityList).
 
@@ -3284,6 +3293,29 @@ async function saveClientNotes() {
         showToast('✅ یادداشت ذخیره شد.');
     } catch (e) {
         showToast('خطا در ذخیره یادداشت.');
+    }
+}
+
+// Per-client "translate into this language instead of English" setting
+// (DeepT-Core's `target_language` field on the client record, read by
+// DeepT-Back-End when it runs a translation). Saved immediately on change,
+// same as other single-field edits on this page -- no separate save button
+// needed for a dropdown.
+async function saveClientTargetLanguage() {
+    if (!currentClientDetailId) return;
+    const sel = document.getElementById('cp-target-lang');
+    if (!sel) return;
+    const token = localStorage.getItem('deept_token');
+    try {
+        const res = await fetch(`${CORE}/clients/${currentClientDetailId}`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ target_language: sel.value || null })
+        });
+        if (!res.ok) throw new Error();
+        showToast('✅ زبان مقصد ترجمه ذخیره شد.');
+    } catch (e) {
+        showToast('خطا در ذخیره زبان مقصد ترجمه.');
     }
 }
 
@@ -3940,7 +3972,7 @@ let clientEditingId = null;
 
 function openAddClientModal() {
     clientEditingId = null;
-    ['ac-first','ac-last','ac-first-fa','ac-last-fa','ac-national','ac-father','ac-dob','ac-phone','ac-email','ac-passport','ac-nationality','ac-notes']
+    ['ac-first','ac-last','ac-first-fa','ac-last-fa','ac-national','ac-father','ac-dob','ac-phone','ac-email','ac-passport','ac-nationality','ac-notes','ac-target-lang']
         .forEach(id => document.getElementById(id).value = '');
     document.getElementById('ac-submit-btn').textContent = 'افزودن مشتری';
     document.querySelector('#addClientModal h3').textContent = '➕ افزودن مشتری جدید';
@@ -3967,6 +3999,11 @@ async function openAddClientModalForEdit() {
         document.getElementById('ac-passport').value = c.passport_number || '';
         document.getElementById('ac-nationality').value = c.nationality || '';
         document.getElementById('ac-notes').value = c.notes || '';
+        const acTargetLangSel = document.getElementById('ac-target-lang');
+        if (acTargetLangSel) {
+            const validLangs = ['French', 'Italian', 'Spanish'];
+            acTargetLangSel.value = validLangs.includes(c.target_language) ? c.target_language : '';
+        }
         document.getElementById('ac-submit-btn').textContent = 'ذخیره تغییرات';
         document.querySelector('#addClientModal h3').textContent = '✏️ ویرایش مشتری';
         document.getElementById('addClientModal').classList.remove('hidden');
@@ -4008,6 +4045,7 @@ async function submitAddClient() {
         passport_number: document.getElementById('ac-passport').value.trim()    || null,
         nationality:     document.getElementById('ac-nationality').value.trim() || null,
         notes:           document.getElementById('ac-notes').value.trim()       || null,
+        target_language: document.getElementById('ac-target-lang').value        || null,
     };
     try {
         const res = clientEditingId
