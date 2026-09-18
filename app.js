@@ -1293,6 +1293,85 @@ async function saveMyPriceList() {
     }
 }
 
+// Ready-to-print A3 handout of the whole نرخنامه (every category, in the
+// same ردیف/فهرست/قیمت layout as the official tariff sheet this catalog
+// was transcribed from) -- current effective prices only (unsaved drafts
+// included, same "live" convention myplEffective() already uses
+// elsewhere), so what prints always matches what's actually quoted right
+// now. Opened as a separate window/tab rather than an in-page @media
+// print block: this needs its own A3-landscape @page size and its own
+// two-column flow, independent of (and much denser than) the main app's
+// own screen layout -- keeping it fully separate avoids the main
+// stylesheet's screen rules ever leaking into what gets printed.
+function printMyPriceList() {
+    const officeName = (currentUserSession && (currentUserSession.office || currentUserSession.username || currentUserSession.email)) || '';
+    const todayFa = new Date().toLocaleDateString('fa-IR');
+
+    const priceCell = (item) => {
+        const base = myplEffective(item.id, 'base').toLocaleString();
+        const baseUnitTxt = item.baseUnit ? ` (هر ${escapeHtml(item.baseUnit)})` : '';
+        let txt = `${base}${baseUnitTxt}`;
+        if (item.extra !== null) {
+            txt += ` + ${myplEffective(item.id, 'extra').toLocaleString()} ${escapeHtml(item.unit || '')}`;
+        }
+        return txt;
+    };
+
+    const rowsHtml = PRICE_CATALOG.map(group => {
+        const itemRows = group.items.map(item => `
+            <tr>
+                <td class="col-id">${escapeHtml(item.id)}</td>
+                <td class="col-label">${escapeHtml(item.label)}</td>
+                <td class="col-price en" dir="ltr">${priceCell(item)}</td>
+            </tr>`).join('');
+        return `
+            <table>
+                <thead><tr><th colspan="3" class="cat-title">${escapeHtml(group.category)}</th></tr></thead>
+                <tbody>${itemRows}</tbody>
+            </table>`;
+    }).join('');
+
+    const printWin = window.open('', '_blank');
+    if (!printWin) { showToast('⚠️ مرورگر بازشدن پنجرهٔ چاپ را مسدود کرد. لطفاً اجازه دهید و دوباره تلاش کنید.'); return; }
+
+    printWin.document.write(`<!DOCTYPE html>
+<html dir="rtl" lang="fa">
+<head>
+<meta charset="UTF-8">
+<title>نرخنامه من</title>
+<style>
+    @page { size: A3 landscape; margin: 10mm; }
+    * { box-sizing: border-box; }
+    body { font-family: Tahoma, 'Vazirmatn', sans-serif; direction: rtl; margin: 0; color: #111; }
+    header { text-align: center; margin-bottom: 8mm; }
+    header h1 { font-size: 16px; margin: 0 0 2mm; }
+    header .meta { font-size: 10px; color: #444; }
+    .cols { column-count: 2; column-gap: 10mm; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 3mm; break-inside: avoid; }
+    thead { break-inside: avoid; break-after: avoid; }
+    tr { break-inside: avoid; }
+    th, td { border: 1px solid #999; padding: 1.5mm 2mm; font-size: 8px; text-align: right; vertical-align: top; }
+    .cat-title { background: #e5e5e5; font-weight: bold; text-align: center; font-size: 9px; }
+    .col-id { width: 6%; text-align: center; }
+    .col-price { width: 30%; text-align: left; }
+    @media print { .no-print { display: none !important; } }
+</style>
+</head>
+<body>
+    <div class="no-print" style="text-align:center;padding:10px;">
+        <button onclick="window.print()" style="font-family:Tahoma,sans-serif;padding:8px 16px;font-size:13px;cursor:pointer;">🖨️ چاپ / ذخیره PDF</button>
+    </div>
+    <header>
+        <h1>فهرست اسناد و حق‌الترجمه ترجمه رسمی — نرخنامه من</h1>
+        <div class="meta">${officeName ? escapeHtml(officeName) + ' — ' : ''}تاریخ تهیه: ${todayFa}</div>
+    </header>
+    <div class="cols">${rowsHtml}</div>
+</body>
+</html>`);
+    printWin.document.close();
+    printWin.onload = () => { printWin.focus(); printWin.print(); };
+}
+
 // ═══════════════════════════════════════════════════════════
 // WALLET
 // ═══════════════════════════════════════════════════════════
