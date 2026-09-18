@@ -456,47 +456,6 @@
     <p class="modal-switch">حساب ندارید؟ <a href="javascript:void(0)" onclick="switchToSignup()">ثبت‌نام کنید</a></p>
   </div>
 </div>
-
-<div role="dialog" aria-modal="true" class="overlay" id="forgotOverlay">
-  <div class="modal">
-    <button type="button" class="modal-close" onclick="closeModals()">بستن ✕</button>
-    <div id="forgotForm">
-      <h2>بازیابی رمز عبور</h2>
-      <p class="modal-sub">ایمیل خود را وارد کنید تا لینک بازیابی ارسال شود</p>
-      <label for="fp-email">ایمیل</label>
-      <input class="modal-input" type="email" id="fp-email" placeholder="name@example.com" autocomplete="email">
-      <p class="modal-error" id="fp-error"></p>
-      <button type="button" class="modal-btn" onclick="handleForgotPassword()">ارسال لینک بازیابی</button>
-    </div>
-    <div class="modal-success" id="forgotSuccess">
-      <div class="icon">📧</div>
-      <strong>لینک بازیابی ارسال شد</strong>
-      <p>اگر این ایمیل در DeepT ثبت شده باشد، لینک بازیابی رمز عبور به آن ارسال شده است.</p>
-    </div>
-    <p class="modal-switch">رمز را به خاطر آوردید؟ <a href="javascript:void(0)" onclick="switchToLogin()">وارد شوید</a></p>
-  </div>
-</div>
-
-<div role="dialog" aria-modal="true" class="overlay" id="resetOverlay">
-  <div class="modal">
-    <button type="button" class="modal-close" onclick="closeModals()">بستن ✕</button>
-    <div id="resetForm">
-      <h2>تعیین رمز عبور جدید</h2>
-      <p class="modal-sub">رمز عبور جدید خود را وارد کنید</p>
-      <label for="rp-pass">رمز عبور جدید (حداقل ۸ کاراکتر)</label>
-      <input class="modal-input" type="password" id="rp-pass" placeholder="••••••••" autocomplete="new-password">
-      <p class="modal-error" id="rp-error"></p>
-      <button type="button" class="modal-btn" onclick="handleResetPassword()">ثبت رمز عبور جدید</button>
-    </div>
-    <div class="modal-success" id="resetSuccess">
-      <div class="icon">✅</div>
-      <strong>رمز عبور تغییر کرد</strong>
-      <p>اکنون می‌توانید با رمز جدید وارد شوید.</p>
-    </div>
-    <p class="modal-switch"><a href="javascript:void(0)" onclick="switchToLogin()">بازگشت به ورود</a></p>
-  </div>
-</div>
-
 <div role="dialog" aria-modal="true" class="overlay" id="signupOverlay">
   <div class="modal">
     <button type="button" class="modal-close" onclick="closeModals()">بستن ✕</button>

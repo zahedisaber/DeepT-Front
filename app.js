@@ -14,6 +14,9 @@
 /* ============ CONFIGURATION & BACKEND ENDPOINTS ============ Core = auth/wallet/jobs/clients/invoices; BackEnd = translation + passport.
    QS_* point at a legacy quick-start server override; getActiveBackendOrigin()
    is the live switch. ============ */
+// const CORE    = 'http://127.0.0.1:8001';
+// const BACKEND = 'http://127.0.0.1:8000';
+
 const CORE    = 'https://core-ir.deept.ir';
 const BACKEND = 'https://backend-ir.deept.ir';
 
@@ -4606,77 +4609,6 @@ async function handleSignup() {
     } catch(e) { err.textContent='خطا در اتصال.'; err.classList.add('show'); btn.textContent='ساخت حساب'; btn.disabled=false; }
 }
 
-// ── PASSWORD RESET ("بازیابی رمز عبور") ──
-// openForgotPassword() is triggered by the link under the login form; it
-// asks for an email and calls /auth/forgot-password. When the user clicks
-// the emailed link (?reset=<token>), openResetPassword() shows the
-// new-password form and handleResetPassword() calls /auth/reset-password.
-
-function openForgotPassword() {
-    closeModals();
-    const form = document.getElementById('forgotForm');
-    const succ = document.getElementById('forgotSuccess');
-    if (form) form.style.display = '';
-    if (succ) succ.classList.remove('show');
-    const err = document.getElementById('fp-error');
-    if (err) { err.textContent=''; err.classList.remove('show'); }
-    const btn = document.querySelector('#forgotForm .modal-btn');
-    if (btn) { btn.textContent='ارسال لینک بازیابی'; btn.disabled=false; }
-    const input = document.getElementById('fp-email');
-    if (input) input.value = '';
-    document.getElementById('forgotOverlay').classList.add('open');
-}
-
-async function handleForgotPassword() {
-    const email = document.getElementById('fp-email').value.trim();
-    const err   = document.getElementById('fp-error');
-    const btn   = document.querySelector('#forgotForm .modal-btn');
-    err.classList.remove('show');
-    if (!email) { err.textContent='لطفاً ایمیل خود را وارد کنید.'; err.classList.add('show'); return; }
-    if (!email.includes('@')) { err.textContent='یک ایمیل معتبر وارد کنید.'; err.classList.add('show'); return; }
-    btn.textContent='در حال ارسال...'; btn.disabled=true;
-    try {
-        const {ok,data} = await corePost('/auth/forgot-password', {email});
-        if (!ok) { err.textContent=data.detail||'خطا در ارسال درخواست.'; err.classList.add('show'); btn.textContent='ارسال لینک بازیابی'; btn.disabled=false; return; }
-        document.getElementById('forgotForm').style.display='none';
-        document.getElementById('forgotSuccess').classList.add('show');
-    } catch(e) { err.textContent='خطا در اتصال.'; err.classList.add('show'); btn.textContent='ارسال لینک بازیابی'; btn.disabled=false; }
-}
-
-function openResetPassword(token) {
-    pendingResetToken = token || null;
-    closeModals();
-    const form = document.getElementById('resetForm');
-    const succ = document.getElementById('resetSuccess');
-    if (form) form.style.display = '';
-    if (succ) succ.classList.remove('show');
-    const err = document.getElementById('rp-error');
-    if (err) { err.textContent=''; err.classList.remove('show'); }
-    const btn = document.querySelector('#resetForm .modal-btn');
-    if (btn) { btn.textContent='ثبت رمز عبور جدید'; btn.disabled=false; }
-    const input = document.getElementById('rp-pass');
-    if (input) input.value = '';
-    document.getElementById('resetOverlay').classList.add('open');
-}
-
-async function handleResetPassword() {
-    const pass = document.getElementById('rp-pass').value;
-    const err  = document.getElementById('rp-error');
-    const btn  = document.querySelector('#resetForm .modal-btn');
-    err.classList.remove('show');
-    if (!pendingResetToken) { err.textContent='لینک بازیابی نامعتبر است.'; err.classList.add('show'); return; }
-    if (!pass) { err.textContent='لطفاً رمز عبور جدید را وارد کنید.'; err.classList.add('show'); return; }
-    if (pass.length<8) { err.textContent='رمز عبور باید حداقل ۸ کاراکتر باشد.'; err.classList.add('show'); return; }
-    btn.textContent='در حال ثبت...'; btn.disabled=true;
-    try {
-        const {ok,data} = await corePost('/auth/reset-password', {token: pendingResetToken, new_password: pass});
-        if (!ok) { err.textContent=data.detail||'لینک بازیابی نامعتبر است.'; err.classList.add('show'); btn.textContent='ثبت رمز عبور جدید'; btn.disabled=false; return; }
-        pendingResetToken = null;
-        document.getElementById('resetForm').style.display='none';
-        document.getElementById('resetSuccess').classList.add('show');
-    } catch(e) { err.textContent='خطا در اتصال.'; err.classList.add('show'); btn.textContent='ثبت رمز عبور جدید'; btn.disabled=false; }
-}
-
 // ── MODAL FUNCTIONS ──
 function openLogin() {
     const form = document.getElementById('loginForm');
@@ -4754,10 +4686,8 @@ async function handleForgotPassword() {
     if (!email) { err.textContent='لطفاً ایمیل خود را وارد کنید.'; err.classList.add('show'); return; }
     btn.textContent='در حال ارسال...'; btn.disabled=true;
     try {
-        await corePost('/auth/forgot-password', { email });
-        // Same success state regardless of the response body -- the
-        // backend deliberately never reveals whether this email is
-        // actually registered (see DeepT-Core's /auth/forgot-password).
+        const { ok } = await corePost('/auth/forgot-password', { email });
+        if (!ok) { err.textContent='خطا در ارسال درخواست.'; err.classList.add('show'); btn.textContent='ارسال لینک بازیابی'; btn.disabled=false; return; }
         document.getElementById('forgotPasswordForm').style.display='none';
         document.getElementById('forgotPasswordSuccess').classList.add('show');
     } catch(e) {
