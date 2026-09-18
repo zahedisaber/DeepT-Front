@@ -1359,8 +1359,8 @@ function printMyPriceList() {
     tr { break-inside: avoid; }
     th, td { border: 0.5px solid #999; padding: .5mm 1mm; font-size: 7.5px; line-height: 1.25; text-align: right; vertical-align: top; overflow-wrap: break-word; }
     .cat-title { background: #e5e5e5; font-weight: bold; text-align: center; font-size: 7.5px; padding: .7mm 1mm; }
-    .col-id { width: 7%; text-align: center; }
-    .col-label { width: 62%; }
+    .col-id { width: 4%; text-align: center; padding-left: .5mm; padding-right: .5mm; }
+    .col-label { width: 65%; }
     .col-price { width: 31%; text-align: left; }
     @media print { .no-print { display: none !important; } }
 </style>
