@@ -1317,6 +1317,17 @@ function printMyPriceList() {
         return txt;
     };
 
+    // One CONTINUOUS table for the whole catalog -- category headers are
+    // just another row (colspan, distinct style) inside the same <tbody>,
+    // not a separate <table> per category. This is deliberate: a separate
+    // break-inside:avoid table per category treats that whole category as
+    // one unbreakable block, so a category that doesn't quite fit in the
+    // column space left wastes it all rather than partially filling it --
+    // with 26 categories of very uneven size, that dead space was the main
+    // reason this overflowed onto 4 pages instead of 2. A single table
+    // lets the browser's column/page breaking flow row-by-row instead,
+    // packing tightly the way the original tariff sheet itself does
+    // (a category routinely continues right across a column boundary).
     const rowsHtml = PRICE_CATALOG.map(group => {
         const itemRows = group.items.map(item => `
             <tr>
@@ -1324,11 +1335,7 @@ function printMyPriceList() {
                 <td class="col-label">${escapeHtml(item.label)}</td>
                 <td class="col-price en" dir="ltr">${priceCell(item)}</td>
             </tr>`).join('');
-        return `
-            <table>
-                <thead><tr><th colspan="3" class="cat-title">${escapeHtml(group.category)}</th></tr></thead>
-                <tbody>${itemRows}</tbody>
-            </table>`;
+        return `<tr class="cat-row"><td colspan="3" class="cat-title">${escapeHtml(group.category)}</td></tr>${itemRows}`;
     }).join('');
 
     const printWin = window.open('', '_blank');
@@ -1340,20 +1347,20 @@ function printMyPriceList() {
 <meta charset="UTF-8">
 <title>نرخنامه من</title>
 <style>
-    @page { size: A3 landscape; margin: 10mm; }
+    @page { size: A3 landscape; margin: 7mm; }
     * { box-sizing: border-box; }
     body { font-family: Tahoma, 'Vazirmatn', sans-serif; direction: rtl; margin: 0; color: #111; }
-    header { text-align: center; margin-bottom: 8mm; }
-    header h1 { font-size: 16px; margin: 0 0 2mm; }
-    header .meta { font-size: 10px; color: #444; }
-    .cols { column-count: 2; column-gap: 10mm; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 3mm; break-inside: avoid; }
-    thead { break-inside: avoid; break-after: avoid; }
+    header { text-align: center; margin-bottom: 3mm; }
+    header h1 { font-size: 13px; margin: 0 0 1mm; }
+    header .meta { font-size: 8px; color: #444; }
+    .cols { column-count: 2; column-gap: 6mm; }
+    table { width: 100%; border-collapse: collapse; }
+    tr.cat-row { break-after: avoid; break-inside: avoid; }
     tr { break-inside: avoid; }
-    th, td { border: 1px solid #999; padding: 1.5mm 2mm; font-size: 8px; text-align: right; vertical-align: top; }
-    .cat-title { background: #e5e5e5; font-weight: bold; text-align: center; font-size: 9px; }
+    th, td { border: 0.5px solid #999; padding: .4mm 1mm; font-size: 6px; line-height: 1.25; text-align: right; vertical-align: top; }
+    .cat-title { background: #e5e5e5; font-weight: bold; text-align: center; font-size: 6.5px; padding: .6mm 1mm; }
     .col-id { width: 6%; text-align: center; }
-    .col-price { width: 30%; text-align: left; }
+    .col-price { width: 32%; text-align: left; white-space: nowrap; }
     @media print { .no-print { display: none !important; } }
 </style>
 </head>
@@ -1365,7 +1372,7 @@ function printMyPriceList() {
         <h1>فهرست اسناد و حق‌الترجمه ترجمه رسمی — نرخنامه من</h1>
         <div class="meta">${officeName ? escapeHtml(officeName) + ' — ' : ''}تاریخ تهیه: ${todayFa}</div>
     </header>
-    <div class="cols">${rowsHtml}</div>
+    <div class="cols"><table><tbody>${rowsHtml}</tbody></table></div>
 </body>
 </html>`);
     printWin.document.close();
