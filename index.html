@@ -833,9 +833,12 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
         <div class="workspace-panel p-5">
             <div class="flex items-center justify-between gap-3 flex-wrap mb-4">
                 <div class="flex items-center gap-2 flex-wrap">
-                    <button type="button" onclick="shiftScheduleWeek(-1)" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--bg-main);color:var(--accent);border:1px solid var(--border-color);">‹ هفته قبل</button>
+                    <button type="button" onclick="setScheduleViewMode('month')" id="sv-month" class="text-[11px] font-bold px-3 py-1.5 rounded-lg transition" style="background:var(--accent);color:var(--btn-text-on-accent);border:1px solid transparent;">ماهانه</button>
+                    <button type="button" onclick="setScheduleViewMode('week')" id="sv-week" class="text-[11px] font-bold px-3 py-1.5 rounded-lg transition" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">هفتگی</button>
+                    <span style="width:1px;height:20px;background:var(--border-subtle);"></span>
+                    <button type="button" onclick="shiftSchedulePeriod(-1)" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--bg-main);color:var(--accent);border:1px solid var(--border-color);">‹ قبلی</button>
                     <button type="button" onclick="setScheduleWeekToToday()" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">امروز</button>
-                    <button type="button" onclick="shiftScheduleWeek(1)" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--bg-main);color:var(--accent);border:1px solid var(--border-color);">هفته بعد ›</button>
+                    <button type="button" onclick="shiftSchedulePeriod(1)" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--bg-main);color:var(--accent);border:1px solid var(--border-color);">بعدی ›</button>
                     <span class="text-sm font-black en" id="scheduleWeekLabel" style="color:var(--text-main);">—</span>
                 </div>
                 <div class="flex items-center gap-2 flex-wrap">
@@ -848,7 +851,7 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
         </div>
 
         <div class="workspace-panel p-5">
-            <h3 class="text-sm font-black mb-3" style="color:var(--text-main);">📋 سفارش‌های این هفته</h3>
+            <h3 class="text-sm font-black mb-3" id="scheduleListHeading" style="color:var(--text-main);">📋 سفارش‌های این هفته</h3>
             <div id="scheduleOrderList" class="space-y-2"></div>
         </div>
     </div>
