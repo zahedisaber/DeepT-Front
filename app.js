@@ -3804,12 +3804,14 @@ function ppShowStatus(icon, text) {
 }
 
 function ppClearFields() {
-    ['pp-first','pp-last','pp-father','pp-dob','pp-national'].forEach(id => document.getElementById(id).value = '');
+    ['pp-first','pp-last','pp-first-fa','pp-last-fa','pp-father','pp-dob','pp-national'].forEach(id => document.getElementById(id).value = '');
 }
 
 function ppFillFields(data) {
     document.getElementById('pp-first').value    = data.first_name    || '';
     document.getElementById('pp-last').value     = data.last_name     || '';
+    document.getElementById('pp-first-fa').value = data.first_name_fa || '';
+    document.getElementById('pp-last-fa').value  = data.last_name_fa  || '';
     document.getElementById('pp-father').value   = data.father_name   || '';
     document.getElementById('pp-dob').value      = data.date_of_birth || '';
     document.getElementById('pp-national').value = data.national_id   || '';
@@ -3865,6 +3867,8 @@ async function ppRunExtraction() {
 async function ppConfirmSession() {
     const first    = document.getElementById('pp-first').value.trim().toUpperCase();
     const last     = document.getElementById('pp-last').value.trim().toUpperCase();
+    const firstFa  = document.getElementById('pp-first-fa').value.trim();
+    const lastFa   = document.getElementById('pp-last-fa').value.trim();
     const father   = document.getElementById('pp-father').value.trim().toUpperCase();
     const dob      = document.getElementById('pp-dob').value.trim();
     const national = document.getElementById('pp-national').value.trim();
@@ -3877,12 +3881,12 @@ async function ppConfirmSession() {
         const res = await fetch(`${getActiveBackendOrigin()}/passport/confirm`, {
             method: 'POST',
             headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ first_name:first, last_name:last, father_name:father, date_of_birth:dob, national_id:national })
+            body: JSON.stringify({ first_name:first, last_name:last, first_name_fa:firstFa, last_name_fa:lastFa, father_name:father, date_of_birth:dob, national_id:national })
         });
         if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'خطای سرور'); }
         const data = await res.json();
 
-        confirmedPassports.push({ session_id:data.session_id, first_name:first, last_name:last, father_name:father, date_of_birth:dob, national_id:national });
+        confirmedPassports.push({ session_id:data.session_id, first_name:first, last_name:last, first_name_fa:firstFa, last_name_fa:lastFa, father_name:father, date_of_birth:dob, national_id:national });
         updateClientBadge();
 document.getElementById('pp-fields').classList.add('hidden');
 document.getElementById('ppModeButtons').classList.add('hidden');
@@ -3896,7 +3900,7 @@ ppShowStatus('', '');
         // auto-saved -- the manual "💾 ذخیره مشتری" button on the
         // confirmed-passports list still covers that case once one is typed in.
         if (national) {
-            saveOrAttachClient({ first_name:first, last_name:last, father_name:father, date_of_birth:dob, national_id:national, session_id:data.session_id });
+            saveOrAttachClient({ first_name:first, last_name:last, first_name_fa:firstFa, last_name_fa:lastFa, father_name:father, date_of_birth:dob, national_id:national, session_id:data.session_id });
         }
     } catch (err) {
         ppShowStatus('❌', 'ثبت اطلاعات ناموفق بود. لطفاً دوباره تلاش کنید.');
@@ -3922,6 +3926,8 @@ async function saveOrAttachClient(identity) {
                 body: JSON.stringify({
                     first_name:    identity.first_name,
                     last_name:     identity.last_name,
+                    first_name_fa: identity.first_name_fa || '',
+                    last_name_fa:  identity.last_name_fa  || '',
                     national_id:   identity.national_id,
                     father_name:   identity.father_name   || '',
                     date_of_birth: identity.date_of_birth || '',
