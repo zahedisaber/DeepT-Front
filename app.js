@@ -4709,26 +4709,13 @@ async function handleResetPassword() {
     try {
         const {ok,data} = await corePost('/auth/reset-password', { token: resetPasswordToken, new_password: pass });
         if (!ok) { err.textContent=data.detail||'لینک بازیابی نامعتبر یا منقضی شده است.'; err.classList.add('show'); btn.textContent='تنظیم رمز عبور'; btn.disabled=false; return; }
-        if (!saveSession(data)) {
-            console.error('Password reset succeeded but session could not be saved.');
-            return;
-        }
-
         document.getElementById('resetPasswordForm').style.display='none';
         document.getElementById('resetPasswordSuccess').classList.add('show');
 
-        currentUserSession = loadSession();
-        syncUserSessionDOM();
-
         setTimeout(() => {
-            closeModals();
             resetPasswordToken = null;
             window.history.replaceState({}, document.title, window.location.pathname);
-            if (currentUserSession?.is_admin) {
-                showAdminDashboard();
-            } else {
-                showDashboardView();
-            }
+            switchToLogin();
         }, 1400);
     } catch(e) { err.textContent='خطا در اتصال.'; err.classList.add('show'); btn.textContent='تنظیم رمز عبور'; btn.disabled=false; }
 }
