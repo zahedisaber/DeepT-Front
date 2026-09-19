@@ -2894,10 +2894,12 @@ async function openChatForClient() {
     openChatInterface(false, 'doctype');
 }
 
-// ── Open the office-wide weekly work schedule ──────────────────────────
+// ── Open the office-wide work schedule (monthly view by default, weekly
+// as the alternate) ─────────────────────────────────────────────────────
 let scheduleWeekStart = null;
 let scheduleTypeFilter = null;
 let scheduleWeekOrders = [];
+let scheduleViewMode = 'month'; // 'month' (default) | 'week'
 
 /* ============ SECTION: OFFICE WEEKLY SCHEDULE ============ */
 function openWorkSchedulePage() {
@@ -2906,7 +2908,9 @@ function openWorkSchedulePage() {
     navigateTo('/schedule');
     scheduleWeekStart = startOfPersianWeek(new Date());
     scheduleTypeFilter = null;
-    setScheduleTypeFilter(null);
+    scheduleViewMode = 'month';
+    updateScheduleViewModeButtons();
+    setScheduleTypeFilter(null); // also renders once, in the mode set above
 }
 
 function closeWorkSchedulePage() {
@@ -2952,13 +2956,34 @@ function closeMyPriceListPage() {
 
 function setScheduleWeekToToday() {
     scheduleWeekStart = startOfPersianWeek(new Date());
-    renderScheduleWeek();
+    renderSchedule();
 }
 
-function shiftScheduleWeek(n) {
+function shiftSchedulePeriod(n) {
     if (!scheduleWeekStart) scheduleWeekStart = startOfPersianWeek(new Date());
-    scheduleWeekStart.setDate(scheduleWeekStart.getDate() + n * 7);
-    renderScheduleWeek();
+    if (scheduleViewMode === 'week') {
+        scheduleWeekStart.setDate(scheduleWeekStart.getDate() + n * 7);
+    } else {
+        scheduleWeekStart.setMonth(scheduleWeekStart.getMonth() + n);
+    }
+    renderSchedule();
+}
+
+function updateScheduleViewModeButtons() {
+    ['month', 'week'].forEach(m => {
+        const el = document.getElementById('sv-' + m);
+        if (!el) return;
+        const active = m === scheduleViewMode;
+        el.style.background = active ? 'var(--accent)' : 'var(--bg-main)';
+        el.style.color = active ? 'var(--btn-text-on-accent)' : 'var(--text-main)';
+        el.style.borderColor = active ? 'transparent' : 'var(--border-subtle)';
+    });
+}
+
+function setScheduleViewMode(mode) {
+    scheduleViewMode = mode;
+    updateScheduleViewModeButtons();
+    renderSchedule();
 }
 
 function setScheduleTypeFilter(type) {
@@ -2979,10 +3004,54 @@ function setScheduleTypeFilter(type) {
             el.style.fontWeight = active ? '900' : '700';
         }
     });
-    renderScheduleWeek();
+    renderSchedule();
 }
 
-async function renderScheduleWeek() {
+function renderSchedule() {
+    return scheduleViewMode === 'month' ? renderScheduleMonth() : renderScheduleWeekView();
+}
+
+// Shared by both views: fetches work orders for a date range, honoring
+// the current scheduleTypeFilter -- the only thing that differs between
+// the weekly and monthly view is which range gets passed in.
+async function fetchScheduleOrders(fromISO, toISO) {
+    const url = new URL(`${CORE}/work-orders`);
+    url.searchParams.set('from', fromISO);
+    url.searchParams.set('to', toISO);
+    if (scheduleTypeFilter) url.searchParams.set('order_type', scheduleTypeFilter);
+    const res = await fetch(url, { headers: { 'Authorization': `Bearer ${getToken()}` } });
+    if (!res.ok) throw new Error();
+    return res.json();
+}
+
+// Shared by both views: the flat chronological order list below the grid.
+function renderScheduleOrderList(orders, emptyMessage) {
+    const list = document.getElementById('scheduleOrderList');
+    if (!orders.length) {
+        list.innerHTML = `<div class="text-xs text-center py-4" style="color:var(--text-muted);">${emptyMessage}</div>`;
+        return;
+    }
+    orders.sort((a, b) => (a.due_date || '').localeCompare(b.due_date || ''));
+    list.innerHTML = orders.map(o => {
+        const t = WORK_ORDER_TYPE_FA[o.order_type] || { text: o.order_type, color: 'var(--accent)' };
+        const s = WORK_ORDER_STATUS_FA[o.status] || { text: o.status, color: 'var(--text-muted)' };
+        return `
+          <div class="flex items-center justify-between gap-3 p-2.5 rounded-lg text-xs" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style="background:${t.color};"></span>
+              <span class="font-bold en truncate" style="color:var(--text-main);">${escapeHtml(o.client_name || '')}${o.title ? ' — ' + escapeHtml(o.title) : ''}</span>
+            </div>
+            <div class="flex items-center gap-3 shrink-0">
+              <span class="en font-bold" style="color:${o.due_date ? 'var(--accent)' : 'var(--text-muted)'};">${o.due_date || 'بدون ددلاین'}</span>
+              <span style="color:${t.color};">${t.text}</span>
+              <span class="en" style="color:${s.color};">${s.text}</span>
+              ${o.client_id ? `<button onclick="openClientProfile('${o.client_id}')" class="text-[11px] font-bold px-2 py-1 rounded-md" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">مشتری</button>` : ''}
+            </div>
+          </div>`;
+    }).join('');
+}
+
+async function renderScheduleWeekView() {
     const grid = document.getElementById('scheduleWeekGrid');
     const list = document.getElementById('scheduleOrderList');
     if (!grid || !list) return;
@@ -3000,21 +3069,16 @@ async function renderScheduleWeek() {
     const startFmt = days[0].toLocaleDateString('fa-IR', { day: 'numeric', month: 'long', year: 'numeric' });
     const endFmt = days[6].toLocaleDateString('fa-IR', { day: 'numeric', month: 'long' });
     document.getElementById('scheduleWeekLabel').textContent = `${startFmt} — ${endFmt}`;
+    document.getElementById('scheduleListHeading').textContent = '📋 سفارش‌های این هفته';
 
     grid.innerHTML = `<div class="text-xs text-center py-6" style="color:var(--text-muted);grid-column:1/-1;">در حال بارگذاری تقویم...</div>`;
 
     let orders = [];
     try {
-        const url = new URL(`${CORE}/work-orders`);
-        url.searchParams.set('from', fromISO);
-        url.searchParams.set('to', toISO);
-        if (scheduleTypeFilter) url.searchParams.set('order_type', scheduleTypeFilter);
-        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${getToken()}` } });
-        if (!res.ok) throw new Error();
-        orders = await res.json();
+        orders = await fetchScheduleOrders(fromISO, toISO);
     } catch (e) {
         grid.innerHTML = `<div class="text-xs text-center py-6" style="color:#f87171;grid-column:1/-1;">خطا در دریافت زمان‌بندی.
-            <button onclick="renderScheduleWeek()" class="block mx-auto mt-2 text-[11px] font-bold px-3 py-1 rounded-lg" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">🔄 تلاش مجدد</button>
+            <button onclick="renderScheduleWeekView()" class="block mx-auto mt-2 text-[11px] font-bold px-3 py-1 rounded-lg" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">🔄 تلاش مجدد</button>
         </div>`;
         list.innerHTML = '';
         return;
@@ -3063,28 +3127,91 @@ async function renderScheduleWeek() {
           </div>`;
     }).join('');
 
-    if (!orders.length) {
-        list.innerHTML = `<div class="text-xs text-center py-4" style="color:var(--text-muted);">// در این هفته سفارشی ثبت نشده</div>`;
-    } else {
-        orders.sort((a, b) => (a.due_date || '').localeCompare(b.due_date || ''));
-        list.innerHTML = orders.map(o => {
-            const t = WORK_ORDER_TYPE_FA[o.order_type] || { text: o.order_type, color: 'var(--accent)' };
-            const s = WORK_ORDER_STATUS_FA[o.status] || { text: o.status, color: 'var(--text-muted)' };
-            return `
-              <div class="flex items-center justify-between gap-3 p-2.5 rounded-lg text-xs" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
-                <div class="flex items-center gap-2 min-w-0">
-                  <span class="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style="background:${t.color};"></span>
-                  <span class="font-bold en truncate" style="color:var(--text-main);">${escapeHtml(o.client_name || '')}${o.title ? ' — ' + escapeHtml(o.title) : ''}</span>
-                </div>
-                <div class="flex items-center gap-3 shrink-0">
-                  <span class="en font-bold" style="color:${o.due_date ? 'var(--accent)' : 'var(--text-muted)'};">${o.due_date || 'بدون ددلاین'}</span>
-                  <span style="color:${t.color};">${t.text}</span>
-                  <span class="en" style="color:${s.color};">${s.text}</span>
-                  ${o.client_id ? `<button onclick="openClientProfile('${o.client_id}')" class="text-[11px] font-bold px-2 py-1 rounded-md" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">مشتری</button>` : ''}
-                </div>
-              </div>`;
-        }).join('');
+    renderScheduleOrderList(orders, '// در این هفته سفارشی ثبت نشده');
+}
+
+// Monthly grid (the default view): a full calendar month, Sat-first per
+// WEEKDAY_FA/startOfPersianWeek's convention, including the leading/
+// trailing days from adjacent months needed to fill out complete weeks
+// (dimmed via `inMonth`) so every row has all 7 columns. Reuses the exact
+// same #scheduleWeekGrid container as the weekly view (still a
+// repeat(7,...) CSS grid either way) -- only the day-cell content differs,
+// since a month cell has far less room per day than a week cell.
+async function renderScheduleMonth() {
+    const grid = document.getElementById('scheduleWeekGrid');
+    const list = document.getElementById('scheduleOrderList');
+    if (!grid || !list) return;
+    if (!scheduleWeekStart) scheduleWeekStart = startOfPersianWeek(new Date());
+
+    const monthAnchor = new Date(scheduleWeekStart.getFullYear(), scheduleWeekStart.getMonth(), 1);
+    const monthIndex = monthAnchor.getMonth();
+    const calStart = startOfPersianWeek(monthAnchor);
+    const lastOfMonth = new Date(monthAnchor.getFullYear(), monthAnchor.getMonth() + 1, 0);
+    const calEnd = startOfPersianWeek(lastOfMonth);
+    calEnd.setDate(calEnd.getDate() + 6);
+
+    const days = [];
+    for (let d = new Date(calStart); d <= calEnd; d.setDate(d.getDate() + 1)) {
+        days.push(new Date(d));
     }
+    const fromISO = fmtWeekISO(days[0]);
+    const toISO = fmtWeekISO(days[days.length - 1]);
+
+    document.getElementById('scheduleWeekLabel').textContent =
+        monthAnchor.toLocaleDateString('fa-IR', { month: 'long', year: 'numeric' });
+    document.getElementById('scheduleListHeading').textContent = '📋 سفارش‌های این ماه';
+
+    grid.innerHTML = `<div class="text-xs text-center py-6" style="color:var(--text-muted);grid-column:1/-1;">در حال بارگذاری تقویم...</div>`;
+
+    let orders = [];
+    try {
+        orders = await fetchScheduleOrders(fromISO, toISO);
+    } catch (e) {
+        grid.innerHTML = `<div class="text-xs text-center py-6" style="color:#f87171;grid-column:1/-1;">خطا در دریافت زمان‌بندی.
+            <button onclick="renderScheduleMonth()" class="block mx-auto mt-2 text-[11px] font-bold px-3 py-1 rounded-lg" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">🔄 تلاش مجدد</button>
+        </div>`;
+        list.innerHTML = '';
+        return;
+    }
+    scheduleWeekOrders = orders;
+
+    const todayISO = fmtWeekISO(new Date());
+    const byDay = {};
+    for (const o of orders) byDay[o.due_date || ''] = (byDay[o.due_date || ''] || []).concat(o);
+
+    const headerHtml = WEEKDAY_FA.map(w => `<div class="text-[10px] font-black text-center py-1" style="color:var(--text-muted);">${w}</div>`).join('');
+
+    const cellsHtml = days.map(d => {
+        const iso = fmtWeekISO(d);
+        const isToday = todayISO === iso;
+        const inMonth = d.getMonth() === monthIndex;
+        const dayOrders = byDay[iso] || [];
+        const pendingCount = dayOrders.filter(o => o.status === 'PENDING').length;
+        const overdue = dayOrders.some(o => o.status === 'PENDING' && o.due_date && o.due_date < todayISO);
+
+        const itemsHtml = dayOrders.map(o => {
+            const t = WORK_ORDER_TYPE_FA[o.order_type] || { text: o.order_type, color: 'var(--accent)' };
+            const done = o.status === 'DONE';
+            const clickTarget = o.client_id
+                ? `onclick="openClientProfile('${o.client_id}')" title="باز کردن پروفایل مشتری"`
+                : '';
+            return `
+              <div ${clickTarget} class="px-1 rounded text-[9px] cursor-pointer mb-0.5 truncate hover:opacity-85" style="background:${(t.color) + '1a'};border-inline-start:2px solid ${t.color};color:${done ? 'var(--text-muted)' : 'var(--text-main)'};${done ? 'text-decoration:line-through;' : ''}">${escapeHtml(o.client_name || o.title || '')}</div>`;
+        }).join('');
+
+        return `
+          <div class="p-1 rounded-lg" style="min-height:64px;background:${isToday ? 'var(--accent-hover)' : 'var(--bg-main)'};border:1px solid ${isToday ? 'var(--border-color)' : 'var(--border-subtle)'};opacity:${inMonth ? '1' : '.45'};${overdue ? 'box-shadow:0 0 0 1px rgba(248,113,113,0.4);' : ''}">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-[10px] en font-bold" style="color:${isToday ? 'var(--accent)' : (inMonth ? 'var(--text-main)' : 'var(--text-muted)')};">${d.getDate()}</span>
+              ${pendingCount ? `<span class="text-[8px] font-bold en" style="color:var(--accent);">${pendingCount}</span>` : ''}
+            </div>
+            ${itemsHtml}
+          </div>`;
+    }).join('');
+
+    grid.innerHTML = headerHtml + cellsHtml;
+
+    renderScheduleOrderList(orders, '// در این ماه سفارشی ثبت نشده');
 }
 
 // 
