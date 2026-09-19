@@ -2450,6 +2450,50 @@ let workOrderDraftType = 'MEHR_MOTARJEM';
    Persian-week helpers (startOfPersianWeek/fmtWeekISO) + order CRUD. ============ */
 function getToken() { return localStorage.getItem('deept_token'); }
 
+// ── Jalali (Persian/Shamsi) calendar conversion ────────────────────────
+// JS Date has no native Jalali calendar support, and toLocaleDateString
+// ('fa-IR', ...) only ever produces a Jalali-formatted TEXT LABEL -- it
+// can't tell you which Gregorian dates are day 1..N of a given Jalali
+// month, which any real "month view" grid needs to know. Rather than
+// hand-implementing Jalali leap-year/month-length rules (easy to get
+// subtly wrong), this leans on the same ICU Persian calendar the browser
+// already uses for every fa-IR label in this app, in both directions:
+// forward is a single direct lookup; reverse walks day-by-day from a
+// close estimate until it matches (both calendars track the same real
+// elapsed days, so this always converges, and it's only ever called a
+// handful of times per calendar render/navigation).
+const _JALALI_FMT = new Intl.DateTimeFormat('en-US-u-ca-persian', { year: 'numeric', month: 'numeric', day: 'numeric' });
+
+function gregorianToJalali(date) {
+    const parts = _JALALI_FMT.formatToParts(date);
+    const get = (t) => parseInt(parts.find(p => p.type === t).value, 10);
+    return { y: get('year'), m: get('month'), d: get('day') };
+}
+
+function jalaliToGregorian(jy, jm, jd) {
+    const guess = new Date(jy + 621, 2, 15); // mid-March of the estimated Gregorian year -- always within ~2 weeks of Nowruz
+    let g = gregorianToJalali(guess);
+    while (g.y !== jy || g.m !== jm || g.d !== jd) {
+        const cmp = (g.y - jy) || (g.m - jm) || (g.d - jd);
+        guess.setDate(guess.getDate() + (cmp < 0 ? 1 : -1));
+        g = gregorianToJalali(guess);
+    }
+    return guess;
+}
+
+// First/last Gregorian date of a given Jalali month -- the last day is
+// found as "the day before the next Jalali month's 1st" rather than by
+// computing the month's length directly, so this never needs to know
+// Jalali leap-year rules (which years have a 30- vs 29-day Esfand) at all.
+function jalaliMonthBounds(jy, jm) {
+    const firstDay = jalaliToGregorian(jy, jm, 1);
+    const nextJy = jm === 12 ? jy + 1 : jy;
+    const nextJm = jm === 12 ? 1 : jm + 1;
+    const lastDay = jalaliToGregorian(nextJy, nextJm, 1);
+    lastDay.setDate(lastDay.getDate() - 1);
+    return { firstDay, lastDay };
+}
+
 // ── Week navigation (Persian week: Saturday .. Friday) ────────────────
 function startOfPersianWeek(d) {
     const date = new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -2555,7 +2599,7 @@ async function renderWorkWeek() {
         const dayHeader = `
             <div class="flex items-center justify-between mb-1.5" style="padding-bottom:4px;border-bottom:1px solid var(--divider);">
                 <span class="text-[11px] font-black" style="color:${isToday ? 'var(--accent)' : 'var(--text-main)'};">${WEEKDAY_FA[idx]}</span>
-                <span class="text-[10px] en font-bold" style="color:${isToday ? 'var(--accent)' : 'var(--text-muted)'};">${d.getDate()}</span>
+                <span class="text-[10px] en font-bold" style="color:${isToday ? 'var(--accent)' : 'var(--text-muted)'};">${gregorianToJalali(d).d}</span>
             </div>`;
 
         const ordersHtml = orders.length
@@ -2962,7 +3006,19 @@ function shiftSchedulePeriod(n) {
     if (scheduleViewMode === 'week') {
         scheduleWeekStart.setDate(scheduleWeekStart.getDate() + n * 7);
     } else {
-        scheduleWeekStart.setMonth(scheduleWeekStart.getMonth() + n);
+        // Step by a real Jalali month, not a Gregorian one (setMonth()
+        // would drift the displayed month out of sync with the label
+        // within a step or two, since Jalali/Gregorian month boundaries
+        // don't line up). Clamps the day-of-month to the target month's
+        // actual length, same as JS Date's own end-of-month rollover
+        // behavior for setMonth().
+        const { y: jy, m: jm, d: jd } = gregorianToJalali(scheduleWeekStart);
+        let newJy = jy, newJm = jm + n;
+        while (newJm > 12) { newJm -= 12; newJy++; }
+        while (newJm < 1) { newJm += 12; newJy--; }
+        const { firstDay, lastDay } = jalaliMonthBounds(newJy, newJm);
+        const monthLength = Math.round((lastDay - firstDay) / 86400000) + 1;
+        scheduleWeekStart = jalaliToGregorian(newJy, newJm, Math.min(jd, monthLength));
     }
     renderSchedule();
 }
@@ -3117,7 +3173,7 @@ async function renderScheduleWeekView() {
           <div class="p-1.5 rounded-lg" style="background:${isToday ? 'var(--accent-hover)' : 'var(--bg-main)'};border:1px solid ${isToday ? 'var(--border-color)' : 'var(--border-subtle)'};${overdue ? 'box-shadow:0 0 0 1px rgba(248,113,113,0.4);' : ''}">
             <div class="flex items-center justify-between mb-1.5" style="padding-bottom:4px;border-bottom:1px solid var(--divider);">
                 <span class="text-[11px] font-black" style="color:${isToday ? 'var(--accent)' : 'var(--text-main)'};">${WEEKDAY_FA[idx]}</span>
-                <span class="text-[10px] en font-bold" style="color:${isToday ? 'var(--accent)' : 'var(--text-muted)'};">${d.getDate()}</span>
+                <span class="text-[10px] en font-bold" style="color:${isToday ? 'var(--accent)' : 'var(--text-muted)'};">${gregorianToJalali(d).d}</span>
             </div>
             ${pendingCount ? `<div class="text-[9px] font-bold mb-1" style="color:var(--accent);"><span class="en">${pendingCount}</span> در انتظار</div>` : ''}
             ${overdue ? `<div class="text-[9px] font-bold mb-1" style="color:#f87171;">⚠ ددلاین گذشته</div>` : ''}
@@ -3141,11 +3197,16 @@ async function renderScheduleMonth() {
     if (!grid || !list) return;
     if (!scheduleWeekStart) scheduleWeekStart = startOfPersianWeek(new Date());
 
-    const monthAnchor = new Date(scheduleWeekStart.getFullYear(), scheduleWeekStart.getMonth(), 1);
-    const monthIndex = monthAnchor.getMonth();
-    const calStart = startOfPersianWeek(monthAnchor);
-    const lastOfMonth = new Date(monthAnchor.getFullYear(), monthAnchor.getMonth() + 1, 0);
-    const calEnd = startOfPersianWeek(lastOfMonth);
+    // The "month" here is the real Jalali month scheduleWeekStart falls in
+    // -- NOT the Gregorian month of the same JS Date, which almost never
+    // lines up with it (Jalali months start ~11 days into a Gregorian
+    // month and have different lengths). jalaliMonthBounds() finds the
+    // actual first/last Gregorian date of that Jalali month; the grid is
+    // then padded out to full weeks the same way the week view already is.
+    const { y: jy, m: jm } = gregorianToJalali(scheduleWeekStart);
+    const { firstDay: monthFirstDay, lastDay: monthLastDay } = jalaliMonthBounds(jy, jm);
+    const calStart = startOfPersianWeek(monthFirstDay);
+    const calEnd = startOfPersianWeek(monthLastDay);
     calEnd.setDate(calEnd.getDate() + 6);
 
     const days = [];
@@ -3156,7 +3217,7 @@ async function renderScheduleMonth() {
     const toISO = fmtWeekISO(days[days.length - 1]);
 
     document.getElementById('scheduleWeekLabel').textContent =
-        monthAnchor.toLocaleDateString('fa-IR', { month: 'long', year: 'numeric' });
+        monthFirstDay.toLocaleDateString('fa-IR', { month: 'long', year: 'numeric' });
     document.getElementById('scheduleListHeading').textContent = '📋 سفارش‌های این ماه';
 
     grid.innerHTML = `<div class="text-xs text-center py-6" style="color:var(--text-muted);grid-column:1/-1;">در حال بارگذاری تقویم...</div>`;
@@ -3182,7 +3243,8 @@ async function renderScheduleMonth() {
     const cellsHtml = days.map(d => {
         const iso = fmtWeekISO(d);
         const isToday = todayISO === iso;
-        const inMonth = d.getMonth() === monthIndex;
+        const dJalali = gregorianToJalali(d);
+        const inMonth = dJalali.y === jy && dJalali.m === jm;
         const dayOrders = byDay[iso] || [];
         const pendingCount = dayOrders.filter(o => o.status === 'PENDING').length;
         const overdue = dayOrders.some(o => o.status === 'PENDING' && o.due_date && o.due_date < todayISO);
@@ -3200,7 +3262,7 @@ async function renderScheduleMonth() {
         return `
           <div class="p-1 rounded-lg" style="min-height:64px;background:${isToday ? 'var(--accent-hover)' : 'var(--bg-main)'};border:1px solid ${isToday ? 'var(--border-color)' : 'var(--border-subtle)'};opacity:${inMonth ? '1' : '.45'};${overdue ? 'box-shadow:0 0 0 1px rgba(248,113,113,0.4);' : ''}">
             <div class="flex items-center justify-between mb-1">
-              <span class="text-[10px] en font-bold" style="color:${isToday ? 'var(--accent)' : (inMonth ? 'var(--text-main)' : 'var(--text-muted)')};">${d.getDate()}</span>
+              <span class="text-[10px] en font-bold" style="color:${isToday ? 'var(--accent)' : (inMonth ? 'var(--text-main)' : 'var(--text-muted)')};">${dJalali.d}</span>
               ${pendingCount ? `<span class="text-[8px] font-bold en" style="color:var(--accent);">${pendingCount}</span>` : ''}
             </div>
             ${itemsHtml}
