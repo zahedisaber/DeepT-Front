@@ -27,13 +27,6 @@ const BACKEND = 'https://backend.deept.ir';
 //   usePassportSession → true means session_id is sent with the request
 // ═══════════════════════════════════════════════════════════
 const DOCUMENT_REGISTRY = {
-    'police-certificate': {
-        label:               'گواهی عدم سوء پیشینه',
-        endpoint: 'https://police.deept.ir/api/translate/police-certificate',
-        active:              true,
-        usePassportSession:  true,
-        legacySingleSession: true,   // old backend contract -- singular session_id, not yet updated
-    },
     'vehicle-deed': {
         label:               'سند مالکیت خودرو (برگ سبز)',
         endpoint: 'https://backend.deept.ir/api/translate/vehicle-deed',
@@ -68,7 +61,12 @@ const DOCUMENT_REGISTRY = {
         label:               'آگهی تاسیس / تغییرات (روزنامه رسمی)',
         endpoint: 'https://backend.deept.ir/api/translate/gazette-notice',
         active:              true,
-        usePassportSession:  false,
+        // Backend (gazette_notice.py) already accepts session_ids and
+        // matches them against named individuals (board members, etc.)
+        // via match_parties_to_identities -- this was just never turned
+        // on here, so the passport UI (including "+ افزودن پاسپورت" for
+        // more than one named individual) never showed for this type.
+        usePassportSession:  true,
     },
     'high-school-transcript': {
         label:               'ریزنمرات دبیرستان',
