@@ -1329,9 +1329,15 @@ function printMyPriceList() {
     // packing tightly the way the original tariff sheet itself does
     // (a category routinely continues right across a column boundary).
     const rowsHtml = PRICE_CATALOG.map(group => {
+        // Pinned items (هزینه‌های رایج) aren't real rows of the official
+        // tariff sheet -- their ids (224+) are just internal bookkeeping,
+        // continuing past the sheet's own last row ("223") so they never
+        // collide with a real one (see price-catalog.js's header comment).
+        // Printing them would misleadingly suggest they're official
+        // numbered items, so this column stays blank for this category only.
         const itemRows = group.items.map(item => `
             <tr>
-                <td class="col-id">${escapeHtml(item.id)}</td>
+                <td class="col-id">${group.pinned ? '' : escapeHtml(item.id)}</td>
                 <td class="col-label">${escapeHtml(item.label)}</td>
                 <td class="col-price en" dir="ltr">${priceCell(item)}</td>
             </tr>`).join('');
