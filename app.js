@@ -530,33 +530,33 @@ const DP_DOCS = [
         { key:"note_4", label:"تذکر ۴ — کارت شناسایی خودرو", kind:"simple", def:"The vehicle ID card or any other services will be sent to the owner’s residence. According to Article 6 of Traffic Bylaw, the owner is obliged to refer to plate changing centers, vehicle service offices or Police+10 offices to alter his/her address within 10 days in case his/her address changes." },
     ]},
     { id:"notary_deed", label:"سند دفترخانه", full:true, fields:[
-        { key:"disclaimer_verification", label:"سلب مسئولیت — تأیید اعتبار سند", kind:"simple", def:"The document ID and the main information of this deed can be verified after the electronic signature by the notary public, through the portal of the Registration Organization for Deeds and Real Estates at www.ssaa.ir. " },
-        { key:"disclaimer_forgery", label:"سلب مسئولیت — جعل اسناد", kind:"simple", def:"Any forgery of official documents will be subject to Articles 532 and 533 of the Islamic Penal Code." },
-        { key:"registration_statement", label:"متن ثبت سند", kind:"complex",
+        { key:"disclaimer_verification", label:"شناسه سند و اطلاعات اصلی این سند، پس از امضای الکترونیکی سردفتر، از طریق درگاه سازمان ثبت اسناد و املاک کشور به نشانی www.ssaa.ir قابل استعلام است.", kind:"simple", def:"The document ID and the main information of this deed can be verified after the electronic signature by the notary public, through the portal of the Registration Organization for Deeds and Real Estates at www.ssaa.ir. " },
+        { key:"disclaimer_forgery", label:"جعل اسناد رسمی مطابق مواد ۵۳۲ و ۵۳۳ قانون مجازات اسلامی قابل تعقیب و مجازات است.", kind:"simple", def:"Any forgery of official documents will be subject to Articles 532 and 533 of the Islamic Penal Code." },
+        { key:"registration_statement", label:"این سند به شماره {{reg_no}} در دفترخانه اسناد رسمی شماره {{notary_office}} {{notary_loc}} به تاریخ {{reg_date}} ثبت گردید.", kind:"complex",
           tokens:[{key:"reg_no",label:"شماره ثبت"},{key:"notary_loc",label:"محل دفترخانه"},{key:"notary_office",label:"شماره دفترخانه"},{key:"reg_date",label:"تاریخ ثبت"}],
           def:"This document was registered under No. {{reg_no}} in {{notary_loc}} Notary Public Office No. {{notary_office}}, dated {{reg_date}}." },
-        { key:"notary_certification_statement", label:"متن گواهی سردفتر", kind:"complex",
+        { key:"notary_certification_statement", label:"با احراز هویت طرفین، اینجانب سردفتر گواهی می‌نمایم که کلیه مندرجات این سند در حضور اینجانب تنظیم گردیده است. امضا، مهر و منگنه شده توسط {{notary_name}}، سردفتر اسناد رسمی شماره {{notary_office}} {{notary_loc}}.", kind:"complex",
           tokens:[{key:"notary_name",label:"نام سردفتر"},{key:"notary_loc",label:"محل دفترخانه"},{key:"notary_office",label:"شماره دفترخانه"}],
           def:"Having ascertained of the parties' identities, I, the notary public, certify that all written contents of this deed were drawn up before me. Signed, sealed and embossed by {{notary_name}}, {{notary_loc}} Notary Public No. {{notary_office}}." },
     ]},
     { id:"academic_transcript", label:"ریزنمرات دانشگاهی", full:false, fields:[] },
     { id:"azad_transcript", label:"ریزنمرات دانشگاه آزاد", full:true, fields:[
-        { key:"course_list_intro", label:"جملهٔ مقدمهٔ فهرست دروس", kind:"simple", def:"The course list and transcript of records are displayed below." },
+        { key:"course_list_intro", label:"فهرست دروس و ریزنمرات در ادامه درج شده است.", kind:"simple", def:"The course list and transcript of records are displayed below." },
     ]},
     { id:"property_deed_owner", label:"سند مالکیت ملک", full:true, fields:[
-        { key:"hologram_seal_note", label:"یادداشت مهر هولوگرام", kind:"simple", def:"Affixed Hologram Seal of Registration Organization for Deeds and Real Estate." },
-        { key:"legal_basis_statement", label:"مستند قانونی صدور سند", kind:"simple", def:"This title deed is officially registered and is issued in one copy according to real estate registration, based on the article 22 of Registration Act and Article 4 of Comprehensive Cadastral Law." },
-        { key:"signed_embossed_statement", label:"متن امضا و مهر برجسته", kind:"complex",
+        { key:"hologram_seal_note", label:"دارای مهر برجسته (هولوگرام) سازمان ثبت اسناد و املاک کشور.", kind:"simple", def:"Affixed Hologram Seal of Registration Organization for Deeds and Real Estate." },
+        { key:"legal_basis_statement", label:"این سند مالکیت به‌طور رسمی ثبت و بر اساس مادهٔ ۲۲ قانون ثبت و مادهٔ ۴ قانون جامع حدنگار (کاداستر) کشور، در یک نسخه صادر شده است.", kind:"simple", def:"This title deed is officially registered and is issued in one copy according to real estate registration, based on the article 22 of Registration Act and Article 4 of Comprehensive Cadastral Law." },
+        { key:"signed_embossed_statement", label:"امضا و ممهور به مهر برجسته توسط رئیس واحد ثبتی: {{registration_department}}، {{city}}، {{date_of_registration}}", kind:"complex",
           tokens:[{key:"registration_department",label:"ادارهٔ ثبت"},{key:"city",label:"شهر"},{key:"date_of_registration",label:"تاریخ ثبت"}],
           def:"Signed and Embossed by Director of Registration Unit: {{registration_department}}, {{city}}, {{date_of_registration}}" },
     ]},
     { id:"insurance_record", label:"سابقهٔ بیمه", full:false, fields:[] },
     { id:"consolidated_insurance_record", label:"سابقهٔ بیمهٔ تجمیعی", full:false, fields:[] },
     { id:"gazette_notice", label:"آگهی روزنامهٔ رسمی", full:true, fields:[
-        { key:"footnote", label:"پانوشت روزنامهٔ رسمی", kind:"simple", def:"This Official Gazette is produced and published electronically in PDF format. To verify the validity and authenticity of the digital signature and the printed copy, please refer to the address stated at the end of the notice.\nDisclaimer: The content of notices published in the Official Gazette follows a defined process that begins with the interested party submitting the notice's content to the Companies and Non-Commercial Institutions Registration Offices in Tehran and other cities, and, after completing the relevant formalities, is forwarded for publication in the Official Gazette of the country. This authority therefore has no involvement whatsoever in the content of such notices." },
+        { key:"footnote", label:"روزنامهٔ رسمی کشور به‌صورت الکترونیکی و در قالب PDF تولید و منتشر می‌شود. جهت احراز اعتبار و اصالت امضای دیجیتال و نسخهٔ چاپی، به نشانی مندرج در پایان آگهی مراجعه فرمایید.\nسلب مسئولیت: مندرجات آگهی‌های منتشرشده در روزنامهٔ رسمی، طی فرآیندی مشخص که با ارسال متن آگهی توسط متقاضی به ادارات ثبت شرکت‌ها و مؤسسات غیرتجاری تهران و سایر شهرستان‌ها آغاز شده و پس از طی مراحل قانونی جهت درج در روزنامهٔ رسمی کشور ارسال می‌گردد، تنظیم می‌شود. این نهاد هیچ‌گونه دخالتی در محتوای این آگهی‌ها ندارد.", kind:"simple", def:"This Official Gazette is produced and published electronically in PDF format. To verify the validity and authenticity of the digital signature and the printed copy, please refer to the address stated at the end of the notice.\nDisclaimer: The content of notices published in the Official Gazette follows a defined process that begins with the interested party submitting the notice's content to the Companies and Non-Commercial Institutions Registration Offices in Tehran and other cities, and, after completing the relevant formalities, is forwarded for publication in the Official Gazette of the country. This authority therefore has no involvement whatsoever in the content of such notices." },
     ]},
     { id:"high_school_transcript", label:"ریزنمرات دبیرستان", full:true, fields:[
-        { key:"document_title", label:"عنوان سند", kind:"simple", def:"Graduation Transcript" },
+        { key:"document_title", label:"ریزنمرات و گواهی پایان تحصیلات", kind:"simple", def:"Graduation Transcript" },
     ]},
 ];
 
