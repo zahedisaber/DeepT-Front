@@ -33,18 +33,6 @@ const DOCUMENT_REGISTRY = {
         active:              true,
         usePassportSession:  true,
     },
-    'marriage-certificate': {
-        label:               'سند ازدواج',
-        endpoint:            '',
-        active:              false,
-        usePassportSession:  true,
-    },
-    'birth-certificate': {
-        label:               'شناسنامه',
-        endpoint:            '',
-        active:              false,
-        usePassportSession:  true,
-    },
     'notary-deed': {
         label:               'اسناد دفترخانه (سند رسمی)',
         endpoint: 'https://backend.deept.ir/api/translate/notary-deed',
