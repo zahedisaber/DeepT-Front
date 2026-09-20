@@ -541,11 +541,11 @@ const DP_DOCS = [
     ]},
     { id:"academic_transcript", label:"ریزنمرات دانشگاهی", full:false, fields:[] },
     { id:"azad_transcript", label:"ریزنمرات دانشگاه آزاد", full:true, fields:[
-        { key:"course_list_intro", label:"فهرست دروس و ریزنمرات در ادامه درج شده است.", kind:"simple", def:"The course list and transcript of records are displayed below." },
+        { key:"course_list_intro", label:"فهرست دروس و ریزنمرات نامبرده در طی دوره تحصیلی به شرح زیر می‌باشد.", kind:"simple", def:"The course list and transcript of records are displayed below." },
     ]},
     { id:"property_deed_owner", label:"سند مالکیت ملک", full:true, fields:[
-        { key:"hologram_seal_note", label:"دارای مهر برجسته (هولوگرام) سازمان ثبت اسناد و املاک کشور.", kind:"simple", def:"Affixed Hologram Seal of Registration Organization for Deeds and Real Estate." },
-        { key:"legal_basis_statement", label:"این سند مالکیت به‌طور رسمی ثبت و بر اساس مادهٔ ۲۲ قانون ثبت و مادهٔ ۴ قانون جامع حدنگار (کاداستر) کشور، در یک نسخه صادر شده است.", kind:"simple", def:"This title deed is officially registered and is issued in one copy according to real estate registration, based on the article 22 of Registration Act and Article 4 of Comprehensive Cadastral Law." },
+        { key:"hologram_seal_note", label:"تشریح هولوگرام اداره ثبت", kind:"simple", def:"Affixed Hologram Seal of Registration Organization for Deeds and Real Estate." },
+        { key:"legal_basis_statement", label:"این سند مالکیت رسمی است و مطابق ثبت دفتر املاک الکترونیک، بر اساس ماده ۲۲ قانون ثبت و ماده ۴ قانون کاداستر جامع، صادر و در یک برگ تسلیم می‌شود.", kind:"simple", def:"This title deed is officially registered and is issued in one copy according to real estate registration, based on the article 22 of Registration Act and Article 4 of Comprehensive Cadastral Law." },
         { key:"signed_embossed_statement", label:"امضا و ممهور به مهر برجسته توسط رئیس واحد ثبتی: {{registration_department}}، {{city}}، {{date_of_registration}}", kind:"complex",
           tokens:[{key:"registration_department",label:"ادارهٔ ثبت"},{key:"city",label:"شهر"},{key:"date_of_registration",label:"تاریخ ثبت"}],
           def:"Signed and Embossed by Director of Registration Unit: {{registration_department}}, {{city}}, {{date_of_registration}}" },
@@ -553,10 +553,10 @@ const DP_DOCS = [
     { id:"insurance_record", label:"سابقهٔ بیمه", full:false, fields:[] },
     { id:"consolidated_insurance_record", label:"سابقهٔ بیمهٔ تجمیعی", full:false, fields:[] },
     { id:"gazette_notice", label:"آگهی روزنامهٔ رسمی", full:true, fields:[
-        { key:"footnote", label:"روزنامهٔ رسمی کشور به‌صورت الکترونیکی و در قالب PDF تولید و منتشر می‌شود. جهت احراز اعتبار و اصالت امضای دیجیتال و نسخهٔ چاپی، به نشانی مندرج در پایان آگهی مراجعه فرمایید.\nسلب مسئولیت: مندرجات آگهی‌های منتشرشده در روزنامهٔ رسمی، طی فرآیندی مشخص که با ارسال متن آگهی توسط متقاضی به ادارات ثبت شرکت‌ها و مؤسسات غیرتجاری تهران و سایر شهرستان‌ها آغاز شده و پس از طی مراحل قانونی جهت درج در روزنامهٔ رسمی کشور ارسال می‌گردد، تنظیم می‌شود. این نهاد هیچ‌گونه دخالتی در محتوای این آگهی‌ها ندارد.", kind:"simple", def:"This Official Gazette is produced and published electronically in PDF format. To verify the validity and authenticity of the digital signature and the printed copy, please refer to the address stated at the end of the notice.\nDisclaimer: The content of notices published in the Official Gazette follows a defined process that begins with the interested party submitting the notice's content to the Companies and Non-Commercial Institutions Registration Offices in Tehran and other cities, and, after completing the relevant formalities, is forwarded for publication in the Official Gazette of the country. This authority therefore has no involvement whatsoever in the content of such notices." },
+        { key:"footnote", label:"این روزنامه بصورت الکترونیکی و در قالب فایل PDF تولید و منتشر شده است. برای اطمینان از اعتبار و صحت امضاء دیجیتال و نسخه چاپی به نشانی مندرج در انتهای آگهی مراجعه نمایید.\nرفع مسئولیت:\nمطالب آگهی‌های منتشرشده در روزنامه رسمی براساس چرخه مشخصی که از تقدیم مفاد آن از سوی ذینفع قانونی به ادارات ثبت شرکت‌ها (شرکتها) در تهران و شهرستان‌ها آغاز و پس از اجرای تشریفات مربوطه به صورت آگهی تسلیم روزنامه رسمی کشور می‌گردد، تهیه می‌نماید. لذا این مرجع هیچ‌گونه دخالتی در مندرجات آگهی‌های مزبور نداشته و ندارد.", kind:"simple", def:"This Official Gazette is produced and published electronically in PDF format. To verify the validity and authenticity of the digital signature and the printed copy, please refer to the address stated at the end of the notice.\nDisclaimer: The content of notices published in the Official Gazette follows a defined process that begins with the interested party submitting the notice's content to the Companies and Non-Commercial Institutions Registration Offices in Tehran and other cities, and, after completing the relevant formalities, is forwarded for publication in the Official Gazette of the country. This authority therefore has no involvement whatsoever in the content of such notices." },
     ]},
     { id:"high_school_transcript", label:"ریزنمرات دبیرستان", full:true, fields:[
-        { key:"document_title", label:"ریزنمرات و گواهی پایان تحصیلات", kind:"simple", def:"Graduation Transcript" },
+        { key:"document_title", label:"عنوان مدرک", kind:"simple", def:"Score Report Sheet" },
     ]},
 ];
 
