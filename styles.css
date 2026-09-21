@@ -538,6 +538,18 @@ select.converter-input option {
     #sideRail { display: none !important; }
 }
 
+@media (min-width: 901px) {
+    #workspaceDashboard,
+    #clientsWorkspace,
+    #workSchedulePage,
+    #settingsPage,
+    #myPriceListPage,
+    #clientProfilePage,
+    #adminDashboard {
+        padding-right: calc(2rem + 66px);
+    }
+}
+
 /* Landing header */
 header {
     position: fixed; top: 0; right: 0; left: 0; z-index: 100;
