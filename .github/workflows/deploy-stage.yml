@@ -23,6 +23,10 @@ jobs:
         with:
           host: 95.38.191.201
           username: deept
-          key: ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHfFBwF9cTDUg0oMWQ9KoXfGfB8iywrwvIA6qj1iLf0c github-actions-stage
+          key: |
+            -----BEGIN OPENSSH PRIVATE KEY-----
+            b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZWQyNTUxOQAAACB3xQcBfXEw1INKDFkPSqF3xnwfIssK8LyAOqo9Yi39HAAAAJiAFw/xgBcP8QAAAAtzc2gtZWQyNTUxOQAAACB3xQcBfXEw1INKDFkPSqF3xnwfIssK8LyAOqo9Yi39HAAAAEB5QxqWi/45htL4gaoC21sXF1RWRA8MESpYhaAa1IvHU3fFBwF9cTDUg0oMWQ9KoXfGfB8iywrwvIA6qj1iLf0cAAAAFGdpdGh1Yi1hY3Rpb25zLXN0YWdlAQ==
+            -----END OPENSSH PRIVATE KEY-----
+          debug: true
           script: |
             /var/www/deept/deploy-front-stage.sh
