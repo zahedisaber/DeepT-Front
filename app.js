@@ -216,7 +216,7 @@ function loadSession() {
             user_id: userId,
             email,
             username: userName || (email ? email.split('@')[0] : ''),
-            type: 'individual',
+            type: localStorage.getItem('deept_account_type') || 'individual',
             contact: '',
             office: '',
             is_admin: localStorage.getItem('deept_is_admin') === '1'
@@ -335,6 +335,10 @@ function syncUserSessionDOM() {
     toggle('settingsHeaderBtn',  !loggedIn);
     toggle('priceListHeaderBtn', !loggedIn);
     toggle('adminPanelHeaderBtn', !loggedIn || localStorage.getItem('deept_is_admin') !== '1');
+    // HR clock in/out: office-only sub-users (see hr.py) -- an "individual"
+    // account has no staff to punch in/out, so this stays hidden for it.
+    const isOffice = loggedIn && currentUserSession.type === 'office';
+    toggle('hrClockHeaderBtn',  !isOffice);
     toggle('logoutHeaderBtn',    !loggedIn);
     // Side rail: same destinations/visibility as the header-bar pills
     // above, just also shown/hidden here (see #sideRail in index.html).
@@ -345,6 +349,7 @@ function syncUserSessionDOM() {
     toggle('railPriceListBtn',   !loggedIn);
     toggle('railSettingsBtn',    !loggedIn);
     toggle('railAdminPanelBtn',  !loggedIn || localStorage.getItem('deept_is_admin') !== '1');
+    toggle('railHrClockBtn',    !isOffice);
     const ub = document.getElementById('userBadge');
     if (ub) { ub.classList.toggle('hidden', !loggedIn); ub.style.display = loggedIn ? 'flex' : 'none'; }
     if (loggedIn) {
@@ -379,6 +384,7 @@ function executeLogout() {
     localStorage.removeItem('deept_user_name');
     localStorage.removeItem('deept_user_email');
     localStorage.removeItem('deept_is_admin');
+    localStorage.removeItem('deept_account_type');
     closeLogoutConfirm();
     closeWorkspaceDashboard();
     closeChatInterface();
@@ -392,6 +398,269 @@ document.getElementById('logoutOverlay').addEventListener('click', function(e) {
 document.getElementById('myplRepriceModal').addEventListener('click', function(e) {
     if (e.target === this) closeMyPriceListRepriceModal();
 });
+
+// ═══════════════════════════════════════════════════════════
+// HR CLOCK IN / CLOCK OUT -- office accounts only (see hr.py). No login of
+// their own for staff: a PIN entered here, under the OFFICE's own already-
+// logged-in session, is all that identifies which staff member is
+// punching -- same as a shared physical time clock. The server also
+// requires this office's registered WiFi IP to match (see تنظیمات's HR
+// panel, loadHrSettings(), for registering it).
+// ═══════════════════════════════════════════════════════════
+function openHrClockWidget() {
+    document.getElementById('hr-clock-pin').value = '';
+    document.getElementById('hr-clock-status').classList.add('hidden');
+    document.getElementById('hrClockOverlay').classList.remove('hidden');
+    document.getElementById('hr-clock-pin').focus();
+}
+function closeHrClockWidget() {
+    document.getElementById('hrClockOverlay').classList.add('hidden');
+}
+document.getElementById('hrClockOverlay').addEventListener('click', function(e) {
+    if (e.target === this) closeHrClockWidget();
+});
+document.getElementById('hr-clock-pin').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') submitHrClock();
+});
+
+async function submitHrClock() {
+    const pin = document.getElementById('hr-clock-pin').value.trim();
+    const status = document.getElementById('hr-clock-status');
+    const btn = document.getElementById('hr-clock-submit-btn');
+    status.classList.remove('hidden');
+    if (!pin) {
+        status.style.color = '#f87171';
+        status.textContent = 'پین را وارد کنید.';
+        return;
+    }
+    btn.disabled = true;
+    status.style.color = 'var(--text-muted)';
+    status.textContent = 'در حال ثبت...';
+    try {
+        const res = await fetch(`${CORE}/hr/clock`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pin })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || 'خطای سرور');
+        const time = new Date(data.record.clock_in && data.action === 'clock_in' ? data.record.clock_in : data.record.clock_out)
+            .toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
+        status.style.color = 'var(--accent)';
+        status.textContent = data.action === 'clock_in'
+            ? `✅ ورود ${data.record.staff_name} ساعت ${time} ثبت شد.`
+            : `✅ خروج ${data.record.staff_name} ساعت ${time} ثبت شد.`;
+        document.getElementById('hr-clock-pin').value = '';
+    } catch (e) {
+        status.style.color = '#f87171';
+        status.textContent = `❌ ${e.message || 'خطای نامشخص'}`;
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+// ── HR settings panel (تنظیمات → حضور و غیاب کارمندان) ──────────────────
+// Office WiFi IP registration + staff roster management + a read-only
+// timesheet view. Manual correction of a forgotten clock-out is supported
+// server-side (PATCH /hr/attendance/{id}, see hr.py) but has no editing UI
+// here yet -- v1 of this panel is view + roster management only.
+let hrStaffList = [];
+
+async function loadHrSettings() {
+    const fromInput = document.getElementById('hr-attendance-from');
+    const toInput = document.getElementById('hr-attendance-to');
+    if (!fromInput.value && !toInput.value) {
+        const today = new Date();
+        const twoWeeksAgo = new Date(today.getTime() - 13 * 24 * 60 * 60 * 1000);
+        toInput.value = today.toISOString().slice(0, 10);
+        fromInput.value = twoWeeksAgo.toISOString().slice(0, 10);
+    }
+    await Promise.all([loadHrWifi(), loadHrStaff(), loadHrAttendance()]);
+}
+
+async function loadHrWifi() {
+    try {
+        const res = await fetch(`${CORE}/hr/wifi`, { headers: { 'Authorization': `Bearer ${getToken()}` } });
+        const data = await res.json();
+        document.getElementById('hr-wifi-ip').textContent = data.office_wifi_ip || 'ثبت نشده';
+    } catch (e) {
+        document.getElementById('hr-wifi-ip').textContent = 'ثبت نشده';
+    }
+}
+
+async function registerHrWifi() {
+    const btn = document.getElementById('hr-wifi-register-btn');
+    const status = document.getElementById('hr-wifi-status');
+    btn.disabled = true;
+    status.classList.remove('hidden');
+    status.style.color = 'var(--text-muted)';
+    status.textContent = 'در حال ثبت...';
+    try {
+        const res = await fetch(`${CORE}/hr/wifi/register`, {
+            method: 'POST', headers: { 'Authorization': `Bearer ${getToken()}` }
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || 'خطای سرور');
+        document.getElementById('hr-wifi-ip').textContent = data.office_wifi_ip;
+        status.style.color = 'var(--accent)';
+        status.textContent = '✅ آی‌پی فعلی این دستگاه ثبت شد.';
+    } catch (e) {
+        status.style.color = '#f87171';
+        status.textContent = `❌ ${e.message || 'خطای نامشخص'}`;
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function loadHrStaff() {
+    try {
+        const res = await fetch(`${CORE}/hr/staff`, { headers: { 'Authorization': `Bearer ${getToken()}` } });
+        hrStaffList = await res.json();
+    } catch (e) {
+        hrStaffList = [];
+    }
+    renderHrStaffList();
+}
+
+function renderHrStaffList() {
+    const list = document.getElementById('hr-staff-list');
+    list.innerHTML = '';
+    if (!hrStaffList.length) {
+        const note = document.createElement('div');
+        note.className = 'text-[11px] p-3 rounded-lg';
+        note.style.cssText = 'background:var(--bg-main);border:1px dashed var(--border-subtle);color:var(--text-muted);';
+        note.textContent = 'هنوز کارمندی ثبت نشده است.';
+        list.appendChild(note);
+        return;
+    }
+    hrStaffList.forEach(s => {
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-2 p-2 rounded-lg flex-wrap';
+        row.style.cssText = `background:var(--bg-main);border:1px solid var(--border-subtle);opacity:${s.is_active ? '1' : '.55'};`;
+        row.innerHTML = `
+          <span class="text-xs font-bold" style="color:var(--text-main);flex:1;">${s.full_name}${s.role ? ' — ' + s.role : ''}</span>
+          <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style="background:${s.is_active ? 'rgba(52,199,89,.12);color:#34c759' : 'rgba(148,148,148,.15);color:#999'};">${s.is_active ? 'فعال' : 'غیرفعال'}</span>
+          <button type="button" data-hr-toggle-staff="${s.id}" data-hr-active="${s.is_active}" class="text-[10px] font-bold px-2 py-1 rounded-md" style="background:var(--panel-bg);color:var(--text-muted);border:1px solid var(--border-subtle);">${s.is_active ? 'غیرفعال کردن' : 'فعال کردن'}</button>
+          <button type="button" data-hr-delete-staff="${s.id}" class="text-[10px] font-bold px-2 py-1 rounded-md" style="background:rgba(248,113,113,.1);color:#f87171;border:1px solid rgba(248,113,113,.3);">حذف</button>
+        `;
+        list.appendChild(row);
+    });
+}
+
+document.addEventListener('click', (e) => {
+    const toggleBtn = e.target.closest('[data-hr-toggle-staff]');
+    if (toggleBtn) {
+        toggleHrStaffActive(toggleBtn.dataset.hrToggleStaff, toggleBtn.dataset.hrActive !== 'true');
+        return;
+    }
+    const delBtn = e.target.closest('[data-hr-delete-staff]');
+    if (delBtn) deleteHrStaff(delBtn.dataset.hrDeleteStaff);
+});
+
+async function toggleHrStaffActive(staffId, newActive) {
+    try {
+        const res = await fetch(`${CORE}/hr/staff/${staffId}`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ is_active: newActive })
+        });
+        if (!res.ok) throw new Error();
+        await loadHrStaff();
+    } catch (e) { /* row just stays as it was -- no destructive fallback needed */ }
+}
+
+async function deleteHrStaff(staffId) {
+    if (!confirm('این کارمند برای همیشه حذف شود؟ سابقهٔ حضور او در تایم‌شیت باقی می‌ماند اما نامش دیگر نمایش داده نخواهد شد.')) return;
+    try {
+        const res = await fetch(`${CORE}/hr/staff/${staffId}`, {
+            method: 'DELETE', headers: { 'Authorization': `Bearer ${getToken()}` }
+        });
+        if (!res.ok) throw new Error();
+        await loadHrStaff();
+    } catch (e) { /* no-op on failure -- row stays visible, translator can retry */ }
+}
+
+async function addHrStaff() {
+    const nameInput = document.getElementById('hr-new-staff-name');
+    const roleInput = document.getElementById('hr-new-staff-role');
+    const pinInput = document.getElementById('hr-new-staff-pin');
+    const status = document.getElementById('hr-staff-add-status');
+    const full_name = nameInput.value.trim();
+    const role = roleInput.value.trim();
+    const pin = pinInput.value.trim();
+    status.classList.add('hidden');
+    if (!full_name || !pin) {
+        status.style.color = '#f87171';
+        status.textContent = 'نام و پین را وارد کنید.';
+        status.classList.remove('hidden');
+        return;
+    }
+    const btn = document.getElementById('hr-staff-add-btn');
+    btn.disabled = true;
+    try {
+        const res = await fetch(`${CORE}/hr/staff`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ full_name, role: role || null, pin })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || 'خطای سرور');
+        nameInput.value = ''; roleInput.value = ''; pinInput.value = '';
+        await loadHrStaff();
+    } catch (e) {
+        status.style.color = '#f87171';
+        status.textContent = `❌ ${e.message || 'خطای نامشخص'}`;
+        status.classList.remove('hidden');
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function loadHrAttendance() {
+    const from = document.getElementById('hr-attendance-from').value;
+    const to = document.getElementById('hr-attendance-to').value;
+    const params = new URLSearchParams();
+    if (from) params.set('from', from);
+    // A date-only "to" (from <input type=date>) must include the WHOLE
+    // day -- appending the day's last second turns it into an inclusive
+    // upper bound for the plain string comparison hr.py's /hr/attendance
+    // does against each record's full ISO clock_in timestamp.
+    if (to) params.set('to', `${to}T23:59:59`);
+    try {
+        const res = await fetch(`${CORE}/hr/attendance?${params}`, { headers: { 'Authorization': `Bearer ${getToken()}` } });
+        renderHrAttendanceList(await res.json());
+    } catch (e) {
+        renderHrAttendanceList([]);
+    }
+}
+
+function renderHrAttendanceList(rows) {
+    const list = document.getElementById('hr-attendance-list');
+    list.innerHTML = '';
+    if (!rows || !rows.length) {
+        const note = document.createElement('div');
+        note.className = 'text-[11px] p-3 rounded-lg';
+        note.style.cssText = 'background:var(--bg-main);border:1px dashed var(--border-subtle);color:var(--text-muted);';
+        note.textContent = 'رکوردی در این بازه یافت نشد.';
+        list.appendChild(note);
+        return;
+    }
+    rows.forEach(r => {
+        const inTime = new Date(r.clock_in).toLocaleString('fa-IR');
+        const outTime = r.clock_out ? new Date(r.clock_out).toLocaleString('fa-IR') : 'هنوز حاضر است';
+        const row = document.createElement('div');
+        row.className = 'p-2 rounded-lg text-[11px]';
+        row.style.cssText = 'background:var(--bg-main);border:1px solid var(--border-subtle);';
+        row.innerHTML = `
+          <div class="flex items-center justify-between gap-2 flex-wrap">
+            <span class="font-bold" style="color:var(--text-main);">${r.staff_name || '؟'}</span>
+            <span style="color:var(--text-muted);">ورود: ${inTime} — خروج: ${outTime}</span>
+          </div>
+          ${r.note ? `<div style="color:var(--text-muted);margin-top:2px;">یادداشت: ${r.note}</div>` : ''}
+        `;
+        list.appendChild(row);
+    });
+}
 
 // ═══════════════════════════════════════════════════════════
 // PROFILE
@@ -3211,6 +3480,12 @@ function openSettingsPage(pushHistory = true) {
     if (pushHistory) navigateTo('/settings');
     loadPreferences();
     loadDocumentPhrasesCatalog();
+    const hrSection = document.getElementById('hr-settings-section');
+    if (hrSection) {
+        const isOffice = currentUserSession.type === 'office';
+        hrSection.classList.toggle('hidden', !isOffice);
+        if (isOffice) loadHrSettings();
+    }
 }
 
 function closeSettingsPage() {
@@ -5108,6 +5383,7 @@ function saveSession(data) {
     localStorage.setItem('deept_user_name', data.full_name || data.username || '');
     localStorage.setItem('deept_user_email', data.email || '');
     localStorage.setItem('deept_is_admin', data.is_admin ? '1' : '0');
+    localStorage.setItem('deept_account_type', data.account_type || 'individual');
 
     return true;
 }
@@ -5599,6 +5875,7 @@ function adminLogout() {
     localStorage.removeItem('deept_user_name');
     localStorage.removeItem('deept_user_email');
     localStorage.removeItem('deept_is_admin');
+    localStorage.removeItem('deept_account_type');
 
     document.getElementById('adminDashboard')?.classList.add('hidden');
 
