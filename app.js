@@ -555,7 +555,17 @@ const DP_DOCS = [
     },
     { id:"azad_transcript", label:"ریزنمرات دانشگاه آزاد", full:true, fields:[
         { key:"course_list_intro", label:"فهرست دروس و ریزنمرات نامبرده در طی دوره تحصیلی به شرح زیر می‌باشد.", kind:"simple", def:"The course list and transcript of records are displayed below." },
-    ]},
+    ],
+      // Course-name terms this document type always translates one
+      // specific way (enforced as a mandatory instruction to the
+      // extraction model, not a post-processing substitution -- see
+      // azad_transcript.py's DEFAULT_COURSE_NAME_GLOSSARY), same
+      // renderTermGlossary() UI as academic_transcript's glossary below.
+      glossary: { defaults: {
+          "روستا": "Rural Architecture",
+          "دفاع مقدس": "Iran-Iraq War",
+      } },
+    },
     { id:"property_deed_owner", label:"سند مالکیت ملک", full:true, fields:[
         { key:"hologram_seal_note", label:"تشریح هولوگرام اداره ثبت", kind:"simple", def:"Affixed Hologram Seal of Registration Organization for Deeds and Real Estate." },
         { key:"legal_basis_statement", label:"این سند مالکیت رسمی است و مطابق ثبت دفتر املاک الکترونیک، بر اساس ماده ۲۲ قانون ثبت و ماده ۴ قانون کاداستر جامع، صادر و در یک برگ تسلیم می‌شود.", kind:"simple", def:"This title deed is officially registered and is issued in one copy according to real estate registration, based on the article 22 of Registration Act and Article 4 of Comprehensive Cadastral Law." },
@@ -727,26 +737,32 @@ function renderDocumentPhrases(){
     list.innerHTML = '';
     document.getElementById('dp-save-status').classList.add('hidden');
 
+    // A document type can have a fixed-field phrase list, a term glossary,
+    // both (e.g. azad_transcript), or -- until wired up -- neither, in
+    // which case the "به‌زودی" pending note is the only thing shown. Both
+    // sections render side by side when both apply; saveCurrentDocumentSettings()
+    // sends whichever of the two has pending changes, combined in one request.
     const glossarySection = document.getElementById('dp-glossary-section');
     if (doc.glossary){
-        list.classList.add('hidden');
         glossarySection.classList.remove('hidden');
         renderTermGlossary(doc);
-        document.getElementById('dp-save-btn').disabled = false;
+    } else {
+        glossarySection.classList.add('hidden');
+    }
+
+    if (!doc.fields.length){
+        list.classList.toggle('hidden', !!doc.glossary);
+        if (!doc.glossary){
+            const note = document.createElement('div');
+            note.className = 'text-[11px] p-3 rounded-lg';
+            note.style.cssText = 'background:var(--bg-main);border:1px dashed var(--border-subtle);color:var(--text-muted);line-height:1.9;';
+            note.textContent = 'عبارات ثابت این نوع سند هنوز به این بخش اضافه نشده — به‌زودی.';
+            list.appendChild(note);
+        }
+        document.getElementById('dp-save-btn').disabled = !doc.glossary;
         return;
     }
     list.classList.remove('hidden');
-    glossarySection.classList.add('hidden');
-
-    if (!doc.fields.length){
-        const note = document.createElement('div');
-        note.className = 'text-[11px] p-3 rounded-lg';
-        note.style.cssText = 'background:var(--bg-main);border:1px dashed var(--border-subtle);color:var(--text-muted);line-height:1.9;';
-        note.textContent = 'عبارات ثابت این نوع سند هنوز به این بخش اضافه نشده — به‌زودی.';
-        list.appendChild(note);
-        document.getElementById('dp-save-btn').disabled = true;
-        return;
-    }
     document.getElementById('dp-save-btn').disabled = false;
 
     doc.fields.forEach(f => {
@@ -935,30 +951,48 @@ async function loadDocumentPhrasesCatalog(){
     renderDocumentPhrases();
 }
 
-async function saveDocumentPhrases(){
+// Sends whichever of the two settings kinds this document type has pending
+// drafts for -- the fixed-field phrase editor (dpDraft) and/or the
+// open-ended term glossary (dpGlossaryDraft), e.g. azad_transcript has
+// both. Both concerns share one button/status area in the settings markup,
+// and are combined into a single PATCH request when both apply (the same
+// way Core's own update_preferences() already merges multiple sparse
+// fields off one DB round trip).
+async function saveCurrentDocumentSettings(){
     if (!currentUserSession) return;
     const doc = DP_DOCS.find(d => d.id === dpCurrentDoc);
-    const changes = dpDraft[doc.id] || {};
     const btn = document.getElementById('dp-save-btn');
     const status = document.getElementById('dp-save-status');
+    status.classList.remove('hidden');
 
-    // A complex field with a structurally broken draft value is excluded
-    // -- never sent to the backend, and left as-is (with its warning) so
-    // the translator can keep fixing it. Everything else in this document
-    // type's draft is safe to send in the same request.
-    const toSend = {};
+    const body = {};
     let blockedCount = 0;
-    for (const key in changes){
-        const f = doc.fields.find(f => f.key === key);
-        if (f.kind === 'complex' && !dpCheckComplex(changes[key], f.tokens).valid){
-            blockedCount++;
-            continue;
+
+    if (doc.fields.length){
+        const changes = dpDraft[doc.id] || {};
+        const toSend = {};
+        // A complex field with a structurally broken draft value is
+        // excluded -- never sent to the backend, and left as-is (with its
+        // warning) so the translator can keep fixing it.
+        for (const key in changes){
+            const f = doc.fields.find(f => f.key === key);
+            if (f.kind === 'complex' && !dpCheckComplex(changes[key], f.tokens).valid){
+                blockedCount++;
+                continue;
+            }
+            toSend[key] = changes[key] === '' ? null : changes[key];
         }
-        toSend[key] = changes[key] === '' ? null : changes[key];
+        if (Object.keys(toSend).length) body.document_phrases = { [doc.id]: toSend };
     }
 
-    status.classList.remove('hidden');
-    if (Object.keys(toSend).length === 0){
+    if (doc.glossary){
+        const changes = dpGlossaryDraft[doc.id] || {};
+        const toSend = {};
+        for (const term in changes) toSend[term] = changes[term] === '' ? null : changes[term];
+        if (Object.keys(toSend).length) body.term_glossary = { [doc.id]: toSend };
+    }
+
+    if (Object.keys(body).length === 0){
         status.style.color = '#f87171';
         status.textContent = blockedCount > 0
             ? '❌ عبارت دارای خطای ساختاری را قبل از ذخیره اصلاح کنید.'
@@ -975,20 +1009,32 @@ async function saveDocumentPhrases(){
         const res = await fetch(`${CORE}/users/me/preferences`, {
             method: 'PATCH',
             headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ document_phrases: { [doc.id]: toSend } })
+            body: JSON.stringify(body)
         });
         const p = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(p.detail || 'خطای سرور');
-        dpServerPhrases = p.document_phrases || {};
-        // Only the fields actually sent (the valid ones) are cleared from
-        // the draft -- a blocked complex field stays in draft, with its
-        // warning, even though the rest of this save succeeded.
-        for (const key of Object.keys(toSend)) delete dpDraft[doc.id][key];
-        if (dpDraft[doc.id] && Object.keys(dpDraft[doc.id]).length === 0) delete dpDraft[doc.id];
+
+        let savedCount = 0;
+        if (body.document_phrases){
+            dpServerPhrases = p.document_phrases || {};
+            // Only the fields actually sent (the valid ones) are cleared
+            // from the draft -- a blocked complex field stays in draft,
+            // with its warning, even though the rest of this save succeeded.
+            const sentKeys = Object.keys(body.document_phrases[doc.id]);
+            savedCount += sentKeys.length;
+            for (const key of sentKeys) delete dpDraft[doc.id][key];
+            if (dpDraft[doc.id] && Object.keys(dpDraft[doc.id]).length === 0) delete dpDraft[doc.id];
+        }
+        if (body.term_glossary){
+            dpGlossaryServer = p.term_glossary || {};
+            savedCount += Object.keys(body.term_glossary[doc.id]).length;
+            delete dpGlossaryDraft[doc.id];
+        }
+
         status.style.color = 'var(--accent)';
         status.textContent = blockedCount > 0
-            ? `✅ ${Object.keys(toSend).length} مورد ذخیره شد؛ ${blockedCount} مورد دارای خطا ذخیره نشد.`
-            : '✅ ذخیره شد. از سند بعدی اعمال می‌شود.';
+            ? `✅ ${savedCount} مورد ذخیره شد؛ ${blockedCount} مورد دارای خطا ذخیره نشد.`
+            : `✅ ${savedCount} مورد ذخیره شد. از سند بعدی اعمال می‌شود.`;
         renderDocumentPhrases();
     } catch (e) {
         status.style.color = '#f87171';
@@ -996,16 +1042,6 @@ async function saveDocumentPhrases(){
     } finally {
         btn.disabled = false;
     }
-}
-
-// Dispatches the shared save button to whichever save flow the currently
-// selected document type actually uses -- the fixed-field phrase editor
-// (saveDocumentPhrases) or the open-ended term glossary (saveTermGlossary)
-// below, since both share one button/status area in the settings markup.
-function saveCurrentDocumentSettings(){
-    const doc = DP_DOCS.find(d => d.id === dpCurrentDoc);
-    if (doc && doc.glossary) saveTermGlossary();
-    else saveDocumentPhrases();
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1157,51 +1193,6 @@ document.addEventListener('click', (e) => {
         renderTermGlossary(doc);
     }
 });
-
-async function saveTermGlossary(){
-    if (!currentUserSession) return;
-    const doc = DP_DOCS.find(d => d.id === dpCurrentDoc);
-    const changes = dpGlossaryDraft[doc.id] || {};
-    const btn = document.getElementById('dp-save-btn');
-    const status = document.getElementById('dp-save-status');
-
-    const toSend = {};
-    for (const term in changes){
-        toSend[term] = changes[term] === '' ? null : changes[term];
-    }
-
-    status.classList.remove('hidden');
-    if (Object.keys(toSend).length === 0){
-        status.style.color = '#f87171';
-        status.textContent = 'تغییری برای ذخیره وجود ندارد.';
-        return;
-    }
-
-    btn.disabled = true;
-    status.style.color = 'var(--text-muted)';
-    status.textContent = 'در حال ذخیره...';
-
-    const token = getToken();
-    try {
-        const res = await fetch(`${CORE}/users/me/preferences`, {
-            method: 'PATCH',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ term_glossary: { [doc.id]: toSend } })
-        });
-        const p = await res.json().catch(() => ({}));
-        if (!res.ok) throw new Error(p.detail || 'خطای سرور');
-        dpGlossaryServer = p.term_glossary || {};
-        delete dpGlossaryDraft[doc.id];
-        status.style.color = 'var(--accent)';
-        status.textContent = `✅ ${Object.keys(toSend).length} مورد ذخیره شد. از سند بعدی اعمال می‌شود.`;
-        renderDocumentPhrases();
-    } catch (e) {
-        status.style.color = '#f87171';
-        status.textContent = `❌ ذخیره ناموفق بود: ${e.message || 'خطای نامشخص'}`;
-    } finally {
-        btn.disabled = false;
-    }
-}
 
 // ═══════════════════════════════════════════════════════════
 // نرخنامه من (MY PRICE LIST) -- a translator's own price overrides for
