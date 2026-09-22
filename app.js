@@ -539,7 +539,20 @@ const DP_DOCS = [
           tokens:[{key:"notary_name",label:"نام سردفتر"},{key:"notary_loc",label:"محل دفترخانه"},{key:"notary_office",label:"شماره دفترخانه"}],
           def:"Having ascertained of the parties' identities, I, the notary public, certify that all written contents of this deed were drawn up before me. Signed, sealed and embossed by {{notary_name}}, {{notary_loc}} Notary Public No. {{notary_office}}." },
     ]},
-    { id:"academic_transcript", label:"ریزنمرات دانشگاهی", full:false, fields:[] },
+    { id:"academic_transcript", label:"ریزنمرات دانشگاهی", full:false, fields:[],
+      // Open-ended Persian-term -> English-equivalent glossary (course
+      // names DeepT-Back-End's academic_transcript.py always translates
+      // one specific way, e.g. "کارآموزی" -> "Training"), distinct from
+      // the fixed-field phrase overrides above -- see renderTermGlossary().
+      // These three are the exact built-in defaults from that file's
+      // DEFAULT_COURSE_NAME_GLOSSARY; a translator can override any of
+      // them or add entirely new terms via the searchable table below.
+      glossary: { defaults: {
+          "کارآموزی در عرصه": "Clinical Training",
+          "کارآموزی": "Training",
+          "کارورزی": "Internship",
+      } },
+    },
     { id:"azad_transcript", label:"ریزنمرات دانشگاه آزاد", full:true, fields:[
         { key:"course_list_intro", label:"فهرست دروس و ریزنمرات نامبرده در طی دوره تحصیلی به شرح زیر می‌باشد.", kind:"simple", def:"The course list and transcript of records are displayed below." },
     ]},
@@ -563,6 +576,13 @@ const DP_DOCS = [
 let dpServerPhrases = {};   // {doc_type: {field_key: text}} -- last known saved state, from GET
 let dpDraft = {};           // {doc_type: {field_key: text}} -- unsaved edits, kept across doc-type switches
 let dpCurrentDoc = DP_DOCS[0].id;
+
+// Term-glossary state (see renderTermGlossary()) -- same
+// server/draft-split convention as dpServerPhrases/dpDraft above, just
+// keyed by an open-ended Persian term instead of a fixed field name.
+let dpGlossaryServer = {};  // {doc_type: {persian_term: english}} -- last known saved state, from GET
+let dpGlossaryDraft = {};   // {doc_type: {persian_term: english}} -- unsaved edits
+let dpGlossarySearch = '';  // current client-side filter text for the glossary table
 
 /* ============ SECTION: DOCUMENT-PHRASE OVERRIDES ============
    Per-document-type phrase catalog (PATCH /users/me/preferences merge,
@@ -706,6 +726,17 @@ function renderDocumentPhrases(){
     const list = document.getElementById('dp-field-list');
     list.innerHTML = '';
     document.getElementById('dp-save-status').classList.add('hidden');
+
+    const glossarySection = document.getElementById('dp-glossary-section');
+    if (doc.glossary){
+        list.classList.add('hidden');
+        glossarySection.classList.remove('hidden');
+        renderTermGlossary(doc);
+        document.getElementById('dp-save-btn').disabled = false;
+        return;
+    }
+    list.classList.remove('hidden');
+    glossarySection.classList.add('hidden');
 
     if (!doc.fields.length){
         const note = document.createElement('div');
@@ -894,10 +925,13 @@ async function loadDocumentPhrasesCatalog(){
         if (!res.ok) throw new Error();
         const p = await res.json();
         dpServerPhrases = p.document_phrases || {};
+        dpGlossaryServer = p.term_glossary || {};
     } catch (e) {
         dpServerPhrases = {};
+        dpGlossaryServer = {};
     }
     dpDraft = {};
+    dpGlossaryDraft = {};
     renderDocumentPhrases();
 }
 
@@ -955,6 +989,211 @@ async function saveDocumentPhrases(){
         status.textContent = blockedCount > 0
             ? `✅ ${Object.keys(toSend).length} مورد ذخیره شد؛ ${blockedCount} مورد دارای خطا ذخیره نشد.`
             : '✅ ذخیره شد. از سند بعدی اعمال می‌شود.';
+        renderDocumentPhrases();
+    } catch (e) {
+        status.style.color = '#f87171';
+        status.textContent = `❌ ذخیره ناموفق بود: ${e.message || 'خطای نامشخص'}`;
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+// Dispatches the shared save button to whichever save flow the currently
+// selected document type actually uses -- the fixed-field phrase editor
+// (saveDocumentPhrases) or the open-ended term glossary (saveTermGlossary)
+// below, since both share one button/status area in the settings markup.
+function saveCurrentDocumentSettings(){
+    const doc = DP_DOCS.find(d => d.id === dpCurrentDoc);
+    if (doc && doc.glossary) saveTermGlossary();
+    else saveDocumentPhrases();
+}
+
+// ═══════════════════════════════════════════════════════════
+// TERM GLOSSARY -- an open-ended Persian-term -> English-equivalent table
+// (e.g. academic_transcript's course-name terms), distinct from the
+// fixed-field phrase overrides above: any number of arbitrary Persian
+// phrases, not just a handful of named fields, so it renders as a
+// searchable table with add/remove rather than a fixed card per field.
+// Storage shape mirrors document_phrases exactly --
+// prefs["term_glossary"][doc_type] = {persian_term: english_equivalent}
+// -- see DeepT-Core's preferences.py and DeepT-Back-End's
+// doc_prefs.get_term_glossary().
+// ═══════════════════════════════════════════════════════════
+
+// Every term this document type currently has an opinion about (its own
+// built-in defaults, plus whatever the translator already saved), each
+// resolved to its effective display value: an unsaved draft edit first,
+// then a saved override, then the document type's own default. A draft
+// value of '' (the translator cleared the input) still renders as blank
+// here -- same convention dpEffectiveValue()/the phrase editor already
+// use elsewhere -- it only actually clears the saved override once sent.
+function dpGlossaryRows(doc){
+    const defaults = doc.glossary.defaults || {};
+    const server = dpGlossaryServer[doc.id] || {};
+    const draft = dpGlossaryDraft[doc.id] || {};
+    const terms = new Set([...Object.keys(defaults), ...Object.keys(server), ...Object.keys(draft)]);
+    const rows = [];
+    terms.forEach(term => {
+        const isDefault = Object.prototype.hasOwnProperty.call(defaults, term);
+        let value;
+        if (draft[term] !== undefined) value = draft[term];
+        else if (server[term] !== undefined) value = server[term];
+        else value = defaults[term];
+        const savedVal = server[term] !== undefined ? server[term] : (isDefault ? defaults[term] : undefined);
+        const dirty = draft[term] !== undefined && draft[term] !== savedVal;
+        rows.push({ term, value, isDefault, dirty, hasOverride: server[term] !== undefined });
+    });
+    rows.sort((a, b) => a.term.localeCompare(b.term, 'fa'));
+    return rows;
+}
+
+function renderTermGlossary(doc){
+    const rowsEl = document.getElementById('dp-glossary-rows');
+    rowsEl.innerHTML = '';
+    const q = dpGlossarySearch.trim();
+    const rows = dpGlossaryRows(doc).filter(r =>
+        !q || r.term.includes(q) || r.value.toLowerCase().includes(q.toLowerCase())
+    );
+
+    if (!rows.length){
+        const note = document.createElement('div');
+        note.className = 'text-[11px] p-3 rounded-lg';
+        note.style.cssText = 'background:var(--bg-main);border:1px dashed var(--border-subtle);color:var(--text-muted);';
+        note.textContent = q ? 'موردی با این عبارت جستجو پیدا نشد.' : 'هیچ واژه‌ای ثبت نشده است.';
+        rowsEl.appendChild(note);
+        return;
+    }
+
+    rows.forEach(r => {
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-2 p-2 rounded-lg';
+        row.style.cssText = `background:var(--bg-main);border:1px solid ${r.dirty ? 'var(--accent)' : 'var(--border-subtle)'};`;
+        row.dataset.dpGlossaryTerm = r.term;
+
+        const termLabel = document.createElement('div');
+        termLabel.className = 'text-xs font-bold shrink-0';
+        termLabel.style.cssText = 'color:var(--text-main);width:9rem;';
+        termLabel.textContent = r.term;
+        row.appendChild(termLabel);
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'auth-input w-full en';
+        input.style.cssText = 'font-size:.72rem;';
+        input.dir = 'ltr';
+        input.value = r.value;
+        input.dataset.dpGlossaryInput = r.term;
+        row.appendChild(input);
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'text-[10px] font-bold px-2 py-1 rounded-md shrink-0';
+        btn.style.cssText = 'background:var(--panel-bg);color:var(--text-muted);border:1px solid var(--border-subtle);';
+        btn.dataset.dpGlossaryRemove = r.term;
+        btn.textContent = r.isDefault ? '↺ بازنشانی' : '🗑 حذف';
+        // Nothing to undo on an untouched default term: no saved override,
+        // no pending edit.
+        btn.disabled = !r.dirty && !r.hasOverride;
+        row.appendChild(btn);
+
+        rowsEl.appendChild(row);
+    });
+}
+
+function dpCommitGlossaryTerm(doc, term, newValue){
+    const server = dpGlossaryServer[doc.id] || {};
+    const isDefault = Object.prototype.hasOwnProperty.call(doc.glossary.defaults, term);
+    const savedVal = server[term] !== undefined ? server[term] : (isDefault ? doc.glossary.defaults[term] : undefined);
+    if (!dpGlossaryDraft[doc.id]) dpGlossaryDraft[doc.id] = {};
+    if (newValue === savedVal){
+        delete dpGlossaryDraft[doc.id][term];
+        if (Object.keys(dpGlossaryDraft[doc.id]).length === 0) delete dpGlossaryDraft[doc.id];
+    } else {
+        dpGlossaryDraft[doc.id][term] = newValue;
+    }
+}
+
+document.addEventListener('input', (e) => {
+    if (e.target.matches('[data-dp-glossary-input]')){
+        const doc = DP_DOCS.find(d => d.id === dpCurrentDoc);
+        dpCommitGlossaryTerm(doc, e.target.dataset.dpGlossaryInput, e.target.value);
+        const row = e.target.closest('[data-dp-glossary-term]');
+        const draft = dpGlossaryDraft[doc.id];
+        const dirty = !!(draft && draft[e.target.dataset.dpGlossaryInput] !== undefined);
+        row.style.borderColor = dirty ? 'var(--accent)' : 'var(--border-subtle)';
+        return;
+    }
+    if (e.target.id === 'dp-glossary-search'){
+        dpGlossarySearch = e.target.value;
+        const doc = DP_DOCS.find(d => d.id === dpCurrentDoc);
+        renderTermGlossary(doc);
+    }
+});
+
+document.addEventListener('click', (e) => {
+    const removeBtn = e.target.closest('[data-dp-glossary-remove]');
+    if (removeBtn){
+        const doc = DP_DOCS.find(d => d.id === dpCurrentDoc);
+        dpCommitGlossaryTerm(doc, removeBtn.dataset.dpGlossaryRemove, '');
+        renderTermGlossary(doc);
+        return;
+    }
+    if (e.target.id === 'dp-glossary-add-btn'){
+        const doc = DP_DOCS.find(d => d.id === dpCurrentDoc);
+        const termInput = document.getElementById('dp-glossary-new-term');
+        const englishInput = document.getElementById('dp-glossary-new-english');
+        const term = termInput.value.trim();
+        const english = englishInput.value.trim();
+        const status = document.getElementById('dp-glossary-add-status');
+        if (!term || !english){
+            status.textContent = 'هر دو فیلد را پر کنید.';
+            status.classList.remove('hidden');
+            return;
+        }
+        status.classList.add('hidden');
+        dpCommitGlossaryTerm(doc, term, english);
+        termInput.value = '';
+        englishInput.value = '';
+        renderTermGlossary(doc);
+    }
+});
+
+async function saveTermGlossary(){
+    if (!currentUserSession) return;
+    const doc = DP_DOCS.find(d => d.id === dpCurrentDoc);
+    const changes = dpGlossaryDraft[doc.id] || {};
+    const btn = document.getElementById('dp-save-btn');
+    const status = document.getElementById('dp-save-status');
+
+    const toSend = {};
+    for (const term in changes){
+        toSend[term] = changes[term] === '' ? null : changes[term];
+    }
+
+    status.classList.remove('hidden');
+    if (Object.keys(toSend).length === 0){
+        status.style.color = '#f87171';
+        status.textContent = 'تغییری برای ذخیره وجود ندارد.';
+        return;
+    }
+
+    btn.disabled = true;
+    status.style.color = 'var(--text-muted)';
+    status.textContent = 'در حال ذخیره...';
+
+    const token = getToken();
+    try {
+        const res = await fetch(`${CORE}/users/me/preferences`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ term_glossary: { [doc.id]: toSend } })
+        });
+        const p = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(p.detail || 'خطای سرور');
+        dpGlossaryServer = p.term_glossary || {};
+        delete dpGlossaryDraft[doc.id];
+        status.style.color = 'var(--accent)';
+        status.textContent = `✅ ${Object.keys(toSend).length} مورد ذخیره شد. از سند بعدی اعمال می‌شود.`;
         renderDocumentPhrases();
     } catch (e) {
         status.style.color = '#f87171';
