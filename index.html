@@ -943,10 +943,12 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
             <!-- ═══ Per-document-type phrase overrides ═══════════════════
                  Every other hardcoded phrase a document type has (table
                  labels, disclaimer paragraphs, legal boilerplate) beyond
-                 the header/certification fields above. Only two document
-                 types are wired on the backend so far (police_certificate,
-                 vehicle_deed); the rest render a "به‌زودی" pending state
-                 rather than fake fields. ─────────────────────────────── -->
+                 the header/certification fields above -- rendered as a
+                 fixed-field editor by renderDocumentPhrases(). A document
+                 type with no fields of this kind yet (or one whose
+                 customization is an open-ended term glossary instead, see
+                 below) shows a "به‌زودی" pending state or the glossary
+                 table, never fake fields. ─────────────────────────────── -->
             <div class="workspace-panel p-6">
                 <h4 class="text-sm font-black mb-1 flex items-center gap-1.5" style="color:var(--text-main);">📝 عبارات اختصاصی هر نوع سند</h4>
                 <p class="text-[11px] mb-3" style="color:var(--text-muted);">عبارت ابتدا و انتهای سند در کارت کناری است. اینجا بقیهٔ عبارات ثابت هر نوع سند است — برچسب‌ها و بندهای توضیحی. نوع سند را انتخاب کنید و هر عبارت را ویرایش کنید.</p>
@@ -956,7 +958,27 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
 
                 <div id="dp-field-list" class="flex flex-col gap-3 mb-1"></div>
 
-                <button type="button" onclick="saveDocumentPhrases()" id="dp-save-btn" class="w-full font-black py-1.5 rounded-lg mt-2 transition text-xs" style="background:var(--accent);color:var(--btn-text-on-accent);">ذخیرهٔ عبارات این سند</button>
+                <!-- ═══ Term glossary (open-ended Persian-term -> English
+                     table, e.g. academic_transcript's course-name terms) --
+                     shown instead of dp-field-list for a document type
+                     whose DP_DOCS entry has a `glossary` config. See
+                     renderTermGlossary() in app.js. ─────────────────── -->
+                <div id="dp-glossary-section" class="hidden">
+                    <p class="text-[11px] mb-2" style="color:var(--text-muted);">واژه‌های فارسیِ نام درس که همیشه باید به همان معادل انگلیسیِ ثابت ترجمه شوند. معادل هر واژه را ویرایش کنید، واژهٔ جدید اضافه کنید، یا با جست‌وجو در فهرست بگردید.</p>
+
+                    <input type="text" id="dp-glossary-search" class="auth-input mb-2" placeholder="جست‌وجو در واژه‌ها (فارسی یا انگلیسی)...">
+
+                    <div id="dp-glossary-rows" class="flex flex-col gap-2 mb-3"></div>
+
+                    <div class="flex items-center gap-2 p-2 rounded-lg mb-1" style="background:var(--panel-bg);border:1px dashed var(--border-subtle);">
+                        <input type="text" id="dp-glossary-new-term" class="auth-input w-full fa" style="font-size:.72rem;" placeholder="واژهٔ فارسی جدید...">
+                        <input type="text" id="dp-glossary-new-english" class="auth-input w-full en" dir="ltr" style="font-size:.72rem;" placeholder="English equivalent...">
+                        <button type="button" id="dp-glossary-add-btn" class="text-[10px] font-bold px-2 py-1.5 rounded-md shrink-0" style="background:var(--accent);color:var(--btn-text-on-accent);">+ افزودن</button>
+                    </div>
+                    <p id="dp-glossary-add-status" class="text-[11px] mb-1 hidden" style="color:#f87171;"></p>
+                </div>
+
+                <button type="button" onclick="saveCurrentDocumentSettings()" id="dp-save-btn" class="w-full font-black py-1.5 rounded-lg mt-2 transition text-xs" style="background:var(--accent);color:var(--btn-text-on-accent);">ذخیرهٔ عبارات این سند</button>
                 <p id="dp-save-status" class="text-[11px] mt-2 hidden"></p>
             </div>
         </div>
