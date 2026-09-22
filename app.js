@@ -431,6 +431,7 @@ async function loadPreferences() {
         document.getElementById('pref-date-format').value = p.date_format || '';
         document.getElementById('pref-hide-header').checked = !!p.hide_header;
         document.getElementById('pref-hide-certification').checked = !!p.hide_certification;
+        document.getElementById('pref-disable-completion-email').checked = !!p.disable_completion_email;
         togglePrefHidden('header');
         togglePrefHidden('certification');
     } catch (e) {
@@ -473,6 +474,7 @@ async function savePreferences() {
         date_format: document.getElementById('pref-date-format').value || null,
         hide_header: document.getElementById('pref-hide-header').checked,
         hide_certification: document.getElementById('pref-hide-certification').checked,
+        disable_completion_email: document.getElementById('pref-disable-completion-email').checked,
     };
 
     const token = getToken();

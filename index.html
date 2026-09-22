@@ -936,6 +936,11 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                     <option value="short_ymd">1985-04-12</option>
                 </select>
 
+                <label class="flex items-center gap-1.5 mb-3 text-[11px] cursor-pointer" style="color:var(--text-muted);">
+                    <input type="checkbox" id="pref-disable-completion-email" style="width:14px;height:14px;cursor:pointer;flex-shrink:0;">
+                    <span>پس از اتمام ترجمه، ایمیل اطلاع‌رسانی ارسال نشود</span>
+                </label>
+
                 <button type="button" onclick="savePreferences()" id="pref-save-btn" class="w-full font-black py-1.5 rounded-lg mt-1 transition text-xs" style="background:var(--accent);color:var(--btn-text-on-accent);">ذخیره تنظیمات ترجمه</button>
                 <p id="pref-save-status" class="text-[11px] mt-2 hidden"></p>
             </div>
