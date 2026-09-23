@@ -217,8 +217,8 @@ function loadSession() {
             email,
             username: userName || (email ? email.split('@')[0] : ''),
             type: localStorage.getItem('deept_account_type') || 'individual',
-            contact: '',
-            office: '',
+            contact: localStorage.getItem('deept_contact_info') || '',
+            office: localStorage.getItem('deept_office_name') || '',
             is_admin: localStorage.getItem('deept_is_admin') === '1'
         };
     }
@@ -235,7 +235,7 @@ function loadSession() {
     }
 }
 
-async function syncAccountTypeFromServer() {
+async function syncProfileFromServer() {
     if (!currentUserSession || !currentUserSession.token) return;
     try {
         const res = await fetch(`${CORE}/auth/verify`, {
@@ -243,12 +243,30 @@ async function syncAccountTypeFromServer() {
         });
         if (!res.ok) return;
         const data = await res.json();
-        if (!data.valid || !data.account_type) return;
-        if (data.account_type !== currentUserSession.type) {
+        if (!data.valid) return;
+        let changed = false;
+        if (data.account_type && data.account_type !== currentUserSession.type) {
             localStorage.setItem('deept_account_type', data.account_type);
             currentUserSession.type = data.account_type;
-            syncUserSessionDOM();
+            changed = true;
         }
+        // office_name/contact_info can legitimately be cleared back to ''
+        // by the server (see saveProfileConfiguration()), unlike
+        // account_type above -- so these compare/store even when falsy,
+        // rather than only ever moving away from the default.
+        const officeName = data.office_name || '';
+        if (officeName !== (currentUserSession.office || '')) {
+            localStorage.setItem('deept_office_name', officeName);
+            currentUserSession.office = officeName;
+            changed = true;
+        }
+        const contactInfo = data.contact_info || '';
+        if (contactInfo !== (currentUserSession.contact || '')) {
+            localStorage.setItem('deept_contact_info', contactInfo);
+            currentUserSession.contact = contactInfo;
+            changed = true;
+        }
+        if (changed) syncUserSessionDOM();
     } catch (e) { /* offline or Core unreachable -- keep the cached value, try again next load */ }
 }
 
@@ -402,6 +420,8 @@ function executeLogout() {
     localStorage.removeItem('deept_user_email');
     localStorage.removeItem('deept_is_admin');
     localStorage.removeItem('deept_account_type');
+    localStorage.removeItem('deept_office_name');
+    localStorage.removeItem('deept_contact_info');
     closeLogoutConfirm();
     closeWorkspaceDashboard();
     closeChatInterface();
@@ -720,15 +740,53 @@ function renderHrAttendanceList(rows) {
 function toggleProfileAccountType() {
     document.getElementById('officeFieldsBlock').classList.toggle('hidden', document.getElementById('accountTypeToggle').value !== 'office');
 }
-function saveProfileConfiguration() {
+async function saveProfileConfiguration() {
     if (!currentUserSession) return;
-    currentUserSession.type    = document.getElementById('accountTypeToggle').value;
-    currentUserSession.contact = document.getElementById('profileContactInput').value;
-    currentUserSession.office  = currentUserSession.type === 'office' ? document.getElementById('officeNameInput').value : '';
-    localStorage.setItem('deept_mock_user', JSON.stringify(currentUserSession));
-    document.getElementById('profileDisplayName').textContent = currentUserSession.office || currentUserSession.username;
-    document.getElementById('headerUserName').textContent     = currentUserSession.office || currentUserSession.username;
-    showToast('✅ پروفایل بروزرسانی شد.');
+    const type    = document.getElementById('accountTypeToggle').value;
+    const contact = document.getElementById('profileContactInput').value;
+    const office  = type === 'office' ? document.getElementById('officeNameInput').value : '';
+
+    // Test/mock session (see initializeApp()'s ?test=1 handling) has no
+    // real account behind it to PATCH -- keep the old localStorage-only
+    // behavior for it.
+    if (!currentUserSession.token) {
+        currentUserSession.type    = type;
+        currentUserSession.contact = contact;
+        currentUserSession.office  = office;
+        localStorage.setItem('deept_mock_user', JSON.stringify(currentUserSession));
+        document.getElementById('profileDisplayName').textContent = currentUserSession.office || currentUserSession.username;
+        document.getElementById('headerUserName').textContent     = currentUserSession.office || currentUserSession.username;
+        showToast('✅ پروفایل بروزرسانی شد.');
+        return;
+    }
+
+    const btn = document.getElementById('saveProfileBtn');
+    const originalLabel = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'در حال ذخیره...';
+    try {
+        const res = await fetch(`${CORE}/auth/me`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${currentUserSession.token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ account_type: type, office_name: office, contact_info: contact })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || 'خطای سرور');
+
+        localStorage.setItem('deept_account_type', data.account_type || 'individual');
+        localStorage.setItem('deept_office_name', data.office_name || '');
+        localStorage.setItem('deept_contact_info', data.contact_info || '');
+        currentUserSession.type    = data.account_type || 'individual';
+        currentUserSession.office  = data.office_name || '';
+        currentUserSession.contact = data.contact_info || '';
+        syncUserSessionDOM();
+        showToast('✅ پروفایل بروزرسانی شد.');
+    } catch (e) {
+        showToast('❌ خطا در ذخیره پروفایل: ' + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = originalLabel;
+    }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -5366,9 +5424,12 @@ refreshWalletBalanceDisplay();
     // saveSession()) -- an already-logged-in session from before that
     // existed, or one that simply hasn't logged in again since, has no
     // other way to pick up "this is an office account" and the HR
-    // attendance UI that unlocks (see syncUserSessionDOM()). Self-heals on
-    // every page load instead of requiring a re-login.
-    syncAccountTypeFromServer();
+    // attendance UI that unlocks (see syncUserSessionDOM()). office_name/
+    // contact_info aren't returned by login/signup at all (see ProfileUpdate
+    // in DeepT-Core), only by /auth/verify -- so this is also the only way
+    // a saved profile edit shows up in a different tab/session. Self-heals
+    // on every page load instead of requiring a re-login.
+    syncProfileFromServer();
 
     // GitHub Pages has no server routing: a refresh on /dashboard etc. lands
     // on 404.html, which stashes the intended path (+ query string, e.g. a
@@ -5936,6 +5997,8 @@ function adminLogout() {
     localStorage.removeItem('deept_user_email');
     localStorage.removeItem('deept_is_admin');
     localStorage.removeItem('deept_account_type');
+    localStorage.removeItem('deept_office_name');
+    localStorage.removeItem('deept_contact_info');
 
     document.getElementById('adminDashboard')?.classList.add('hidden');
 
