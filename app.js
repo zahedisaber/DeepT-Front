@@ -522,30 +522,62 @@ async function loadHrStaff() {
     renderHrStaffList();
 }
 
+// Small fixed palette (not random) so a staff member's avatar color stays
+// stable across re-renders -- picked by a cheap hash of their id, not
+// insertion order, so it doesn't shift as other staff are added/removed.
+const HR_AVATAR_COLORS = ['#00d4ff', '#c084fc', '#34c759', '#f59e0b', '#f87171', '#38bdf8'];
+function _hrAvatarColor(id) {
+    let hash = 0;
+    for (const ch of String(id)) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+    return HR_AVATAR_COLORS[hash % HR_AVATAR_COLORS.length];
+}
+
 function renderHrStaffList() {
     const list = document.getElementById('hr-staff-list');
     list.innerHTML = '';
     if (!hrStaffList.length) {
         const note = document.createElement('div');
-        note.className = 'text-[11px] p-3 rounded-lg';
+        note.className = 'text-[11px] p-4 rounded-xl text-center';
         note.style.cssText = 'background:var(--bg-main);border:1px dashed var(--border-subtle);color:var(--text-muted);';
-        note.textContent = 'هنوز کارمندی ثبت نشده است.';
+        note.textContent = 'هنوز کارمندی ثبت نشده — با دکمهٔ «افزودن کارمند جدید» شروع کنید.';
         list.appendChild(note);
         return;
     }
     hrStaffList.forEach(s => {
         const row = document.createElement('div');
-        row.className = 'flex items-center gap-2 p-2 rounded-lg flex-wrap';
-        row.style.cssText = `background:var(--bg-main);border:1px solid var(--border-subtle);opacity:${s.is_active ? '1' : '.55'};`;
+        row.className = 'flex items-center gap-3 p-3 rounded-xl transition';
+        row.style.cssText = `background:var(--bg-main);border:1px solid var(--border-subtle);opacity:${s.is_active ? '1' : '.6'};`;
+        const initial = (s.full_name || '؟').trim().charAt(0) || '؟';
         row.innerHTML = `
-          <span class="text-xs font-bold" style="color:var(--text-main);flex:1;">${s.full_name}${s.role ? ' — ' + s.role : ''}</span>
-          <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style="background:${s.is_active ? 'rgba(52,199,89,.12);color:#34c759' : 'rgba(148,148,148,.15);color:#999'};">${s.is_active ? 'فعال' : 'غیرفعال'}</span>
-          <button type="button" data-hr-toggle-staff="${s.id}" data-hr-active="${s.is_active}" class="text-[10px] font-bold px-2 py-1 rounded-md" style="background:var(--panel-bg);color:var(--text-muted);border:1px solid var(--border-subtle);">${s.is_active ? 'غیرفعال کردن' : 'فعال کردن'}</button>
-          <button type="button" data-hr-delete-staff="${s.id}" class="text-[10px] font-bold px-2 py-1 rounded-md" style="background:rgba(248,113,113,.1);color:#f87171;border:1px solid rgba(248,113,113,.3);">حذف</button>
+          <div class="w-9 h-9 rounded-full flex items-center justify-center font-black text-sm shrink-0" style="background:${_hrAvatarColor(s.id)};color:#0a0a0a;">${initial}</div>
+          <div style="flex:1;min-width:0;">
+            <div class="text-xs font-bold truncate" style="color:var(--text-main);">${s.full_name}</div>
+            <div class="text-[10px] truncate" style="color:var(--text-muted);">${s.role || 'بدون سمت مشخص'}</div>
+          </div>
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0" style="background:${s.is_active ? 'rgba(52,199,89,.12);color:#34c759' : 'rgba(148,148,148,.15);color:#999'};">${s.is_active ? '● فعال' : '○ غیرفعال'}</span>
+          <div class="flex items-center gap-1 shrink-0">
+            <button type="button" data-hr-toggle-staff="${s.id}" data-hr-active="${s.is_active}" title="${s.is_active ? 'غیرفعال کردن' : 'فعال کردن'}" class="w-7 h-7 rounded-lg flex items-center justify-center text-xs transition" style="background:var(--panel-bg);color:var(--text-muted);border:1px solid var(--border-subtle);">${s.is_active ? '⏸' : '▶'}</button>
+            <button type="button" data-hr-delete-staff="${s.id}" title="حذف" class="w-7 h-7 rounded-lg flex items-center justify-center text-xs transition" style="background:rgba(248,113,113,.1);color:#f87171;border:1px solid rgba(248,113,113,.3);">🗑</button>
+          </div>
         `;
         list.appendChild(row);
     });
 }
+
+function openAddHrStaffModal() {
+    document.getElementById('hr-new-staff-name').value = '';
+    document.getElementById('hr-new-staff-role').value = '';
+    document.getElementById('hr-new-staff-pin').value = '';
+    document.getElementById('hr-staff-add-status').classList.add('hidden');
+    document.getElementById('addHrStaffModal').classList.remove('hidden');
+    document.getElementById('hr-new-staff-name').focus();
+}
+function closeAddHrStaffModal() {
+    document.getElementById('addHrStaffModal').classList.add('hidden');
+}
+document.getElementById('addHrStaffModal').addEventListener('click', function(e) {
+    if (e.target === this) closeAddHrStaffModal();
+});
 
 document.addEventListener('click', (e) => {
     const toggleBtn = e.target.closest('[data-hr-toggle-staff]');
@@ -605,8 +637,11 @@ async function addHrStaff() {
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.detail || 'خطای سرور');
-        nameInput.value = ''; roleInput.value = ''; pinInput.value = '';
+        status.style.color = 'var(--accent)';
+        status.textContent = `✅ ${data.full_name} با موفقیت اضافه شد.`;
+        status.classList.remove('hidden');
         await loadHrStaff();
+        setTimeout(closeAddHrStaffModal, 700);
     } catch (e) {
         status.style.color = '#f87171';
         status.textContent = `❌ ${e.message || 'خطای نامشخص'}`;

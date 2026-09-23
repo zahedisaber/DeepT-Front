@@ -122,6 +122,36 @@
   </div>
 </div>
 
+<!-- ── Add a new HR staff member (name + PIN) -- office accounts only,
+     see تنظیمات's حضور و غیاب کارمندان panel. Same polished modal
+     pattern as addClientModal, rather than a cramped inline row. ── -->
+<div role="dialog" aria-modal="true" id="addHrStaffModal" class="modal-overlay fixed inset-0 z-[70] hidden flex items-center justify-center p-4">
+  <div class="w-full max-w-sm p-6" style="background:var(--card-surface);border:1px solid var(--border-color);border-radius:1rem;">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-base font-black flex items-center gap-1.5" style="color:var(--text-main);">🧑‍💼 افزودن کارمند جدید</h3>
+      <button type="button" onclick="closeAddHrStaffModal()" style="color:var(--text-muted);background:none;border:none;cursor:pointer;font-size:1.1rem;">✕</button>
+    </div>
+    <p class="text-[11px] mb-4" style="color:var(--text-muted);">این کارمند فقط با پین خود و از طریق وای‌فای دفتر می‌تواند ورود/خروج ثبت کند — نیازی به ایمیل یا رمز عبور ندارد.</p>
+    <div class="space-y-3">
+      <div>
+        <label for="hr-new-staff-name" class="auth-label">نام کارمند <span style="color:#f87171;">*</span></label>
+        <input type="text" id="hr-new-staff-name" class="auth-input" placeholder="مثلاً سارا محمدی">
+      </div>
+      <div>
+        <label for="hr-new-staff-role" class="auth-label">سمت (اختیاری)</label>
+        <input type="text" id="hr-new-staff-role" class="auth-input" placeholder="مثلاً مترجم، منشی">
+      </div>
+      <div>
+        <label for="hr-new-staff-pin" class="auth-label">پین ۴ تا ۶ رقمی <span style="color:#f87171;">*</span></label>
+        <input type="text" id="hr-new-staff-pin" inputmode="numeric" maxlength="6" class="auth-input en text-center" dir="ltr" style="font-size:1.15rem;letter-spacing:.25rem;" placeholder="••••">
+        <p class="text-[11px] mt-1" style="color:var(--text-muted);">همین پین را کارمند هنگام ثبت ورود/خروج وارد می‌کند — فقط بین کارمندان همین دفتر باید یکتا باشد.</p>
+      </div>
+    </div>
+    <button type="button" onclick="addHrStaff()" id="hr-staff-add-btn" class="w-full mt-5 py-2.5 rounded-xl text-sm font-black transition" style="background:var(--accent);color:var(--btn-text-on-accent);">افزودن کارمند</button>
+    <p id="hr-staff-add-status" class="text-[11px] mt-3 hidden"></p>
+  </div>
+</div>
+
 <!-- ── HR clock in/out PIN pad -- office accounts only (see hr.py). No
      staff login of their own: whichever staff member is physically at
      this already-logged-in office's screen enters their own PIN, same as
@@ -1022,16 +1052,13 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
             </div>
             <p id="hr-wifi-status" class="text-[11px] mb-4 hidden"></p>
 
-            <h5 class="text-xs font-black mb-2" style="color:var(--text-main);">لیست کارمندان</h5>
-            <div id="hr-staff-list" class="flex flex-col gap-2 mb-3"></div>
-
-            <div class="flex items-center gap-2 p-2 rounded-lg mb-1" style="background:var(--panel-bg);border:1px dashed var(--border-subtle);">
-                <input type="text" id="hr-new-staff-name" class="auth-input w-full" placeholder="نام کارمند...">
-                <input type="text" id="hr-new-staff-role" class="auth-input w-full" placeholder="سمت (اختیاری)...">
-                <input type="text" id="hr-new-staff-pin" inputmode="numeric" maxlength="6" class="auth-input en" dir="ltr" style="width:6rem;" placeholder="پین ۴-۶ رقمی">
-                <button type="button" onclick="addHrStaff()" id="hr-staff-add-btn" class="text-[11px] font-bold px-3 py-2 rounded-md shrink-0" style="background:var(--accent);color:var(--btn-text-on-accent);">+ افزودن</button>
+            <div class="flex items-center justify-between mb-2">
+                <h5 class="text-xs font-black" style="color:var(--text-main);">لیست کارمندان</h5>
+                <button type="button" onclick="openAddHrStaffModal()" class="text-[11px] font-bold px-3 py-1.5 rounded-lg flex items-center gap-1" style="background:var(--accent);color:var(--btn-text-on-accent);">
+                    <span style="font-size:.95em;">+</span> افزودن کارمند جدید
+                </button>
             </div>
-            <p id="hr-staff-add-status" class="text-[11px] mb-4 hidden" style="color:#f87171;"></p>
+            <div id="hr-staff-list" class="flex flex-col gap-2 mb-5"></div>
 
             <h5 class="text-xs font-black mb-2 mt-2" style="color:var(--text-main);">کارکرد (تایم‌شیت)</h5>
             <div class="flex items-center gap-2 flex-wrap mb-3">
