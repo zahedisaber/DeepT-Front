@@ -235,6 +235,23 @@ function loadSession() {
     }
 }
 
+async function syncAccountTypeFromServer() {
+    if (!currentUserSession || !currentUserSession.token) return;
+    try {
+        const res = await fetch(`${CORE}/auth/verify`, {
+            headers: { 'Authorization': `Bearer ${currentUserSession.token}` }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data.valid || !data.account_type) return;
+        if (data.account_type !== currentUserSession.type) {
+            localStorage.setItem('deept_account_type', data.account_type);
+            currentUserSession.type = data.account_type;
+            syncUserSessionDOM();
+        }
+    } catch (e) { /* offline or Core unreachable -- keep the cached value, try again next load */ }
+}
+
 let currentUserSession = loadSession();
 let trackingProjectsDatabase = [];
 let resetPasswordToken = null; // carried from ?reset_token=... on page load through to handleResetPassword()
@@ -5344,6 +5361,14 @@ refreshWalletBalanceDisplay();
     // translator's own saved prices from the very first invoice of the
     // session, not just the catalog defaults.
     if (currentUserSession) loadMyPriceListCatalog();
+
+    // account_type is only ever learned fresh at login time (see
+    // saveSession()) -- an already-logged-in session from before that
+    // existed, or one that simply hasn't logged in again since, has no
+    // other way to pick up "this is an office account" and the HR
+    // attendance UI that unlocks (see syncUserSessionDOM()). Self-heals on
+    // every page load instead of requiring a re-login.
+    syncAccountTypeFromServer();
 
     // GitHub Pages has no server routing: a refresh on /dashboard etc. lands
     // on 404.html, which stashes the intended path (+ query string, e.g. a
