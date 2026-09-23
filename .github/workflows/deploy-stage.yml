@@ -1,0 +1,32 @@
+name: Deploy Front Stage
+
+on:
+  push:
+    branches: [stage]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check index.html
+        run: test -f index.html
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to stage server
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: 95.38.191.201
+          username: deept
+          key: |
+            -----BEGIN OPENSSH PRIVATE KEY-----
+            b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAAAMwAAAAtzc2gtZWQyNTUxOQAAACB3xQcBfXEw1INKDFkPSqF3xnwfIssK8LyAOqo9Yi39HAAAAJiAFw/xgBcP8QAAAAtzc2gtZWQyNTUxOQAAACB3xQcBfXEw1INKDFkPSqF3xnwfIssK8LyAOqo9Yi39HAAAAEB5QxqWi/45htL4gaoC21sXF1RWRA8MESpYhaAa1IvHU3fFBwF9cTDUg0oMWQ9KoXfGfB8iywrwvIA6qj1iLf0cAAAAFGdpdGh1Yi1hY3Rpb25zLXN0YWdlAQ==
+            -----END OPENSSH PRIVATE KEY-----
+          debug: true
+          script: |
+            /var/www/deept/deploy-front-stage.sh
