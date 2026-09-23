@@ -488,6 +488,10 @@ async function submitHrClock() {
             ? `✅ ورود ${data.record.staff_name} ساعت ${time} ثبت شد.`
             : `✅ خروج ${data.record.staff_name} ساعت ${time} ثبت شد.`;
         document.getElementById('hr-clock-pin').value = '';
+        // The clock widget is only ever opened from within حضور غیاب
+        // پرسنل now (see index.html) -- refresh its "present now" list so
+        // this punch shows up without needing a manual reload.
+        loadHrAttendance();
     } catch (e) {
         status.style.color = '#f87171';
         status.textContent = `❌ ${e.message || 'خطای نامشخص'}`;
@@ -700,10 +704,44 @@ async function loadHrAttendance() {
     if (to) params.set('to', `${to}T23:59:59`);
     try {
         const res = await fetch(`${CORE}/hr/attendance?${params}`, { headers: { 'Authorization': `Bearer ${getToken()}` } });
-        renderHrAttendanceList(await res.json());
+        const rows = await res.json();
+        renderHrAttendanceList(rows);
+        // "Present now" is just this same result set filtered down to
+        // still-open records (no clock_out yet) -- no second round trip.
+        // Someone who clocked in before the selected "از" date won't show
+        // here, but the date range defaults to the last two weeks (see
+        // loadHrSettings()), which comfortably covers any forgotten
+        // clock-out.
+        renderHrPresentNow(rows.filter(r => !r.clock_out));
     } catch (e) {
         renderHrAttendanceList([]);
+        renderHrPresentNow([]);
     }
+}
+
+function renderHrPresentNow(rows) {
+    const list = document.getElementById('hr-present-now-list');
+    if (!list) return;
+    list.innerHTML = '';
+    if (!rows || !rows.length) {
+        const note = document.createElement('div');
+        note.className = 'text-[11px] p-3 rounded-lg';
+        note.style.cssText = 'background:var(--bg-main);border:1px dashed var(--border-subtle);color:var(--text-muted);';
+        note.textContent = 'در حال حاضر کسی حاضر ثبت نشده است.';
+        list.appendChild(note);
+        return;
+    }
+    rows.forEach(r => {
+        const inTime = new Date(r.clock_in).toLocaleString('fa-IR');
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-between gap-2 flex-wrap p-2.5 rounded-lg text-[11px]';
+        row.style.cssText = 'background:rgba(52,199,89,.08);border:1px solid rgba(52,199,89,.25);';
+        row.innerHTML = `
+          <span class="font-bold flex items-center gap-1.5" style="color:var(--text-main);"><span style="color:#34c759;">●</span> ${r.staff_name || '؟'}</span>
+          <span style="color:var(--text-muted);">از ساعت ${inTime}</span>
+        `;
+        list.appendChild(row);
+    });
 }
 
 function renderHrAttendanceList(rows) {
@@ -3379,7 +3417,7 @@ function hideWorkspaceViews() {
     const lp = document.getElementById('landingPage');
     if (lp) lp.style.display = 'none';
     ['workspaceDashboard', 'clientsWorkspace', 'adminDashboard',
-     'clientProfilePage', 'workSchedulePage', 'settingsPage', 'myPriceListPage'].forEach(id => {
+     'clientProfilePage', 'workSchedulePage', 'settingsPage', 'myPriceListPage', 'hrPage'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.add('hidden');
     });
@@ -3592,16 +3630,32 @@ function openSettingsPage(pushHistory = true) {
     if (pushHistory) navigateTo('/settings');
     loadPreferences();
     loadDocumentPhrasesCatalog();
-    const hrSection = document.getElementById('hr-settings-section');
-    if (hrSection) {
-        const isOffice = currentUserSession.type === 'office';
-        hrSection.classList.toggle('hidden', !isOffice);
-        if (isOffice) loadHrSettings();
-    }
 }
 
 function closeSettingsPage() {
     document.getElementById('settingsPage').classList.add('hidden');
+    document.body.style.overflow = 'auto';
+    openWorkspaceDashboard(false);
+}
+
+// حضور غیاب پرسنل -- its own top-level page (see the header's "🕐 حضور
+// غیاب پرسنل" button), not a settings card: staff roster management, a
+// live "who's here right now" view, the full timesheet, and the clock
+// in/out action itself all live together here. Office accounts only --
+// an individual account has no staff to manage.
+function openHrPage(pushHistory = true) {
+    if (!currentUserSession) { openAuthModal(); return; }
+    if (currentUserSession.type !== 'office') {
+        showToast('این بخش فقط برای حساب‌های دارالترجمه (دفتر) در دسترس است.');
+        return;
+    }
+    showFullView('hrPage');
+    if (pushHistory) navigateTo('/hr');
+    loadHrSettings();
+}
+
+function closeHrPage() {
+    document.getElementById('hrPage').classList.add('hidden');
     document.body.style.overflow = 'auto';
     openWorkspaceDashboard(false);
 }
@@ -4415,6 +4469,17 @@ function applyRouteForPath(path) {
 
         if (currentUserSession) {
             openMyPriceListPage(false);
+        } else {
+            navigateTo('/', false);
+            showLandingView();
+            openLogin();
+            showToast('برای دسترسی به این بخش، ابتدا وارد شوید.');
+        }
+
+    } else if (path === '/hr') {
+
+        if (currentUserSession) {
+            openHrPage(false);
         } else {
             navigateTo('/', false);
             showLandingView();
