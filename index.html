@@ -60,6 +60,7 @@
     <button type="button" id="settingsHeaderBtn" onclick="openSettingsPage()" class="header-btn header-btn-workspace hidden">⚙️ تنظیمات</button>
     <button type="button" id="priceListHeaderBtn" onclick="openMyPriceListPage()" class="header-btn header-btn-workspace hidden">💰 نرخنامه من</button>
     <button type="button" id="adminPanelHeaderBtn" onclick="showAdminDashboard()" class="header-btn header-btn-workspace hidden">🛡️ پنل مدیریت</button>
+    <button type="button" id="hrClockHeaderBtn" onclick="openHrPage()" class="header-btn header-btn-workspace hidden">🕐 حضور غیاب پرسنل</button>
     <button type="button" id="logoutHeaderBtn" onclick="confirmLogout()" class="header-btn header-btn-logout hidden">
       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
       خروج
@@ -102,6 +103,10 @@
     <svg class="side-rail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 19 6v6c0 4.5-3 7.5-7 8.5-4-1-7-4-7-8.5V6l7-2.5Z"/><path d="m9.2 12 1.9 1.9 3.7-3.9"/></svg>
     <span class="side-rail-label">مدیریت</span>
   </button>
+  <button type="button" id="railHrClockBtn" onclick="openHrPage()" class="side-rail-btn hidden" title="حضور غیاب پرسنل">
+    <svg class="side-rail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
+    <span class="side-rail-label">حضور غیاب</span>
+  </button>
 </nav>
 
 <!-- ── VIEW 02 · logout confirm dialog ── -->
@@ -114,6 +119,54 @@
       <button type="button" onclick="executeLogout()" class="bg-red-500 text-white font-bold px-6 py-2.5 rounded-xl text-sm">بله، خروج</button>
       <button type="button" onclick="closeLogoutConfirm()" class="font-bold px-6 py-2.5 rounded-xl text-sm" style="background:var(--bg-secondary);color:var(--text-main);border:1px solid var(--border-subtle);">انصراف</button>
     </div>
+  </div>
+</div>
+
+<!-- ── Add a new HR staff member (name + PIN) -- office accounts only,
+     see تنظیمات's حضور و غیاب کارمندان panel. Same polished modal
+     pattern as addClientModal, rather than a cramped inline row. ── -->
+<div role="dialog" aria-modal="true" id="addHrStaffModal" class="modal-overlay fixed inset-0 z-[70] hidden flex items-center justify-center p-4">
+  <div class="w-full max-w-sm p-6" style="background:var(--card-surface);border:1px solid var(--border-color);border-radius:1rem;">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-base font-black flex items-center gap-1.5" style="color:var(--text-main);">🧑‍💼 افزودن کارمند جدید</h3>
+      <button type="button" onclick="closeAddHrStaffModal()" style="color:var(--text-muted);background:none;border:none;cursor:pointer;font-size:1.1rem;">✕</button>
+    </div>
+    <p class="text-[11px] mb-4" style="color:var(--text-muted);">این کارمند فقط با پین خود و از طریق وای‌فای دفتر می‌تواند ورود/خروج ثبت کند — نیازی به ایمیل یا رمز عبور ندارد.</p>
+    <div class="space-y-3">
+      <div>
+        <label for="hr-new-staff-name" class="auth-label">نام کارمند <span style="color:#f87171;">*</span></label>
+        <input type="text" id="hr-new-staff-name" class="auth-input" placeholder="مثلاً سارا محمدی">
+      </div>
+      <div>
+        <label for="hr-new-staff-role" class="auth-label">سمت (اختیاری)</label>
+        <input type="text" id="hr-new-staff-role" class="auth-input" placeholder="مثلاً مترجم، منشی">
+      </div>
+      <div>
+        <label for="hr-new-staff-pin" class="auth-label">پین ۴ تا ۶ رقمی <span style="color:#f87171;">*</span></label>
+        <input type="text" id="hr-new-staff-pin" inputmode="numeric" maxlength="6" class="auth-input en text-center" dir="ltr" style="font-size:1.15rem;letter-spacing:.25rem;" placeholder="••••">
+        <p class="text-[11px] mt-1" style="color:var(--text-muted);">همین پین را کارمند هنگام ثبت ورود/خروج وارد می‌کند — فقط بین کارمندان همین دفتر باید یکتا باشد.</p>
+      </div>
+    </div>
+    <button type="button" onclick="addHrStaff()" id="hr-staff-add-btn" class="w-full mt-5 py-2.5 rounded-xl text-sm font-black transition" style="background:var(--accent);color:var(--btn-text-on-accent);">افزودن کارمند</button>
+    <p id="hr-staff-add-status" class="text-[11px] mt-3 hidden"></p>
+  </div>
+</div>
+
+<!-- ── HR clock in/out PIN pad -- office accounts only (see hr.py). No
+     staff login of their own: whichever staff member is physically at
+     this already-logged-in office's screen enters their own PIN, same as
+     a shared physical time clock. Gated server-side on the office's
+     registered WiFi IP too, not just this being open. ── -->
+<div role="dialog" aria-modal="true" id="hrClockOverlay" class="modal-overlay fixed inset-0 z-[70] hidden flex items-center justify-center p-4">
+  <div class="w-full max-w-sm p-6 text-center" style="background:var(--card-surface);border:1px solid var(--border-color);border-radius:1rem;">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-base font-black" style="color:var(--text-main);">🕐 ثبت ورود / خروج</h3>
+      <button type="button" onclick="closeHrClockWidget()" style="color:var(--text-muted);background:none;border:none;cursor:pointer;font-size:1.1rem;">✕</button>
+    </div>
+    <p class="text-[11px] mb-4" style="color:var(--text-muted);">پین خود را وارد کنید. با ورود یک پین، اگر در حال حاضر حاضر نیستید ورود و در غیر این صورت خروج شما ثبت می‌شود. مرورگر موقعیت مکانی شما را می‌پرسد — این ثبت فقط در محل دفتر انجام می‌شود.</p>
+    <input type="text" id="hr-clock-pin" inputmode="numeric" maxlength="6" class="auth-input en text-center mb-3" dir="ltr" style="font-size:1.3rem;letter-spacing:.3rem;" placeholder="••••">
+    <button type="button" onclick="submitHrClock()" id="hr-clock-submit-btn" class="w-full font-black py-2.5 rounded-xl text-sm transition" style="background:var(--accent);color:var(--btn-text-on-accent);">ثبت</button>
+    <p id="hr-clock-status" class="text-[12px] mt-3 hidden"></p>
   </div>
 </div>
 
@@ -222,6 +275,14 @@
       <div class="grid grid-cols-2 gap-3">
         <div><label for="ac-passport" class="auth-label">شماره پاسپورت</label><input type="text" id="ac-passport" class="auth-input en" dir="ltr" placeholder="A12345678"></div>
         <div><label for="ac-nationality" class="auth-label">ملیت</label><input type="text" id="ac-nationality" class="auth-input" placeholder="ایرانی"></div>
+      </div>
+      <div><label for="ac-target-lang" class="auth-label">زبان مقصد ترجمه</label>
+        <select id="ac-target-lang" class="auth-input">
+          <option value="">English (پیش‌فرض)</option>
+          <option value="French">فرانسوی</option>
+          <option value="Italian">ایتالیایی</option>
+          <option value="Spanish">اسپانیایی</option>
+        </select>
       </div>
       <div><label for="ac-notes" class="auth-label">یادداشت</label><textarea id="ac-notes" rows="2" class="auth-input resize-none" placeholder="یادداشت اختیاری..."></textarea></div>
     </div>
@@ -651,6 +712,10 @@
               <div><label for="pp-last" class="auth-label">نام خانوادگی (Last Name)</label><input type="text" id="pp-last" class="auth-input en uppercase" dir="ltr" placeholder="MOHAMMADI" oninput="this.value=this.value.toUpperCase()"></div>
             </div>
             <div class="grid grid-cols-2 gap-3">
+              <div><label for="pp-first-fa" class="auth-label">نام (فارسی)</label><input type="text" id="pp-first-fa" class="auth-input" dir="rtl" placeholder="علی"></div>
+              <div><label for="pp-last-fa" class="auth-label">نام خانوادگی (فارسی)</label><input type="text" id="pp-last-fa" class="auth-input" dir="rtl" placeholder="محمدی"></div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
               <div><label for="pp-father" class="auth-label">نام پدر (Father's Name)</label><input type="text" id="pp-father" class="auth-input en uppercase" dir="ltr" placeholder="HASSAN" oninput="this.value=this.value.toUpperCase()"></div>
               <div><label for="pp-dob" class="auth-label">تاریخ تولد — میلادی</label><input type="text" id="pp-dob" class="auth-input en" dir="ltr" placeholder="April 12, 1985"></div>
             </div>
@@ -699,7 +764,7 @@
           <div id="docFileInfo" class="text-xs font-bold hidden mt-1" style="color:var(--accent);"></div>
         </div>
         <div id="courseCodesToggleWrap" class="hidden flex items-center gap-2 mb-4 p-2.5 rounded-lg text-xs" style="background:var(--panel-bg);border:1px solid var(--border-color);">
-          <input type="checkbox" id="includeCourseCodesCheckbox" checked style="width:16px;height:16px;cursor:pointer;flex-shrink:0;">
+          <input type="checkbox" id="includeCourseCodesCheckbox" style="width:16px;height:16px;cursor:pointer;flex-shrink:0;">
           <label for="includeCourseCodesCheckbox" style="color:var(--text-main);cursor:pointer;">نمایش کد دروس در ترجمه <span style="color:var(--text-muted);">(در صورت عدم انتخاب، ستون کد درس حذف می‌شود)</span></label>
         </div>
         <div id="processingStatusBubble" class="hidden flex items-center gap-3 p-3 rounded-xl mb-3 text-sm" style="background:var(--panel-bg);border:1px solid var(--border-color);">
@@ -751,7 +816,7 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                         <span style="color:var(--text-muted);">نام و شماره پروانه دارالترجمه:</span>
                         <input type="text" id="officeNameInput" placeholder="دفتر ترجمه شماره..." class="auth-input mt-1">
                     </div>
-                    <button type="button" onclick="saveProfileConfiguration()" class="w-full font-black py-1.5 rounded-lg mt-2 transition text-xs" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">بروزرسانی پروفایل</button>
+                    <button type="button" id="saveProfileBtn" onclick="saveProfileConfiguration()" class="w-full font-black py-1.5 rounded-lg mt-2 transition text-xs" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">بروزرسانی پروفایل</button>
                 </div>
             </div>
 
@@ -867,9 +932,12 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
         <div class="workspace-panel p-5">
             <div class="flex items-center justify-between gap-3 flex-wrap mb-4">
                 <div class="flex items-center gap-2 flex-wrap">
-                    <button type="button" onclick="shiftScheduleWeek(-1)" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--bg-main);color:var(--accent);border:1px solid var(--border-color);">‹ هفته قبل</button>
+                    <button type="button" onclick="setScheduleViewMode('month')" id="sv-month" class="text-[11px] font-bold px-3 py-1.5 rounded-lg transition" style="background:var(--accent);color:var(--btn-text-on-accent);border:1px solid transparent;">ماهانه</button>
+                    <button type="button" onclick="setScheduleViewMode('week')" id="sv-week" class="text-[11px] font-bold px-3 py-1.5 rounded-lg transition" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">هفتگی</button>
+                    <span style="width:1px;height:20px;background:var(--border-subtle);"></span>
+                    <button type="button" onclick="shiftSchedulePeriod(-1)" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--bg-main);color:var(--accent);border:1px solid var(--border-color);">‹ قبلی</button>
                     <button type="button" onclick="setScheduleWeekToToday()" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">امروز</button>
-                    <button type="button" onclick="shiftScheduleWeek(1)" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--bg-main);color:var(--accent);border:1px solid var(--border-color);">هفته بعد ›</button>
+                    <button type="button" onclick="shiftSchedulePeriod(1)" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--bg-main);color:var(--accent);border:1px solid var(--border-color);">بعدی ›</button>
                     <span class="text-sm font-black en" id="scheduleWeekLabel" style="color:var(--text-main);">—</span>
                 </div>
                 <div class="flex items-center gap-2 flex-wrap">
@@ -882,7 +950,7 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
         </div>
 
         <div class="workspace-panel p-5">
-            <h3 class="text-sm font-black mb-3" style="color:var(--text-main);">📋 سفارش‌های این هفته</h3>
+            <h3 class="text-sm font-black mb-3" id="scheduleListHeading" style="color:var(--text-main);">📋 سفارش‌های این هفته</h3>
             <div id="scheduleOrderList" class="space-y-2"></div>
         </div>
     </div>
@@ -967,6 +1035,11 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                     <option value="short_ymd">1985-04-12</option>
                 </select>
 
+                <label class="flex items-center gap-1.5 mb-3 text-[11px] cursor-pointer" style="color:var(--text-muted);">
+                    <input type="checkbox" id="pref-disable-completion-email" style="width:14px;height:14px;cursor:pointer;flex-shrink:0;">
+                    <span>پس از اتمام ترجمه، ایمیل اطلاع‌رسانی ارسال نشود</span>
+                </label>
+
                 <button type="button" onclick="savePreferences()" id="pref-save-btn" class="w-full font-black py-1.5 rounded-lg mt-1 transition text-xs" style="background:var(--accent);color:var(--btn-text-on-accent);">ذخیره تنظیمات ترجمه</button>
                 <p id="pref-save-status" class="text-[11px] mt-2 hidden"></p>
             </div>
@@ -974,10 +1047,12 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
             <!-- ═══ Per-document-type phrase overrides ═══════════════════
                  Every other hardcoded phrase a document type has (table
                  labels, disclaimer paragraphs, legal boilerplate) beyond
-                 the header/certification fields above. Only two document
-                 types are wired on the backend so far (police_certificate,
-                 vehicle_deed); the rest render a "به‌زودی" pending state
-                 rather than fake fields. ─────────────────────────────── -->
+                 the header/certification fields above -- rendered as a
+                 fixed-field editor by renderDocumentPhrases(). A document
+                 type with no fields of this kind yet (or one whose
+                 customization is an open-ended term glossary instead, see
+                 below) shows a "به‌زودی" pending state or the glossary
+                 table, never fake fields. ─────────────────────────────── -->
             <div class="workspace-panel p-6">
                 <h4 class="text-sm font-black mb-1 flex items-center gap-1.5" style="color:var(--text-main);">📝 عبارات اختصاصی هر نوع سند</h4>
                 <p class="text-[11px] mb-3" style="color:var(--text-muted);">عبارت ابتدا و انتهای سند در کارت کناری است. اینجا بقیهٔ عبارات ثابت هر نوع سند است — برچسب‌ها و بندهای توضیحی. نوع سند را انتخاب کنید و هر عبارت را ویرایش کنید.</p>
@@ -987,9 +1062,88 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
 
                 <div id="dp-field-list" class="flex flex-col gap-3 mb-1"></div>
 
-                <button type="button" onclick="saveDocumentPhrases()" id="dp-save-btn" class="w-full font-black py-1.5 rounded-lg mt-2 transition text-xs" style="background:var(--accent);color:var(--btn-text-on-accent);">ذخیرهٔ عبارات این سند</button>
+                <!-- ═══ Term glossary (open-ended Persian-term -> English
+                     table, e.g. academic_transcript's course-name terms) --
+                     shown instead of dp-field-list for a document type
+                     whose DP_DOCS entry has a `glossary` config. See
+                     renderTermGlossary() in app.js. ─────────────────── -->
+                <div id="dp-glossary-section" class="hidden">
+                    <p class="text-[11px] mb-2" style="color:var(--text-muted);">واژه‌های فارسیِ نام درس که همیشه باید به همان معادل انگلیسیِ ثابت ترجمه شوند. معادل هر واژه را ویرایش کنید، واژهٔ جدید اضافه کنید، یا با جست‌وجو در فهرست بگردید.</p>
+
+                    <input type="text" id="dp-glossary-search" class="auth-input mb-2" placeholder="جست‌وجو در واژه‌ها (فارسی یا انگلیسی)...">
+
+                    <div id="dp-glossary-rows" class="flex flex-col gap-2 mb-3"></div>
+
+                    <div class="flex items-center gap-2 p-2 rounded-lg mb-1" style="background:var(--panel-bg);border:1px dashed var(--border-subtle);">
+                        <input type="text" id="dp-glossary-new-term" class="auth-input w-full fa" style="font-size:.72rem;" placeholder="واژهٔ فارسی جدید...">
+                        <input type="text" id="dp-glossary-new-english" class="auth-input w-full en" dir="ltr" style="font-size:.72rem;" placeholder="English equivalent...">
+                        <button type="button" id="dp-glossary-add-btn" class="text-[10px] font-bold px-2 py-1.5 rounded-md shrink-0" style="background:var(--accent);color:var(--btn-text-on-accent);">+ افزودن</button>
+                    </div>
+                    <p id="dp-glossary-add-status" class="text-[11px] mb-1 hidden" style="color:#f87171;"></p>
+                </div>
+
+                <button type="button" onclick="saveCurrentDocumentSettings()" id="dp-save-btn" class="w-full font-black py-1.5 rounded-lg mt-2 transition text-xs" style="background:var(--accent);color:var(--btn-text-on-accent);">ذخیرهٔ عبارات این سند</button>
                 <p id="dp-save-status" class="text-[11px] mt-2 hidden"></p>
             </div>
+        </div>
+
+    </div>
+</section>
+
+<!-- ── VIEW · حضور غیاب پرسنل (Staff Attendance) ── its own top-level page
+     (not a settings card) for office accounts (see hr.py): defining staff
+     (name + PIN, no login of their own), seeing who's clocked in right
+     now, a full timesheet, and the clock in/out action itself -- all in
+     one place, reachable from the header's "🕐 حضور غیاب پرسنل" button.
+     Clock punches require the request's IP to match this office's own
+     registered WiFi IP, set here. ──────────────────────────────────────── -->
+<section id="hrPage" class="fixed inset-0 z-40 hidden overflow-y-auto p-4 pt-24 md:p-8 md:pt-24" style="background: var(--bg-secondary);">
+    <div class="max-w-4xl mx-auto space-y-5">
+        <div class="flex items-center justify-between gap-3 flex-wrap">
+            <h2 class="text-xl font-black flex items-center gap-2" style="color:var(--text-main);">
+                🕐 حضور غیاب پرسنل
+            </h2>
+            <div class="flex items-center gap-2">
+                <button type="button" onclick="openHrClockWidget()" class="text-xs font-black px-4 py-2 rounded-xl transition" style="background:var(--accent);color:var(--btn-text-on-accent);">🕐 ثبت ورود / خروج</button>
+                <button type="button" onclick="closeHrPage()" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">میز کار ترجمه ←</button>
+            </div>
+        </div>
+
+        <div class="workspace-panel p-6">
+            <div class="flex items-center gap-2 flex-wrap mb-1 p-3 rounded-lg" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
+                <span class="text-[11px]" style="color:var(--text-muted);">موقعیت ثبت‌شدهٔ دفتر (شرط ثبت ورود/خروج):</span>
+                <span id="hr-location" class="text-xs font-bold en" dir="ltr" style="color:var(--text-main);">—</span>
+                <button type="button" onclick="registerHrLocation()" id="hr-location-register-btn" class="text-[11px] font-bold px-3 py-1.5 rounded-lg mr-auto" style="background:var(--accent);color:var(--btn-text-on-accent);">ثبت موقعیت فعلی (دفتر)</button>
+            </div>
+            <p class="text-[11px] mb-1" style="color:var(--text-muted);">این دکمه را یک‌بار، از داخل دفتر، بزنید. ثبت ورود/خروج کارمندان فقط تا شعاع ۱۵۰ متری همین موقعیت امکان‌پذیر خواهد بود.</p>
+            <p id="hr-location-status" class="text-[11px] mb-1 hidden"></p>
+        </div>
+
+        <div class="workspace-panel p-6">
+            <h4 class="text-sm font-black mb-3 flex items-center gap-1.5" style="color:var(--text-main);">🟢 کارمندان حاضر اکنون</h4>
+            <div id="hr-present-now-list" class="flex flex-col gap-2"></div>
+        </div>
+
+        <div class="workspace-panel p-6">
+            <div class="flex items-center justify-between mb-2">
+                <h4 class="text-sm font-black flex items-center gap-1.5" style="color:var(--text-main);">🧑‍💼 لیست کارمندان</h4>
+                <button type="button" onclick="openAddHrStaffModal()" class="text-[11px] font-bold px-3 py-1.5 rounded-lg flex items-center gap-1" style="background:var(--accent);color:var(--btn-text-on-accent);">
+                    <span style="font-size:.95em;">+</span> افزودن کارمند جدید
+                </button>
+            </div>
+            <p class="text-[11px] mb-4" style="color:var(--text-muted);">کارمندان دفتر خود را با یک پین کوتاه تعریف کنید تا فقط از طریق وای‌فای دفتر بتوانند ورود/خروج خود را ثبت کنند.</p>
+            <div id="hr-staff-list" class="flex flex-col gap-2"></div>
+        </div>
+
+        <div class="workspace-panel p-6">
+            <h4 class="text-sm font-black mb-2 flex items-center gap-1.5" style="color:var(--text-main);">📋 کارکرد (تایم‌شیت)</h4>
+            <div class="flex items-center gap-2 flex-wrap mb-3">
+                <label class="text-[11px]" style="color:var(--text-muted);">از:</label>
+                <input type="date" id="hr-attendance-from" class="auth-input" style="width:auto;" onchange="loadHrAttendance()">
+                <label class="text-[11px]" style="color:var(--text-muted);">تا:</label>
+                <input type="date" id="hr-attendance-to" class="auth-input" style="width:auto;" onchange="loadHrAttendance()">
+            </div>
+            <div id="hr-attendance-list" class="flex flex-col gap-2"></div>
         </div>
     </div>
 </section>
@@ -1009,6 +1163,7 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                 💰 نرخنامه من
             </h2>
             <div class="flex items-center gap-2">
+                <button type="button" onclick="printMyPriceList()" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">🖨️ چاپ / PDF</button>
                 <button type="button" onclick="openMyplBulkIncreaseModal()" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">📈 افزایش نرخ‌ها</button>
                 <button type="button" onclick="closeMyPriceListPage()" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">میز کار ترجمه ←</button>
             </div>
@@ -1097,6 +1252,15 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
 
                     <h3 class="text-sm font-black mt-5 mb-3 flex items-center gap-1.5" style="color:var(--text-main);">👨‍👩‍👧‍👦 نفرات مرتبط</h3>
                     <div id="cp-related-list" class="space-y-1.5 mb-4"></div>
+
+                    <label for="cp-target-lang" class="auth-label">زبان مقصد ترجمه</label>
+                    <select id="cp-target-lang" class="auth-input mb-1" onchange="saveClientTargetLanguage()">
+                        <option value="">English (پیش‌فرض)</option>
+                        <option value="French">فرانسوی</option>
+                        <option value="Italian">ایتالیایی</option>
+                        <option value="Spanish">اسپانیایی</option>
+                    </select>
+                    <p class="text-[11px] mb-3" style="color:var(--text-muted);">این زبان برای تمام ترجمه‌های آینده این مشتری استفاده می‌شود.</p>
 
                     <label for="cp-notes" class="auth-label">یادداشت</label>
                     <textarea id="cp-notes" rows="3" class="auth-input resize-none mb-2" placeholder="یادداشتی برای این مشتری..."></textarea>

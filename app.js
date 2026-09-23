@@ -40,18 +40,6 @@ const DOCUMENT_REGISTRY = {
         active:              true,
         usePassportSession:  true,
     },
-    'marriage-certificate': {
-        label:               'سند ازدواج',
-        endpoint:            '',
-        active:              false,
-        usePassportSession:  true,
-    },
-    'birth-certificate': {
-        label:               'شناسنامه',
-        endpoint:            '',
-        active:              false,
-        usePassportSession:  true,
-    },
     'notary-deed': {
         label:               'اسناد دفترخانه (سند رسمی)',
         endpoint: `${BACKEND}/api/translate/notary-deed`,
@@ -68,7 +56,12 @@ const DOCUMENT_REGISTRY = {
         label:               'آگهی تاسیس / تغییرات (روزنامه رسمی)',
         endpoint: `${BACKEND}/api/translate/gazette-notice`,
         active:              true,
-        usePassportSession:  false,
+        // Backend (gazette_notice.py) already accepts session_ids and
+        // matches them against named individuals (board members, etc.)
+        // via match_parties_to_identities -- this was just never turned
+        // on here, so the passport UI (including "+ افزودن پاسپورت" for
+        // more than one named individual) never showed for this type.
+        usePassportSession:  true,
     },
     'high-school-transcript': {
         label:               'ریزنمرات دبیرستان',
@@ -223,9 +216,9 @@ function loadSession() {
             user_id: userId,
             email,
             username: userName || (email ? email.split('@')[0] : ''),
-            type: 'individual',
-            contact: '',
-            office: '',
+            type: localStorage.getItem('deept_account_type') || 'individual',
+            contact: localStorage.getItem('deept_contact_info') || '',
+            office: localStorage.getItem('deept_office_name') || '',
             is_admin: localStorage.getItem('deept_is_admin') === '1'
         };
     }
@@ -240,6 +233,41 @@ function loadSession() {
         localStorage.removeItem('deept_mock_user');
         return null;
     }
+}
+
+async function syncProfileFromServer() {
+    if (!currentUserSession || !currentUserSession.token) return;
+    try {
+        const res = await fetch(`${CORE}/auth/verify`, {
+            headers: { 'Authorization': `Bearer ${currentUserSession.token}` }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data.valid) return;
+        let changed = false;
+        if (data.account_type && data.account_type !== currentUserSession.type) {
+            localStorage.setItem('deept_account_type', data.account_type);
+            currentUserSession.type = data.account_type;
+            changed = true;
+        }
+        // office_name/contact_info can legitimately be cleared back to ''
+        // by the server (see saveProfileConfiguration()), unlike
+        // account_type above -- so these compare/store even when falsy,
+        // rather than only ever moving away from the default.
+        const officeName = data.office_name || '';
+        if (officeName !== (currentUserSession.office || '')) {
+            localStorage.setItem('deept_office_name', officeName);
+            currentUserSession.office = officeName;
+            changed = true;
+        }
+        const contactInfo = data.contact_info || '';
+        if (contactInfo !== (currentUserSession.contact || '')) {
+            localStorage.setItem('deept_contact_info', contactInfo);
+            currentUserSession.contact = contactInfo;
+            changed = true;
+        }
+        if (changed) syncUserSessionDOM();
+    } catch (e) { /* offline or Core unreachable -- keep the cached value, try again next load */ }
 }
 
 let currentUserSession = loadSession();
@@ -342,6 +370,10 @@ function syncUserSessionDOM() {
     toggle('settingsHeaderBtn',  !loggedIn);
     toggle('priceListHeaderBtn', !loggedIn);
     toggle('adminPanelHeaderBtn', !loggedIn || localStorage.getItem('deept_is_admin') !== '1');
+    // HR clock in/out: office-only sub-users (see hr.py) -- an "individual"
+    // account has no staff to punch in/out, so this stays hidden for it.
+    const isOffice = loggedIn && currentUserSession.type === 'office';
+    toggle('hrClockHeaderBtn',  !isOffice);
     toggle('logoutHeaderBtn',    !loggedIn);
     // Side rail: same destinations/visibility as the header-bar pills
     // above, just also shown/hidden here (see #sideRail in index.html).
@@ -352,6 +384,7 @@ function syncUserSessionDOM() {
     toggle('railPriceListBtn',   !loggedIn);
     toggle('railSettingsBtn',    !loggedIn);
     toggle('railAdminPanelBtn',  !loggedIn || localStorage.getItem('deept_is_admin') !== '1');
+    toggle('railHrClockBtn',    !isOffice);
     const ub = document.getElementById('userBadge');
     if (ub) { ub.classList.toggle('hidden', !loggedIn); ub.style.display = loggedIn ? 'flex' : 'none'; }
     if (loggedIn) {
@@ -386,6 +419,9 @@ function executeLogout() {
     localStorage.removeItem('deept_user_name');
     localStorage.removeItem('deept_user_email');
     localStorage.removeItem('deept_is_admin');
+    localStorage.removeItem('deept_account_type');
+    localStorage.removeItem('deept_office_name');
+    localStorage.removeItem('deept_contact_info');
     closeLogoutConfirm();
     closeWorkspaceDashboard();
     closeChatInterface();
@@ -401,20 +437,424 @@ document.getElementById('myplRepriceModal').addEventListener('click', function(e
 });
 
 // ═══════════════════════════════════════════════════════════
+// HR CLOCK IN / CLOCK OUT -- office accounts only (see hr.py). No login of
+// their own for staff: a PIN entered here, under the OFFICE's own already-
+// logged-in session, is all that identifies which staff member is
+// punching -- same as a shared physical time clock. The server also
+// requires the browser's current GPS position to be within a small
+// radius of this office's registered location (see حضور غیاب پرسنل's
+// loadHrSettings(), for registering it) -- replaced an earlier WiFi-IP
+// check, which broke every time the office's ISP reassigned its public IP.
+// ═══════════════════════════════════════════════════════════
+
+// Promise wrapper around the Geolocation API, shared by the clock-in/out
+// PIN pad and registerHrLocation() below.
+function _getGeoPosition() {
+    return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+            reject(new Error('مرورگر شما از موقعیت‌یابی پشتیبانی نمی‌کند.'));
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(
+            pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+            err => reject(new Error(
+                err.code === err.PERMISSION_DENIED
+                    ? 'اجازهٔ دسترسی به موقعیت مکانی داده نشد. برای ثبت ورود/خروج باید دسترسی موقعیت مکانی را در مرورگر فعال کنید.'
+                    : 'دریافت موقعیت مکانی ناموفق بود. اتصال GPS/اینترنت را بررسی کنید.'
+            )),
+            { enableHighAccuracy: true, timeout: 10000 }
+        );
+    });
+}
+
+function openHrClockWidget() {
+    document.getElementById('hr-clock-pin').value = '';
+    document.getElementById('hr-clock-status').classList.add('hidden');
+    document.getElementById('hrClockOverlay').classList.remove('hidden');
+    document.getElementById('hr-clock-pin').focus();
+}
+function closeHrClockWidget() {
+    document.getElementById('hrClockOverlay').classList.add('hidden');
+}
+document.getElementById('hrClockOverlay').addEventListener('click', function(e) {
+    if (e.target === this) closeHrClockWidget();
+});
+document.getElementById('hr-clock-pin').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') submitHrClock();
+});
+
+async function submitHrClock() {
+    const pin = document.getElementById('hr-clock-pin').value.trim();
+    const status = document.getElementById('hr-clock-status');
+    const btn = document.getElementById('hr-clock-submit-btn');
+    status.classList.remove('hidden');
+    if (!pin) {
+        status.style.color = '#f87171';
+        status.textContent = 'پین را وارد کنید.';
+        return;
+    }
+    btn.disabled = true;
+    status.style.color = 'var(--text-muted)';
+    status.textContent = 'در حال دریافت موقعیت مکانی...';
+    try {
+        const { lat, lng } = await _getGeoPosition();
+        status.textContent = 'در حال ثبت...';
+        const res = await fetch(`${CORE}/hr/clock`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ pin, lat, lng })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || 'خطای سرور');
+        const time = new Date(data.record.clock_in && data.action === 'clock_in' ? data.record.clock_in : data.record.clock_out)
+            .toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
+        status.style.color = 'var(--accent)';
+        status.textContent = data.action === 'clock_in'
+            ? `✅ ورود ${data.record.staff_name} ساعت ${time} ثبت شد.`
+            : `✅ خروج ${data.record.staff_name} ساعت ${time} ثبت شد.`;
+        document.getElementById('hr-clock-pin').value = '';
+        // The clock widget is only ever opened from within حضور غیاب
+        // پرسنل now (see index.html) -- refresh its "present now" list so
+        // this punch shows up without needing a manual reload.
+        loadHrAttendance();
+    } catch (e) {
+        status.style.color = '#f87171';
+        status.textContent = `❌ ${e.message || 'خطای نامشخص'}`;
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+// ── HR settings panel (حضور غیاب پرسنل) ──────────────────────────────────
+// Office location (geofence) registration + staff roster management + a
+// read-only timesheet view. Manual correction of a forgotten clock-out is
+// supported server-side (PATCH /hr/attendance/{id}, see hr.py) but has no
+// editing UI here yet -- v1 of this panel is view + roster management only.
+let hrStaffList = [];
+
+async function loadHrSettings() {
+    const fromInput = document.getElementById('hr-attendance-from');
+    const toInput = document.getElementById('hr-attendance-to');
+    if (!fromInput.value && !toInput.value) {
+        const today = new Date();
+        const twoWeeksAgo = new Date(today.getTime() - 13 * 24 * 60 * 60 * 1000);
+        toInput.value = today.toISOString().slice(0, 10);
+        fromInput.value = twoWeeksAgo.toISOString().slice(0, 10);
+    }
+    await Promise.all([loadHrLocation(), loadHrStaff(), loadHrAttendance()]);
+}
+
+async function loadHrLocation() {
+    try {
+        const res = await fetch(`${CORE}/hr/location`, { headers: { 'Authorization': `Bearer ${getToken()}` } });
+        const data = await res.json();
+        document.getElementById('hr-location').textContent =
+            (data.office_lat != null && data.office_lng != null) ? 'ثبت شده ✅' : 'ثبت نشده';
+    } catch (e) {
+        document.getElementById('hr-location').textContent = 'ثبت نشده';
+    }
+}
+
+async function registerHrLocation() {
+    const btn = document.getElementById('hr-location-register-btn');
+    const status = document.getElementById('hr-location-status');
+    btn.disabled = true;
+    status.classList.remove('hidden');
+    status.style.color = 'var(--text-muted)';
+    status.textContent = 'در حال دریافت موقعیت مکانی...';
+    try {
+        const { lat, lng } = await _getGeoPosition();
+        status.textContent = 'در حال ثبت...';
+        const res = await fetch(`${CORE}/hr/location/register`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lat, lng })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || 'خطای سرور');
+        document.getElementById('hr-location').textContent = 'ثبت شده ✅';
+        status.style.color = 'var(--accent)';
+        status.textContent = '✅ موقعیت فعلی این دستگاه به‌عنوان محل دفتر ثبت شد.';
+    } catch (e) {
+        status.style.color = '#f87171';
+        status.textContent = `❌ ${e.message || 'خطای نامشخص'}`;
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function loadHrStaff() {
+    try {
+        const res = await fetch(`${CORE}/hr/staff`, { headers: { 'Authorization': `Bearer ${getToken()}` } });
+        hrStaffList = await res.json();
+    } catch (e) {
+        hrStaffList = [];
+    }
+    renderHrStaffList();
+}
+
+// Small fixed palette (not random) so a staff member's avatar color stays
+// stable across re-renders -- picked by a cheap hash of their id, not
+// insertion order, so it doesn't shift as other staff are added/removed.
+const HR_AVATAR_COLORS = ['#00d4ff', '#c084fc', '#34c759', '#f59e0b', '#f87171', '#38bdf8'];
+function _hrAvatarColor(id) {
+    let hash = 0;
+    for (const ch of String(id)) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+    return HR_AVATAR_COLORS[hash % HR_AVATAR_COLORS.length];
+}
+
+function renderHrStaffList() {
+    const list = document.getElementById('hr-staff-list');
+    list.innerHTML = '';
+    if (!hrStaffList.length) {
+        const note = document.createElement('div');
+        note.className = 'text-[11px] p-4 rounded-xl text-center';
+        note.style.cssText = 'background:var(--bg-main);border:1px dashed var(--border-subtle);color:var(--text-muted);';
+        note.textContent = 'هنوز کارمندی ثبت نشده — با دکمهٔ «افزودن کارمند جدید» شروع کنید.';
+        list.appendChild(note);
+        return;
+    }
+    hrStaffList.forEach(s => {
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-3 p-3 rounded-xl transition';
+        row.style.cssText = `background:var(--bg-main);border:1px solid var(--border-subtle);opacity:${s.is_active ? '1' : '.6'};`;
+        const initial = (s.full_name || '؟').trim().charAt(0) || '؟';
+        row.innerHTML = `
+          <div class="w-9 h-9 rounded-full flex items-center justify-center font-black text-sm shrink-0" style="background:${_hrAvatarColor(s.id)};color:#0a0a0a;">${initial}</div>
+          <div style="flex:1;min-width:0;">
+            <div class="text-xs font-bold truncate" style="color:var(--text-main);">${s.full_name}</div>
+            <div class="text-[10px] truncate" style="color:var(--text-muted);">${s.role || 'بدون سمت مشخص'}</div>
+          </div>
+          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0" style="background:${s.is_active ? 'rgba(52,199,89,.12);color:#34c759' : 'rgba(148,148,148,.15);color:#999'};">${s.is_active ? '● فعال' : '○ غیرفعال'}</span>
+          <div class="flex items-center gap-1 shrink-0">
+            <button type="button" data-hr-toggle-staff="${s.id}" data-hr-active="${s.is_active}" title="${s.is_active ? 'غیرفعال کردن' : 'فعال کردن'}" class="w-7 h-7 rounded-lg flex items-center justify-center text-xs transition" style="background:var(--panel-bg);color:var(--text-muted);border:1px solid var(--border-subtle);">${s.is_active ? '⏸' : '▶'}</button>
+            <button type="button" data-hr-delete-staff="${s.id}" title="حذف" class="w-7 h-7 rounded-lg flex items-center justify-center text-xs transition" style="background:rgba(248,113,113,.1);color:#f87171;border:1px solid rgba(248,113,113,.3);">🗑</button>
+          </div>
+        `;
+        list.appendChild(row);
+    });
+}
+
+function openAddHrStaffModal() {
+    document.getElementById('hr-new-staff-name').value = '';
+    document.getElementById('hr-new-staff-role').value = '';
+    document.getElementById('hr-new-staff-pin').value = '';
+    document.getElementById('hr-staff-add-status').classList.add('hidden');
+    document.getElementById('addHrStaffModal').classList.remove('hidden');
+    document.getElementById('hr-new-staff-name').focus();
+}
+function closeAddHrStaffModal() {
+    document.getElementById('addHrStaffModal').classList.add('hidden');
+}
+document.getElementById('addHrStaffModal').addEventListener('click', function(e) {
+    if (e.target === this) closeAddHrStaffModal();
+});
+
+document.addEventListener('click', (e) => {
+    const toggleBtn = e.target.closest('[data-hr-toggle-staff]');
+    if (toggleBtn) {
+        toggleHrStaffActive(toggleBtn.dataset.hrToggleStaff, toggleBtn.dataset.hrActive !== 'true');
+        return;
+    }
+    const delBtn = e.target.closest('[data-hr-delete-staff]');
+    if (delBtn) deleteHrStaff(delBtn.dataset.hrDeleteStaff);
+});
+
+async function toggleHrStaffActive(staffId, newActive) {
+    try {
+        const res = await fetch(`${CORE}/hr/staff/${staffId}`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ is_active: newActive })
+        });
+        if (!res.ok) throw new Error();
+        await loadHrStaff();
+    } catch (e) { /* row just stays as it was -- no destructive fallback needed */ }
+}
+
+async function deleteHrStaff(staffId) {
+    if (!confirm('این کارمند برای همیشه حذف شود؟ سابقهٔ حضور او در تایم‌شیت باقی می‌ماند اما نامش دیگر نمایش داده نخواهد شد.')) return;
+    try {
+        const res = await fetch(`${CORE}/hr/staff/${staffId}`, {
+            method: 'DELETE', headers: { 'Authorization': `Bearer ${getToken()}` }
+        });
+        if (!res.ok) throw new Error();
+        await loadHrStaff();
+    } catch (e) { /* no-op on failure -- row stays visible, translator can retry */ }
+}
+
+async function addHrStaff() {
+    const nameInput = document.getElementById('hr-new-staff-name');
+    const roleInput = document.getElementById('hr-new-staff-role');
+    const pinInput = document.getElementById('hr-new-staff-pin');
+    const status = document.getElementById('hr-staff-add-status');
+    const full_name = nameInput.value.trim();
+    const role = roleInput.value.trim();
+    const pin = pinInput.value.trim();
+    status.classList.add('hidden');
+    if (!full_name || !pin) {
+        status.style.color = '#f87171';
+        status.textContent = 'نام و پین را وارد کنید.';
+        status.classList.remove('hidden');
+        return;
+    }
+    const btn = document.getElementById('hr-staff-add-btn');
+    btn.disabled = true;
+    try {
+        const res = await fetch(`${CORE}/hr/staff`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ full_name, role: role || null, pin })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || 'خطای سرور');
+        status.style.color = 'var(--accent)';
+        status.textContent = `✅ ${data.full_name} با موفقیت اضافه شد.`;
+        status.classList.remove('hidden');
+        await loadHrStaff();
+        setTimeout(closeAddHrStaffModal, 700);
+    } catch (e) {
+        status.style.color = '#f87171';
+        status.textContent = `❌ ${e.message || 'خطای نامشخص'}`;
+        status.classList.remove('hidden');
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+async function loadHrAttendance() {
+    const from = document.getElementById('hr-attendance-from').value;
+    const to = document.getElementById('hr-attendance-to').value;
+    const params = new URLSearchParams();
+    if (from) params.set('from', from);
+    // A date-only "to" (from <input type=date>) must include the WHOLE
+    // day -- appending the day's last second turns it into an inclusive
+    // upper bound for the plain string comparison hr.py's /hr/attendance
+    // does against each record's full ISO clock_in timestamp.
+    if (to) params.set('to', `${to}T23:59:59`);
+    try {
+        const res = await fetch(`${CORE}/hr/attendance?${params}`, { headers: { 'Authorization': `Bearer ${getToken()}` } });
+        const rows = await res.json();
+        renderHrAttendanceList(rows);
+        // "Present now" is just this same result set filtered down to
+        // still-open records (no clock_out yet) -- no second round trip.
+        // Someone who clocked in before the selected "از" date won't show
+        // here, but the date range defaults to the last two weeks (see
+        // loadHrSettings()), which comfortably covers any forgotten
+        // clock-out.
+        renderHrPresentNow(rows.filter(r => !r.clock_out));
+    } catch (e) {
+        renderHrAttendanceList([]);
+        renderHrPresentNow([]);
+    }
+}
+
+function renderHrPresentNow(rows) {
+    const list = document.getElementById('hr-present-now-list');
+    if (!list) return;
+    list.innerHTML = '';
+    if (!rows || !rows.length) {
+        const note = document.createElement('div');
+        note.className = 'text-[11px] p-3 rounded-lg';
+        note.style.cssText = 'background:var(--bg-main);border:1px dashed var(--border-subtle);color:var(--text-muted);';
+        note.textContent = 'در حال حاضر کسی حاضر ثبت نشده است.';
+        list.appendChild(note);
+        return;
+    }
+    rows.forEach(r => {
+        const inTime = new Date(r.clock_in).toLocaleString('fa-IR');
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-between gap-2 flex-wrap p-2.5 rounded-lg text-[11px]';
+        row.style.cssText = 'background:rgba(52,199,89,.08);border:1px solid rgba(52,199,89,.25);';
+        row.innerHTML = `
+          <span class="font-bold flex items-center gap-1.5" style="color:var(--text-main);"><span style="color:#34c759;">●</span> ${r.staff_name || '؟'}</span>
+          <span style="color:var(--text-muted);">از ساعت ${inTime}</span>
+        `;
+        list.appendChild(row);
+    });
+}
+
+function renderHrAttendanceList(rows) {
+    const list = document.getElementById('hr-attendance-list');
+    list.innerHTML = '';
+    if (!rows || !rows.length) {
+        const note = document.createElement('div');
+        note.className = 'text-[11px] p-3 rounded-lg';
+        note.style.cssText = 'background:var(--bg-main);border:1px dashed var(--border-subtle);color:var(--text-muted);';
+        note.textContent = 'رکوردی در این بازه یافت نشد.';
+        list.appendChild(note);
+        return;
+    }
+    rows.forEach(r => {
+        const inTime = new Date(r.clock_in).toLocaleString('fa-IR');
+        const outTime = r.clock_out ? new Date(r.clock_out).toLocaleString('fa-IR') : 'هنوز حاضر است';
+        const row = document.createElement('div');
+        row.className = 'p-2 rounded-lg text-[11px]';
+        row.style.cssText = 'background:var(--bg-main);border:1px solid var(--border-subtle);';
+        row.innerHTML = `
+          <div class="flex items-center justify-between gap-2 flex-wrap">
+            <span class="font-bold" style="color:var(--text-main);">${r.staff_name || '؟'}</span>
+            <span style="color:var(--text-muted);">ورود: ${inTime} — خروج: ${outTime}</span>
+          </div>
+          ${r.note ? `<div style="color:var(--text-muted);margin-top:2px;">یادداشت: ${r.note}</div>` : ''}
+        `;
+        list.appendChild(row);
+    });
+}
+
+// ═══════════════════════════════════════════════════════════
 // PROFILE
 // ═══════════════════════════════════════════════════════════
 function toggleProfileAccountType() {
     document.getElementById('officeFieldsBlock').classList.toggle('hidden', document.getElementById('accountTypeToggle').value !== 'office');
 }
-function saveProfileConfiguration() {
+async function saveProfileConfiguration() {
     if (!currentUserSession) return;
-    currentUserSession.type    = document.getElementById('accountTypeToggle').value;
-    currentUserSession.contact = document.getElementById('profileContactInput').value;
-    currentUserSession.office  = currentUserSession.type === 'office' ? document.getElementById('officeNameInput').value : '';
-    localStorage.setItem('deept_mock_user', JSON.stringify(currentUserSession));
-    document.getElementById('profileDisplayName').textContent = currentUserSession.office || currentUserSession.username;
-    document.getElementById('headerUserName').textContent     = currentUserSession.office || currentUserSession.username;
-    showToast('✅ پروفایل بروزرسانی شد.');
+    const type    = document.getElementById('accountTypeToggle').value;
+    const contact = document.getElementById('profileContactInput').value;
+    const office  = type === 'office' ? document.getElementById('officeNameInput').value : '';
+
+    // Test/mock session (see initializeApp()'s ?test=1 handling) has no
+    // real account behind it to PATCH -- keep the old localStorage-only
+    // behavior for it.
+    if (!currentUserSession.token) {
+        currentUserSession.type    = type;
+        currentUserSession.contact = contact;
+        currentUserSession.office  = office;
+        localStorage.setItem('deept_mock_user', JSON.stringify(currentUserSession));
+        document.getElementById('profileDisplayName').textContent = currentUserSession.office || currentUserSession.username;
+        document.getElementById('headerUserName').textContent     = currentUserSession.office || currentUserSession.username;
+        showToast('✅ پروفایل بروزرسانی شد.');
+        return;
+    }
+
+    const btn = document.getElementById('saveProfileBtn');
+    const originalLabel = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = 'در حال ذخیره...';
+    try {
+        const res = await fetch(`${CORE}/auth/me`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${currentUserSession.token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ account_type: type, office_name: office, contact_info: contact })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || 'خطای سرور');
+
+        localStorage.setItem('deept_account_type', data.account_type || 'individual');
+        localStorage.setItem('deept_office_name', data.office_name || '');
+        localStorage.setItem('deept_contact_info', data.contact_info || '');
+        currentUserSession.type    = data.account_type || 'individual';
+        currentUserSession.office  = data.office_name || '';
+        currentUserSession.contact = data.contact_info || '';
+        syncUserSessionDOM();
+        showToast('✅ پروفایل بروزرسانی شد.');
+    } catch (e) {
+        showToast('❌ خطا در ذخیره پروفایل: ' + e.message);
+    } finally {
+        btn.disabled = false;
+        btn.textContent = originalLabel;
+    }
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -438,6 +878,7 @@ async function loadPreferences() {
         document.getElementById('pref-date-format').value = p.date_format || '';
         document.getElementById('pref-hide-header').checked = !!p.hide_header;
         document.getElementById('pref-hide-certification').checked = !!p.hide_certification;
+        document.getElementById('pref-disable-completion-email').checked = !!p.disable_completion_email;
         togglePrefHidden('header');
         togglePrefHidden('certification');
     } catch (e) {
@@ -480,6 +921,7 @@ async function savePreferences() {
         date_format: document.getElementById('pref-date-format').value || null,
         hide_header: document.getElementById('pref-hide-header').checked,
         hide_certification: document.getElementById('pref-hide-certification').checked,
+        disable_completion_email: document.getElementById('pref-disable-completion-email').checked,
     };
 
     const token = getToken();
@@ -536,19 +978,70 @@ const DP_DOCS = [
         { key:"note_b", label:"نکتهٔ ب — تعویض پلاک", kind:"simple", def:"As the plate number is registered under the owner’s name, the former owner’s plates must be removed at transfer units under police supervision, and new plates must be registered under the new owner’s name and installed." },
         { key:"note_4", label:"تذکر ۴ — کارت شناسایی خودرو", kind:"simple", def:"The vehicle ID card or any other services will be sent to the owner’s residence. According to Article 6 of Traffic Bylaw, the owner is obliged to refer to plate changing centers, vehicle service offices or Police+10 offices to alter his/her address within 10 days in case his/her address changes." },
     ]},
-    { id:"notary_deed", label:"سند دفترخانه", full:false, fields:[] },
-    { id:"academic_transcript", label:"ریزنمرات دانشگاهی", full:false, fields:[] },
-    { id:"azad_transcript", label:"ریزنمرات دانشگاه آزاد", full:false, fields:[] },
-    { id:"property_deed_owner", label:"سند مالکیت ملک", full:false, fields:[] },
+    { id:"notary_deed", label:"سند دفترخانه", full:true, fields:[
+        { key:"disclaimer_verification", label:"شناسه سند و اطلاعات اصلی این سند، پس از امضای الکترونیکی سردفتر، از طریق درگاه سازمان ثبت اسناد و املاک کشور به نشانی www.ssaa.ir قابل استعلام است.", kind:"simple", def:"The document ID and the main information of this deed can be verified after the electronic signature by the notary public, through the portal of the Registration Organization for Deeds and Real Estates at www.ssaa.ir. " },
+        { key:"disclaimer_forgery", label:"جعل اسناد رسمی مطابق مواد ۵۳۲ و ۵۳۳ قانون مجازات اسلامی قابل تعقیب و مجازات است.", kind:"simple", def:"Any forgery of official documents will be subject to Articles 532 and 533 of the Islamic Penal Code." },
+        { key:"registration_statement", label:"این سند به شماره {{reg_no}} در دفترخانه اسناد رسمی شماره {{notary_office}} {{notary_loc}} به تاریخ {{reg_date}} ثبت گردید.", kind:"complex",
+          tokens:[{key:"reg_no",label:"شماره ثبت"},{key:"notary_loc",label:"محل دفترخانه"},{key:"notary_office",label:"شماره دفترخانه"},{key:"reg_date",label:"تاریخ ثبت"}],
+          def:"This document was registered under No. {{reg_no}} in {{notary_loc}} Notary Public Office No. {{notary_office}}, dated {{reg_date}}." },
+        { key:"notary_certification_statement", label:"با احراز هویت طرفین، اینجانب سردفتر گواهی می‌نمایم که کلیه مندرجات این سند در حضور اینجانب تنظیم گردیده است. امضا، مهر و منگنه شده توسط {{notary_name}}، سردفتر اسناد رسمی شماره {{notary_office}} {{notary_loc}}.", kind:"complex",
+          tokens:[{key:"notary_name",label:"نام سردفتر"},{key:"notary_loc",label:"محل دفترخانه"},{key:"notary_office",label:"شماره دفترخانه"}],
+          def:"Having ascertained of the parties' identities, I, the notary public, certify that all written contents of this deed were drawn up before me. Signed, sealed and embossed by {{notary_name}}, {{notary_loc}} Notary Public No. {{notary_office}}." },
+    ]},
+    { id:"academic_transcript", label:"ریزنمرات دانشگاهی", full:false, fields:[],
+      // Open-ended Persian-term -> English-equivalent glossary (course
+      // names DeepT-Back-End's academic_transcript.py always translates
+      // one specific way, e.g. "کارآموزی" -> "Training"), distinct from
+      // the fixed-field phrase overrides above -- see renderTermGlossary().
+      // These three are the exact built-in defaults from that file's
+      // DEFAULT_COURSE_NAME_GLOSSARY; a translator can override any of
+      // them or add entirely new terms via the searchable table below.
+      glossary: { defaults: {
+          "کارآموزی در عرصه": "Clinical Training",
+          "کارآموزی": "Training",
+          "کارورزی": "Internship",
+      } },
+    },
+    { id:"azad_transcript", label:"ریزنمرات دانشگاه آزاد", full:true, fields:[
+        { key:"course_list_intro", label:"فهرست دروس و ریزنمرات نامبرده در طی دوره تحصیلی به شرح زیر می‌باشد.", kind:"simple", def:"The course list and transcript of records are displayed below." },
+    ],
+      // Course-name terms this document type always translates one
+      // specific way (enforced as a mandatory instruction to the
+      // extraction model, not a post-processing substitution -- see
+      // azad_transcript.py's DEFAULT_COURSE_NAME_GLOSSARY), same
+      // renderTermGlossary() UI as academic_transcript's glossary below.
+      glossary: { defaults: {
+          "روستا": "Rural Architecture",
+          "دفاع مقدس": "Iran-Iraq War",
+      } },
+    },
+    { id:"property_deed_owner", label:"سند مالکیت ملک", full:true, fields:[
+        { key:"hologram_seal_note", label:"تشریح هولوگرام اداره ثبت", kind:"simple", def:"Affixed Hologram Seal of Registration Organization for Deeds and Real Estate." },
+        { key:"legal_basis_statement", label:"این سند مالکیت رسمی است و مطابق ثبت دفتر املاک الکترونیک، بر اساس ماده ۲۲ قانون ثبت و ماده ۴ قانون کاداستر جامع، صادر و در یک برگ تسلیم می‌شود.", kind:"simple", def:"This title deed is officially registered and is issued in one copy according to real estate registration, based on the article 22 of Registration Act and Article 4 of Comprehensive Cadastral Law." },
+        { key:"signed_embossed_statement", label:"امضا و ممهور به مهر برجسته توسط رئیس واحد ثبتی: {{registration_department}}، {{city}}، {{date_of_registration}}", kind:"complex",
+          tokens:[{key:"registration_department",label:"ادارهٔ ثبت"},{key:"city",label:"شهر"},{key:"date_of_registration",label:"تاریخ ثبت"}],
+          def:"Signed and Embossed by Director of Registration Unit: {{registration_department}}, {{city}}, {{date_of_registration}}" },
+    ]},
     { id:"insurance_record", label:"سابقهٔ بیمه", full:false, fields:[] },
     { id:"consolidated_insurance_record", label:"سابقهٔ بیمهٔ تجمیعی", full:false, fields:[] },
-    { id:"gazette_notice", label:"آگهی روزنامهٔ رسمی", full:false, fields:[] },
-    { id:"high_school_transcript", label:"ریزنمرات دبیرستان", full:false, fields:[] },
+    { id:"gazette_notice", label:"آگهی روزنامهٔ رسمی", full:true, fields:[
+        { key:"footnote", label:"این روزنامه بصورت الکترونیکی و در قالب فایل PDF تولید و منتشر شده است. برای اطمینان از اعتبار و صحت امضاء دیجیتال و نسخه چاپی به نشانی مندرج در انتهای آگهی مراجعه نمایید.\nرفع مسئولیت:\nمطالب آگهی‌های منتشرشده در روزنامه رسمی براساس چرخه مشخصی که از تقدیم مفاد آن از سوی ذینفع قانونی به ادارات ثبت شرکت‌ها (شرکتها) در تهران و شهرستان‌ها آغاز و پس از اجرای تشریفات مربوطه به صورت آگهی تسلیم روزنامه رسمی کشور می‌گردد، تهیه می‌نماید. لذا این مرجع هیچ‌گونه دخالتی در مندرجات آگهی‌های مزبور نداشته و ندارد.", kind:"simple", def:"This Official Gazette is produced and published electronically in PDF format. To verify the validity and authenticity of the digital signature and the printed copy, please refer to the address stated at the end of the notice.\nDisclaimer: The content of notices published in the Official Gazette follows a defined process that begins with the interested party submitting the notice's content to the Companies and Non-Commercial Institutions Registration Offices in Tehran and other cities, and, after completing the relevant formalities, is forwarded for publication in the Official Gazette of the country. This authority therefore has no involvement whatsoever in the content of such notices." },
+    ]},
+    { id:"high_school_transcript", label:"ریزنمرات دبیرستان", full:true, fields:[
+        { key:"document_title", label:"عنوان مدرک", kind:"simple", def:"Score Report Sheet" },
+    ]},
 ];
 
 let dpServerPhrases = {};   // {doc_type: {field_key: text}} -- last known saved state, from GET
 let dpDraft = {};           // {doc_type: {field_key: text}} -- unsaved edits, kept across doc-type switches
 let dpCurrentDoc = DP_DOCS[0].id;
+
+// Term-glossary state (see renderTermGlossary()) -- same
+// server/draft-split convention as dpServerPhrases/dpDraft above, just
+// keyed by an open-ended Persian term instead of a fixed field name.
+let dpGlossaryServer = {};  // {doc_type: {persian_term: english}} -- last known saved state, from GET
+let dpGlossaryDraft = {};   // {doc_type: {persian_term: english}} -- unsaved edits
+let dpGlossarySearch = '';  // current client-side filter text for the glossary table
 
 /* ============ SECTION: DOCUMENT-PHRASE OVERRIDES ============
    Per-document-type phrase catalog (PATCH /users/me/preferences merge,
@@ -693,15 +1186,32 @@ function renderDocumentPhrases(){
     list.innerHTML = '';
     document.getElementById('dp-save-status').classList.add('hidden');
 
+    // A document type can have a fixed-field phrase list, a term glossary,
+    // both (e.g. azad_transcript), or -- until wired up -- neither, in
+    // which case the "به‌زودی" pending note is the only thing shown. Both
+    // sections render side by side when both apply; saveCurrentDocumentSettings()
+    // sends whichever of the two has pending changes, combined in one request.
+    const glossarySection = document.getElementById('dp-glossary-section');
+    if (doc.glossary){
+        glossarySection.classList.remove('hidden');
+        renderTermGlossary(doc);
+    } else {
+        glossarySection.classList.add('hidden');
+    }
+
     if (!doc.fields.length){
-        const note = document.createElement('div');
-        note.className = 'text-[11px] p-3 rounded-lg';
-        note.style.cssText = 'background:var(--bg-main);border:1px dashed var(--border-subtle);color:var(--text-muted);line-height:1.9;';
-        note.textContent = 'عبارات ثابت این نوع سند هنوز به این بخش اضافه نشده — به‌زودی.';
-        list.appendChild(note);
-        document.getElementById('dp-save-btn').disabled = true;
+        list.classList.toggle('hidden', !!doc.glossary);
+        if (!doc.glossary){
+            const note = document.createElement('div');
+            note.className = 'text-[11px] p-3 rounded-lg';
+            note.style.cssText = 'background:var(--bg-main);border:1px dashed var(--border-subtle);color:var(--text-muted);line-height:1.9;';
+            note.textContent = 'عبارات ثابت این نوع سند هنوز به این بخش اضافه نشده — به‌زودی.';
+            list.appendChild(note);
+        }
+        document.getElementById('dp-save-btn').disabled = !doc.glossary;
         return;
     }
+    list.classList.remove('hidden');
     document.getElementById('dp-save-btn').disabled = false;
 
     doc.fields.forEach(f => {
@@ -880,37 +1390,58 @@ async function loadDocumentPhrasesCatalog(){
         if (!res.ok) throw new Error();
         const p = await res.json();
         dpServerPhrases = p.document_phrases || {};
+        dpGlossaryServer = p.term_glossary || {};
     } catch (e) {
         dpServerPhrases = {};
+        dpGlossaryServer = {};
     }
     dpDraft = {};
+    dpGlossaryDraft = {};
     renderDocumentPhrases();
 }
 
-async function saveDocumentPhrases(){
+// Sends whichever of the two settings kinds this document type has pending
+// drafts for -- the fixed-field phrase editor (dpDraft) and/or the
+// open-ended term glossary (dpGlossaryDraft), e.g. azad_transcript has
+// both. Both concerns share one button/status area in the settings markup,
+// and are combined into a single PATCH request when both apply (the same
+// way Core's own update_preferences() already merges multiple sparse
+// fields off one DB round trip).
+async function saveCurrentDocumentSettings(){
     if (!currentUserSession) return;
     const doc = DP_DOCS.find(d => d.id === dpCurrentDoc);
-    const changes = dpDraft[doc.id] || {};
     const btn = document.getElementById('dp-save-btn');
     const status = document.getElementById('dp-save-status');
+    status.classList.remove('hidden');
 
-    // A complex field with a structurally broken draft value is excluded
-    // -- never sent to the backend, and left as-is (with its warning) so
-    // the translator can keep fixing it. Everything else in this document
-    // type's draft is safe to send in the same request.
-    const toSend = {};
+    const body = {};
     let blockedCount = 0;
-    for (const key in changes){
-        const f = doc.fields.find(f => f.key === key);
-        if (f.kind === 'complex' && !dpCheckComplex(changes[key], f.tokens).valid){
-            blockedCount++;
-            continue;
+
+    if (doc.fields.length){
+        const changes = dpDraft[doc.id] || {};
+        const toSend = {};
+        // A complex field with a structurally broken draft value is
+        // excluded -- never sent to the backend, and left as-is (with its
+        // warning) so the translator can keep fixing it.
+        for (const key in changes){
+            const f = doc.fields.find(f => f.key === key);
+            if (f.kind === 'complex' && !dpCheckComplex(changes[key], f.tokens).valid){
+                blockedCount++;
+                continue;
+            }
+            toSend[key] = changes[key] === '' ? null : changes[key];
         }
-        toSend[key] = changes[key] === '' ? null : changes[key];
+        if (Object.keys(toSend).length) body.document_phrases = { [doc.id]: toSend };
     }
 
-    status.classList.remove('hidden');
-    if (Object.keys(toSend).length === 0){
+    if (doc.glossary){
+        const changes = dpGlossaryDraft[doc.id] || {};
+        const toSend = {};
+        for (const term in changes) toSend[term] = changes[term] === '' ? null : changes[term];
+        if (Object.keys(toSend).length) body.term_glossary = { [doc.id]: toSend };
+    }
+
+    if (Object.keys(body).length === 0){
         status.style.color = '#f87171';
         status.textContent = blockedCount > 0
             ? '❌ عبارت دارای خطای ساختاری را قبل از ذخیره اصلاح کنید.'
@@ -927,20 +1458,32 @@ async function saveDocumentPhrases(){
         const res = await fetch(`${CORE}/users/me/preferences`, {
             method: 'PATCH',
             headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ document_phrases: { [doc.id]: toSend } })
+            body: JSON.stringify(body)
         });
         const p = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(p.detail || 'خطای سرور');
-        dpServerPhrases = p.document_phrases || {};
-        // Only the fields actually sent (the valid ones) are cleared from
-        // the draft -- a blocked complex field stays in draft, with its
-        // warning, even though the rest of this save succeeded.
-        for (const key of Object.keys(toSend)) delete dpDraft[doc.id][key];
-        if (dpDraft[doc.id] && Object.keys(dpDraft[doc.id]).length === 0) delete dpDraft[doc.id];
+
+        let savedCount = 0;
+        if (body.document_phrases){
+            dpServerPhrases = p.document_phrases || {};
+            // Only the fields actually sent (the valid ones) are cleared
+            // from the draft -- a blocked complex field stays in draft,
+            // with its warning, even though the rest of this save succeeded.
+            const sentKeys = Object.keys(body.document_phrases[doc.id]);
+            savedCount += sentKeys.length;
+            for (const key of sentKeys) delete dpDraft[doc.id][key];
+            if (dpDraft[doc.id] && Object.keys(dpDraft[doc.id]).length === 0) delete dpDraft[doc.id];
+        }
+        if (body.term_glossary){
+            dpGlossaryServer = p.term_glossary || {};
+            savedCount += Object.keys(body.term_glossary[doc.id]).length;
+            delete dpGlossaryDraft[doc.id];
+        }
+
         status.style.color = 'var(--accent)';
         status.textContent = blockedCount > 0
-            ? `✅ ${Object.keys(toSend).length} مورد ذخیره شد؛ ${blockedCount} مورد دارای خطا ذخیره نشد.`
-            : '✅ ذخیره شد. از سند بعدی اعمال می‌شود.';
+            ? `✅ ${savedCount} مورد ذخیره شد؛ ${blockedCount} مورد دارای خطا ذخیره نشد.`
+            : `✅ ${savedCount} مورد ذخیره شد. از سند بعدی اعمال می‌شود.`;
         renderDocumentPhrases();
     } catch (e) {
         status.style.color = '#f87171';
@@ -949,6 +1492,156 @@ async function saveDocumentPhrases(){
         btn.disabled = false;
     }
 }
+
+// ═══════════════════════════════════════════════════════════
+// TERM GLOSSARY -- an open-ended Persian-term -> English-equivalent table
+// (e.g. academic_transcript's course-name terms), distinct from the
+// fixed-field phrase overrides above: any number of arbitrary Persian
+// phrases, not just a handful of named fields, so it renders as a
+// searchable table with add/remove rather than a fixed card per field.
+// Storage shape mirrors document_phrases exactly --
+// prefs["term_glossary"][doc_type] = {persian_term: english_equivalent}
+// -- see DeepT-Core's preferences.py and DeepT-Back-End's
+// doc_prefs.get_term_glossary().
+// ═══════════════════════════════════════════════════════════
+
+// Every term this document type currently has an opinion about (its own
+// built-in defaults, plus whatever the translator already saved), each
+// resolved to its effective display value: an unsaved draft edit first,
+// then a saved override, then the document type's own default. A draft
+// value of '' (the translator cleared the input) still renders as blank
+// here -- same convention dpEffectiveValue()/the phrase editor already
+// use elsewhere -- it only actually clears the saved override once sent.
+function dpGlossaryRows(doc){
+    const defaults = doc.glossary.defaults || {};
+    const server = dpGlossaryServer[doc.id] || {};
+    const draft = dpGlossaryDraft[doc.id] || {};
+    const terms = new Set([...Object.keys(defaults), ...Object.keys(server), ...Object.keys(draft)]);
+    const rows = [];
+    terms.forEach(term => {
+        const isDefault = Object.prototype.hasOwnProperty.call(defaults, term);
+        let value;
+        if (draft[term] !== undefined) value = draft[term];
+        else if (server[term] !== undefined) value = server[term];
+        else value = defaults[term];
+        const savedVal = server[term] !== undefined ? server[term] : (isDefault ? defaults[term] : undefined);
+        const dirty = draft[term] !== undefined && draft[term] !== savedVal;
+        rows.push({ term, value, isDefault, dirty, hasOverride: server[term] !== undefined });
+    });
+    rows.sort((a, b) => a.term.localeCompare(b.term, 'fa'));
+    return rows;
+}
+
+function renderTermGlossary(doc){
+    const rowsEl = document.getElementById('dp-glossary-rows');
+    rowsEl.innerHTML = '';
+    const q = dpGlossarySearch.trim();
+    const rows = dpGlossaryRows(doc).filter(r =>
+        !q || r.term.includes(q) || r.value.toLowerCase().includes(q.toLowerCase())
+    );
+
+    if (!rows.length){
+        const note = document.createElement('div');
+        note.className = 'text-[11px] p-3 rounded-lg';
+        note.style.cssText = 'background:var(--bg-main);border:1px dashed var(--border-subtle);color:var(--text-muted);';
+        note.textContent = q ? 'موردی با این عبارت جستجو پیدا نشد.' : 'هیچ واژه‌ای ثبت نشده است.';
+        rowsEl.appendChild(note);
+        return;
+    }
+
+    rows.forEach(r => {
+        const row = document.createElement('div');
+        row.className = 'flex items-center gap-2 p-2 rounded-lg';
+        row.style.cssText = `background:var(--bg-main);border:1px solid ${r.dirty ? 'var(--accent)' : 'var(--border-subtle)'};`;
+        row.dataset.dpGlossaryTerm = r.term;
+
+        const termLabel = document.createElement('div');
+        termLabel.className = 'text-xs font-bold shrink-0';
+        termLabel.style.cssText = 'color:var(--text-main);width:9rem;';
+        termLabel.textContent = r.term;
+        row.appendChild(termLabel);
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'auth-input w-full en';
+        input.style.cssText = 'font-size:.72rem;';
+        input.dir = 'ltr';
+        input.value = r.value;
+        input.dataset.dpGlossaryInput = r.term;
+        row.appendChild(input);
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'text-[10px] font-bold px-2 py-1 rounded-md shrink-0';
+        btn.style.cssText = 'background:var(--panel-bg);color:var(--text-muted);border:1px solid var(--border-subtle);';
+        btn.dataset.dpGlossaryRemove = r.term;
+        btn.textContent = r.isDefault ? '↺ بازنشانی' : '🗑 حذف';
+        // Nothing to undo on an untouched default term: no saved override,
+        // no pending edit.
+        btn.disabled = !r.dirty && !r.hasOverride;
+        row.appendChild(btn);
+
+        rowsEl.appendChild(row);
+    });
+}
+
+function dpCommitGlossaryTerm(doc, term, newValue){
+    const server = dpGlossaryServer[doc.id] || {};
+    const isDefault = Object.prototype.hasOwnProperty.call(doc.glossary.defaults, term);
+    const savedVal = server[term] !== undefined ? server[term] : (isDefault ? doc.glossary.defaults[term] : undefined);
+    if (!dpGlossaryDraft[doc.id]) dpGlossaryDraft[doc.id] = {};
+    if (newValue === savedVal){
+        delete dpGlossaryDraft[doc.id][term];
+        if (Object.keys(dpGlossaryDraft[doc.id]).length === 0) delete dpGlossaryDraft[doc.id];
+    } else {
+        dpGlossaryDraft[doc.id][term] = newValue;
+    }
+}
+
+document.addEventListener('input', (e) => {
+    if (e.target.matches('[data-dp-glossary-input]')){
+        const doc = DP_DOCS.find(d => d.id === dpCurrentDoc);
+        dpCommitGlossaryTerm(doc, e.target.dataset.dpGlossaryInput, e.target.value);
+        const row = e.target.closest('[data-dp-glossary-term]');
+        const draft = dpGlossaryDraft[doc.id];
+        const dirty = !!(draft && draft[e.target.dataset.dpGlossaryInput] !== undefined);
+        row.style.borderColor = dirty ? 'var(--accent)' : 'var(--border-subtle)';
+        return;
+    }
+    if (e.target.id === 'dp-glossary-search'){
+        dpGlossarySearch = e.target.value;
+        const doc = DP_DOCS.find(d => d.id === dpCurrentDoc);
+        renderTermGlossary(doc);
+    }
+});
+
+document.addEventListener('click', (e) => {
+    const removeBtn = e.target.closest('[data-dp-glossary-remove]');
+    if (removeBtn){
+        const doc = DP_DOCS.find(d => d.id === dpCurrentDoc);
+        dpCommitGlossaryTerm(doc, removeBtn.dataset.dpGlossaryRemove, '');
+        renderTermGlossary(doc);
+        return;
+    }
+    if (e.target.id === 'dp-glossary-add-btn'){
+        const doc = DP_DOCS.find(d => d.id === dpCurrentDoc);
+        const termInput = document.getElementById('dp-glossary-new-term');
+        const englishInput = document.getElementById('dp-glossary-new-english');
+        const term = termInput.value.trim();
+        const english = englishInput.value.trim();
+        const status = document.getElementById('dp-glossary-add-status');
+        if (!term || !english){
+            status.textContent = 'هر دو فیلد را پر کنید.';
+            status.classList.remove('hidden');
+            return;
+        }
+        status.classList.add('hidden');
+        dpCommitGlossaryTerm(doc, term, english);
+        termInput.value = '';
+        englishInput.value = '';
+        renderTermGlossary(doc);
+    }
+});
 
 // ═══════════════════════════════════════════════════════════
 // نرخنامه من (MY PRICE LIST) -- a translator's own price overrides for
@@ -1284,6 +1977,99 @@ async function saveMyPriceList() {
     } finally {
         btn.disabled = false;
     }
+}
+
+// Ready-to-print A3 handout of the whole نرخنامه (every category, in the
+// same ردیف/فهرست/قیمت layout as the official tariff sheet this catalog
+// was transcribed from) -- current effective prices only (unsaved drafts
+// included, same "live" convention myplEffective() already uses
+// elsewhere), so what prints always matches what's actually quoted right
+// now. Opened as a separate window/tab rather than an in-page @media
+// print block: this needs its own A3-landscape @page size and its own
+// two-column flow, independent of (and much denser than) the main app's
+// own screen layout -- keeping it fully separate avoids the main
+// stylesheet's screen rules ever leaking into what gets printed.
+function printMyPriceList() {
+    const officeName = (currentUserSession && (currentUserSession.office || currentUserSession.username || currentUserSession.email)) || '';
+    const todayFa = new Date().toLocaleDateString('fa-IR');
+
+    const priceCell = (item) => {
+        const base = myplEffective(item.id, 'base').toLocaleString();
+        const baseUnitTxt = item.baseUnit ? ` (هر ${escapeHtml(item.baseUnit)})` : '';
+        let txt = `${base}${baseUnitTxt}`;
+        if (item.extra !== null) {
+            txt += ` + ${myplEffective(item.id, 'extra').toLocaleString()} ${escapeHtml(item.unit || '')}`;
+        }
+        return txt;
+    };
+
+    // One CONTINUOUS table for the whole catalog -- category headers are
+    // just another row (colspan, distinct style) inside the same <tbody>,
+    // not a separate <table> per category. This is deliberate: a separate
+    // break-inside:avoid table per category treats that whole category as
+    // one unbreakable block, so a category that doesn't quite fit in the
+    // column space left wastes it all rather than partially filling it --
+    // with 26 categories of very uneven size, that dead space was the main
+    // reason this overflowed onto 4 pages instead of 2. A single table
+    // lets the browser's column/page breaking flow row-by-row instead,
+    // packing tightly the way the original tariff sheet itself does
+    // (a category routinely continues right across a column boundary).
+    const rowsHtml = PRICE_CATALOG.map(group => {
+        // Pinned items (هزینه‌های رایج) aren't real rows of the official
+        // tariff sheet -- their ids (224+) are just internal bookkeeping,
+        // continuing past the sheet's own last row ("223") so they never
+        // collide with a real one (see price-catalog.js's header comment).
+        // Printing them would misleadingly suggest they're official
+        // numbered items, so this column stays blank for this category only.
+        const itemRows = group.items.map(item => `
+            <tr>
+                <td class="col-id">${group.pinned ? '' : escapeHtml(item.id)}</td>
+                <td class="col-label">${escapeHtml(item.label)}</td>
+                <td class="col-price en" dir="ltr">${priceCell(item)}</td>
+            </tr>`).join('');
+        return `<tr class="cat-row"><td colspan="3" class="cat-title">${escapeHtml(group.category)}</td></tr>${itemRows}`;
+    }).join('');
+
+    const printWin = window.open('', '_blank');
+    if (!printWin) { showToast('⚠️ مرورگر بازشدن پنجرهٔ چاپ را مسدود کرد. لطفاً اجازه دهید و دوباره تلاش کنید.'); return; }
+
+    printWin.document.write(`<!DOCTYPE html>
+<html dir="rtl" lang="fa">
+<head>
+<meta charset="UTF-8">
+<title>نرخنامه من</title>
+<style>
+    @page { size: A3 landscape; margin: 7mm; }
+    * { box-sizing: border-box; }
+    body { font-family: Tahoma, 'Vazirmatn', sans-serif; direction: rtl; margin: 0; color: #111; }
+    header { text-align: center; margin-bottom: 3mm; }
+    header h1 { font-size: 13px; margin: 0 0 1mm; }
+    header .meta { font-size: 8px; color: #444; }
+    .cols { column-count: 3; column-gap: 5mm; }
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    tr.cat-row { break-after: avoid; break-inside: avoid; }
+    tr { break-inside: avoid; }
+    th, td { border: 0.5px solid #999; padding: .5mm 1mm; font-size: 7.5px; line-height: 1.25; text-align: right; vertical-align: top; overflow-wrap: break-word; }
+    .cat-title { background: #e5e5e5; font-weight: bold; text-align: center; font-size: 7.5px; padding: .7mm 1mm; }
+    .col-id { width: 4%; text-align: center; padding-left: .5mm; padding-right: .5mm; }
+    .col-label { width: 65%; }
+    .col-price { width: 31%; text-align: left; }
+    @media print { .no-print { display: none !important; } }
+</style>
+</head>
+<body>
+    <div class="no-print" style="text-align:center;padding:10px;">
+        <button onclick="window.print()" style="font-family:Tahoma,sans-serif;padding:8px 16px;font-size:13px;cursor:pointer;">🖨️ چاپ / ذخیره PDF</button>
+    </div>
+    <header>
+        <h1>فهرست اسناد و حق‌الترجمه ترجمه رسمی — نرخنامه من</h1>
+        <div class="meta">${officeName ? escapeHtml(officeName) + ' — ' : ''}تاریخ تهیه: ${todayFa}</div>
+    </header>
+    <div class="cols"><table><tbody>${rowsHtml}</tbody></table></div>
+</body>
+</html>`);
+    printWin.document.close();
+    printWin.onload = () => { printWin.focus(); printWin.print(); };
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -2352,6 +3138,50 @@ let workOrderDraftType = 'MEHR_MOTARJEM';
    Persian-week helpers (startOfPersianWeek/fmtWeekISO) + order CRUD. ============ */
 function getToken() { return localStorage.getItem('deept_token'); }
 
+// ── Jalali (Persian/Shamsi) calendar conversion ────────────────────────
+// JS Date has no native Jalali calendar support, and toLocaleDateString
+// ('fa-IR', ...) only ever produces a Jalali-formatted TEXT LABEL -- it
+// can't tell you which Gregorian dates are day 1..N of a given Jalali
+// month, which any real "month view" grid needs to know. Rather than
+// hand-implementing Jalali leap-year/month-length rules (easy to get
+// subtly wrong), this leans on the same ICU Persian calendar the browser
+// already uses for every fa-IR label in this app, in both directions:
+// forward is a single direct lookup; reverse walks day-by-day from a
+// close estimate until it matches (both calendars track the same real
+// elapsed days, so this always converges, and it's only ever called a
+// handful of times per calendar render/navigation).
+const _JALALI_FMT = new Intl.DateTimeFormat('en-US-u-ca-persian', { year: 'numeric', month: 'numeric', day: 'numeric' });
+
+function gregorianToJalali(date) {
+    const parts = _JALALI_FMT.formatToParts(date);
+    const get = (t) => parseInt(parts.find(p => p.type === t).value, 10);
+    return { y: get('year'), m: get('month'), d: get('day') };
+}
+
+function jalaliToGregorian(jy, jm, jd) {
+    const guess = new Date(jy + 621, 2, 15); // mid-March of the estimated Gregorian year -- always within ~2 weeks of Nowruz
+    let g = gregorianToJalali(guess);
+    while (g.y !== jy || g.m !== jm || g.d !== jd) {
+        const cmp = (g.y - jy) || (g.m - jm) || (g.d - jd);
+        guess.setDate(guess.getDate() + (cmp < 0 ? 1 : -1));
+        g = gregorianToJalali(guess);
+    }
+    return guess;
+}
+
+// First/last Gregorian date of a given Jalali month -- the last day is
+// found as "the day before the next Jalali month's 1st" rather than by
+// computing the month's length directly, so this never needs to know
+// Jalali leap-year rules (which years have a 30- vs 29-day Esfand) at all.
+function jalaliMonthBounds(jy, jm) {
+    const firstDay = jalaliToGregorian(jy, jm, 1);
+    const nextJy = jm === 12 ? jy + 1 : jy;
+    const nextJm = jm === 12 ? 1 : jm + 1;
+    const lastDay = jalaliToGregorian(nextJy, nextJm, 1);
+    lastDay.setDate(lastDay.getDate() - 1);
+    return { firstDay, lastDay };
+}
+
 // ── Week navigation (Persian week: Saturday .. Friday) ────────────────
 function startOfPersianWeek(d) {
     const date = new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -2457,7 +3287,7 @@ async function renderWorkWeek() {
         const dayHeader = `
             <div class="flex items-center justify-between mb-1.5" style="padding-bottom:4px;border-bottom:1px solid var(--divider);">
                 <span class="text-[11px] font-black" style="color:${isToday ? 'var(--accent)' : 'var(--text-main)'};">${WEEKDAY_FA[idx]}</span>
-                <span class="text-[10px] en font-bold" style="color:${isToday ? 'var(--accent)' : 'var(--text-muted)'};">${d.getDate()}</span>
+                <span class="text-[10px] en font-bold" style="color:${isToday ? 'var(--accent)' : 'var(--text-muted)'};">${gregorianToJalali(d).d}</span>
             </div>`;
 
         const ordersHtml = orders.length
@@ -2617,7 +3447,7 @@ function hideWorkspaceViews() {
     const lp = document.getElementById('landingPage');
     if (lp) lp.style.display = 'none';
     ['workspaceDashboard', 'clientsWorkspace', 'adminDashboard',
-     'clientProfilePage', 'workSchedulePage', 'settingsPage', 'myPriceListPage'].forEach(id => {
+     'clientProfilePage', 'workSchedulePage', 'settingsPage', 'myPriceListPage', 'hrPage'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.add('hidden');
     });
@@ -2686,6 +3516,15 @@ async function openClientProfile(clientId) {
         document.getElementById('cp-phone').textContent = c.phone || '—';
         document.getElementById('cp-email').textContent = c.email || '—';
         document.getElementById('cp-notes').value = c.notes || '';
+        // target_language: null/undefined or anything other than the three
+        // named languages falls back to the empty option, which means
+        // English -- matches how DeepT-Core/Back-End treat a missing or
+        // unrecognized value.
+        const targetLangSel = document.getElementById('cp-target-lang');
+        if (targetLangSel) {
+            const validLangs = ['French', 'Italian', 'Spanish'];
+            targetLangSel.value = validLangs.includes(c.target_language) ? c.target_language : '';
+        }
         // cp-job-count's header was replaced by the combined activity
         // list's own count (cp-activity-count, set in renderClientActivityList).
 
@@ -2785,10 +3624,12 @@ async function openChatForClient() {
     openChatInterface(false, 'doctype');
 }
 
-// ── Open the office-wide weekly work schedule ──────────────────────────
+// ── Open the office-wide work schedule (monthly view by default, weekly
+// as the alternate) ─────────────────────────────────────────────────────
 let scheduleWeekStart = null;
 let scheduleTypeFilter = null;
 let scheduleWeekOrders = [];
+let scheduleViewMode = 'month'; // 'month' (default) | 'week'
 
 /* ============ SECTION: OFFICE WEEKLY SCHEDULE ============ */
 function openWorkSchedulePage() {
@@ -2797,7 +3638,9 @@ function openWorkSchedulePage() {
     navigateTo('/schedule');
     scheduleWeekStart = startOfPersianWeek(new Date());
     scheduleTypeFilter = null;
-    setScheduleTypeFilter(null);
+    scheduleViewMode = 'month';
+    updateScheduleViewModeButtons();
+    setScheduleTypeFilter(null); // also renders once, in the mode set above
 }
 
 function closeWorkSchedulePage() {
@@ -2825,6 +3668,28 @@ function closeSettingsPage() {
     openWorkspaceDashboard(false);
 }
 
+// حضور غیاب پرسنل -- its own top-level page (see the header's "🕐 حضور
+// غیاب پرسنل" button), not a settings card: staff roster management, a
+// live "who's here right now" view, the full timesheet, and the clock
+// in/out action itself all live together here. Office accounts only --
+// an individual account has no staff to manage.
+function openHrPage(pushHistory = true) {
+    if (!currentUserSession) { openAuthModal(); return; }
+    if (currentUserSession.type !== 'office') {
+        showToast('این بخش فقط برای حساب‌های دارالترجمه (دفتر) در دسترس است.');
+        return;
+    }
+    showFullView('hrPage');
+    if (pushHistory) navigateTo('/hr');
+    loadHrSettings();
+}
+
+function closeHrPage() {
+    document.getElementById('hrPage').classList.add('hidden');
+    document.body.style.overflow = 'auto';
+    openWorkspaceDashboard(false);
+}
+
 // نرخنامه من -- its own top-level page (see the header's dedicated button),
 // not a settings card, since it's a long, frequently-referenced list a
 // translator jumps to directly while building an invoice.
@@ -2843,13 +3708,46 @@ function closeMyPriceListPage() {
 
 function setScheduleWeekToToday() {
     scheduleWeekStart = startOfPersianWeek(new Date());
-    renderScheduleWeek();
+    renderSchedule();
 }
 
-function shiftScheduleWeek(n) {
+function shiftSchedulePeriod(n) {
     if (!scheduleWeekStart) scheduleWeekStart = startOfPersianWeek(new Date());
-    scheduleWeekStart.setDate(scheduleWeekStart.getDate() + n * 7);
-    renderScheduleWeek();
+    if (scheduleViewMode === 'week') {
+        scheduleWeekStart.setDate(scheduleWeekStart.getDate() + n * 7);
+    } else {
+        // Step by a real Jalali month, not a Gregorian one (setMonth()
+        // would drift the displayed month out of sync with the label
+        // within a step or two, since Jalali/Gregorian month boundaries
+        // don't line up). Clamps the day-of-month to the target month's
+        // actual length, same as JS Date's own end-of-month rollover
+        // behavior for setMonth().
+        const { y: jy, m: jm, d: jd } = gregorianToJalali(scheduleWeekStart);
+        let newJy = jy, newJm = jm + n;
+        while (newJm > 12) { newJm -= 12; newJy++; }
+        while (newJm < 1) { newJm += 12; newJy--; }
+        const { firstDay, lastDay } = jalaliMonthBounds(newJy, newJm);
+        const monthLength = Math.round((lastDay - firstDay) / 86400000) + 1;
+        scheduleWeekStart = jalaliToGregorian(newJy, newJm, Math.min(jd, monthLength));
+    }
+    renderSchedule();
+}
+
+function updateScheduleViewModeButtons() {
+    ['month', 'week'].forEach(m => {
+        const el = document.getElementById('sv-' + m);
+        if (!el) return;
+        const active = m === scheduleViewMode;
+        el.style.background = active ? 'var(--accent)' : 'var(--bg-main)';
+        el.style.color = active ? 'var(--btn-text-on-accent)' : 'var(--text-main)';
+        el.style.borderColor = active ? 'transparent' : 'var(--border-subtle)';
+    });
+}
+
+function setScheduleViewMode(mode) {
+    scheduleViewMode = mode;
+    updateScheduleViewModeButtons();
+    renderSchedule();
 }
 
 function setScheduleTypeFilter(type) {
@@ -2870,10 +3768,54 @@ function setScheduleTypeFilter(type) {
             el.style.fontWeight = active ? '900' : '700';
         }
     });
-    renderScheduleWeek();
+    renderSchedule();
 }
 
-async function renderScheduleWeek() {
+function renderSchedule() {
+    return scheduleViewMode === 'month' ? renderScheduleMonth() : renderScheduleWeekView();
+}
+
+// Shared by both views: fetches work orders for a date range, honoring
+// the current scheduleTypeFilter -- the only thing that differs between
+// the weekly and monthly view is which range gets passed in.
+async function fetchScheduleOrders(fromISO, toISO) {
+    const url = new URL(`${CORE}/work-orders`);
+    url.searchParams.set('from', fromISO);
+    url.searchParams.set('to', toISO);
+    if (scheduleTypeFilter) url.searchParams.set('order_type', scheduleTypeFilter);
+    const res = await fetch(url, { headers: { 'Authorization': `Bearer ${getToken()}` } });
+    if (!res.ok) throw new Error();
+    return res.json();
+}
+
+// Shared by both views: the flat chronological order list below the grid.
+function renderScheduleOrderList(orders, emptyMessage) {
+    const list = document.getElementById('scheduleOrderList');
+    if (!orders.length) {
+        list.innerHTML = `<div class="text-xs text-center py-4" style="color:var(--text-muted);">${emptyMessage}</div>`;
+        return;
+    }
+    orders.sort((a, b) => (a.due_date || '').localeCompare(b.due_date || ''));
+    list.innerHTML = orders.map(o => {
+        const t = WORK_ORDER_TYPE_FA[o.order_type] || { text: o.order_type, color: 'var(--accent)' };
+        const s = WORK_ORDER_STATUS_FA[o.status] || { text: o.status, color: 'var(--text-muted)' };
+        return `
+          <div class="flex items-center justify-between gap-3 p-2.5 rounded-lg text-xs" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style="background:${t.color};"></span>
+              <span class="font-bold en truncate" style="color:var(--text-main);">${escapeHtml(o.client_name || '')}${o.title ? ' — ' + escapeHtml(o.title) : ''}</span>
+            </div>
+            <div class="flex items-center gap-3 shrink-0">
+              <span class="en font-bold" style="color:${o.due_date ? 'var(--accent)' : 'var(--text-muted)'};">${o.due_date || 'بدون ددلاین'}</span>
+              <span style="color:${t.color};">${t.text}</span>
+              <span class="en" style="color:${s.color};">${s.text}</span>
+              ${o.client_id ? `<button onclick="openClientProfile('${o.client_id}')" class="text-[11px] font-bold px-2 py-1 rounded-md" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">مشتری</button>` : ''}
+            </div>
+          </div>`;
+    }).join('');
+}
+
+async function renderScheduleWeekView() {
     const grid = document.getElementById('scheduleWeekGrid');
     const list = document.getElementById('scheduleOrderList');
     if (!grid || !list) return;
@@ -2891,21 +3833,16 @@ async function renderScheduleWeek() {
     const startFmt = days[0].toLocaleDateString('fa-IR', { day: 'numeric', month: 'long', year: 'numeric' });
     const endFmt = days[6].toLocaleDateString('fa-IR', { day: 'numeric', month: 'long' });
     document.getElementById('scheduleWeekLabel').textContent = `${startFmt} — ${endFmt}`;
+    document.getElementById('scheduleListHeading').textContent = '📋 سفارش‌های این هفته';
 
     grid.innerHTML = `<div class="text-xs text-center py-6" style="color:var(--text-muted);grid-column:1/-1;">در حال بارگذاری تقویم...</div>`;
 
     let orders = [];
     try {
-        const url = new URL(`${CORE}/work-orders`);
-        url.searchParams.set('from', fromISO);
-        url.searchParams.set('to', toISO);
-        if (scheduleTypeFilter) url.searchParams.set('order_type', scheduleTypeFilter);
-        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${getToken()}` } });
-        if (!res.ok) throw new Error();
-        orders = await res.json();
+        orders = await fetchScheduleOrders(fromISO, toISO);
     } catch (e) {
         grid.innerHTML = `<div class="text-xs text-center py-6" style="color:#f87171;grid-column:1/-1;">خطا در دریافت زمان‌بندی.
-            <button onclick="renderScheduleWeek()" class="block mx-auto mt-2 text-[11px] font-bold px-3 py-1 rounded-lg" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">🔄 تلاش مجدد</button>
+            <button onclick="renderScheduleWeekView()" class="block mx-auto mt-2 text-[11px] font-bold px-3 py-1 rounded-lg" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">🔄 تلاش مجدد</button>
         </div>`;
         list.innerHTML = '';
         return;
@@ -2946,7 +3883,7 @@ async function renderScheduleWeek() {
           <div class="p-1.5 rounded-lg" style="background:${isToday ? 'var(--accent-hover)' : 'var(--bg-main)'};border:1px solid ${isToday ? 'var(--border-color)' : 'var(--border-subtle)'};${overdue ? 'box-shadow:0 0 0 1px rgba(248,113,113,0.4);' : ''}">
             <div class="flex items-center justify-between mb-1.5" style="padding-bottom:4px;border-bottom:1px solid var(--divider);">
                 <span class="text-[11px] font-black" style="color:${isToday ? 'var(--accent)' : 'var(--text-main)'};">${WEEKDAY_FA[idx]}</span>
-                <span class="text-[10px] en font-bold" style="color:${isToday ? 'var(--accent)' : 'var(--text-muted)'};">${d.getDate()}</span>
+                <span class="text-[10px] en font-bold" style="color:${isToday ? 'var(--accent)' : 'var(--text-muted)'};">${gregorianToJalali(d).d}</span>
             </div>
             ${pendingCount ? `<div class="text-[9px] font-bold mb-1" style="color:var(--accent);"><span class="en">${pendingCount}</span> در انتظار</div>` : ''}
             ${overdue ? `<div class="text-[9px] font-bold mb-1" style="color:#f87171;">⚠ ددلاین گذشته</div>` : ''}
@@ -2954,28 +3891,97 @@ async function renderScheduleWeek() {
           </div>`;
     }).join('');
 
-    if (!orders.length) {
-        list.innerHTML = `<div class="text-xs text-center py-4" style="color:var(--text-muted);">// در این هفته سفارشی ثبت نشده</div>`;
-    } else {
-        orders.sort((a, b) => (a.due_date || '').localeCompare(b.due_date || ''));
-        list.innerHTML = orders.map(o => {
-            const t = WORK_ORDER_TYPE_FA[o.order_type] || { text: o.order_type, color: 'var(--accent)' };
-            const s = WORK_ORDER_STATUS_FA[o.status] || { text: o.status, color: 'var(--text-muted)' };
-            return `
-              <div class="flex items-center justify-between gap-3 p-2.5 rounded-lg text-xs" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
-                <div class="flex items-center gap-2 min-w-0">
-                  <span class="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style="background:${t.color};"></span>
-                  <span class="font-bold en truncate" style="color:var(--text-main);">${escapeHtml(o.client_name || '')}${o.title ? ' — ' + escapeHtml(o.title) : ''}</span>
-                </div>
-                <div class="flex items-center gap-3 shrink-0">
-                  <span class="en font-bold" style="color:${o.due_date ? 'var(--accent)' : 'var(--text-muted)'};">${o.due_date || 'بدون ددلاین'}</span>
-                  <span style="color:${t.color};">${t.text}</span>
-                  <span class="en" style="color:${s.color};">${s.text}</span>
-                  ${o.client_id ? `<button onclick="openClientProfile('${o.client_id}')" class="text-[11px] font-bold px-2 py-1 rounded-md" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">مشتری</button>` : ''}
-                </div>
-              </div>`;
-        }).join('');
+    renderScheduleOrderList(orders, '// در این هفته سفارشی ثبت نشده');
+}
+
+// Monthly grid (the default view): a full calendar month, Sat-first per
+// WEEKDAY_FA/startOfPersianWeek's convention, including the leading/
+// trailing days from adjacent months needed to fill out complete weeks
+// (dimmed via `inMonth`) so every row has all 7 columns. Reuses the exact
+// same #scheduleWeekGrid container as the weekly view (still a
+// repeat(7,...) CSS grid either way) -- only the day-cell content differs,
+// since a month cell has far less room per day than a week cell.
+async function renderScheduleMonth() {
+    const grid = document.getElementById('scheduleWeekGrid');
+    const list = document.getElementById('scheduleOrderList');
+    if (!grid || !list) return;
+    if (!scheduleWeekStart) scheduleWeekStart = startOfPersianWeek(new Date());
+
+    // The "month" here is the real Jalali month scheduleWeekStart falls in
+    // -- NOT the Gregorian month of the same JS Date, which almost never
+    // lines up with it (Jalali months start ~11 days into a Gregorian
+    // month and have different lengths). jalaliMonthBounds() finds the
+    // actual first/last Gregorian date of that Jalali month; the grid is
+    // then padded out to full weeks the same way the week view already is.
+    const { y: jy, m: jm } = gregorianToJalali(scheduleWeekStart);
+    const { firstDay: monthFirstDay, lastDay: monthLastDay } = jalaliMonthBounds(jy, jm);
+    const calStart = startOfPersianWeek(monthFirstDay);
+    const calEnd = startOfPersianWeek(monthLastDay);
+    calEnd.setDate(calEnd.getDate() + 6);
+
+    const days = [];
+    for (let d = new Date(calStart); d <= calEnd; d.setDate(d.getDate() + 1)) {
+        days.push(new Date(d));
     }
+    const fromISO = fmtWeekISO(days[0]);
+    const toISO = fmtWeekISO(days[days.length - 1]);
+
+    document.getElementById('scheduleWeekLabel').textContent =
+        monthFirstDay.toLocaleDateString('fa-IR', { month: 'long', year: 'numeric' });
+    document.getElementById('scheduleListHeading').textContent = '📋 سفارش‌های این ماه';
+
+    grid.innerHTML = `<div class="text-xs text-center py-6" style="color:var(--text-muted);grid-column:1/-1;">در حال بارگذاری تقویم...</div>`;
+
+    let orders = [];
+    try {
+        orders = await fetchScheduleOrders(fromISO, toISO);
+    } catch (e) {
+        grid.innerHTML = `<div class="text-xs text-center py-6" style="color:#f87171;grid-column:1/-1;">خطا در دریافت زمان‌بندی.
+            <button onclick="renderScheduleMonth()" class="block mx-auto mt-2 text-[11px] font-bold px-3 py-1 rounded-lg" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">🔄 تلاش مجدد</button>
+        </div>`;
+        list.innerHTML = '';
+        return;
+    }
+    scheduleWeekOrders = orders;
+
+    const todayISO = fmtWeekISO(new Date());
+    const byDay = {};
+    for (const o of orders) byDay[o.due_date || ''] = (byDay[o.due_date || ''] || []).concat(o);
+
+    const headerHtml = WEEKDAY_FA.map(w => `<div class="text-[10px] font-black text-center py-1" style="color:var(--text-muted);">${w}</div>`).join('');
+
+    const cellsHtml = days.map(d => {
+        const iso = fmtWeekISO(d);
+        const isToday = todayISO === iso;
+        const dJalali = gregorianToJalali(d);
+        const inMonth = dJalali.y === jy && dJalali.m === jm;
+        const dayOrders = byDay[iso] || [];
+        const pendingCount = dayOrders.filter(o => o.status === 'PENDING').length;
+        const overdue = dayOrders.some(o => o.status === 'PENDING' && o.due_date && o.due_date < todayISO);
+
+        const itemsHtml = dayOrders.map(o => {
+            const t = WORK_ORDER_TYPE_FA[o.order_type] || { text: o.order_type, color: 'var(--accent)' };
+            const done = o.status === 'DONE';
+            const clickTarget = o.client_id
+                ? `onclick="openClientProfile('${o.client_id}')" title="باز کردن پروفایل مشتری"`
+                : '';
+            return `
+              <div ${clickTarget} class="px-1 rounded text-[9px] cursor-pointer mb-0.5 truncate hover:opacity-85" style="background:${(t.color) + '1a'};border-inline-start:2px solid ${t.color};color:${done ? 'var(--text-muted)' : 'var(--text-main)'};${done ? 'text-decoration:line-through;' : ''}">${escapeHtml(o.client_name || o.title || '')}</div>`;
+        }).join('');
+
+        return `
+          <div class="p-1 rounded-lg" style="min-height:64px;background:${isToday ? 'var(--accent-hover)' : 'var(--bg-main)'};border:1px solid ${isToday ? 'var(--border-color)' : 'var(--border-subtle)'};opacity:${inMonth ? '1' : '.45'};${overdue ? 'box-shadow:0 0 0 1px rgba(248,113,113,0.4);' : ''}">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-[10px] en font-bold" style="color:${isToday ? 'var(--accent)' : (inMonth ? 'var(--text-main)' : 'var(--text-muted)')};">${dJalali.d}</span>
+              ${pendingCount ? `<span class="text-[8px] font-bold en" style="color:var(--accent);">${pendingCount}</span>` : ''}
+            </div>
+            ${itemsHtml}
+          </div>`;
+    }).join('');
+
+    grid.innerHTML = headerHtml + cellsHtml;
+
+    renderScheduleOrderList(orders, '// در این ماه سفارشی ثبت نشده');
 }
 
 // 
@@ -3280,6 +4286,29 @@ async function saveClientNotes() {
     }
 }
 
+// Per-client "translate into this language instead of English" setting
+// (DeepT-Core's `target_language` field on the client record, read by
+// DeepT-Back-End when it runs a translation). Saved immediately on change,
+// same as other single-field edits on this page -- no separate save button
+// needed for a dropdown.
+async function saveClientTargetLanguage() {
+    if (!currentClientDetailId) return;
+    const sel = document.getElementById('cp-target-lang');
+    if (!sel) return;
+    const token = localStorage.getItem('deept_token');
+    try {
+        const res = await fetch(`${CORE}/clients/${currentClientDetailId}`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ target_language: sel.value || null })
+        });
+        if (!res.ok) throw new Error();
+        showToast('✅ زبان مقصد ترجمه ذخیره شد.');
+    } catch (e) {
+        showToast('خطا در ذخیره زبان مقصد ترجمه.');
+    }
+}
+
 async function removeRelatedPerson(nationalId) {
     if (!currentClientDetailId) return;
     const token = localStorage.getItem('deept_token');
@@ -3470,6 +4499,17 @@ function applyRouteForPath(path) {
 
         if (currentUserSession) {
             openMyPriceListPage(false);
+        } else {
+            navigateTo('/', false);
+            showLandingView();
+            openLogin();
+            showToast('برای دسترسی به این بخش، ابتدا وارد شوید.');
+        }
+
+    } else if (path === '/hr') {
+
+        if (currentUserSession) {
+            openHrPage(false);
         } else {
             navigateTo('/', false);
             showLandingView();
@@ -3672,12 +4712,14 @@ function ppShowStatus(icon, text) {
 }
 
 function ppClearFields() {
-    ['pp-first','pp-last','pp-father','pp-dob','pp-national'].forEach(id => document.getElementById(id).value = '');
+    ['pp-first','pp-last','pp-first-fa','pp-last-fa','pp-father','pp-dob','pp-national'].forEach(id => document.getElementById(id).value = '');
 }
 
 function ppFillFields(data) {
     document.getElementById('pp-first').value    = data.first_name    || '';
     document.getElementById('pp-last').value     = data.last_name     || '';
+    document.getElementById('pp-first-fa').value = data.first_name_fa || '';
+    document.getElementById('pp-last-fa').value  = data.last_name_fa  || '';
     document.getElementById('pp-father').value   = data.father_name   || '';
     document.getElementById('pp-dob').value      = data.date_of_birth || '';
     document.getElementById('pp-national').value = data.national_id   || '';
@@ -3733,6 +4775,8 @@ async function ppRunExtraction() {
 async function ppConfirmSession() {
     const first    = document.getElementById('pp-first').value.trim().toUpperCase();
     const last     = document.getElementById('pp-last').value.trim().toUpperCase();
+    const firstFa  = document.getElementById('pp-first-fa').value.trim();
+    const lastFa   = document.getElementById('pp-last-fa').value.trim();
     const father   = document.getElementById('pp-father').value.trim().toUpperCase();
     const dob      = document.getElementById('pp-dob').value.trim();
     const national = document.getElementById('pp-national').value.trim();
@@ -3745,12 +4789,12 @@ async function ppConfirmSession() {
         const res = await fetch(`${getActiveBackendOrigin()}/passport/confirm`, {
             method: 'POST',
             headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ first_name:first, last_name:last, father_name:father, date_of_birth:dob, national_id:national })
+            body: JSON.stringify({ first_name:first, last_name:last, first_name_fa:firstFa, last_name_fa:lastFa, father_name:father, date_of_birth:dob, national_id:national })
         });
         if (!res.ok) { const e = await res.json(); throw new Error(e.detail || 'خطای سرور'); }
         const data = await res.json();
 
-        confirmedPassports.push({ session_id:data.session_id, first_name:first, last_name:last, father_name:father, date_of_birth:dob, national_id:national });
+        confirmedPassports.push({ session_id:data.session_id, first_name:first, last_name:last, first_name_fa:firstFa, last_name_fa:lastFa, father_name:father, date_of_birth:dob, national_id:national });
         updateClientBadge();
 document.getElementById('pp-fields').classList.add('hidden');
 document.getElementById('ppModeButtons').classList.add('hidden');
@@ -3764,7 +4808,7 @@ ppShowStatus('', '');
         // auto-saved -- the manual "💾 ذخیره مشتری" button on the
         // confirmed-passports list still covers that case once one is typed in.
         if (national) {
-            saveOrAttachClient({ first_name:first, last_name:last, father_name:father, date_of_birth:dob, national_id:national, session_id:data.session_id });
+            saveOrAttachClient({ first_name:first, last_name:last, first_name_fa:firstFa, last_name_fa:lastFa, father_name:father, date_of_birth:dob, national_id:national, session_id:data.session_id });
         }
     } catch (err) {
         ppShowStatus('❌', 'ثبت اطلاعات ناموفق بود. لطفاً دوباره تلاش کنید.');
@@ -3790,6 +4834,8 @@ async function saveOrAttachClient(identity) {
                 body: JSON.stringify({
                     first_name:    identity.first_name,
                     last_name:     identity.last_name,
+                    first_name_fa: identity.first_name_fa || '',
+                    last_name_fa:  identity.last_name_fa  || '',
                     national_id:   identity.national_id,
                     father_name:   identity.father_name   || '',
                     date_of_birth: identity.date_of_birth || '',
@@ -3933,7 +4979,7 @@ let clientEditingId = null;
 
 function openAddClientModal() {
     clientEditingId = null;
-    ['ac-first','ac-last','ac-first-fa','ac-last-fa','ac-national','ac-father','ac-dob','ac-phone','ac-email','ac-passport','ac-nationality','ac-notes']
+    ['ac-first','ac-last','ac-first-fa','ac-last-fa','ac-national','ac-father','ac-dob','ac-phone','ac-email','ac-passport','ac-nationality','ac-notes','ac-target-lang']
         .forEach(id => document.getElementById(id).value = '');
     document.getElementById('ac-submit-btn').textContent = 'افزودن مشتری';
     document.querySelector('#addClientModal h3').textContent = '➕ افزودن مشتری جدید';
@@ -3960,6 +5006,11 @@ async function openAddClientModalForEdit() {
         document.getElementById('ac-passport').value = c.passport_number || '';
         document.getElementById('ac-nationality').value = c.nationality || '';
         document.getElementById('ac-notes').value = c.notes || '';
+        const acTargetLangSel = document.getElementById('ac-target-lang');
+        if (acTargetLangSel) {
+            const validLangs = ['French', 'Italian', 'Spanish'];
+            acTargetLangSel.value = validLangs.includes(c.target_language) ? c.target_language : '';
+        }
         document.getElementById('ac-submit-btn').textContent = 'ذخیره تغییرات';
         document.querySelector('#addClientModal h3').textContent = '✏️ ویرایش مشتری';
         document.getElementById('addClientModal').classList.remove('hidden');
@@ -4001,6 +5052,7 @@ async function submitAddClient() {
         passport_number: document.getElementById('ac-passport').value.trim()    || null,
         nationality:     document.getElementById('ac-nationality').value.trim() || null,
         notes:           document.getElementById('ac-notes').value.trim()       || null,
+        target_language: document.getElementById('ac-target-lang').value        || null,
     };
     try {
         const res = clientEditingId
@@ -4471,6 +5523,17 @@ let pendingResetToken = null;
     // session, not just the catalog defaults.
     if (currentUserSession) loadMyPriceListCatalog();
 
+    // account_type is only ever learned fresh at login time (see
+    // saveSession()) -- an already-logged-in session from before that
+    // existed, or one that simply hasn't logged in again since, has no
+    // other way to pick up "this is an office account" and the HR
+    // attendance UI that unlocks (see syncUserSessionDOM()). office_name/
+    // contact_info aren't returned by login/signup at all (see ProfileUpdate
+    // in DeepT-Core), only by /auth/verify -- so this is also the only way
+    // a saved profile edit shows up in a different tab/session. Self-heals
+    // on every page load instead of requiring a re-login.
+    syncProfileFromServer();
+
     // GitHub Pages has no server routing: a refresh on /dashboard etc. lands
     // on 404.html, which stashes the intended path (+ query string, e.g. a
     // password-reset link is /login/?reset_token=...) in sessionStorage and
@@ -4543,6 +5606,7 @@ function saveSession(data) {
     localStorage.setItem('deept_user_name', data.full_name || data.username || '');
     localStorage.setItem('deept_user_email', data.email || '');
     localStorage.setItem('deept_is_admin', data.is_admin ? '1' : '0');
+    localStorage.setItem('deept_account_type', data.account_type || 'individual');
 
     return true;
 }
@@ -5113,6 +6177,9 @@ function adminLogout() {
     localStorage.removeItem('deept_user_name');
     localStorage.removeItem('deept_user_email');
     localStorage.removeItem('deept_is_admin');
+    localStorage.removeItem('deept_account_type');
+    localStorage.removeItem('deept_office_name');
+    localStorage.removeItem('deept_contact_info');
 
     document.getElementById('adminDashboard')?.classList.add('hidden');
 
