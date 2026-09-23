@@ -60,7 +60,7 @@
     <button type="button" id="settingsHeaderBtn" onclick="openSettingsPage()" class="header-btn header-btn-workspace hidden">⚙️ تنظیمات</button>
     <button type="button" id="priceListHeaderBtn" onclick="openMyPriceListPage()" class="header-btn header-btn-workspace hidden">💰 نرخنامه من</button>
     <button type="button" id="adminPanelHeaderBtn" onclick="showAdminDashboard()" class="header-btn header-btn-workspace hidden">🛡️ پنل مدیریت</button>
-    <button type="button" id="hrClockHeaderBtn" onclick="openHrClockWidget()" class="header-btn header-btn-workspace hidden">🕐 ثبت ورود/خروج</button>
+    <button type="button" id="hrClockHeaderBtn" onclick="openHrPage()" class="header-btn header-btn-workspace hidden">🕐 حضور غیاب پرسنل</button>
     <button type="button" id="logoutHeaderBtn" onclick="confirmLogout()" class="header-btn header-btn-logout hidden">
       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
       خروج
@@ -103,9 +103,9 @@
     <svg class="side-rail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 19 6v6c0 4.5-3 7.5-7 8.5-4-1-7-4-7-8.5V6l7-2.5Z"/><path d="m9.2 12 1.9 1.9 3.7-3.9"/></svg>
     <span class="side-rail-label">مدیریت</span>
   </button>
-  <button type="button" id="railHrClockBtn" onclick="openHrClockWidget()" class="side-rail-btn hidden" title="ثبت ورود/خروج">
+  <button type="button" id="railHrClockBtn" onclick="openHrPage()" class="side-rail-btn hidden" title="حضور غیاب پرسنل">
     <svg class="side-rail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
-    <span class="side-rail-label">حضور و غیاب</span>
+    <span class="side-rail-label">حضور غیاب</span>
   </button>
 </nav>
 
@@ -1041,31 +1041,55 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
             </div>
         </div>
 
-        <!-- ─── HR / حضور و غیاب: office-account sub-users (see hr.py) --
-             a staff member has no login of their own, just a short PIN
-             checked at ثبت ورود/خروج (header widget). Clock punches also
-             require the request's IP to match this office's own
-             registered WiFi IP, set here. Office accounts only. ──────── -->
-        <div id="hr-settings-section" class="workspace-panel p-6 hidden">
-            <h4 class="text-sm font-black mb-1 flex items-center gap-1.5" style="color:var(--text-main);">🕐 حضور و غیاب کارمندان</h4>
-            <p class="text-[11px] mb-4" style="color:var(--text-muted);">کارمندان دفتر خود را با یک پین کوتاه تعریف کنید تا فقط از طریق وای‌فای دفتر بتوانند ورود/خروج خود را ثبت کنند.</p>
+    </div>
+</section>
 
+<!-- ── VIEW · حضور غیاب پرسنل (Staff Attendance) ── its own top-level page
+     (not a settings card) for office accounts (see hr.py): defining staff
+     (name + PIN, no login of their own), seeing who's clocked in right
+     now, a full timesheet, and the clock in/out action itself -- all in
+     one place, reachable from the header's "🕐 حضور غیاب پرسنل" button.
+     Clock punches require the request's IP to match this office's own
+     registered WiFi IP, set here. ──────────────────────────────────────── -->
+<section id="hrPage" class="fixed inset-0 z-40 hidden overflow-y-auto p-4 pt-24 md:p-8 md:pt-24" style="background: var(--bg-secondary);">
+    <div class="max-w-4xl mx-auto space-y-5">
+        <div class="flex items-center justify-between gap-3 flex-wrap">
+            <h2 class="text-xl font-black flex items-center gap-2" style="color:var(--text-main);">
+                🕐 حضور غیاب پرسنل
+            </h2>
+            <div class="flex items-center gap-2">
+                <button type="button" onclick="openHrClockWidget()" class="text-xs font-black px-4 py-2 rounded-xl transition" style="background:var(--accent);color:var(--btn-text-on-accent);">🕐 ثبت ورود / خروج</button>
+                <button type="button" onclick="closeHrPage()" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">میز کار ترجمه ←</button>
+            </div>
+        </div>
+
+        <div class="workspace-panel p-6">
             <div class="flex items-center gap-2 flex-wrap mb-4 p-3 rounded-lg" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
-                <span class="text-[11px]" style="color:var(--text-muted);">آی‌پی وای‌فای ثبت‌شدهٔ دفتر:</span>
+                <span class="text-[11px]" style="color:var(--text-muted);">آی‌پی وای‌فای ثبت‌شدهٔ دفتر (شرط ثبت ورود/خروج):</span>
                 <span id="hr-wifi-ip" class="text-xs font-bold en" dir="ltr" style="color:var(--text-main);">—</span>
                 <button type="button" onclick="registerHrWifi()" id="hr-wifi-register-btn" class="text-[11px] font-bold px-3 py-1.5 rounded-lg mr-auto" style="background:var(--accent);color:var(--btn-text-on-accent);">ثبت آی‌پی فعلی (دفتر)</button>
             </div>
-            <p id="hr-wifi-status" class="text-[11px] mb-4 hidden"></p>
+            <p id="hr-wifi-status" class="text-[11px] mb-1 hidden"></p>
+        </div>
 
+        <div class="workspace-panel p-6">
+            <h4 class="text-sm font-black mb-3 flex items-center gap-1.5" style="color:var(--text-main);">🟢 کارمندان حاضر اکنون</h4>
+            <div id="hr-present-now-list" class="flex flex-col gap-2"></div>
+        </div>
+
+        <div class="workspace-panel p-6">
             <div class="flex items-center justify-between mb-2">
-                <h5 class="text-xs font-black" style="color:var(--text-main);">لیست کارمندان</h5>
+                <h4 class="text-sm font-black flex items-center gap-1.5" style="color:var(--text-main);">🧑‍💼 لیست کارمندان</h4>
                 <button type="button" onclick="openAddHrStaffModal()" class="text-[11px] font-bold px-3 py-1.5 rounded-lg flex items-center gap-1" style="background:var(--accent);color:var(--btn-text-on-accent);">
                     <span style="font-size:.95em;">+</span> افزودن کارمند جدید
                 </button>
             </div>
-            <div id="hr-staff-list" class="flex flex-col gap-2 mb-5"></div>
+            <p class="text-[11px] mb-4" style="color:var(--text-muted);">کارمندان دفتر خود را با یک پین کوتاه تعریف کنید تا فقط از طریق وای‌فای دفتر بتوانند ورود/خروج خود را ثبت کنند.</p>
+            <div id="hr-staff-list" class="flex flex-col gap-2"></div>
+        </div>
 
-            <h5 class="text-xs font-black mb-2 mt-2" style="color:var(--text-main);">کارکرد (تایم‌شیت)</h5>
+        <div class="workspace-panel p-6">
+            <h4 class="text-sm font-black mb-2 flex items-center gap-1.5" style="color:var(--text-main);">📋 کارکرد (تایم‌شیت)</h4>
             <div class="flex items-center gap-2 flex-wrap mb-3">
                 <label class="text-[11px]" style="color:var(--text-muted);">از:</label>
                 <input type="date" id="hr-attendance-from" class="auth-input" style="width:auto;" onchange="loadHrAttendance()">
