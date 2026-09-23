@@ -163,7 +163,7 @@
       <h3 class="text-base font-black" style="color:var(--text-main);">🕐 ثبت ورود / خروج</h3>
       <button type="button" onclick="closeHrClockWidget()" style="color:var(--text-muted);background:none;border:none;cursor:pointer;font-size:1.1rem;">✕</button>
     </div>
-    <p class="text-[11px] mb-4" style="color:var(--text-muted);">پین خود را وارد کنید. با ورود یک پین، اگر در حال حاضر حاضر نیستید ورود و در غیر این صورت خروج شما ثبت می‌شود.</p>
+    <p class="text-[11px] mb-4" style="color:var(--text-muted);">پین خود را وارد کنید. با ورود یک پین، اگر در حال حاضر حاضر نیستید ورود و در غیر این صورت خروج شما ثبت می‌شود. مرورگر موقعیت مکانی شما را می‌پرسد — این ثبت فقط در محل دفتر انجام می‌شود.</p>
     <input type="text" id="hr-clock-pin" inputmode="numeric" maxlength="6" class="auth-input en text-center mb-3" dir="ltr" style="font-size:1.3rem;letter-spacing:.3rem;" placeholder="••••">
     <button type="button" onclick="submitHrClock()" id="hr-clock-submit-btn" class="w-full font-black py-2.5 rounded-xl text-sm transition" style="background:var(--accent);color:var(--btn-text-on-accent);">ثبت</button>
     <p id="hr-clock-status" class="text-[12px] mt-3 hidden"></p>
@@ -1064,12 +1064,13 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
         </div>
 
         <div class="workspace-panel p-6">
-            <div class="flex items-center gap-2 flex-wrap mb-4 p-3 rounded-lg" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
-                <span class="text-[11px]" style="color:var(--text-muted);">آی‌پی وای‌فای ثبت‌شدهٔ دفتر (شرط ثبت ورود/خروج):</span>
-                <span id="hr-wifi-ip" class="text-xs font-bold en" dir="ltr" style="color:var(--text-main);">—</span>
-                <button type="button" onclick="registerHrWifi()" id="hr-wifi-register-btn" class="text-[11px] font-bold px-3 py-1.5 rounded-lg mr-auto" style="background:var(--accent);color:var(--btn-text-on-accent);">ثبت آی‌پی فعلی (دفتر)</button>
+            <div class="flex items-center gap-2 flex-wrap mb-1 p-3 rounded-lg" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
+                <span class="text-[11px]" style="color:var(--text-muted);">موقعیت ثبت‌شدهٔ دفتر (شرط ثبت ورود/خروج):</span>
+                <span id="hr-location" class="text-xs font-bold en" dir="ltr" style="color:var(--text-main);">—</span>
+                <button type="button" onclick="registerHrLocation()" id="hr-location-register-btn" class="text-[11px] font-bold px-3 py-1.5 rounded-lg mr-auto" style="background:var(--accent);color:var(--btn-text-on-accent);">ثبت موقعیت فعلی (دفتر)</button>
             </div>
-            <p id="hr-wifi-status" class="text-[11px] mb-1 hidden"></p>
+            <p class="text-[11px] mb-1" style="color:var(--text-muted);">این دکمه را یک‌بار، از داخل دفتر، بزنید. ثبت ورود/خروج کارمندان فقط تا شعاع ۱۵۰ متری همین موقعیت امکان‌پذیر خواهد بود.</p>
+            <p id="hr-location-status" class="text-[11px] mb-1 hidden"></p>
         </div>
 
         <div class="workspace-panel p-6">

@@ -441,9 +441,32 @@ document.getElementById('myplRepriceModal').addEventListener('click', function(e
 // their own for staff: a PIN entered here, under the OFFICE's own already-
 // logged-in session, is all that identifies which staff member is
 // punching -- same as a shared physical time clock. The server also
-// requires this office's registered WiFi IP to match (see تنظیمات's HR
-// panel, loadHrSettings(), for registering it).
+// requires the browser's current GPS position to be within a small
+// radius of this office's registered location (see حضور غیاب پرسنل's
+// loadHrSettings(), for registering it) -- replaced an earlier WiFi-IP
+// check, which broke every time the office's ISP reassigned its public IP.
 // ═══════════════════════════════════════════════════════════
+
+// Promise wrapper around the Geolocation API, shared by the clock-in/out
+// PIN pad and registerHrLocation() below.
+function _getGeoPosition() {
+    return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+            reject(new Error('مرورگر شما از موقعیت‌یابی پشتیبانی نمی‌کند.'));
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(
+            pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+            err => reject(new Error(
+                err.code === err.PERMISSION_DENIED
+                    ? 'اجازهٔ دسترسی به موقعیت مکانی داده نشد. برای ثبت ورود/خروج باید دسترسی موقعیت مکانی را در مرورگر فعال کنید.'
+                    : 'دریافت موقعیت مکانی ناموفق بود. اتصال GPS/اینترنت را بررسی کنید.'
+            )),
+            { enableHighAccuracy: true, timeout: 10000 }
+        );
+    });
+}
+
 function openHrClockWidget() {
     document.getElementById('hr-clock-pin').value = '';
     document.getElementById('hr-clock-status').classList.add('hidden');
@@ -472,12 +495,14 @@ async function submitHrClock() {
     }
     btn.disabled = true;
     status.style.color = 'var(--text-muted)';
-    status.textContent = 'در حال ثبت...';
+    status.textContent = 'در حال دریافت موقعیت مکانی...';
     try {
+        const { lat, lng } = await _getGeoPosition();
+        status.textContent = 'در حال ثبت...';
         const res = await fetch(`${CORE}/hr/clock`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ pin })
+            body: JSON.stringify({ pin, lat, lng })
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.detail || 'خطای سرور');
@@ -500,11 +525,11 @@ async function submitHrClock() {
     }
 }
 
-// ── HR settings panel (تنظیمات → حضور و غیاب کارمندان) ──────────────────
-// Office WiFi IP registration + staff roster management + a read-only
-// timesheet view. Manual correction of a forgotten clock-out is supported
-// server-side (PATCH /hr/attendance/{id}, see hr.py) but has no editing UI
-// here yet -- v1 of this panel is view + roster management only.
+// ── HR settings panel (حضور غیاب پرسنل) ──────────────────────────────────
+// Office location (geofence) registration + staff roster management + a
+// read-only timesheet view. Manual correction of a forgotten clock-out is
+// supported server-side (PATCH /hr/attendance/{id}, see hr.py) but has no
+// editing UI here yet -- v1 of this panel is view + roster management only.
 let hrStaffList = [];
 
 async function loadHrSettings() {
@@ -516,35 +541,40 @@ async function loadHrSettings() {
         toInput.value = today.toISOString().slice(0, 10);
         fromInput.value = twoWeeksAgo.toISOString().slice(0, 10);
     }
-    await Promise.all([loadHrWifi(), loadHrStaff(), loadHrAttendance()]);
+    await Promise.all([loadHrLocation(), loadHrStaff(), loadHrAttendance()]);
 }
 
-async function loadHrWifi() {
+async function loadHrLocation() {
     try {
-        const res = await fetch(`${CORE}/hr/wifi`, { headers: { 'Authorization': `Bearer ${getToken()}` } });
+        const res = await fetch(`${CORE}/hr/location`, { headers: { 'Authorization': `Bearer ${getToken()}` } });
         const data = await res.json();
-        document.getElementById('hr-wifi-ip').textContent = data.office_wifi_ip || 'ثبت نشده';
+        document.getElementById('hr-location').textContent =
+            (data.office_lat != null && data.office_lng != null) ? 'ثبت شده ✅' : 'ثبت نشده';
     } catch (e) {
-        document.getElementById('hr-wifi-ip').textContent = 'ثبت نشده';
+        document.getElementById('hr-location').textContent = 'ثبت نشده';
     }
 }
 
-async function registerHrWifi() {
-    const btn = document.getElementById('hr-wifi-register-btn');
-    const status = document.getElementById('hr-wifi-status');
+async function registerHrLocation() {
+    const btn = document.getElementById('hr-location-register-btn');
+    const status = document.getElementById('hr-location-status');
     btn.disabled = true;
     status.classList.remove('hidden');
     status.style.color = 'var(--text-muted)';
-    status.textContent = 'در حال ثبت...';
+    status.textContent = 'در حال دریافت موقعیت مکانی...';
     try {
-        const res = await fetch(`${CORE}/hr/wifi/register`, {
-            method: 'POST', headers: { 'Authorization': `Bearer ${getToken()}` }
+        const { lat, lng } = await _getGeoPosition();
+        status.textContent = 'در حال ثبت...';
+        const res = await fetch(`${CORE}/hr/location/register`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lat, lng })
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.detail || 'خطای سرور');
-        document.getElementById('hr-wifi-ip').textContent = data.office_wifi_ip;
+        document.getElementById('hr-location').textContent = 'ثبت شده ✅';
         status.style.color = 'var(--accent)';
-        status.textContent = '✅ آی‌پی فعلی این دستگاه ثبت شد.';
+        status.textContent = '✅ موقعیت فعلی این دستگاه به‌عنوان محل دفتر ثبت شد.';
     } catch (e) {
         status.style.color = '#f87171';
         status.textContent = `❌ ${e.message || 'خطای نامشخص'}`;
