@@ -17,8 +17,8 @@
 // const CORE    = 'http://127.0.0.1:8001';
 // const BACKEND = 'http://127.0.0.1:8000';
 
-const CORE    = 'https://core-ir.deept.ir';
-const BACKEND = 'https://backend-ir.deept.ir';
+const CORE    = 'https://core.deept.ir';
+const BACKEND = 'https://backend.deept.ir';
 
 // ═══════════════════════════════════════════════════════════
 // DOCUMENT REGISTRY
