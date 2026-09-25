@@ -2408,12 +2408,16 @@ function toggleActivityInDraft(type, id, description, priceToman, checked) {
     const key = activityRowKey(type, id);
     if (checked) {
         if (isActivityInDraft(key)) return;
-        // job_id is only ever set for a real DeepT job -- a Sanam-sourced
-        // row is a fresh draft line, not a link back to its original
-        // (already-invoiced) Sanam invoice_item.
+        // job_id links back to a completed DeepT job; sanam_document_id
+        // links back to an imported-but-unbilled Sanam work item (see
+        // clients.py's _get_sanam_documents) -- the backend marks it billed
+        // (invoice_id) once the invoice is actually created, so it won't be
+        // offered again for a second invoice.
         invoiceDraft.push({
             description, quantity: 1, unit_price_toman: priceToman,
-            job_id: type === 'job' ? id : null, _source_key: key,
+            job_id: type === 'job' ? id : null,
+            sanam_document_id: type === 'sanam' ? id : null,
+            _source_key: key,
         });
     } else {
         invoiceDraft = invoiceDraft.filter(row => row._source_key !== key);
@@ -2443,10 +2447,11 @@ function renderClientActivityList(jobs, sanamDocs) {
     });
     (sanamDocs || []).forEach(d => {
         rows.push({
-            type: 'sanam', id: d.id, date: d.date,
-            title: d.description + (d.quantity > 1 ? ` ×${d.quantity}` : ''),
-            price: d.line_total_toman || 0, trackingCode: d.tracking_code,
-            checkable: true,
+            type: 'sanam', id: d.id, date: d.request_date || d.created_at,
+            title: d.description,
+            price: d.price_toman || 0, trackingCode: d.tracking_code,
+            // Already attached to an invoice -- don't offer it for a second one.
+            checkable: !d.invoice_id, billed: !!d.invoice_id,
         });
     });
     rows.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
@@ -2465,7 +2470,8 @@ function renderClientActivityList(jobs, sanamDocs) {
     box.innerHTML = rows.map(r => {
         const color = ACTIVITY_CATEGORY_COLORS[r.type];
         const checked = isActivityInDraft(activityRowKey(r.type, r.id));
-        const st = r.type === 'job' ? (ACTIVITY_STATUS_LABELS[r.status] || { text: escapeHtml(r.status), color: 'var(--text-muted)' }) : null;
+        const st = r.type === 'job' ? (ACTIVITY_STATUS_LABELS[r.status] || { text: escapeHtml(r.status), color: 'var(--text-muted)' })
+            : (r.billed ? { text: 'فاکتور شده', color: '#4ade80' } : null);
         const idBadge = r.type === 'job'
             ? `<span class="en" style="color:var(--text-muted);font-size:.65rem;" title="شناسه کار">#${escapeHtml(String(r.id).slice(0, 8))}</span>`
             : (r.trackingCode ? `<span class="en" style="color:var(--text-muted);font-size:.65rem;">کد پیگیری ${escapeHtml(r.trackingCode)}</span>` : '');
@@ -2483,7 +2489,7 @@ function renderClientActivityList(jobs, sanamDocs) {
                 <td class="en" style="padding:.6rem;color:var(--text-muted);">${idBadge || '—'}</td>
                 <td class="en" style="padding:.6rem;color:var(--text-muted);">${dateStr}</td>
                 <td class="en font-bold" style="padding:.6rem;color:var(--accent);">${r.price ? r.price.toLocaleString() + ' ت' : '—'}</td>
-                <td style="padding:.6rem;text-align:center;">${checkbox}</td>
+                <td style="padding:.6rem;text-align:center;">${r.billed ? `<span class="status-pill" style="color:${st.color};background:${st.color}1f;">${st.text}</span>` : checkbox}</td>
             </tr>`;
         }
         return `<div class="flex items-center gap-2.5 p-2.5 rounded-lg text-xs" style="background:var(--bg-main);border:1px solid var(--border-subtle);border-inline-start:3px solid ${color};">
@@ -2577,7 +2583,7 @@ async function renderClientInvoices(clientId) {
 // times in one order. ──────────────────────────────────────────────────
 
 function addCustomInvoiceRow() {
-    invoiceDraft.push({ description: '', quantity: 1, unit_price_toman: 0, job_id: null });
+    invoiceDraft.push({ description: '', quantity: 1, unit_price_toman: 0, job_id: null, sanam_document_id: null });
     renderDraftRows();
 }
 
@@ -2759,6 +2765,7 @@ function selectMyPriceListItem(instance, itemId) {
         renderInvoiceEditRows();
     } else {
         row.job_id = null;
+        row.sanam_document_id = null;
         invoiceDraft.push(row);
         renderDraftRows();
     }
@@ -2869,6 +2876,7 @@ async function submitDraftInvoice(invoiceType) {
         quantity: row.quantity || 1,
         line_total_toman: (row.quantity || 0) * (row.unit_price_toman || 0),
         job_id: row.job_id,
+        sanam_document_id: row.sanam_document_id,
     }));
 
     const token = localStorage.getItem('deept_token');
@@ -4362,10 +4370,10 @@ async function handleSanamFileSelected(file) {
         status.style.color = errors.length ? '#fb923c' : 'var(--accent)';
         status.textContent =
             `${errors.length ? '⚠️' : '✅'} ${data.clients_touched} مشتری ثبت/به‌روزرسانی شد — ` +
-            `${data.invoices_created} فاکتور جدید ساخته شد` +
-            (data.invoices_skipped_already_imported ? ` (${data.invoices_skipped_already_imported} فاکتور قبلاً وارد شده بود و رد شد)` : '') +
-            (errors.length ? ` — ${errors.length} ردیف رد شد: ${errors.map(e => `کد پیگیری ${e.tracking_code} (${e.reason})`).join('، ')}` : '') +
-            '.';
+            `${data.documents_created} کار جدید به پروفایل مشتریان اضافه شد` +
+            (data.documents_skipped_already_imported ? ` (${data.documents_skipped_already_imported} مورد قبلاً وارد شده بود و رد شد)` : '') +
+            (errors.length ? ` — ${errors.length} ردیف رد شد: ${errors.map(e => `شماره تمبر ${e.stamp_number} (${e.reason})`).join('، ')}` : '') +
+            ' — برای صدور فاکتور، از پروفایل هر مشتری موارد موردنظر را انتخاب کنید.';
         renderDashboardClients();
     } catch (err) {
         status.style.color = '#f87171';
