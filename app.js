@@ -2448,7 +2448,7 @@ function renderClientActivityList(jobs, sanamDocs) {
     (sanamDocs || []).forEach(d => {
         rows.push({
             type: 'sanam', id: d.id, date: d.request_date || d.created_at,
-            title: d.description + (d.copies > 1 ? ` ×${d.copies}` : ''),
+            title: d.description,
             price: d.price_toman || 0, trackingCode: d.tracking_code,
             // Already attached to an invoice -- don't offer it for a second one.
             checkable: !d.invoice_id, billed: !!d.invoice_id,
