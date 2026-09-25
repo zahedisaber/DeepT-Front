@@ -220,6 +220,26 @@
   </div>
 </div>
 
+<!-- ── Edit-fields modal for a single checked activity-list row (job or
+     Sanam-imported document) -- opened by the bulk action bar's "ویرایش
+     فیلدها" button above the activity list, enabled only when exactly one
+     row is checked. Its fields are filled in dynamically per row type by
+     openEditWorkRecordModal() in app.js, since a job only exposes price
+     while a Sanam document exposes description/copies/price/date. ── -->
+<div role="dialog" aria-modal="true" id="editWorkRecordModal" class="modal-overlay fixed inset-0 z-[75] hidden flex items-center justify-center p-4">
+  <div class="w-full max-w-md p-6" style="background:var(--card-surface);border:1px solid var(--border-color);border-radius:1rem;">
+    <div class="flex items-center justify-between mb-1">
+      <h3 class="text-base font-black" style="color:var(--text-main);">✏️ ویرایش رکورد کار</h3>
+      <button type="button" onclick="closeEditWorkRecordModal()" style="color:var(--text-muted);background:none;border:none;cursor:pointer;font-size:1.1rem;">✕</button>
+    </div>
+    <div id="edit-work-record-fields" class="mt-3"></div>
+    <div class="flex items-center gap-2 mt-4">
+      <button type="button" onclick="submitEditWorkRecord()" class="flex-1 font-black py-2 rounded-lg text-xs transition" style="background:var(--accent);color:var(--btn-text-on-accent);">ذخیره</button>
+      <button type="button" onclick="closeEditWorkRecordModal()" class="text-xs font-bold px-3 py-2 rounded-lg transition shrink-0" style="background:var(--bg-main);color:var(--text-muted);border:1px solid var(--border-subtle);">انصراف</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── VIEW 03b · نرخنامه bulk percentage increase (inflation adjustment) --
      applies to every catalog item's current effective price (default or
      already-overridden alike) via myplCommit(); see applyMyplBulkIncrease()
@@ -321,6 +341,13 @@
         <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:50%;background:#fbbf24;display:inline-block;"></span>ردیف دستی (پیش‌نویس فاکتور)</span>
     </div>
     <p class="text-[11px] mb-2" style="color:var(--text-muted);">برای افزودن هر مورد به پیش‌نویس فاکتور پایین، تیک آن را بزنید.</p>
+    <div id="cd-activity-bulk-bar" class="hidden flex items-center gap-2 flex-wrap p-2 rounded-lg mb-2" style="background:var(--bg-main);border:1px solid var(--accent);">
+        <span id="cd-activity-bulk-count" class="text-[11px] font-bold" style="color:var(--text-main);"></span>
+        <span class="flex-1"></span>
+        <button type="button" onclick="submitDraftInvoice('invoice')" class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition" style="background:var(--accent);color:var(--btn-text-on-accent);border:1px solid transparent;">🧾 ایجاد فاکتور</button>
+        <button type="button" id="cd-activity-bulk-edit" onclick="openEditWorkRecordModalForSelection()" class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">✏️ ویرایش فیلدها</button>
+        <button type="button" id="cd-activity-bulk-delete" onclick="bulkDeleteCheckedActivityRows()" class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition" style="background:var(--card-surface);color:#f87171;border:1px solid var(--border-subtle);">🗑 حذف</button>
+    </div>
     <div id="cd-activity-list" class="space-y-1.5 mb-5"></div>
 
     <div class="p-3.5 rounded-xl mb-5" style="background:var(--bg-main);border:1px solid var(--border-color);">
@@ -1238,6 +1265,13 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                         <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:50%;background:#fbbf24;display:inline-block;"></span>ردیف دستی (پیش‌نویس فاکتور)</span>
                     </div>
                     <p class="text-[11px] mb-2" style="color:var(--text-muted);">برای افزودن هر مورد به پیش‌نویس فاکتور، تیک آن را بزنید.</p>
+                    <div id="cp-activity-bulk-bar" class="hidden flex items-center gap-2 flex-wrap p-2 rounded-lg mb-2" style="background:var(--bg-main);border:1px solid var(--accent);">
+                        <span id="cp-activity-bulk-count" class="text-[11px] font-bold" style="color:var(--text-main);"></span>
+                        <span class="flex-1"></span>
+                        <button type="button" onclick="submitDraftInvoice('invoice')" class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition" style="background:var(--accent);color:var(--btn-text-on-accent);border:1px solid transparent;">🧾 ایجاد فاکتور</button>
+                        <button type="button" id="cp-activity-bulk-edit" onclick="openEditWorkRecordModalForSelection()" class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">✏️ ویرایش فیلدها</button>
+                        <button type="button" id="cp-activity-bulk-delete" onclick="bulkDeleteCheckedActivityRows()" class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition" style="background:var(--card-surface);color:#f87171;border:1px solid var(--border-subtle);">🗑 حذف</button>
+                    </div>
                     <!-- Capped height + its own scrollbar: a long history must
                          not push فاکتورها all the way down the page. Horizontal
                          scroll (with nowrap cells) keeps rows on one tidy line
