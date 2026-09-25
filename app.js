@@ -438,6 +438,9 @@ document.getElementById('logoutOverlay').addEventListener('click', function(e) {
 document.getElementById('myplRepriceModal').addEventListener('click', function(e) {
     if (e.target === this) closeMyPriceListRepriceModal();
 });
+document.getElementById('editWorkRecordModal').addEventListener('click', function(e) {
+    if (e.target === this) closeEditWorkRecordModal();
+});
 
 // ═══════════════════════════════════════════════════════════
 // HR CLOCK IN / CLOCK OUT -- office accounts only (see hr.py). No login of
@@ -2331,6 +2334,11 @@ async function renderDashboardClients(q = '') {
 
 let currentClientDetailId = null;
 let invoiceDraft = [];   // [{description, quantity, line_total_toman, job_id}] -- built up before POSTing to /invoices
+// The activity list's own computed rows from the last render -- lets the
+// bulk action bar (create invoice / delete / edit fields) below look up a
+// checked row's current type/title/price without a second fetch.
+let lastActivityRows = [];
+let editWorkRecordTarget = null;   // { type, id } while editWorkRecordModal is open
 
 /* ============ SECTION: CLIENT DETAIL + DRAFT INVOICE ============
    Related persons, jobs list, notes, and the draft-invoice builder. ============ */
@@ -2425,6 +2433,172 @@ function toggleActivityInDraft(type, id, description, priceToman, checked) {
     renderDraftRows();
 }
 
+// ── Bulk action bar: create invoice / delete / edit fields ──────────────
+// Appears above the activity list the moment any row is checked, acting
+// on whichever activity-list rows are currently checked (i.e. present in
+// invoiceDraft with a _source_key -- a manually-typed draft row has none,
+// so it's never counted here). "Create invoice" just reuses the existing
+// submitDraftInvoice() flow; delete/edit act on the underlying job/sanam
+// record itself, not just its draft copy.
+function checkedActivityRows() {
+    const checkedKeys = new Set(invoiceDraft.map(r => r._source_key).filter(Boolean));
+    return lastActivityRows.filter(r => checkedKeys.has(activityRowKey(r.type, r.id)));
+}
+
+function updateActivityBulkBar() {
+    ['cd', 'cp'].forEach(prefix => {
+        const bar = document.getElementById(`${prefix}-activity-bulk-bar`);
+        if (!bar) return;
+        const checked = checkedActivityRows();
+        if (!checked.length) { bar.classList.add('hidden'); return; }
+        bar.classList.remove('hidden');
+        const countEl = document.getElementById(`${prefix}-activity-bulk-count`);
+        if (countEl) countEl.textContent = `${checked.length.toLocaleString()} مورد انتخاب شده`;
+
+        // A DeepT job is never deletable (it's the record of real
+        // translation work performed) -- only Sanam-imported rows are.
+        const hasJob = checked.some(r => r.type === 'job');
+        const deleteBtn = document.getElementById(`${prefix}-activity-bulk-delete`);
+        if (deleteBtn) {
+            deleteBtn.disabled = hasJob;
+            deleteBtn.title = hasJob ? 'رکوردهای ترجمهٔ دیپ‌تی قابل حذف نیستند -- فقط رکوردهای سنام حذف‌شدنی‌اند.' : '';
+        }
+        // Editing multiple different rows' fields in one form doesn't make
+        // sense -- only enabled for exactly one checked row.
+        const editBtn = document.getElementById(`${prefix}-activity-bulk-edit`);
+        if (editBtn) {
+            editBtn.disabled = checked.length !== 1;
+            editBtn.title = checked.length !== 1 ? 'برای ویرایش، فقط یک مورد را انتخاب کنید.' : '';
+        }
+    });
+}
+
+// Re-fetches just the jobs/sanam_documents for the open client and
+// re-renders the activity list -- unlike openClientDetail/openClientProfile,
+// this leaves invoiceDraft untouched (aside from whatever the caller already
+// removed/updated), so an unrelated manually-typed draft row or a still-
+// checked other item survives a delete/edit of one record.
+async function _refetchClientActivity(clientId) {
+    if (!clientId) return;
+    const token = localStorage.getItem('deept_token');
+    try {
+        const res = await fetch(`${CORE}/clients/${clientId}`, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (!res.ok) throw new Error();
+        const c = await res.json();
+        renderClientActivityList(c.jobs || [], c.sanam_documents || []);
+    } catch (e) {
+        showToast('خطا در به‌روزرسانی سابقهٔ مشتری.');
+    }
+}
+
+async function bulkDeleteCheckedActivityRows() {
+    const checked = checkedActivityRows();
+    if (!checked.length) return;
+    if (checked.some(r => r.type === 'job')) {
+        showToast('⚠️ رکوردهای ترجمهٔ دیپ‌تی قابل حذف نیستند.');
+        return;
+    }
+    if (!confirm(`${checked.length} رکورد برای همیشه حذف شود؟ این کار قابل بازگشت نیست.`)) return;
+
+    const token = localStorage.getItem('deept_token');
+    let failed = 0;
+    for (const row of checked) {
+        try {
+            const res = await fetch(`${CORE}/invoices/sanam-documents/${row.id}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` },
+            });
+            if (!res.ok) { failed++; continue; }
+            invoiceDraft = invoiceDraft.filter(r => r._source_key !== activityRowKey(row.type, row.id));
+        } catch (e) {
+            failed++;
+        }
+    }
+    renderDraftRows();
+    await _refetchClientActivity(currentClientDetailId);
+    showToast(failed ? `⚠️ ${failed} مورد حذف نشد (احتمالاً قبلاً در فاکتوری استفاده شده).` : '✅ رکورد(ها) حذف شد.');
+}
+
+function openEditWorkRecordModalForSelection() {
+    const checked = checkedActivityRows();
+    if (checked.length !== 1) return;
+    openEditWorkRecordModal(checked[0].type, checked[0].id);
+}
+
+function openEditWorkRecordModal(type, id) {
+    const row = lastActivityRows.find(r => r.type === type && String(r.id) === String(id));
+    if (!row) return;
+    editWorkRecordTarget = { type, id };
+
+    const fieldsBox = document.getElementById('edit-work-record-fields');
+    if (type === 'job') {
+        fieldsBox.innerHTML = `
+            <label class="text-xs font-bold block mb-1" style="color:var(--text-main);">قیمت (تومان)</label>
+            <input type="number" id="ewr-price" class="auth-input en w-full" dir="ltr" value="${row.price || 0}">
+            <p class="text-[11px] mt-2" style="color:var(--text-muted);">فقط قیمت این سفارش قابل ویرایش است -- نوع سند تغییر نمی‌کند.</p>`;
+    } else {
+        fieldsBox.innerHTML = `
+            <label class="text-xs font-bold block mb-1" style="color:var(--text-main);">شرح</label>
+            <input type="text" id="ewr-description" class="auth-input w-full" value="${(row.title || '').replace(/"/g, '&quot;')}">
+            <label class="text-xs font-bold block mb-1 mt-2.5" style="color:var(--text-main);">تعداد کپی</label>
+            <input type="number" id="ewr-copies" class="auth-input en w-full" dir="ltr" min="1" value="${row.copies || 1}">
+            <label class="text-xs font-bold block mb-1 mt-2.5" style="color:var(--text-main);">قیمت (تومان)</label>
+            <input type="number" id="ewr-price" class="auth-input en w-full" dir="ltr" value="${row.price || 0}">
+            <label class="text-xs font-bold block mb-1 mt-2.5" style="color:var(--text-main);">تاریخ درخواست</label>
+            <input type="text" id="ewr-date" class="auth-input w-full" value="${(row.date || '').replace(/"/g, '&quot;')}">`;
+    }
+    document.getElementById('editWorkRecordModal').classList.remove('hidden');
+}
+
+function closeEditWorkRecordModal() {
+    editWorkRecordTarget = null;
+    document.getElementById('editWorkRecordModal').classList.add('hidden');
+}
+
+async function submitEditWorkRecord() {
+    if (!editWorkRecordTarget) return;
+    const { type, id } = editWorkRecordTarget;
+    const token = localStorage.getItem('deept_token');
+
+    let url, body;
+    if (type === 'job') {
+        url = `${CORE}/jobs/${id}/fields`;
+        body = { price_toman: parseInt(document.getElementById('ewr-price').value, 10) || 0 };
+    } else {
+        url = `${CORE}/invoices/sanam-documents/${id}`;
+        body = {
+            description: document.getElementById('ewr-description').value.trim(),
+            copies: parseInt(document.getElementById('ewr-copies').value, 10) || 1,
+            price_toman: parseInt(document.getElementById('ewr-price').value, 10) || 0,
+            request_date: document.getElementById('ewr-date').value.trim() || null,
+        };
+    }
+
+    try {
+        const res = await fetch(url, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || 'خطای سرور'); }
+
+        // A row already checked into the draft keeps stale values (they
+        // were snapshotted at check-time) unless refreshed here too.
+        const draftRow = invoiceDraft.find(r => r._source_key === activityRowKey(type, id));
+        if (draftRow) {
+            if (body.description !== undefined) draftRow.description = body.description;
+            draftRow.unit_price_toman = body.price_toman;
+            renderDraftRows();
+        }
+
+        closeEditWorkRecordModal();
+        showToast('✅ رکورد ویرایش شد.');
+        await _refetchClientActivity(currentClientDetailId);
+    } catch (e) {
+        showToast(`❌ ${e.message || 'ویرایش ناموفق بود.'}`);
+    }
+}
+
 // The full-window profile page (cp-) shows this as a real <table> (it has
 // the width for real columns); the older, narrower client-detail modal
 // (cd-) keeps the original compact card-row layout, which is what it has
@@ -2448,13 +2622,14 @@ function renderClientActivityList(jobs, sanamDocs) {
     (sanamDocs || []).forEach(d => {
         rows.push({
             type: 'sanam', id: d.id, date: d.request_date || d.created_at,
-            title: d.description,
+            title: d.description, copies: d.copies || 1,
             price: d.price_toman || 0, trackingCode: d.tracking_code,
             // Already attached to an invoice -- don't offer it for a second one.
             checkable: !d.invoice_id, billed: !!d.invoice_id,
         });
     });
     rows.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    lastActivityRows = rows;
 
     if (countEl) countEl.textContent = rows.length;
     if (prefix === 'cp') renderClientStats(rows);
@@ -2464,6 +2639,7 @@ function renderClientActivityList(jobs, sanamDocs) {
         box.innerHTML = prefix === 'cp'
             ? `<tr><td colspan="6" class="text-xs text-center py-4" style="color:var(--text-muted);">${emptyMsg}</td></tr>`
             : `<div class="text-xs text-center py-4" style="color:var(--text-muted);">${emptyMsg}</div>`;
+        updateActivityBulkBar();
         return;
     }
 
@@ -2502,6 +2678,7 @@ function renderClientActivityList(jobs, sanamDocs) {
             ${st ? `<span class="status-pill" style="color:${st.color};background:${st.color}1f;">${st.text}</span>` : ''}
         </div>`;
     }).join('');
+    updateActivityBulkBar();
 }
 
 // Quick-glance numbers above the profile's activity table -- a failed job
@@ -2864,6 +3041,7 @@ function renderDraftRows() {
         </div>`;
     }).join('');
     updateDraftTotal();
+    updateActivityBulkBar();
 }
 
 async function submitDraftInvoice(invoiceType) {
