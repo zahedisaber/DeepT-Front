@@ -2330,8 +2330,8 @@ async function renderDashboardClients(q = '') {
                                 <div class="font-black text-sm" style="color:var(--text-main);">${escapeHtml(displayName(c))}</div>
                                 ${enName(c) && enName(c) !== displayName(c) ? `<div class="text-[11px] en" style="color:var(--text-muted);">${escapeHtml(enName(c))}</div>` : ''}
                             </td>
-                            <td class="en font-bold" style="padding:.6rem 0;color:var(--text-main);" dir="ltr">${escapeHtml(c.national_id) || '—'}</td>
-                            <td class="en font-bold" style="padding:.6rem 0;color:var(--text-main);" dir="ltr">${escapeHtml(c.phone) || '—'}</td>
+                            <td class="en font-bold" style="padding:.6rem 0;color:var(--text-main);text-align:right;" dir="ltr">${escapeHtml(c.national_id) || '—'}</td>
+                            <td class="en font-bold" style="padding:.6rem 0;color:var(--text-main);text-align:right;" dir="ltr">${escapeHtml(c.phone) || '—'}</td>
                             <td style="padding:.6rem 0;">
                                 <span class="flex items-center gap-1.5 justify-end">
                                     <button onclick="openClientProfile('${c.id}')" class="text-xs font-bold px-3 py-1.5 rounded-lg transition" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">مشاهده</button>
