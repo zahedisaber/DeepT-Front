@@ -2307,27 +2307,41 @@ async function renderDashboardClients(q = '') {
         const faName = (c) => `${c.first_name_fa || ''} ${c.last_name_fa || ''}`.trim();
         const enName = (c) => `${c.first_name || ''} ${c.last_name || ''}`.trim();
         const displayName = (c) => faName(c) || enName(c) || '—';
+        // A real <table> instead of one independent CSS-grid <div> per row:
+        // separate grid containers each size their own fr columns off their
+        // own content, so a row with a longer/shorter name than the header's
+        // label text drifts the column boundaries out of alignment with it
+        // row by row. A <table> shares one column layout across the header
+        // and every row by construction, so this can't happen.
         box.innerHTML = `
-            <div class="grid grid-cols-[1.6fr_1fr_1fr_140px] items-center gap-3 px-3 py-2 text-[11px] font-black" style="color:var(--text-muted);border-bottom:1px solid var(--divider);">
-                <span>نام</span>
-                <span>کد ملی</span>
-                <span>شماره همراه</span>
-                <span></span>
-            </div>
-            ${clients.map(c => `
-                <div class="grid grid-cols-[1.6fr_1fr_1fr_140px] items-center gap-3 p-3 rounded-xl" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
-                    <div>
-                        <div class="font-black text-sm" style="color:var(--text-main);">${escapeHtml(displayName(c))}</div>
-                        ${enName(c) && enName(c) !== displayName(c) ? `<div class="text-[11px] en" style="color:var(--text-muted);">${escapeHtml(enName(c))}</div>` : ''}
-                    </div>
-                    <div class="text-xs en font-bold" style="color:var(--text-main);" dir="ltr">${escapeHtml(c.national_id) || '—'}</div>
-                    <div class="text-xs en font-bold" style="color:var(--text-main);" dir="ltr">${escapeHtml(c.phone) || '—'}</div>
-                    <span class="flex items-center gap-1.5 justify-self-end">
-                        <button onclick="openClientProfile('${c.id}')" class="text-xs font-bold px-3 py-1.5 rounded-lg transition" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">مشاهده</button>
-                        <button onclick="deleteClient('${c.id}')" title="حذف مشتری" class="text-xs font-bold px-2 py-1.5 rounded-lg transition" style="background:var(--card-surface);color:#f87171;border:1px solid var(--border-color);">🗑</button>
-                    </span>
-                </div>
-            `).join('')}`;
+            <table class="ws-table" style="width:100%;border-spacing:0;font-size:.8rem;">
+                <thead>
+                    <tr>
+                        <th style="text-align:right;padding-inline-start:.75rem;">نام</th>
+                        <th style="text-align:right;">کد ملی</th>
+                        <th style="text-align:right;">شماره همراه</th>
+                        <th style="width:140px;"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${clients.map(c => `
+                        <tr>
+                            <td style="padding:.6rem .75rem .6rem 0;">
+                                <div class="font-black text-sm" style="color:var(--text-main);">${escapeHtml(displayName(c))}</div>
+                                ${enName(c) && enName(c) !== displayName(c) ? `<div class="text-[11px] en" style="color:var(--text-muted);">${escapeHtml(enName(c))}</div>` : ''}
+                            </td>
+                            <td class="en font-bold" style="padding:.6rem 0;color:var(--text-main);" dir="ltr">${escapeHtml(c.national_id) || '—'}</td>
+                            <td class="en font-bold" style="padding:.6rem 0;color:var(--text-main);" dir="ltr">${escapeHtml(c.phone) || '—'}</td>
+                            <td style="padding:.6rem 0;">
+                                <span class="flex items-center gap-1.5 justify-end">
+                                    <button onclick="openClientProfile('${c.id}')" class="text-xs font-bold px-3 py-1.5 rounded-lg transition" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">مشاهده</button>
+                                    <button onclick="deleteClient('${c.id}')" title="حذف مشتری" class="text-xs font-bold px-2 py-1.5 rounded-lg transition" style="background:var(--card-surface);color:#f87171;border:1px solid var(--border-color);">🗑</button>
+                                </span>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>`;
     } catch (e) {
         box.innerHTML = `<div class="text-xs text-center py-6" style="color:#f87171;">خطا در دریافت لیست مشتریان.
             <button onclick="renderDashboardClients('${(q || '').replace(/'/g,"")}')" class="block mx-auto mt-2 text-[11px] font-bold px-3 py-1 rounded-lg" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">🔄 تلاش مجدد</button>
@@ -2464,7 +2478,7 @@ function updateActivityBulkBar() {
         const deleteBtn = document.getElementById(`${prefix}-activity-bulk-delete`);
         if (deleteBtn) {
             deleteBtn.disabled = hasJob;
-            deleteBtn.title = hasJob ? 'رکوردهای ترجمهٔ دیپ‌تی قابل حذف نیستند -- فقط رکوردهای سنام حذف‌شدنی‌اند.' : '';
+            deleteBtn.title = hasJob ? 'رکوردهای ترجمه قابل حذف نیستند -- فقط رکوردهای سنام حذف‌شدنی‌اند.' : '';
         }
         // Editing multiple different rows' fields in one form doesn't make
         // sense -- only enabled for exactly one checked row.
@@ -2498,7 +2512,7 @@ async function bulkDeleteCheckedActivityRows() {
     const checked = checkedActivityRows();
     if (!checked.length) return;
     if (checked.some(r => r.type === 'job')) {
-        showToast('⚠️ رکوردهای ترجمهٔ دیپ‌تی قابل حذف نیستند.');
+        showToast('⚠️ رکوردهای ترجمه قابل حذف نیستند.');
         return;
     }
     if (!confirm(`${checked.length} رکورد برای همیشه حذف شود؟ این کار قابل بازگشت نیست.`)) return;
@@ -2655,7 +2669,7 @@ function renderClientActivityList(jobs, sanamDocs) {
             ? `<span class="en" style="color:var(--text-muted);font-size:.65rem;" title="شناسه کار">#${escapeHtml(String(r.id).slice(0, 8))}</span>`
             : (r.trackingCode ? `<span class="en" style="color:var(--text-muted);font-size:.65rem;">کد پیگیری ${escapeHtml(r.trackingCode)}</span>` : '');
         const dateStr = r.date ? escapeHtml(String(r.date).slice(0, 10)) : '—';
-        const dotTitle = r.type === 'job' ? 'ترجمه ماشینی DeepT' : (r.type === 'sanam' ? 'وارد شده از سنام' : 'ردیف دستی');
+        const dotTitle = r.type === 'job' ? 'ترجمه ماشینی' : (r.type === 'sanam' ? 'وارد شده از سنام' : 'ردیف دستی');
         const checkbox = `<input type="checkbox" ${checked ? 'checked' : ''} ${r.checkable ? '' : 'disabled'}
             data-activity-key="${escapeHtml(activityRowKey(r.type, r.id))}"
             onchange='toggleActivityInDraft(${JSON.stringify(r.type)}, ${JSON.stringify(r.id)}, ${JSON.stringify(r.title)}, ${r.price}, this.checked)'
