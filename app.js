@@ -2474,18 +2474,26 @@ function updateActivityBulkBar() {
 
         // A DeepT job is never deletable (it's the record of real
         // translation work performed) -- only Sanam-imported rows are.
+        // Styled as disabled but never given the actual `disabled`
+        // attribute -- a real disabled button swallows the click before it
+        // ever reaches bulkDeleteCheckedActivityRows()/
+        // openEditWorkRecordModalForSelection() below, so their own toast
+        // explaining *why* never fires and the button just looks broken.
         const hasJob = checked.some(r => r.type === 'job');
         const deleteBtn = document.getElementById(`${prefix}-activity-bulk-delete`);
         if (deleteBtn) {
-            deleteBtn.disabled = hasJob;
+            deleteBtn.style.opacity = hasJob ? '.45' : '1';
+            deleteBtn.style.cursor = hasJob ? 'not-allowed' : 'pointer';
             deleteBtn.title = hasJob ? 'رکوردهای ترجمه قابل حذف نیستند -- فقط رکوردهای سنام حذف‌شدنی‌اند.' : '';
         }
         // Editing multiple different rows' fields in one form doesn't make
         // sense -- only enabled for exactly one checked row.
         const editBtn = document.getElementById(`${prefix}-activity-bulk-edit`);
         if (editBtn) {
-            editBtn.disabled = checked.length !== 1;
-            editBtn.title = checked.length !== 1 ? 'برای ویرایش، فقط یک مورد را انتخاب کنید.' : '';
+            const single = checked.length === 1;
+            editBtn.style.opacity = single ? '1' : '.45';
+            editBtn.style.cursor = single ? 'pointer' : 'not-allowed';
+            editBtn.title = single ? '' : 'برای ویرایش، فقط یک مورد را انتخاب کنید.';
         }
     });
 }
@@ -2538,7 +2546,10 @@ async function bulkDeleteCheckedActivityRows() {
 
 function openEditWorkRecordModalForSelection() {
     const checked = checkedActivityRows();
-    if (checked.length !== 1) return;
+    if (checked.length !== 1) {
+        showToast(checked.length ? '⚠️ برای ویرایش، فقط یک مورد را انتخاب کنید.' : '⚠️ ابتدا یک مورد را انتخاب کنید.');
+        return;
+    }
     openEditWorkRecordModal(checked[0].type, checked[0].id);
 }
 
