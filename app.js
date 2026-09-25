@@ -2308,21 +2308,24 @@ async function renderDashboardClients(q = '') {
         const enName = (c) => `${c.first_name || ''} ${c.last_name || ''}`.trim();
         const displayName = (c) => faName(c) || enName(c) || '—';
         box.innerHTML = `
-            <div class="grid grid-cols-[1.6fr_1fr_1fr_96px] items-center gap-3 px-3 py-2 text-[11px] font-black" style="color:var(--text-muted);border-bottom:1px solid var(--divider);">
+            <div class="grid grid-cols-[1.6fr_1fr_1fr_140px] items-center gap-3 px-3 py-2 text-[11px] font-black" style="color:var(--text-muted);border-bottom:1px solid var(--divider);">
                 <span>نام</span>
                 <span>کد ملی</span>
                 <span>شماره همراه</span>
                 <span></span>
             </div>
             ${clients.map(c => `
-                <div class="grid grid-cols-[1.6fr_1fr_1fr_96px] items-center gap-3 p-3 rounded-xl" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
+                <div class="grid grid-cols-[1.6fr_1fr_1fr_140px] items-center gap-3 p-3 rounded-xl" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
                     <div>
                         <div class="font-black text-sm" style="color:var(--text-main);">${escapeHtml(displayName(c))}</div>
                         ${enName(c) && enName(c) !== displayName(c) ? `<div class="text-[11px] en" style="color:var(--text-muted);">${escapeHtml(enName(c))}</div>` : ''}
                     </div>
                     <div class="text-xs en font-bold" style="color:var(--text-main);" dir="ltr">${escapeHtml(c.national_id) || '—'}</div>
                     <div class="text-xs en font-bold" style="color:var(--text-main);" dir="ltr">${escapeHtml(c.phone) || '—'}</div>
-                    <button onclick="openClientProfile('${c.id}')" class="text-xs font-bold px-3 py-1.5 rounded-lg transition justify-self-end" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">مشاهده</button>
+                    <span class="flex items-center gap-1.5 justify-self-end">
+                        <button onclick="openClientProfile('${c.id}')" class="text-xs font-bold px-3 py-1.5 rounded-lg transition" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">مشاهده</button>
+                        <button onclick="deleteClient('${c.id}')" title="حذف مشتری" class="text-xs font-bold px-2 py-1.5 rounded-lg transition" style="background:var(--card-surface);color:#f87171;border:1px solid var(--border-color);">🗑</button>
+                    </span>
                 </div>
             `).join('')}`;
     } catch (e) {
@@ -3746,6 +3749,34 @@ function closeClientProfilePage() {
     document.body.style.overflow = 'auto';
     currentClientDetailId = null;
     openClientsWorkspace(false);
+}
+
+// Removes a client entirely -- from the dashboard list's own 🗑 button, or
+// from "🗑 حذف مشتری" on the open profile page itself. The backend blocks
+// this once the client has any invoices (see DELETE /clients/{id}), since
+// those are real financial records that must outlive the client they
+// billed -- surfaced here as a plain error toast, not a silent no-op.
+async function deleteClient(clientId) {
+    if (!clientId) return;
+    if (!confirm('این مشتری برای همیشه حذف شود؟ این کار قابل بازگشت نیست.')) return;
+
+    const token = localStorage.getItem('deept_token');
+    try {
+        const res = await fetch(`${CORE}/clients/${clientId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` },
+        });
+        if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || 'خطای سرور'); }
+
+        showToast('✅ مشتری حذف شد.');
+        if (isProfilePageOpen() && currentClientDetailId === clientId) {
+            closeClientProfilePage();
+        } else {
+            await renderDashboardClients();
+        }
+    } catch (e) {
+        showToast(`❌ ${e.message || 'حذف مشتری ناموفق بود.'}`);
+    }
 }
 
 // Start a new project tied to the currently open client profile.
