@@ -1,0 +1,49 @@
+# One file per office. The agent picks the office by the number that was dialed
+# (phone_numbers), so one server can answer for many offices.
+id: sample
+name: دارالترجمه رسمی نمونه
+phone_numbers: ["02188001234", "5000"]   # "5000" = number to dial from the test softphone
+
+# First thing callers hear. Claude's usage policy asks consumer-facing bots to
+# say they are AI, so the greeting says it briefly; if you switch providers,
+# check that provider's rules before changing it.
+greeting: سلام، دارالترجمه رسمی نمونه، دستیار هوشمند دفتر هستم. بفرمایید، در خدمتم.
+
+address: تهران، خیابان ولیعصر، بالاتر از میدان ونک، پلاک ۱۲۳، طبقه دوم، واحد ۴
+map_url: https://maps.example.com/deept-sample
+upload_url: https://deept.ir/upload/sample
+
+# Tehran time. Days with no entry are closed.
+hours:
+  saturday:  ["09:00-17:00"]
+  sunday:    ["09:00-17:00"]
+  monday:    ["09:00-17:00"]
+  tuesday:   ["09:00-17:00"]
+  wednesday: ["09:00-17:00"]
+  thursday:  ["09:00-13:00"]
+
+human_extension: "101"        # Asterisk extension a transfer rings
+staff_mobile: "09120000000"   # gets an SMS for each message the agent takes
+
+turnaround: معمولاً دو تا سه روز کاری؛ اگر تأیید دادگستری و خارجه لازم باشد حدود یک هفته.
+
+notes:
+  - ترجمه فوری با هماهنگی و هزینه بیشتر امکان‌پذیر است.
+  - پرداخت با کارت‌خوان در دفتر یا لینک پرداخت آنلاین.
+  - تحویل با پیک در تهران امکان‌پذیر است.
+
+# Fees offered alongside a quote (catalog ids from price-catalog.js).
+optional_fee_ids: ["224", "225"]
+
+# This office's own prices where they differ from the tariff (same as "نرخنامه من").
+price_overrides:
+  "228": { base: 250000 }   # هزینه پیک
+
+# What callers must bring. SAMPLE TEXT: each office should write its own.
+required_documents:
+  شناسنامه: اصل شناسنامه، همه صفحه‌هایی که نوشته دارند. برای تأیید دادگستری و خارجه فقط اصل مدرک قابل قبول است.
+  کارت ملی: اصل کارت ملی، پشت و رو.
+  ریزنمرات دانشگاه: اصل ریزنمرات. برای تأیید دادگستری و خارجه، مدرک باید اول تأییدیه یا استعلام دانشگاه یا وزارت علوم را داشته باشد.
+  دانشنامه: اصل دانشنامه یا گواهی موقت، به همراه تأییدیه تحصیلی.
+  سند ازدواج: اصل سند ازدواج، همه صفحه‌ها.
+  گواهی عدم سوء پیشینه: اصل گواهی با کد رهگیری معتبر.
