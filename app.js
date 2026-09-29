@@ -2238,7 +2238,7 @@ async function renderDashboardActiveProjects() {
 
     tbody.innerHTML = '';
     if (!jobs.length) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">// بدون پروژه فعال</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-sm" style="color:var(--text-muted);">// بدون پروژه فعال</td></tr>`;
         return;
     }
 
@@ -2263,6 +2263,17 @@ async function renderDashboardActiveProjects() {
             actionsHtml = `<span style="color:var(--text-muted);">در حال پردازش...</span>`;
         }
 
+        // Every page-priced document type sends this from Back-End (see
+        // count_pdf_pages()/core_client.create_job's page_count); a flat-fee
+        // type (e.g. police certificate) and every job predating this field
+        // have none -- shown as "—" rather than a misleading 0 or NaN.
+        const perPageToman = job.page_count && job.price_toman
+            ? Math.round(job.price_toman / job.page_count).toLocaleString() + ' ت/صفحه'
+            : '';
+        const pageCountCell = job.page_count
+            ? `${job.page_count.toLocaleString()}<div class="text-[10px] font-normal en" style="color:var(--text-muted);" dir="ltr">${perPageToman}</div>`
+            : '<span style="color:var(--text-muted);">—</span>';
+
         const row = document.createElement('tr');
         row.innerHTML = `
             <td class="py-3 text-right">
@@ -2273,6 +2284,7 @@ async function renderDashboardActiveProjects() {
                 ${typeLabel}
                 <div class="text-[10px] font-normal" style="color:var(--text-muted);">${job.price_toman ? job.price_toman.toLocaleString() + ' تومان' : ''}</div>
             </td>
+            <td class="py-3 text-center font-bold" style="color:var(--text-main);" title="تعداد صفحات سند آپلودشده">${pageCountCell}</td>
             <td class="py-3 text-center" style="color:var(--text-muted);">${dateStr}</td>
             <td class="py-3 text-center"><span style="color:${st.color};font-weight:700;">${st.text}</span></td>
             <td class="py-3 text-left text-xs">${actionsHtml}</td>`;
