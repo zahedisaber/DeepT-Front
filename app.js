@@ -54,6 +54,8 @@ const DOCUMENT_REGISTRY = {
         endpoint: `${BACKEND}/api/translate/academic-transcript`,
         active:              true,
         usePassportSession:  true,
+        courseCodesToggle:   true,   // shows the "نمایش کد دروس" checkbox, sends include_course_codes
+        chunkedUpload:       true,   // backend accepts upload_id as a fallback for large/flaky uploads
     },
     'gazette-notice': {
         label:               'آگهی تاسیس / تغییرات (روزنامه رسمی)',
@@ -83,6 +85,14 @@ const DOCUMENT_REGISTRY = {
         endpoint: `${BACKEND}/api/translate/azad-transcript`,
         active:              true,
         usePassportSession:  true,
+    },
+    'general-transcript': {
+        label:               'ریزنمرات سیستم گلستان',
+        endpoint: `${BACKEND}/api/translate/general-transcript`,
+        active:              true,
+        usePassportSession:  true,
+        courseCodesToggle:   true,
+        chunkedUpload:       true,
     },
     'insurance-record': {
         label:               'سوابق کامل بیمه تامین اجتماعی',
@@ -4858,7 +4868,7 @@ function showOnlyStage(stage) {
         document.getElementById('step2Panel').classList.toggle('hidden', stage !== 'document');
     if (stage === 'document') {
         const currentDocType = document.getElementById('docTemplate').value;
-        document.getElementById('courseCodesToggleWrap').classList.toggle('hidden', currentDocType !== 'academic-transcript');
+        document.getElementById('courseCodesToggleWrap').classList.toggle('hidden', !DOCUMENT_REGISTRY[currentDocType]?.courseCodesToggle);
     }
 }
 
@@ -5587,7 +5597,7 @@ async function executeTranslationPipeline() {
     fd.append('document_file', docSelectedFile);
     fd.append('idempotency_key', idempotencyKey);
 
-    if (docType === 'academic-transcript') {
+    if (docDef.courseCodesToggle) {
         const includeCourseCodes = document.getElementById('includeCourseCodesCheckbox').checked;
         fd.append('include_course_codes', includeCourseCodes ? 'true' : 'false');
     }
@@ -5653,7 +5663,7 @@ if (docDef.usePassportSession) {
     // pieces instead -- only a failed piece needs retrying, not the whole
     // file each time, so this is much more likely to get through on a
     // genuinely bad connection.
-    if (directFailed && docType === 'academic-transcript') {
+    if (directFailed && docDef.chunkedUpload) {
         try {
             const uploadId = await uploadFileInChunks(docSelectedFile, (percent) => {
                 statusText.textContent = `در حال آپلود سند... ${percent}%`;
@@ -5662,7 +5672,7 @@ if (docDef.usePassportSession) {
             const chunkedFd = new FormData();
             chunkedFd.append('upload_id', uploadId);
             chunkedFd.append('idempotency_key', idempotencyKey);
-            if (docType === 'academic-transcript') {
+            if (docDef.courseCodesToggle) {
                 chunkedFd.append('include_course_codes', fd.get('include_course_codes'));
             }
             if (docDef.usePassportSession) {
