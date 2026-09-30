@@ -377,20 +377,13 @@ function syncUserSessionDOM() {
     const toggle = (id, hide) => { const el=document.getElementById(id); if(el) el.classList.toggle('hidden', hide); };
     toggle('authHeaderBtn',      loggedIn);
     toggle('mainHeroAuthCall',   loggedIn);
-    toggle('workspaceHeaderBtn', !loggedIn);
-    toggle('clientsHeaderBtn',   !loggedIn);
-    toggle('scheduleHeaderBtn',  !loggedIn);
-    toggle('settingsHeaderBtn',  !loggedIn);
-    toggle('priceListHeaderBtn', !loggedIn);
-    toggle('adminPanelHeaderBtn', !loggedIn || localStorage.getItem('deept_is_admin') !== '1');
+    toggle('logoutHeaderBtn',    !loggedIn);
     // HR clock in/out: office-only sub-users (see hr.py) -- an "individual"
     // account has no staff to punch in/out, so this stays hidden for it.
     const isOffice = loggedIn && currentUserSession.type === 'office';
-    toggle('hrClockHeaderBtn',  !isOffice);
-    toggle('logoutHeaderBtn',    !loggedIn);
-    // Side rail: same destinations/visibility as the header-bar pills
-    // above, just also shown/hidden here (see #sideRail in index.html).
-    toggle('sideRail',           !loggedIn);
+    // Nav destination buttons, now living inside the header-bar itself
+    // (see index.html) rather than a separate rail element.
+    toggle('railHomeBtn',        !loggedIn);
     toggle('railWorkspaceBtn',   !loggedIn);
     toggle('railClientsBtn',     !loggedIn);
     toggle('railScheduleBtn',    !loggedIn);
@@ -2217,6 +2210,13 @@ function showLandingView() {
     const pl = document.getElementById('myPriceListPage');
     if (pl) pl.classList.add('hidden');
     document.body.style.overflow = 'auto';
+}
+
+// صفحه نخست -- the header-bar's own "home" nav button, same destination
+// closeClientsWorkspace() already used for its "بازگشت به صفحه اصلی" link.
+function goToHomePage(pushHistory = true) {
+    showLandingView();
+    if (pushHistory) navigateTo('/');
 }
 
 function closeWorkspaceDashboard(pushHistory = true) {

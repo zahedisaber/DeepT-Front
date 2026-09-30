@@ -466,18 +466,6 @@ select.converter-input option {
     border-color: var(--text-main);
     color: var(--text-main);
 }
-.header-btn-workspace {
-    background: var(--accent-gradient);
-    color: #fff;
-    text-shadow: 0 1px 1px rgba(0,0,0,.15);
-    border-color: transparent;
-    font-weight: 900;
-    box-shadow: 0 2px 10px var(--accent-gradient-hover);
-}
-.header-btn-workspace:hover {
-    filter: brightness(1.08);
-    box-shadow: 0 4px 16px var(--accent-gradient-glow);
-}
 .header-btn-logout {
     color: #f87171;
     border-color: rgba(248,113,113,0.3);
@@ -488,29 +476,19 @@ select.converter-input option {
     color: #f87171;
 }
 
-/* Secondary shortcut rail -- same workspace destinations as the header-btn-
-   workspace pills above, as a persistent vertical icon+label rail (see
-   #sideRail in index.html). */
-.side-rail {
-    display: flex;
-    /* Every full-screen workspace view (clientsWorkspace, myPriceListPage,
-       etc.) is `fixed inset-0 z-40` with its own solid full-viewport
-       background, and comes later in the DOM than this rail -- at equal
-       z-index, that later element paints on top and fully hides the rail
-       behind its opaque background. 45 keeps it above all of those while
-       staying below the header-bar (z-50) and every modal (z-[70]+). */
-    z-index: 45;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
-}
+/* Nav destination buttons inside the header-bar -- icon+label stacked,
+   laid out horizontally in the header's own row (previously a duplicate
+   fixed vertical rail pinned to the RTL edge; consolidated into this one
+   toolbar, keeping this look since it read as the more modern of the two). */
 .side-rail-btn {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: .15rem;
-    width: 100%;
+    min-width: 56px;
     flex-shrink: 0;
-    padding: .55rem .25rem;
+    padding: .4rem .3rem;
     border-radius: .65rem;
     background: transparent;
     border: none;
@@ -531,11 +509,6 @@ select.converter-input option {
     font-weight: 700;
     line-height: 1;
     white-space: nowrap;
-}
-@media (max-width: 900px) {
-    /* Narrow viewports keep the header-bar's own (wrapping) nav only --
-       no room for a second, fixed vertical rail alongside the content. */
-    #sideRail { display: none !important; }
 }
 
 @media (min-width: 901px) {
