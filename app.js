@@ -2214,8 +2214,16 @@ function showLandingView() {
 
 // صفحه نخست -- the header-bar's own "home" nav button, same destination
 // closeClientsWorkspace() already used for its "بازگشت به صفحه اصلی" link.
+// showLandingView() unconditionally hides the header-bar (correct for an
+// actually-logged-out visitor), but a still-logged-in user clicking this
+// from the dashboard would otherwise get stranded on the landing page with
+// no nav at all -- re-show it here so میز کار etc. stay one click away.
 function goToHomePage(pushHistory = true) {
     showLandingView();
+    if (currentUserSession) {
+        const hb = document.querySelector('.header-bar');
+        if (hb) hb.classList.remove('hidden');
+    }
     if (pushHistory) navigateTo('/');
 }
 
@@ -2277,11 +2285,8 @@ async function renderDashboardActiveProjects() {
         // count_pdf_pages()/core_client.create_job's page_count); a flat-fee
         // type (e.g. police certificate) and every job predating this field
         // have none -- shown as "—" rather than a misleading 0 or NaN.
-        const perPageToman = job.page_count && job.price_toman
-            ? Math.round(job.price_toman / job.page_count).toLocaleString() + ' ت/صفحه'
-            : '';
         const pageCountCell = job.page_count
-            ? `${job.page_count.toLocaleString()}<div class="text-[10px] font-normal en" style="color:var(--text-muted);" dir="ltr">${perPageToman}</div>`
+            ? job.page_count.toLocaleString()
             : '<span style="color:var(--text-muted);">—</span>';
 
         const row = document.createElement('tr');
