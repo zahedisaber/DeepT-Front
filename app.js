@@ -459,6 +459,7 @@ function confirmLogout()   { document.getElementById('logoutOverlay').classList.
 function closeLogoutConfirm() { document.getElementById('logoutOverlay').classList.add('hidden'); }
 function executeLogout() {
     currentUserSession = null;
+    lastKnownJobStatuses = {};
     localStorage.removeItem('deept_mock_user');
     localStorage.removeItem('deept_token');
     localStorage.removeItem('deept_user_id');
@@ -2321,6 +2322,42 @@ function closeWorkspaceDashboard(pushHistory = true) {
 }
 let allJobsTerminal = false;
 
+// ═══════════════════════════════════════════════════════════
+// JOB-COMPLETE NOTIFICATIONS -- a toast + short chime the moment a job's
+// status flips to "completed" during the 30s poll below, so the user
+// doesn't have to keep میز کار open and watch the table to notice. Only
+// fires for a transition observed live (lastKnownJobStatuses) -- a job
+// that was already completed before this page loaded never triggers one.
+// ═══════════════════════════════════════════════════════════
+let lastKnownJobStatuses = {};
+
+function playJobCompleteChime() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const notes = [659.25, 783.99, 987.77]; // E5, G5, B5 -- a quick, cute ascending ding
+        notes.forEach((freq, i) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            const start = ctx.currentTime + i * 0.11;
+            gain.gain.setValueAtTime(0, start);
+            gain.gain.linearRampToValueAtTime(0.2, start + 0.015);
+            gain.gain.exponentialRampToValueAtTime(0.001, start + 0.3);
+            osc.connect(gain).connect(ctx.destination);
+            osc.start(start);
+            osc.stop(start + 0.32);
+        });
+        setTimeout(() => ctx.close(), 700);
+    } catch (e) { /* Web Audio unavailable/blocked -- the toast still shows */ }
+}
+
+function notifyJobCompleted(job) {
+    const typeLabel = DOCUMENT_REGISTRY[job.document_type]?.label || job.document_type;
+    showToast(`🎉 ترجمه «${typeLabel}» آماده شد!`, 4000);
+    playJobCompleteChime();
+}
+
 /* ============ SECTION: DASHBOARD — ACTIVE PROJECTS ============
    Renders the translation-jobs table (id: projectDashboardRowsBlock). ============ */
 async function renderDashboardActiveProjects() {
@@ -2337,6 +2374,10 @@ async function renderDashboardActiveProjects() {
         });
         if (res.ok) jobs = await res.json();
     } catch (e) { /* keep whatever was last rendered on a transient failure */ }
+
+    const newlyCompleted = jobs.filter(j => j.status === 'completed' && lastKnownJobStatuses[j.id] && lastKnownJobStatuses[j.id] !== 'completed');
+    jobs.forEach(j => { lastKnownJobStatuses[j.id] = j.status; });
+    newlyCompleted.forEach(notifyJobCompleted);
 
     allJobsTerminal = jobs.length > 0 && jobs.every(j => j.status === 'completed' || j.status === 'failed');
 
@@ -4805,9 +4846,13 @@ function purgeFile(idx) {
         showToast('🗑️ فایل حذف شد.');
     }
 }
+// Runs regardless of which view is open (not just while میز کار is
+// visible) so a job-complete notification can fire even when the user is
+// elsewhere in the app; renderDashboardActiveProjects() itself guards on
+// currentUserSession and just updates the (possibly hidden) table otherwise.
 setInterval(async () => {
-    if (allJobsTerminal) return;
-    if (!document.getElementById('workspaceDashboard').classList.contains('hidden')) await renderDashboardActiveProjects();
+    if (allJobsTerminal || !currentUserSession) return;
+    await renderDashboardActiveProjects();
 }, 30000);
 
 // ═══════════════════════════════════════════════════════════
