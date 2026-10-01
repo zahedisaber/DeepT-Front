@@ -813,14 +813,27 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
         <span class="home-panel-title">حضور غیاب</span>
         <span class="home-panel-desc">ورود و خروج پرسنل</span>
       </button>
+      <button type="button" onclick="openDateConverterPage()" class="workspace-panel home-panel-card p-5">
+        <svg class="home-panel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="1.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><path d="m8.5 13.5 2 2 4-4.3"/></svg>
+        <span class="home-panel-title">تبدیل تاریخ</span>
+        <span class="home-panel-desc">شمسی به میلادی</span>
+      </button>
     </div>
+  </div>
+</section>
 
-    <!-- Same شمسی→میلادی converter as the public landing page's #tool
-         section (convertDate()/copyFmt()), re-shown here under its own
-         "h-" id prefix so a logged-in user doesn't have to log out and
-         visit the marketing page just to convert a date. -->
-    <div class="workspace-panel p-6 mt-6">
-      <h3 class="text-lg font-black mb-1" style="color:var(--text-main);">تبدیل تاریخ شمسی به میلادی</h3>
+<!-- ── VIEW 10.6 · تبدیل تاریخ -- same شمسی→میلادی converter as the public
+     landing page's #tool section (convertDate()/copyFmt()), reached from
+     its صفحه نخست card so a logged-in user doesn't have to log out and
+     visit the marketing page just to convert a date. Own "h-" id prefix
+     to avoid colliding with the landing page's "t-" ids. ── -->
+<section id="dateConverterPage" class="fixed inset-0 z-40 hidden overflow-y-auto p-4 pt-24 md:p-8 md:pt-24" style="background: var(--bg-secondary);">
+  <div class="max-w-2xl mx-auto space-y-5">
+    <div class="flex items-center justify-between gap-3 flex-wrap">
+      <h2 class="text-xl font-black flex items-center gap-2" style="color:var(--text-main);">📅 تبدیل تاریخ شمسی به میلادی</h2>
+      <button type="button" onclick="closeDateConverterPage()" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">صفحه نخست ←</button>
+    </div>
+    <div class="workspace-panel p-6">
       <p class="text-xs mb-4" style="color:var(--text-muted);">برای درج تاریخ تولد یا صدور مدارک در ترجمه رسمی</p>
       <div class="tool-box" style="padding:0;border:none;background:transparent;">
         <div class="input-row">

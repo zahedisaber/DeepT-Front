@@ -2141,6 +2141,7 @@ async function openWorkspaceDashboard(pushHistory = true) {
     document.getElementById('settingsPage').classList.add('hidden');
     document.getElementById('myPriceListPage').classList.add('hidden');
     document.getElementById('homePanelsPage').classList.add('hidden');
+    document.getElementById('dateConverterPage').classList.add('hidden');
 
     // Reserve exactly as much top space as the header actually needs,
     // measured live -- more reliable than a fixed padding guess, since it
@@ -2177,6 +2178,7 @@ async function openClientsWorkspace(pushHistory = true) {
     document.getElementById('settingsPage').classList.add('hidden');
     document.getElementById('myPriceListPage').classList.add('hidden');
     document.getElementById('homePanelsPage').classList.add('hidden');
+    document.getElementById('dateConverterPage').classList.add('hidden');
 
     const headerEl = document.querySelector('.header-bar');
     if (headerEl) {
@@ -2216,6 +2218,8 @@ function showLandingView() {
     if (pl) pl.classList.add('hidden');
     const hp = document.getElementById('homePanelsPage');
     if (hp) hp.classList.add('hidden');
+    const dc = document.getElementById('dateConverterPage');
+    if (dc) dc.classList.add('hidden');
     document.body.style.overflow = 'auto';
 }
 
@@ -2228,6 +2232,21 @@ function openHomePanels(pushHistory = true) {
     if (!currentUserSession) { openAuthModal(); return; }
     showFullView('homePanelsPage');
     if (pushHistory) navigateTo('/home');
+}
+
+// تبدیل تاریخ -- opened from its own card on صفحه نخست as a separate
+// module (same converter as the public landing page's #tool section, see
+// convertDate()/copyFmt() -- "h-" id prefix there).
+function openDateConverterPage(pushHistory = true) {
+    if (!currentUserSession) { openAuthModal(); return; }
+    showFullView('dateConverterPage');
+    if (pushHistory) navigateTo('/home/date-converter');
+}
+
+function closeDateConverterPage() {
+    document.getElementById('dateConverterPage').classList.add('hidden');
+    document.body.style.overflow = 'auto';
+    openHomePanels(false);
 }
 
 // صفحه نخست -- the header-bar's own "home" nav button. This button is only
@@ -3708,7 +3727,7 @@ function hideWorkspaceViews() {
     const lp = document.getElementById('landingPage');
     if (lp) lp.style.display = 'none';
     ['workspaceDashboard', 'clientsWorkspace', 'adminDashboard',
-     'clientProfilePage', 'workSchedulePage', 'settingsPage', 'myPriceListPage', 'hrPage', 'homePanelsPage'].forEach(id => {
+     'clientProfilePage', 'workSchedulePage', 'settingsPage', 'myPriceListPage', 'hrPage', 'homePanelsPage', 'dateConverterPage'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.add('hidden');
     });
@@ -4788,6 +4807,17 @@ function applyRouteForPath(path) {
 
         if (currentUserSession) {
             openMyPriceListPage(false);
+        } else {
+            navigateTo('/', false);
+            showLandingView();
+            openLogin();
+            showToast('برای دسترسی به این بخش، ابتدا وارد شوید.');
+        }
+
+    } else if (path === '/home/date-converter') {
+
+        if (currentUserSession) {
+            openDateConverterPage(false);
         } else {
             navigateTo('/', false);
             showLandingView();
@@ -6377,6 +6407,7 @@ function showAdminDashboard() {
     document.getElementById('settingsPage').classList.add('hidden');
     document.getElementById('myPriceListPage').classList.add('hidden');
     document.getElementById('homePanelsPage').classList.add('hidden');
+    document.getElementById('dateConverterPage').classList.add('hidden');
     document.getElementById('adminDashboard').classList.remove('hidden');
     switchAdminTab('users');
     loadAdminUsers();
