@@ -2334,21 +2334,32 @@ let lastKnownJobStatuses = {};
 function playJobCompleteChime() {
     try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        const notes = [659.25, 783.99, 987.77]; // E5, G5, B5 -- a quick, cute ascending ding
-        notes.forEach((freq, i) => {
+        const now = ctx.currentTime;
+        // A single bright bell "ding" instead of three short notes: a
+        // fundamental plus inharmonic overtones (the non-integer ratios are
+        // what make it sound like a struck bell rather than a pure tone),
+        // each decaying at its own rate, with a long natural tail.
+        const fundamental = 880; // A5
+        const partials = [
+            { ratio: 1,    gain: 0.35, decay: 1.8 },
+            { ratio: 2.01, gain: 0.18, decay: 1.4 },
+            { ratio: 3.0,  gain: 0.10, decay: 1.1 },
+            { ratio: 4.2,  gain: 0.07, decay: 0.8 },
+            { ratio: 5.4,  gain: 0.04, decay: 0.6 },
+        ];
+        partials.forEach(({ ratio, gain: g, decay }) => {
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
             osc.type = 'sine';
-            osc.frequency.value = freq;
-            const start = ctx.currentTime + i * 0.11;
-            gain.gain.setValueAtTime(0, start);
-            gain.gain.linearRampToValueAtTime(0.2, start + 0.015);
-            gain.gain.exponentialRampToValueAtTime(0.001, start + 0.3);
+            osc.frequency.value = fundamental * ratio;
+            gain.gain.setValueAtTime(0, now);
+            gain.gain.linearRampToValueAtTime(g, now + 0.008);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + decay);
             osc.connect(gain).connect(ctx.destination);
-            osc.start(start);
-            osc.stop(start + 0.32);
+            osc.start(now);
+            osc.stop(now + decay + 0.05);
         });
-        setTimeout(() => ctx.close(), 700);
+        setTimeout(() => ctx.close(), 2000);
     } catch (e) { /* Web Audio unavailable/blocked -- the toast still shows */ }
 }
 
