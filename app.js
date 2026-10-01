@@ -391,6 +391,9 @@ function syncUserSessionDOM() {
     toggle('railSettingsBtn',    !loggedIn);
     toggle('railAdminPanelBtn',  !loggedIn || localStorage.getItem('deept_is_admin') !== '1');
     toggle('railHrClockBtn',    !isOffice);
+    // صفحه نخست panel grid -- same admin/office gating as the rail buttons above.
+    toggle('homePanelAdmin',    !loggedIn || localStorage.getItem('deept_is_admin') !== '1');
+    toggle('homePanelHr',       !isOffice);
     const ub = document.getElementById('userBadge');
     if (ub) { ub.classList.toggle('hidden', !loggedIn); ub.style.display = loggedIn ? 'flex' : 'none'; }
     if (loggedIn) {
@@ -2137,6 +2140,9 @@ async function openWorkspaceDashboard(pushHistory = true) {
     document.getElementById('workSchedulePage').classList.add('hidden');
     document.getElementById('settingsPage').classList.add('hidden');
     document.getElementById('myPriceListPage').classList.add('hidden');
+    document.getElementById('homePanelsPage').classList.add('hidden');
+    document.getElementById('dateConverterPage').classList.add('hidden');
+    document.getElementById('hrPage').classList.add('hidden');
 
     // Reserve exactly as much top space as the header actually needs,
     // measured live -- more reliable than a fixed padding guess, since it
@@ -2172,6 +2178,9 @@ async function openClientsWorkspace(pushHistory = true) {
     document.getElementById('workSchedulePage').classList.add('hidden');
     document.getElementById('settingsPage').classList.add('hidden');
     document.getElementById('myPriceListPage').classList.add('hidden');
+    document.getElementById('homePanelsPage').classList.add('hidden');
+    document.getElementById('dateConverterPage').classList.add('hidden');
+    document.getElementById('hrPage').classList.add('hidden');
 
     const headerEl = document.querySelector('.header-bar');
     if (headerEl) {
@@ -2209,21 +2218,52 @@ function showLandingView() {
     if (st) st.classList.add('hidden');
     const pl = document.getElementById('myPriceListPage');
     if (pl) pl.classList.add('hidden');
+    const hp = document.getElementById('homePanelsPage');
+    if (hp) hp.classList.add('hidden');
+    const dc = document.getElementById('dateConverterPage');
+    if (dc) dc.classList.add('hidden');
+    const hrp = document.getElementById('hrPage');
+    if (hrp) hrp.classList.add('hidden');
     document.body.style.overflow = 'auto';
 }
 
-// صفحه نخست -- the header-bar's own "home" nav button, same destination
-// closeClientsWorkspace() already used for its "بازگشت به صفحه اصلی" link.
-// showLandingView() unconditionally hides the header-bar (correct for an
-// actually-logged-out visitor), but a still-logged-in user clicking this
-// from the dashboard would otherwise get stranded on the landing page with
-// no nav at all -- re-show it here so میز کار etc. stay one click away.
+// صفحه نخست -- a round-corner grid of feature panels (میز کار, مشتریان,
+// برنامه کاری, نرخنامه, تنظیمات, + admin/HR for those accounts), distinct
+// from میز کار itself: a logged-in user's actual "home base" rather than
+// one more workspace tool. Lives at its own /home route so '/' keeps
+// defaulting straight to میز کار (applyRouteForPath's existing behavior).
+function openHomePanels(pushHistory = true) {
+    if (!currentUserSession) { openAuthModal(); return; }
+    showFullView('homePanelsPage');
+    if (pushHistory) navigateTo('/home');
+}
+
+// تبدیل تاریخ -- opened from its own card on صفحه نخست as a separate
+// module (same converter as the public landing page's #tool section, see
+// convertDate()/copyFmt() -- "h-" id prefix there).
+function openDateConverterPage(pushHistory = true) {
+    if (!currentUserSession) { openAuthModal(); return; }
+    showFullView('dateConverterPage');
+    if (pushHistory) navigateTo('/home/date-converter');
+}
+
+function closeDateConverterPage() {
+    document.getElementById('dateConverterPage').classList.add('hidden');
+    document.body.style.overflow = 'auto';
+    openHomePanels(false);
+}
+
+// صفحه نخست -- the header-bar's own "home" nav button. This button is only
+// ever visible to a logged-in user (same toggle(id, !loggedIn) pattern as
+// every other nav icon), so there's no real scenario where the public
+// marketing/landing page is the right destination: open the panel grid
+// instead. showLandingView() stays the actual logged-out home.
 function goToHomePage(pushHistory = true) {
-    showLandingView();
     if (currentUserSession) {
-        const hb = document.querySelector('.header-bar');
-        if (hb) hb.classList.remove('hidden');
+        openHomePanels(pushHistory);
+        return;
     }
+    showLandingView();
     if (pushHistory) navigateTo('/');
 }
 
@@ -3691,7 +3731,7 @@ function hideWorkspaceViews() {
     const lp = document.getElementById('landingPage');
     if (lp) lp.style.display = 'none';
     ['workspaceDashboard', 'clientsWorkspace', 'adminDashboard',
-     'clientProfilePage', 'workSchedulePage', 'settingsPage', 'myPriceListPage', 'hrPage'].forEach(id => {
+     'clientProfilePage', 'workSchedulePage', 'settingsPage', 'myPriceListPage', 'hrPage', 'homePanelsPage', 'dateConverterPage'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.add('hidden');
     });
@@ -4771,6 +4811,28 @@ function applyRouteForPath(path) {
 
         if (currentUserSession) {
             openMyPriceListPage(false);
+        } else {
+            navigateTo('/', false);
+            showLandingView();
+            openLogin();
+            showToast('برای دسترسی به این بخش، ابتدا وارد شوید.');
+        }
+
+    } else if (path === '/home/date-converter') {
+
+        if (currentUserSession) {
+            openDateConverterPage(false);
+        } else {
+            navigateTo('/', false);
+            showLandingView();
+            openLogin();
+            showToast('برای دسترسی به این بخش، ابتدا وارد شوید.');
+        }
+
+    } else if (path === '/home') {
+
+        if (currentUserSession) {
+            openHomePanels(false);
         } else {
             navigateTo('/', false);
             showLandingView();
@@ -6129,12 +6191,16 @@ function j2g(jy,jm,jd){
 }
 /* ============ SECTION: DATE TOOL + QUICK-START PIPELINE ============
    Persian->Gregorian converter (j2g) + no-signup quick-start modal. ============ */
-function convertDate(){
-    const day=parseInt(document.getElementById('t-day').value);
-    const mon=parseInt(document.getElementById('t-month').value);
-    const yr=parseInt(document.getElementById('t-year').value);
-    const errEl=document.getElementById('t-error');
-    const resEl=document.getElementById('t-result');
+// prefix lets more than one copy of this tool live on the page at once
+// (the landing page's own "t-" ids, plus صفحه نخست's "h-" ids) without id
+// collisions -- defaults to 't' so the landing page's existing
+// onclick="convertDate()" keeps working unchanged.
+function convertDate(prefix='t'){
+    const day=parseInt(document.getElementById(`${prefix}-day`).value);
+    const mon=parseInt(document.getElementById(`${prefix}-month`).value);
+    const yr=parseInt(document.getElementById(`${prefix}-year`).value);
+    const errEl=document.getElementById(`${prefix}-error`);
+    const resEl=document.getElementById(`${prefix}-result`);
     errEl.classList.remove('show');resEl.classList.remove('show');
     if(!day||!mon||!yr){errEl.textContent='همه موارد را وارد کنید.';errEl.classList.add('show');return;}
     if(yr<1200||yr>1500){errEl.textContent='سال شمسی معتبر وارد کنید (مثلاً ۱۳۸۰).';errEl.classList.add('show');return;}
@@ -6143,11 +6209,11 @@ function convertDate(){
         const{gy,gm,gd}=j2g(yr,mon,day);
         const obj=new Date(gy,gm-1,gd);
         const p=n=>String(n).padStart(2,'0');
-        document.getElementById('t-main').textContent=`${gy} / ${p(gm)} / ${p(gd)}`;
-        document.getElementById('t-f1').textContent=`${gy}-${p(gm)}-${p(gd)}`;
-        document.getElementById('t-f2').textContent=`${p(gd)}/${p(gm)}/${gy}`;
-        document.getElementById('t-f3').textContent=`${p(gm)}/${p(gd)}/${gy}`;
-        document.getElementById('t-f4').textContent=new Intl.DateTimeFormat('en-US',{month:'long',day:'numeric',year:'numeric'}).format(obj);
+        document.getElementById(`${prefix}-main`).textContent=`${gy} / ${p(gm)} / ${p(gd)}`;
+        document.getElementById(`${prefix}-f1`).textContent=`${gy}-${p(gm)}-${p(gd)}`;
+        document.getElementById(`${prefix}-f2`).textContent=`${p(gd)}/${p(gm)}/${gy}`;
+        document.getElementById(`${prefix}-f3`).textContent=`${p(gm)}/${p(gd)}/${gy}`;
+        document.getElementById(`${prefix}-f4`).textContent=new Intl.DateTimeFormat('en-US',{month:'long',day:'numeric',year:'numeric'}).format(obj);
         resEl.classList.add('show');
     }catch(e){errEl.textContent='خطا در تبدیل.';errEl.classList.add('show');}
 }
@@ -6344,6 +6410,9 @@ function showAdminDashboard() {
     document.getElementById('workSchedulePage').classList.add('hidden');
     document.getElementById('settingsPage').classList.add('hidden');
     document.getElementById('myPriceListPage').classList.add('hidden');
+    document.getElementById('homePanelsPage').classList.add('hidden');
+    document.getElementById('dateConverterPage').classList.add('hidden');
+    document.getElementById('hrPage').classList.add('hidden');
     document.getElementById('adminDashboard').classList.remove('hidden');
     switchAdminTab('users');
     loadAdminUsers();
