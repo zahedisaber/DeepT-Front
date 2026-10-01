@@ -98,6 +98,9 @@
       خروج
     </button>
   </div>
+  <div id="headerWalletBadge" class="hidden items-center gap-1 text-xs font-black" style="color:var(--accent);" title="موجودی کیف پول">
+    💰 <span id="headerWalletBalance">۰</span><span style="color:var(--text-muted);font-weight:400;">تومان</span>
+  </div>
   <div id="userBadge" class="hidden items-center gap-2 text-xs" onclick="openUserProfilePreview()" style="cursor:pointer;" title="نمایش پروفایل من">
     <div id="headerAvatarBadge" class="w-7 h-7 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center font-black text-black text-xs">D</div>
     <span id="headerUserName" class="font-bold" style="color:var(--text-main);"></span>
@@ -812,6 +815,32 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
 <section id="homePanelsPage" class="fixed inset-0 z-40 hidden overflow-y-auto p-4 pt-24 md:p-8 md:pt-24" style="background: var(--bg-secondary);">
   <div class="max-w-5xl mx-auto">
     <h2 class="text-xl font-black mb-6" style="color:var(--text-main);">صفحه نخست</h2>
+
+    <!-- Profile + wallet glance, same data as میز کار's own sidebar card
+         (syncUserSessionDOM()/refreshWalletBalanceDisplay() keep both in
+         sync) -- read-only here, "ویرایش پروفایل" jumps to میز کار for the
+         actual editable fields (account type, contact, office name). -->
+    <div class="workspace-panel p-6 mb-6 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center font-black text-xl text-black" id="home-avatarLetter">D</div>
+        <div>
+          <h4 class="font-black text-base" id="home-profileDisplayName" style="color:var(--text-main);"></h4>
+          <span class="text-xs en" id="home-profileEmailBadge" style="color:var(--text-muted);"></span>
+        </div>
+      </div>
+      <div class="flex items-center gap-4">
+        <div>
+          <h4 class="text-[11px] font-bold uppercase tracking-wide mb-1" style="color:var(--text-muted);">کیف پول (تومان)</h4>
+          <div class="text-xl font-black font-mono flex items-baseline gap-1" style="color:var(--text-main);">
+            <span id="home-walletBalanceDisplay">۰</span>
+            <span class="text-xs font-sans font-bold" style="color:var(--accent);">تومان</span>
+          </div>
+        </div>
+        <button type="button" onclick="triggerShaparakPayment()" class="font-black text-xs px-4 py-2.5 rounded-lg transition shrink-0" style="background:var(--accent);color:var(--btn-text-on-accent);">افزایش اعتبار</button>
+        <button type="button" onclick="openWorkspaceDashboard()" class="text-xs font-bold px-4 py-2.5 rounded-lg transition shrink-0" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">ویرایش پروفایل</button>
+      </div>
+    </div>
+
     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
       <button type="button" onclick="openWorkspaceDashboard()" class="workspace-panel home-panel-card p-5">
         <svg class="home-panel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="1.5"/><path d="M8 20h8M12 16v4"/></svg>
