@@ -391,6 +391,9 @@ function syncUserSessionDOM() {
     toggle('railSettingsBtn',    !loggedIn);
     toggle('railAdminPanelBtn',  !loggedIn || localStorage.getItem('deept_is_admin') !== '1');
     toggle('railHrClockBtn',    !isOffice);
+    // صفحه نخست panel grid -- same admin/office gating as the rail buttons above.
+    toggle('homePanelAdmin',    !loggedIn || localStorage.getItem('deept_is_admin') !== '1');
+    toggle('homePanelHr',       !isOffice);
     const ub = document.getElementById('userBadge');
     if (ub) { ub.classList.toggle('hidden', !loggedIn); ub.style.display = loggedIn ? 'flex' : 'none'; }
     if (loggedIn) {
@@ -2137,6 +2140,7 @@ async function openWorkspaceDashboard(pushHistory = true) {
     document.getElementById('workSchedulePage').classList.add('hidden');
     document.getElementById('settingsPage').classList.add('hidden');
     document.getElementById('myPriceListPage').classList.add('hidden');
+    document.getElementById('homePanelsPage').classList.add('hidden');
 
     // Reserve exactly as much top space as the header actually needs,
     // measured live -- more reliable than a fixed padding guess, since it
@@ -2172,6 +2176,7 @@ async function openClientsWorkspace(pushHistory = true) {
     document.getElementById('workSchedulePage').classList.add('hidden');
     document.getElementById('settingsPage').classList.add('hidden');
     document.getElementById('myPriceListPage').classList.add('hidden');
+    document.getElementById('homePanelsPage').classList.add('hidden');
 
     const headerEl = document.querySelector('.header-bar');
     if (headerEl) {
@@ -2209,17 +2214,30 @@ function showLandingView() {
     if (st) st.classList.add('hidden');
     const pl = document.getElementById('myPriceListPage');
     if (pl) pl.classList.add('hidden');
+    const hp = document.getElementById('homePanelsPage');
+    if (hp) hp.classList.add('hidden');
     document.body.style.overflow = 'auto';
+}
+
+// صفحه نخست -- a round-corner grid of feature panels (میز کار, مشتریان,
+// برنامه کاری, نرخنامه, تنظیمات, + admin/HR for those accounts), distinct
+// from میز کار itself: a logged-in user's actual "home base" rather than
+// one more workspace tool. Lives at its own /home route so '/' keeps
+// defaulting straight to میز کار (applyRouteForPath's existing behavior).
+function openHomePanels(pushHistory = true) {
+    if (!currentUserSession) { openAuthModal(); return; }
+    showFullView('homePanelsPage');
+    if (pushHistory) navigateTo('/home');
 }
 
 // صفحه نخست -- the header-bar's own "home" nav button. This button is only
 // ever visible to a logged-in user (same toggle(id, !loggedIn) pattern as
 // every other nav icon), so there's no real scenario where the public
-// marketing/landing page is the right destination: just reopen the
-// dashboard. showLandingView() stays the actual logged-out home.
+// marketing/landing page is the right destination: open the panel grid
+// instead. showLandingView() stays the actual logged-out home.
 function goToHomePage(pushHistory = true) {
     if (currentUserSession) {
-        openWorkspaceDashboard(pushHistory);
+        openHomePanels(pushHistory);
         return;
     }
     showLandingView();
@@ -3690,7 +3708,7 @@ function hideWorkspaceViews() {
     const lp = document.getElementById('landingPage');
     if (lp) lp.style.display = 'none';
     ['workspaceDashboard', 'clientsWorkspace', 'adminDashboard',
-     'clientProfilePage', 'workSchedulePage', 'settingsPage', 'myPriceListPage', 'hrPage'].forEach(id => {
+     'clientProfilePage', 'workSchedulePage', 'settingsPage', 'myPriceListPage', 'hrPage', 'homePanelsPage'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.add('hidden');
     });
@@ -4770,6 +4788,17 @@ function applyRouteForPath(path) {
 
         if (currentUserSession) {
             openMyPriceListPage(false);
+        } else {
+            navigateTo('/', false);
+            showLandingView();
+            openLogin();
+            showToast('برای دسترسی به این بخش، ابتدا وارد شوید.');
+        }
+
+    } else if (path === '/home') {
+
+        if (currentUserSession) {
+            openHomePanels(false);
         } else {
             navigateTo('/', false);
             showLandingView();
@@ -6343,6 +6372,7 @@ function showAdminDashboard() {
     document.getElementById('workSchedulePage').classList.add('hidden');
     document.getElementById('settingsPage').classList.add('hidden');
     document.getElementById('myPriceListPage').classList.add('hidden');
+    document.getElementById('homePanelsPage').classList.add('hidden');
     document.getElementById('adminDashboard').classList.remove('hidden');
     switchAdminTab('users');
     loadAdminUsers();

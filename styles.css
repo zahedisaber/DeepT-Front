@@ -518,9 +518,40 @@ select.converter-input option {
     #settingsPage,
     #myPriceListPage,
     #clientProfilePage,
-    #adminDashboard {
+    #adminDashboard,
+    #homePanelsPage {
         padding-right: calc(2rem + 66px);
     }
+}
+
+/* صفحه نخست -- round-corner feature cards, built on .workspace-panel's
+   existing card look so this view reads as part of the same app. */
+.home-panel-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: .5rem;
+    cursor: pointer;
+    transition: transform .15s, border-color .2s;
+}
+.home-panel-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--accent);
+}
+.home-panel-icon {
+    width: 30px;
+    height: 30px;
+    color: var(--accent);
+}
+.home-panel-title {
+    font-weight: 900;
+    font-size: .9rem;
+    color: var(--text-main);
+}
+.home-panel-desc {
+    font-size: .72rem;
+    color: var(--text-muted);
 }
 
 /* Landing header */
