@@ -2395,7 +2395,6 @@ async function renderDashboardClients(q = '') {
                         <tr>
                             <td style="padding:.6rem .75rem .6rem 0;">
                                 <div class="font-black text-sm" style="color:var(--text-main);">${escapeHtml(displayName(c))}</div>
-                                ${enName(c) && enName(c) !== displayName(c) ? `<div class="text-[11px] en" style="color:var(--text-muted);">${escapeHtml(enName(c))}</div>` : ''}
                             </td>
                             <td class="en font-bold" style="padding:.6rem 0;color:var(--text-main);text-align:right;" dir="ltr">${escapeHtml(c.national_id) || '—'}</td>
                             <td class="en font-bold" style="padding:.6rem 0;color:var(--text-main);text-align:right;" dir="ltr">${escapeHtml(c.phone) || '—'}</td>
