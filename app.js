@@ -6157,12 +6157,16 @@ function j2g(jy,jm,jd){
 }
 /* ============ SECTION: DATE TOOL + QUICK-START PIPELINE ============
    Persian->Gregorian converter (j2g) + no-signup quick-start modal. ============ */
-function convertDate(){
-    const day=parseInt(document.getElementById('t-day').value);
-    const mon=parseInt(document.getElementById('t-month').value);
-    const yr=parseInt(document.getElementById('t-year').value);
-    const errEl=document.getElementById('t-error');
-    const resEl=document.getElementById('t-result');
+// prefix lets more than one copy of this tool live on the page at once
+// (the landing page's own "t-" ids, plus صفحه نخست's "h-" ids) without id
+// collisions -- defaults to 't' so the landing page's existing
+// onclick="convertDate()" keeps working unchanged.
+function convertDate(prefix='t'){
+    const day=parseInt(document.getElementById(`${prefix}-day`).value);
+    const mon=parseInt(document.getElementById(`${prefix}-month`).value);
+    const yr=parseInt(document.getElementById(`${prefix}-year`).value);
+    const errEl=document.getElementById(`${prefix}-error`);
+    const resEl=document.getElementById(`${prefix}-result`);
     errEl.classList.remove('show');resEl.classList.remove('show');
     if(!day||!mon||!yr){errEl.textContent='همه موارد را وارد کنید.';errEl.classList.add('show');return;}
     if(yr<1200||yr>1500){errEl.textContent='سال شمسی معتبر وارد کنید (مثلاً ۱۳۸۰).';errEl.classList.add('show');return;}
@@ -6171,11 +6175,11 @@ function convertDate(){
         const{gy,gm,gd}=j2g(yr,mon,day);
         const obj=new Date(gy,gm-1,gd);
         const p=n=>String(n).padStart(2,'0');
-        document.getElementById('t-main').textContent=`${gy} / ${p(gm)} / ${p(gd)}`;
-        document.getElementById('t-f1').textContent=`${gy}-${p(gm)}-${p(gd)}`;
-        document.getElementById('t-f2').textContent=`${p(gd)}/${p(gm)}/${gy}`;
-        document.getElementById('t-f3').textContent=`${p(gm)}/${p(gd)}/${gy}`;
-        document.getElementById('t-f4').textContent=new Intl.DateTimeFormat('en-US',{month:'long',day:'numeric',year:'numeric'}).format(obj);
+        document.getElementById(`${prefix}-main`).textContent=`${gy} / ${p(gm)} / ${p(gd)}`;
+        document.getElementById(`${prefix}-f1`).textContent=`${gy}-${p(gm)}-${p(gd)}`;
+        document.getElementById(`${prefix}-f2`).textContent=`${p(gd)}/${p(gm)}/${gy}`;
+        document.getElementById(`${prefix}-f3`).textContent=`${p(gm)}/${p(gd)}/${gy}`;
+        document.getElementById(`${prefix}-f4`).textContent=new Intl.DateTimeFormat('en-US',{month:'long',day:'numeric',year:'numeric'}).format(obj);
         resEl.classList.add('show');
     }catch(e){errEl.textContent='خطا در تبدیل.';errEl.classList.add('show');}
 }

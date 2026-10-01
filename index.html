@@ -814,6 +814,70 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
         <span class="home-panel-desc">ورود و خروج پرسنل</span>
       </button>
     </div>
+
+    <!-- Same شمسی→میلادی converter as the public landing page's #tool
+         section (convertDate()/copyFmt()), re-shown here under its own
+         "h-" id prefix so a logged-in user doesn't have to log out and
+         visit the marketing page just to convert a date. -->
+    <div class="workspace-panel p-6 mt-6">
+      <h3 class="text-lg font-black mb-1" style="color:var(--text-main);">تبدیل تاریخ شمسی به میلادی</h3>
+      <p class="text-xs mb-4" style="color:var(--text-muted);">برای درج تاریخ تولد یا صدور مدارک در ترجمه رسمی</p>
+      <div class="tool-box" style="padding:0;border:none;background:transparent;">
+        <div class="input-row">
+          <div>
+            <label class="field-label" for="h-day">روز</label>
+            <input class="field-input" type="number" id="h-day" placeholder="روز" min="1" max="31">
+          </div>
+          <div>
+            <label class="field-label" for="h-month">ماه</label>
+            <select class="field-input" id="h-month">
+              <option value="1">فروردین</option><option value="2">اردیبهشت</option>
+              <option value="3">خرداد</option><option value="4">تیر</option>
+              <option value="5">مرداد</option><option value="6">شهریور</option>
+              <option value="7">مهر</option><option value="8">آبان</option>
+              <option value="9">آذر</option><option value="10">دی</option>
+              <option value="11">بهمن</option><option value="12">اسفند</option>
+            </select>
+          </div>
+          <div>
+            <label class="field-label" for="h-year">سال</label>
+            <input class="field-input" type="number" id="h-year" placeholder="مثلاً ۱۳۷۵">
+          </div>
+        </div>
+        <button type="button" class="tool-btn" onclick="convertDate('h')">تبدیل تاریخ</button>
+        <p class="error-msg" id="h-error"></p>
+        <div class="result-box" id="h-result">
+          <div class="result-main" id="h-main" onclick="copyFmt('h-main')" title="کلیک برای کپی" style="cursor:pointer;position:relative;">
+            <span class="fmt-copied" id="cp-h-main">کپی شد ✓</span>
+          </div>
+          <p style="font-size:.75rem;color:var(--muted);text-align:center;margin-bottom:.85rem;">
+            👆 روی هر فرمت کلیک کنید تا در کلیپ‌بورد کپی شود
+          </p>
+          <div class="fmt-grid">
+            <button type="button" class="fmt-btn" onclick="copyFmt('h-f1')">
+              <span class="fmt-copied" id="cp-h-f1">کپی شد ✓</span>
+              <span class="fmt-label">YYYY-MM-DD</span>
+              <span class="fmt-value" id="h-f1"></span>
+            </button>
+            <button type="button" class="fmt-btn" onclick="copyFmt('h-f2')">
+              <span class="fmt-copied" id="cp-h-f2">کپی شد ✓</span>
+              <span class="fmt-label">DD/MM/YYYY</span>
+              <span class="fmt-value" id="h-f2"></span>
+            </button>
+            <button type="button" class="fmt-btn" onclick="copyFmt('h-f3')">
+              <span class="fmt-copied" id="cp-h-f3">کپی شد ✓</span>
+              <span class="fmt-label">MM/DD/YYYY</span>
+              <span class="fmt-value" id="h-f3"></span>
+            </button>
+            <button type="button" class="fmt-btn" onclick="copyFmt('h-f4')">
+              <span class="fmt-copied" id="cp-h-f4">کپی شد ✓</span>
+              <span class="fmt-label">Month D, YYYY</span>
+              <span class="fmt-value" id="h-f4"></span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </section>
 
