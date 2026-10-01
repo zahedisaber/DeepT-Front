@@ -416,6 +416,36 @@ function syncUserSessionDOM() {
 }
 
 // ═══════════════════════════════════════════════════════════
+// USER PROFILE PREVIEW (header userBadge click) -- a read-only glance at
+// the logged-in account's own profile (a translator or office using
+// DeepT), not that account's مشتریان. Full editing stays in میز کار's own
+// profile card; "ویرایش پروفایل" here just jumps there.
+// ═══════════════════════════════════════════════════════════
+function openUserProfilePreview() {
+    if (!currentUserSession) return;
+    const displayName = currentUserSession.office || currentUserSession.username || currentUserSession.email || '؟';
+    const isOffice = currentUserSession.type === 'office';
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    set('upp-avatar', displayName[0].toUpperCase());
+    set('upp-name', displayName);
+    set('upp-email', currentUserSession.email || '');
+    set('upp-type', isOffice ? 'دارالترجمه رسمی' : 'مترجم حقیقی');
+
+    const officeRow = document.getElementById('upp-office-row');
+    if (officeRow) officeRow.classList.toggle('hidden', !isOffice || !currentUserSession.office);
+    set('upp-office', currentUserSession.office || '');
+
+    const contactRow = document.getElementById('upp-contact-row');
+    if (contactRow) contactRow.classList.toggle('hidden', !currentUserSession.contact);
+    set('upp-contact', currentUserSession.contact || '');
+
+    document.getElementById('userProfilePreviewModal').classList.remove('hidden');
+}
+function closeUserProfilePreview() {
+    document.getElementById('userProfilePreviewModal').classList.add('hidden');
+}
+
+// ═══════════════════════════════════════════════════════════
 // LOGOUT
 // ═══════════════════════════════════════════════════════════
 function confirmLogout()   { document.getElementById('logoutOverlay').classList.remove('hidden'); }
@@ -440,6 +470,9 @@ function executeLogout() {
 }
 document.getElementById('logoutOverlay').addEventListener('click', function(e) {
     if (e.target === this) closeLogoutConfirm();
+});
+document.getElementById('userProfilePreviewModal').addEventListener('click', function(e) {
+    if (e.target === this) closeUserProfilePreview();
 });
 document.getElementById('myplRepriceModal').addEventListener('click', function(e) {
     if (e.target === this) closeMyPriceListRepriceModal();
@@ -2188,7 +2221,7 @@ async function openClientsWorkspace(pushHistory = true) {
     }
 
     document.body.style.overflow = 'hidden';
-    renderDashboardClients();
+    renderDashboardClients('', true);
     if (pushHistory) navigateTo('/clients');
 }
 
@@ -2350,27 +2383,63 @@ async function renderDashboardActiveProjects() {
 // ═══════════════════════════════════════════════════════════
 // DASHBOARD — MY CLIENTS
 // ═══════════════════════════════════════════════════════════
-let dashboardClientsDebounce = null;
-function searchDashboardClients(q) {
-    clearTimeout(dashboardClientsDebounce);
-    dashboardClientsDebounce = setTimeout(() => renderDashboardClients(q), 250);
+// Fetched once per visit to مشتریان (and refetched after any add/edit/
+// delete/Sanam-import -- see renderDashboardClients(q, forceRefresh)
+// callers below), then filtered locally on every keystroke: instant, and
+// matches substrings across every field (Farsi name, Latin name, phone,
+// national id) regardless of whatever subset the server's own ?q= filter
+// happens to cover.
+let dashboardClientsCache = null;
+
+function clientMatchesQuery(c, q) {
+    const needle = q.trim().toLowerCase();
+    if (!needle) return true;
+    const haystacks = [
+        c.first_name_fa, c.last_name_fa,
+        `${c.first_name_fa || ''} ${c.last_name_fa || ''}`,
+        c.first_name, c.last_name,
+        `${c.first_name || ''} ${c.last_name || ''}`,
+        c.national_id, c.phone,
+    ];
+    return haystacks.some(h => (h || '').toString().toLowerCase().includes(needle));
 }
 
-async function renderDashboardClients(q = '') {
+function searchDashboardClients(q) {
+    renderDashboardClients(q);
+}
+
+async function renderDashboardClients(q = '', forceRefresh = false) {
     const box = document.getElementById('dashboardClientsList');
     if (!box) return;
-    box.innerHTML = `<div class="text-xs text-center py-6" style="color:var(--text-muted);">در حال بارگذاری...</div>`;
     const token = localStorage.getItem('deept_token');
-    try {
-        const url = new URL(`${CORE}/clients`);
-        if (q) url.searchParams.set('q', q);
-        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${token}` } });
-        if (!res.ok) throw new Error();
-        const clients = await res.json();
-        if (!clients.length) {
-            box.innerHTML = `<div class="text-xs text-center py-6" style="color:var(--text-muted);">// هنوز مشتری‌ای ثبت نشده</div>`;
+
+    if (dashboardClientsCache === null || forceRefresh) {
+        box.innerHTML = `<div class="text-xs text-center py-6" style="color:var(--text-muted);">در حال بارگذاری...</div>`;
+        try {
+            const res = await fetch(`${CORE}/clients`, { headers: { 'Authorization': `Bearer ${token}` } });
+            if (!res.ok) throw new Error();
+            dashboardClientsCache = await res.json();
+        } catch (e) {
+            dashboardClientsCache = null;
+            box.innerHTML = `<div class="text-xs text-center py-6" style="color:#f87171;">خطا در دریافت لیست مشتریان.
+                <button onclick="renderDashboardClients('${(q || '').replace(/'/g,"")}', true)" class="block mx-auto mt-2 text-[11px] font-bold px-3 py-1 rounded-lg" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">🔄 تلاش مجدد</button>
+            </div>`;
             return;
         }
+    }
+
+    if (!dashboardClientsCache.length) {
+        box.innerHTML = `<div class="text-xs text-center py-6" style="color:var(--text-muted);">// هنوز مشتری‌ای ثبت نشده</div>`;
+        return;
+    }
+
+    const clients = dashboardClientsCache.filter(c => clientMatchesQuery(c, q));
+    if (!clients.length) {
+        box.innerHTML = `<div class="text-xs text-center py-6" style="color:var(--text-muted);">موردی یافت نشد.</div>`;
+        return;
+    }
+
+    {
         const faName = (c) => `${c.first_name_fa || ''} ${c.last_name_fa || ''}`.trim();
         const enName = (c) => `${c.first_name || ''} ${c.last_name || ''}`.trim();
         const displayName = (c) => faName(c) || enName(c) || '—';
@@ -2408,10 +2477,6 @@ async function renderDashboardClients(q = '') {
                     `).join('')}
                 </tbody>
             </table>`;
-    } catch (e) {
-        box.innerHTML = `<div class="text-xs text-center py-6" style="color:#f87171;">خطا در دریافت لیست مشتریان.
-            <button onclick="renderDashboardClients('${(q || '').replace(/'/g,"")}')" class="block mx-auto mt-2 text-[11px] font-bold px-3 py-1 rounded-lg" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">🔄 تلاش مجدد</button>
-        </div>`;
     }
 }
 
@@ -3863,7 +3928,7 @@ async function deleteClient(clientId) {
         if (isProfilePageOpen() && currentClientDetailId === clientId) {
             closeClientProfilePage();
         } else {
-            await renderDashboardClients();
+            await renderDashboardClients('', true);
         }
     } catch (e) {
         showToast(`❌ ${e.message || 'حذف مشتری ناموفق بود.'}`);
@@ -4674,7 +4739,7 @@ async function handleSanamFileSelected(file) {
             (data.documents_skipped_already_imported ? ` (${data.documents_skipped_already_imported} مورد قبلاً وارد شده بود و رد شد)` : '') +
             (errors.length ? ` — ${errors.length} ردیف رد شد: ${errors.map(e => `شماره تمبر ${e.stamp_number} (${e.reason})`).join('، ')}` : '') +
             ' — برای صدور فاکتور، از پروفایل هر مشتری موارد موردنظر را انتخاب کنید.';
-        renderDashboardClients();
+        renderDashboardClients('', true);
     } catch (err) {
         status.style.color = '#f87171';
         status.textContent = `❌ ${err.message || 'بارگذاری فایل سنام ناموفق بود.'}`;
@@ -5404,7 +5469,7 @@ async function submitAddClient() {
         showToast(clientEditingId ? '✅ تغییرات ذخیره شد.' : '✅ مشتری افزوده شد.');
         const savedId = clientEditingId || (await res.json().catch(()=>({}))).id;
         clientEditingId = null;
-        renderDashboardClients();
+        renderDashboardClients('', true);
         if (currentUserSession && isProfilePageOpen() && savedId) {
             await openClientProfile(savedId);
         } else if (currentUserSession && savedId) {
