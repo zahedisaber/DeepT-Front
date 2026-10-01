@@ -2334,32 +2334,36 @@ let lastKnownJobStatuses = {};
 function playJobCompleteChime() {
     try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        // Classic two-tone "ding dong" doorbell: two bell strikes a
+        // descending fourth apart. Each strike is a fundamental plus
+        // inharmonic overtone partials (the non-integer ratios are what
+        // make it sound like a struck bell rather than a pure tone), with
+        // a long natural decay.
+        const strikeBell = (fundamental, startTime) => {
+            const partials = [
+                { ratio: 1,    gain: 0.35, decay: 2.2 },
+                { ratio: 2.01, gain: 0.18, decay: 1.7 },
+                { ratio: 3.0,  gain: 0.10, decay: 1.3 },
+                { ratio: 4.2,  gain: 0.07, decay: 1.0 },
+                { ratio: 5.4,  gain: 0.04, decay: 0.7 },
+            ];
+            partials.forEach(({ ratio, gain: g, decay }) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = fundamental * ratio;
+                gain.gain.setValueAtTime(0, startTime);
+                gain.gain.linearRampToValueAtTime(g, startTime + 0.008);
+                gain.gain.exponentialRampToValueAtTime(0.0001, startTime + decay);
+                osc.connect(gain).connect(ctx.destination);
+                osc.start(startTime);
+                osc.stop(startTime + decay + 0.05);
+            });
+        };
         const now = ctx.currentTime;
-        // A single bright bell "ding" instead of three short notes: a
-        // fundamental plus inharmonic overtones (the non-integer ratios are
-        // what make it sound like a struck bell rather than a pure tone),
-        // each decaying at its own rate, with a long natural tail.
-        const fundamental = 880; // A5
-        const partials = [
-            { ratio: 1,    gain: 0.35, decay: 1.8 },
-            { ratio: 2.01, gain: 0.18, decay: 1.4 },
-            { ratio: 3.0,  gain: 0.10, decay: 1.1 },
-            { ratio: 4.2,  gain: 0.07, decay: 0.8 },
-            { ratio: 5.4,  gain: 0.04, decay: 0.6 },
-        ];
-        partials.forEach(({ ratio, gain: g, decay }) => {
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.type = 'sine';
-            osc.frequency.value = fundamental * ratio;
-            gain.gain.setValueAtTime(0, now);
-            gain.gain.linearRampToValueAtTime(g, now + 0.008);
-            gain.gain.exponentialRampToValueAtTime(0.0001, now + decay);
-            osc.connect(gain).connect(ctx.destination);
-            osc.start(now);
-            osc.stop(now + decay + 0.05);
-        });
-        setTimeout(() => ctx.close(), 2000);
+        strikeBell(784.0, now);          // "ding" -- G5
+        strikeBell(587.33, now + 0.85);  // "dong" -- D5, a descending fourth
+        setTimeout(() => ctx.close(), 3500);
     } catch (e) { /* Web Audio unavailable/blocked -- the toast still shows */ }
 }
 
