@@ -2212,18 +2212,17 @@ function showLandingView() {
     document.body.style.overflow = 'auto';
 }
 
-// صفحه نخست -- the header-bar's own "home" nav button, same destination
-// closeClientsWorkspace() already used for its "بازگشت به صفحه اصلی" link.
-// showLandingView() unconditionally hides the header-bar (correct for an
-// actually-logged-out visitor), but a still-logged-in user clicking this
-// from the dashboard would otherwise get stranded on the landing page with
-// no nav at all -- re-show it here so میز کار etc. stay one click away.
+// صفحه نخست -- the header-bar's own "home" nav button. This button is only
+// ever visible to a logged-in user (same toggle(id, !loggedIn) pattern as
+// every other nav icon), so there's no real scenario where the public
+// marketing/landing page is the right destination: just reopen the
+// dashboard. showLandingView() stays the actual logged-out home.
 function goToHomePage(pushHistory = true) {
-    showLandingView();
     if (currentUserSession) {
-        const hb = document.querySelector('.header-bar');
-        if (hb) hb.classList.remove('hidden');
+        openWorkspaceDashboard(pushHistory);
+        return;
     }
+    showLandingView();
     if (pushHistory) navigateTo('/');
 }
 
