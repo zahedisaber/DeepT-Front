@@ -396,6 +396,7 @@ function syncUserSessionDOM() {
     toggle('homePanelHr',       !isOffice);
     const ub = document.getElementById('userBadge');
     if (ub) { ub.classList.toggle('hidden', !loggedIn); ub.style.display = loggedIn ? 'flex' : 'none'; }
+    toggle('headerWalletBadge', !loggedIn);
     if (loggedIn) {
         const displayName = currentUserSession.office || currentUserSession.username || currentUserSession.email || '؟';
         const l = displayName[0].toUpperCase();
@@ -405,6 +406,11 @@ function syncUserSessionDOM() {
         set('headerUserName',     displayName);
         set('profileDisplayName', displayName);
         set('profileEmailBadge',  currentUserSession.email || '');
+        // صفحه نخست's own read-only profile+wallet card -- same data,
+        // kept in sync alongside میز کار's copy above.
+        set('home-avatarLetter',       l);
+        set('home-profileDisplayName', displayName);
+        set('home-profileEmailBadge',  currentUserSession.email || '');
         const at = document.getElementById('accountTypeToggle');
         if (at) at.value = currentUserSession.type || 'individual';
         const pc = document.getElementById('profileContactInput');
@@ -412,6 +418,7 @@ function syncUserSessionDOM() {
         const on = document.getElementById('officeNameInput');
         if (on) on.value = currentUserSession.office || '';
         toggleProfileAccountType();
+        refreshWalletBalanceDisplay();
     }
 }
 
@@ -2140,7 +2147,13 @@ async function refreshWalletBalanceDisplay() {
         });
         if (res.ok) {
             const data = await res.json();
-            document.getElementById('walletBalanceDisplay').textContent = data.balance_toman.toLocaleString();
+            const formatted = data.balance_toman.toLocaleString();
+            // All three copies (میز کار sidebar, header pill, صفحه نخست card)
+            // show the same balance -- keep them in lockstep from one fetch.
+            ['walletBalanceDisplay', 'headerWalletBalance', 'home-walletBalanceDisplay'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = formatted;
+            });
         }
     } catch (e) { /* leave last-known display value on transient network failure */ }
 }
