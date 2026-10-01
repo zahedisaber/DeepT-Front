@@ -4877,7 +4877,7 @@ function applyRouteForPath(path) {
 
         // Root / unknown route
         if (currentUserSession) {
-            openWorkspaceDashboard(false);
+            openHomePanels(false);
         } else {
             showLandingView();
         }
@@ -6396,7 +6396,7 @@ function qsSimulatePayment() {
 function showDashboardView() {
     const lp=document.getElementById('landingPage');
     if(lp) lp.style.display='none';
-    openWorkspaceDashboard();
+    openHomePanels();
 }
 
 function showAdminDashboard() {
