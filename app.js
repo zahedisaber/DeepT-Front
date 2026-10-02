@@ -1059,6 +1059,18 @@ const DP_DOCS = [
           "کارورزی": "Internship",
       } },
     },
+    { id:"general_transcript", label:"ریزنمرات سیستم گلستان", full:false, fields:[],
+      // Course-name glossary for DeepT-Back-End's general_transcript.py --
+      // same renderTermGlossary() table as academic_transcript above. These
+      // are that file's DEFAULT_COURSE_NAME_GLOSSARY built-ins; a translator
+      // can override any of them or add new terms, saved as
+      // term_glossary["general_transcript"].
+      glossary: { defaults: {
+          "کارآموزی در عرصه": "Clinical Training",
+          "کارآموزی": "Training",
+          "کارورزی": "Internship",
+      } },
+    },
     { id:"azad_transcript", label:"ریزنمرات دانشگاه آزاد", full:true, fields:[
         { key:"course_list_intro", label:"فهرست دروس و ریزنمرات نامبرده در طی دوره تحصیلی به شرح زیر می‌باشد.", kind:"simple", def:"The course list and transcript of records are displayed below." },
     ],
