@@ -919,6 +919,10 @@ async function saveProfileConfiguration() {
 // ═══════════════════════════════════════════════════════════
 async function loadPreferences() {
     if (!currentUserSession) return;
+    // Client-side only (see isJobSoundEnabled()) -- set unconditionally,
+    // not inside the server fetch below, so it still reflects correctly
+    // even if that request fails.
+    document.getElementById('pref-job-sound-enabled').checked = isJobSoundEnabled();
     const token = getToken();
     try {
         const res = await fetch(`${CORE}/users/me/preferences`, { headers: { 'Authorization': `Bearer ${token}` } });
@@ -2331,21 +2335,33 @@ let allJobsTerminal = false;
 // ═══════════════════════════════════════════════════════════
 let lastKnownJobStatuses = {};
 
+// Settings → "پخش صدا هنگام تکمیل ترجمه" toggle (see settingsPage) --
+// purely a client-side preference (localStorage), unlike the rest of
+// settingsPage's fields which round-trip through /users/me/preferences:
+// whether to play a sound has no meaning on another device, so it never
+// needs to sync. Defaults to enabled.
+function isJobSoundEnabled() {
+    return localStorage.getItem('deept_job_sound_enabled') !== '0';
+}
+function setJobSoundEnabled(enabled) {
+    localStorage.setItem('deept_job_sound_enabled', enabled ? '1' : '0');
+}
+
 function playJobCompleteChime() {
+    if (!isJobSoundEnabled()) return;
     try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        // Classic two-tone "ding dong" doorbell: two bell strikes a
-        // descending fourth apart. Each strike is a fundamental plus
-        // inharmonic overtone partials (the non-integer ratios are what
-        // make it sound like a struck bell rather than a pure tone), with
-        // a long natural decay.
+        // "Snappy double-tap": two quick bell taps, E5 then C5. Each strike
+        // is a fundamental plus inharmonic overtone partials (the
+        // non-integer ratios are what make it sound like a struck bell
+        // rather than a pure tone) with a short decay.
         const strikeBell = (fundamental, startTime) => {
             const partials = [
-                { ratio: 1,    gain: 0.35, decay: 2.2 },
-                { ratio: 2.01, gain: 0.18, decay: 1.7 },
-                { ratio: 3.0,  gain: 0.10, decay: 1.3 },
-                { ratio: 4.2,  gain: 0.07, decay: 1.0 },
-                { ratio: 5.4,  gain: 0.04, decay: 0.7 },
+                { ratio: 1,    gain: 0.35, decay: 1.32 },
+                { ratio: 2.01, gain: 0.18, decay: 1.02 },
+                { ratio: 3.0,  gain: 0.10, decay: 0.78 },
+                { ratio: 4.2,  gain: 0.07, decay: 0.60 },
+                { ratio: 5.4,  gain: 0.04, decay: 0.42 },
             ];
             partials.forEach(({ ratio, gain: g, decay }) => {
                 const osc = ctx.createOscillator();
@@ -2361,9 +2377,9 @@ function playJobCompleteChime() {
             });
         };
         const now = ctx.currentTime;
-        strikeBell(784.0, now);          // "ding" -- G5
-        strikeBell(587.33, now + 0.85);  // "dong" -- D5, a descending fourth
-        setTimeout(() => ctx.close(), 3500);
+        strikeBell(659.25, now);         // E5
+        strikeBell(523.25, now + 0.35);  // C5
+        setTimeout(() => ctx.close(), 2000);
     } catch (e) { /* Web Audio unavailable/blocked -- the toast still shows */ }
 }
 
