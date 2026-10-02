@@ -105,6 +105,13 @@ const DOCUMENT_REGISTRY = {
         endpoint: `${BACKEND}/api/translate/consolidated-insurance-record`,
         active:              true,
         usePassportSession:  true,
+    },    'national-id-card': {
+        label:               'کارت ملی',
+        // Text read by eboo OCR, not Gemini vision (see national_id_card.py
+        // on DeepT-Back-End). One file: front only, or a PDF of both sides.
+        endpoint: `${BACKEND}/api/translate/national-id-card`,
+        active:              true,
+        usePassportSession:  true,
     },
 };
 
