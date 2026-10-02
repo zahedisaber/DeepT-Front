@@ -5081,7 +5081,45 @@ function openChatInterface(pushHistory = true, forceStage = null) {
     }
     if (pushHistory) navigateTo('/new-project');
 }
+// Fully clears every piece of in-flight translation-pipeline state (doc type,
+// passport session(s), uploaded files, manual fields) so reopening the modal
+// always starts from a clean slate. Called whenever the pipeline is closed.
+function resetTranslationPipeline() {
+    confirmedPassports.forEach(p => {
+        if (p.session_id) fetch(`${getActiveBackendOrigin()}/passport/${p.session_id}`, { method:'DELETE' }).catch(()=>{});
+    });
+    confirmedPassports = [];
+    selectedClientId = null;
+    mainContactClientId = null;
+    mainContactNationalId = null;
+    updateClientBadge();
+
+    ppSelectedFile  = null;
+    docSelectedFile = null;
+    ppSetMode(null);
+
+    ppClearFields();
+    document.getElementById('pp-file-input').value = '';
+    document.getElementById('pp-file-name').textContent = '';
+    document.getElementById('pp-file-name').classList.add('hidden');
+    document.getElementById('pp-drop-text').classList.remove('hidden');
+    document.getElementById('pp-extract-btn').disabled = true;
+    document.getElementById('pp-extract-btn').textContent = 'استخراج اطلاعات از پاسپورت';
+    document.getElementById('pp-client-search').value = '';
+    document.getElementById('pp-client-results').innerHTML = '';
+    document.getElementById('ppModeButtons').classList.remove('hidden');
+
+    document.getElementById('docTemplateSearch').value = '';
+    document.getElementById('docTemplate').value = '';
+    closeDocDropdownList();
+
+    document.getElementById('includeCourseCodesCheckbox').checked = false;
+    resetDocZone();
+    showOnlyStage('doctype');
+}
+
 function closeChatInterface(pushHistory = true) {
+    resetTranslationPipeline();
     document.getElementById('chatModal').classList.add('hidden');
     if (document.getElementById('workspaceDashboard').classList.contains('hidden')) {
         document.body.style.overflow = 'auto';
@@ -6239,6 +6277,7 @@ function closeModals()   {
     ['loginOverlay','signupOverlay','quickStartOverlay','forgotPasswordOverlay','resetPasswordOverlay'].forEach(id=>{
         const el=document.getElementById(id); if(el) el.classList.remove('open');
     });
+    qsReset();
 }
 function switchToSignup() { closeModals(); setTimeout(openSignup,80); }
 function switchToLogin()  { closeModals(); setTimeout(openLogin,80); }
@@ -6440,6 +6479,10 @@ function qsReset() {
     document.getElementById('qsPassFileName').textContent='';
     document.getElementById('qsDocFileName').style.display='none';
     document.getElementById('qsDocFileName').textContent='';
+    ['qsFirst','qsLast','qsFather','qsDob'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('qsPassFile').value='';
+    document.getElementById('qsDocFile').value='';
+    document.getElementById('qsDocType').value='police-certificate';
     document.getElementById('qsNext1').disabled=true;
     document.getElementById('qsNext2').disabled=true;
     document.getElementById('qsProcessing').classList.remove('show');
