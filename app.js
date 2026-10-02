@@ -5976,7 +5976,12 @@ if (docDef.usePassportSession) {
 
     if (!res.ok) {
         const err = await res.json().catch(()=>({detail:'خطای ناشناخته'}));
-        throw new Error(err.detail);
+        // The backend sanitizes every client-facing error to Persian text
+        // (and passes 402 "insufficient credit" / 404 "no wallet yet"
+        // through verbatim -- see main.py's HTTPException handler). Mark it
+        // so the catch block can surface this safe detail instead of the
+        // generic fallback, without ever leaking raw English network text.
+        throw { backendDetail: err.detail };
     }
         // Backend now returns a ticket immediately -- {job_id, status,
         // price_toman, page_count} -- NOT the finished file. The actual
@@ -5996,11 +6001,16 @@ if (docDef.usePassportSession) {
         document.getElementById('nextDocBtn').classList.remove('hidden');
 
     } catch (err) {
-        // Never display err.message directly -- it can be raw English from
-        // a network-level failure (timeout, CORS, connection drop), not
-        // just backend detail text. Always show a fixed Persian message.
+        // Only backend-sanitized Persian detail is shown directly (the
+        // 402/404 wallet messages above). Everything else -- genuine
+        // network failures whose `err.message` can be raw English from a
+        // timeout/CORS/connection drop -- stays behind a fixed message.
         statusBubble.classList.add('hidden');
-        showToast('❌ خطا در پردازش سند. لطفاً دوباره تلاش کنید یا با پشتیبانی تماس بگیرید.');
+        if (err && err.backendDetail) {
+            showToast(`❌ ${err.backendDetail}`);
+        } else {
+            showToast('❌ خطا در پردازش سند. لطفاً دوباره تلاش کنید یا با پشتیبانی تماس بگیرید.');
+        }
     } finally {
         submitBtn.disabled = false;
     }
