@@ -1067,7 +1067,7 @@ const DP_DOCS = [
       // term_glossary["general_transcript"].
       glossary: { defaults: {
           "کارآموزی در عرصه": "Clinical Training",
-          "کارآموزی": "Training",
+          "کارآموزی": "Internship",
           "کارورزی": "Internship",
       } },
     },
