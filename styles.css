@@ -58,6 +58,7 @@
     --accent-glow: rgba(0, 255, 255, 0.25);
     --accent-hover: rgba(0, 255, 255, 0.15);
     --card-surface: rgba(18, 18, 18, 0.9);
+    --card-surface-solid: #121212;
     --border-color: rgba(0, 255, 255, 0.28);
     --border-subtle: rgba(255,255,255,0.07);
     --input-bg: #000;
@@ -100,6 +101,7 @@
     --accent-glow: rgba(3,105,161,0.18);
     --accent-hover: rgba(3,105,161,0.08);
     --card-surface: #ffffff;
+    --card-surface-solid: #ffffff;
     --border-color: rgba(3,105,161,0.25);
     --border-subtle: rgba(0,0,0,0.07);
     --input-bg: #f8fafc;
