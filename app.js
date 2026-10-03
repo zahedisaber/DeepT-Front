@@ -6938,33 +6938,39 @@ async function adminViewUserJobs(userId, email) {
     const tbody = document.getElementById('adminUserJobsRowsBlock');
     document.getElementById('adminUserJobsTitle').textContent = `پروژه‌های ${email}`;
     panel.classList.remove('hidden');
-    tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>`;
     try {
         const res = await fetch(`${CORE}/jobs?user_id=${userId}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!res.ok) {
-            tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در دریافت پروژه‌ها.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در دریافت پروژه‌ها.</td></tr>`;
             return;
         }
         const jobs = await res.json();
         if (!jobs.length) {
-            tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">این کاربر پروژه‌ای ندارد.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-sm" style="color:var(--text-muted);">این کاربر پروژه‌ای ندارد.</td></tr>`;
             return;
         }
         const typeLabel = (t) => DOCUMENT_REGISTRY[t]?.label || t;
         const statusLabel = (s) => ({queued:'در صف', processing:'در حال پردازش', completed:'تکمیل شده', failed:'ناموفق'}[s] || s);
+        // Not every document type tracks api_cost_usd yet, and a job
+        // predating that field has none -- shown as "—" rather than $0.00.
+        const costCell = (j) => j.api_cost_usd != null
+            ? `$${j.api_cost_usd.toFixed(4)}`
+            : '<span style="color:var(--text-muted);">—</span>';
         tbody.innerHTML = jobs.map(j => `
             <tr style="border-bottom:1px solid var(--divider);">
                 <td class="py-2 px-2" style="color:var(--text-main);">${typeLabel(j.document_type)}</td>
                 <td class="py-2 px-2" style="color:var(--text-muted);">${statusLabel(j.status)}</td>
                 <td class="py-2 px-2 font-mono" style="color:var(--text-main);">${(j.price_toman||0).toLocaleString()}</td>
+                <td class="py-2 px-2 en font-mono" style="color:var(--text-main);">${costCell(j)}</td>
                                 <td class="py-2 px-2 en" style="color:var(--text-muted);">${escapeHtml(j.original_filename)}</td>
                 <td class="py-2 px-2 en" style="color:var(--text-muted);">${(j.created_at||'').slice(0,10)}</td>
             </tr>
         `).join('');
     } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در اتصال.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در اتصال.</td></tr>`;
     }
 }
 
@@ -7240,34 +7246,45 @@ function updateCrmDashboard() {
     
     const profitMonthly = completedMonthly.reduce((sum, j) => sum + (j.price_toman || 0), 0);
     const failureRateMonthly = totalMonthly > 0 ? ((failedMonthly.length / totalMonthly) * 100).toFixed(1) : '0';
+    // Only completed jobs get an api_cost_usd today (set once extraction
+    // finishes -- see DeepT-Core's PATCH /jobs/{job_id}); a job predating
+    // this field, or whose document type doesn't track cost yet, is null
+    // and contributes 0 rather than breaking the sum.
+    const apiCostMonthly = filteredForStats.reduce((sum, j) => sum + (j.api_cost_usd || 0), 0);
 
     // Dynamic labels — beside همهٔ زمان‌ها concept
     const profitLabelEl = document.getElementById('crmStatProfitLabel');
     const profitSubEl = document.getElementById('crmStatProfitSub');
     const workLabelEl = document.getElementById('crmStatWorkLabel');
     const failureLabelEl = document.getElementById('crmStatFailureLabel');
+    const apiCostLabelEl = document.getElementById('crmStatApiCostLabel');
+    const apiCostSubEl = document.getElementById('crmStatApiCostSub');
     if (profitLabelEl) profitLabelEl.textContent = label === 'همهٔ زمان‌ها' ? 'سود بازه انتخابی (تومان)' : `سود ${label} (تومان)`;
     if (profitSubEl) profitSubEl.textContent = label === 'همهٔ زمان‌ها' ? 'جمع پرداختی کارهای موفق — همهٔ زمان‌ها' : `جمع پرداختی کارهای موفق — ${label}`;
     if (workLabelEl) workLabelEl.textContent = label === 'همهٔ زمان‌ها' ? 'تعداد کل کارها' : `تعداد کل کارهای ${label}`;
     if (failureLabelEl) failureLabelEl.textContent = label === 'همهٔ زمان‌ها' ? 'نرخ ناموفق' : `نرخ ناموفق ${label}`;
-    
+    if (apiCostLabelEl) apiCostLabelEl.textContent = label === 'همهٔ زمان‌ها' ? 'هزینه API (دلار)' : `هزینه API ${label} (دلار)`;
+    if (apiCostSubEl) apiCostSubEl.textContent = label === 'همهٔ زمان‌ها' ? 'مجموع هزینهٔ واقعی Gemini — همهٔ زمان‌ها' : `مجموع هزینهٔ واقعی Gemini — ${label}`;
+
     document.getElementById('crmStatProfit').textContent = profitMonthly.toLocaleString();
     document.getElementById('crmStatWorkCount').textContent = totalMonthly.toLocaleString();
     document.getElementById('crmStatWorkDetails').textContent = `موفق: ${completedMonthly.length.toLocaleString()} | ناموفق: ${failedMonthly.length.toLocaleString()}`;
     document.getElementById('crmStatFailureRate').textContent = `${failureRateMonthly}%`;
+    document.getElementById('crmStatApiCost').textContent = `$${apiCostMonthly.toFixed(2)}`;
     
     // Build per-document-type aggregation for the SELECTED time-frame (global)
     const docTypeStats = {};
     Object.entries(DOCUMENT_REGISTRY).forEach(([key, doc]) => {
-        docTypeStats[key] = { label: doc.label, total: 0, completed: 0, failed: 0, revenue: 0 };
+        docTypeStats[key] = { label: doc.label, total: 0, completed: 0, failed: 0, revenue: 0, apiCost: 0 };
     });
-    
+
     filteredForStats.forEach(j => {
         const t = j.document_type;
         if (!docTypeStats[t]) {
-            docTypeStats[t] = { label: t, total: 0, completed: 0, failed: 0, revenue: 0 };
+            docTypeStats[t] = { label: t, total: 0, completed: 0, failed: 0, revenue: 0, apiCost: 0 };
         }
         docTypeStats[t].total++;
+        docTypeStats[t].apiCost += (j.api_cost_usd || 0);
         if (j.status === 'completed') {
             docTypeStats[t].completed++;
             docTypeStats[t].revenue += (j.price_toman || 0);
@@ -7289,7 +7306,7 @@ function updateCrmDashboard() {
     const tableTbody = document.getElementById('crmDocTypeSummaryTableBody');
     if (tableTbody) {
         if (activeTypes.length === 0) {
-            tableTbody.innerHTML = `<tr><td colspan="6" class="text-center py-4" style="color:var(--text-muted);">داده‌ای وجود ندارد.</td></tr>`;
+            tableTbody.innerHTML = `<tr><td colspan="7" class="text-center py-4" style="color:var(--text-muted);">داده‌ای وجود ندارد.</td></tr>`;
         } else {
             tableTbody.innerHTML = activeTypes.map(([key, s], idx) => {
                 const share = grandTotal > 0 ? ((s.total / grandTotal) * 100).toFixed(1) : '0.0';
@@ -7304,6 +7321,7 @@ function updateCrmDashboard() {
                         <td class="py-2 px-1 text-center en" style="color:#f87171;">${s.failed.toLocaleString()}</td>
                         <td class="py-2 px-1 text-center en font-bold" style="color:var(--accent);">${share}%</td>
                         <td class="py-2 px-1 text-center en" style="color:var(--text-muted);">${s.revenue.toLocaleString()}</td>
+                        <td class="py-2 px-1 text-center en" style="color:var(--text-muted);">$${s.apiCost.toFixed(2)}</td>
                     </tr>
                 `;
             }).join('');

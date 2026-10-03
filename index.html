@@ -1617,7 +1617,7 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
             </div>
 
             <!-- Monthly Stats Grid -->
-            <div id="crmStatsContainer" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div id="crmStatsContainer" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                 <!-- Stat Card 1: Profit -->
                 <div class="p-4 rounded-xl border" style="background: var(--card-surface); border-color: var(--border-subtle); box-shadow: var(--shadow-accent);">
                     <div class="text-xs font-bold" style="color: var(--text-muted);" id="crmStatProfitLabel">سود بازه انتخابی (تومان)</div>
@@ -1636,6 +1636,12 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                     <div class="text-2xl font-black mt-2 en" id="crmStatFailureRate">0%</div>
                     <div class="text-xs mt-1" style="color: var(--text-muted);">نسبت کارهای ناموفق به کل</div>
                 </div>
+                <!-- Stat Card 4: Total API Cost (admin-internal COGS, not shown to translator accounts) -->
+                <div class="p-4 rounded-xl border" style="background: var(--card-surface); border-color: var(--border-subtle); box-shadow: var(--shadow-accent);">
+                    <div class="text-xs font-bold" style="color: var(--text-muted);" id="crmStatApiCostLabel">هزینه API (دلار)</div>
+                    <div class="text-2xl font-black mt-2 en" id="crmStatApiCost">$0.00</div>
+                    <div class="text-xs mt-1" style="color: var(--text-muted);" id="crmStatApiCostSub">مجموع هزینهٔ واقعی Gemini — همهٔ زمان‌ها</div>
+                </div>
             </div>
 
             <!-- Document Type Summary Table & Graph Grid -->
@@ -1653,10 +1659,11 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                                     <th class="py-2 px-1 font-bold text-center">ناموفق</th>
                                     <th class="py-2 px-1 font-bold text-center">درصد سهم</th>
                                     <th class="py-2 px-1 font-bold text-center">درآمد (تومان)</th>
+                                    <th class="py-2 px-1 font-bold text-center">هزینه API ($)</th>
                                 </tr>
                             </thead>
                             <tbody id="crmDocTypeSummaryTableBody">
-                                <tr><td colspan="6" class="text-center py-4" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>
+                                <tr><td colspan="7" class="text-center py-4" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -1730,6 +1737,7 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                             <th class="py-3 px-3 font-bold">نوع سند</th>
                             <th class="py-3 px-3 font-bold">وضعیت</th>
                             <th class="py-3 px-3 font-bold">قیمت (تومان)</th>
+                            <th class="py-3 px-3 font-bold">هزینه API ($)</th>
                             <th class="py-3 px-3 font-bold">نام فایل</th>
                             <th class="py-3 px-3 font-bold">تاریخ</th>
                         </tr>
