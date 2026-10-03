@@ -101,9 +101,45 @@
   <div id="headerWalletBadge" class="hidden items-center gap-1 text-xs font-black" style="color:var(--accent);" title="موجودی کیف پول">
     💰 <span id="headerWalletBalance">۰</span><span style="color:var(--text-muted);font-weight:400;">تومان</span>
   </div>
-  <div id="userBadge" class="hidden items-center gap-2 text-xs" onclick="openUserProfilePreview()" style="cursor:pointer;" title="نمایش پروفایل من">
+  <div id="userBadge" class="hidden items-center gap-2 text-xs" onclick="openUserProfilePreview(event)" style="cursor:pointer;position:relative;" title="نمایش پروفایل من">
     <div id="headerAvatarBadge" class="w-7 h-7 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center font-black text-black text-xs">D</div>
     <span id="headerUserName" class="font-bold" style="color:var(--text-main);"></span>
+
+    <!-- Account popover, Gmail/HubSpot-style: a small card anchored right
+         under the avatar badge, not a centered full-screen dialog. Opens on
+         click, closes on an outside click, Escape, or its own buttons. -->
+    <div role="dialog" aria-label="پروفایل من" id="userProfilePreviewModal" class="hidden" onclick="event.stopPropagation()"
+         style="position:absolute;top:calc(100% + 10px);left:0;width:280px;max-width:calc(100vw - 2rem);z-index:80;background:var(--card-surface-solid);border:1px solid var(--border-color);border-radius:1rem;box-shadow:0 12px 32px rgba(0,0,0,.25);padding:1.25rem;cursor:default;text-align:right;">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center font-black text-xl text-black shrink-0" id="upp-avatar">D</div>
+        <div class="min-w-0">
+          <h3 class="font-black text-sm truncate" id="upp-name" style="color:var(--text-main);"></h3>
+          <span class="text-xs en truncate block" id="upp-email" style="color:var(--text-muted);"></span>
+        </div>
+      </div>
+      <div class="space-y-2 text-xs pt-3" style="border-top:1px solid var(--divider);">
+        <div class="flex justify-between">
+          <span style="color:var(--text-muted);">نوع حساب:</span>
+          <span class="font-bold" id="upp-type" style="color:var(--text-main);"></span>
+        </div>
+        <div class="flex justify-between" id="upp-office-row">
+          <span style="color:var(--text-muted);">دفتر ترجمه:</span>
+          <span class="font-bold" id="upp-office" style="color:var(--text-main);"></span>
+        </div>
+        <div class="flex justify-between" id="upp-contact-row">
+          <span style="color:var(--text-muted);">شماره/پل ارتباطی:</span>
+          <span class="font-bold en" id="upp-contact" style="color:var(--text-main);" dir="ltr"></span>
+        </div>
+        <div class="flex justify-between">
+          <span style="color:var(--text-muted);">کیف پول:</span>
+          <span class="font-bold en" style="color:var(--accent);" dir="ltr"><span id="upp-balance">۰</span> <span style="color:var(--text-muted);">تومان</span></span>
+        </div>
+      </div>
+      <div class="flex gap-2 justify-center mt-4">
+        <button type="button" onclick="closeUserProfilePreview(); openWorkspaceDashboard();" class="flex-1 font-bold px-3 py-2 rounded-xl text-xs" style="background:var(--accent);color:var(--btn-text-on-accent);">ویرایش پروفایل</button>
+        <button type="button" onclick="closeUserProfilePreview()" class="flex-1 font-bold px-3 py-2 rounded-xl text-xs" style="background:var(--bg-secondary);color:var(--text-main);border:1px solid var(--border-subtle);">بستن</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -116,41 +152,6 @@
     <div class="flex gap-3 justify-center">
       <button type="button" onclick="executeLogout()" class="bg-red-500 text-white font-bold px-6 py-2.5 rounded-xl text-sm">بله، خروج</button>
       <button type="button" onclick="closeLogoutConfirm()" class="font-bold px-6 py-2.5 rounded-xl text-sm" style="background:var(--bg-secondary);color:var(--text-main);border:1px solid var(--border-subtle);">انصراف</button>
-    </div>
-  </div>
-</div>
-
-<!-- ── Header user-badge click -- quick read-only preview of the logged-in
-     account's own profile (DeepT account holder: a translator or office),
-     not to be confused with مشتریان (that account's own clients). Full
-     editing stays in میز کار's own profile card (saveProfileConfiguration());
-     this is just a glance without leaving wherever you are. ── -->
-<div role="dialog" aria-modal="true" id="userProfilePreviewModal" class="modal-overlay fixed inset-0 z-[70] hidden flex items-center justify-center p-4">
-  <div class="w-full max-w-sm p-6" style="background:var(--card-surface);border:1px solid var(--border-color);border-radius:1rem;">
-    <div class="flex items-center gap-3 mb-4">
-      <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center font-black text-xl text-black" id="upp-avatar">D</div>
-      <div>
-        <h3 class="font-black text-base" id="upp-name" style="color:var(--text-main);"></h3>
-        <span class="text-xs en" id="upp-email" style="color:var(--text-muted);"></span>
-      </div>
-    </div>
-    <div class="space-y-2 text-xs pt-3" style="border-top:1px solid var(--divider);">
-      <div class="flex justify-between">
-        <span style="color:var(--text-muted);">نوع حساب:</span>
-        <span class="font-bold" id="upp-type" style="color:var(--text-main);"></span>
-      </div>
-      <div class="flex justify-between" id="upp-office-row">
-        <span style="color:var(--text-muted);">دفتر ترجمه:</span>
-        <span class="font-bold" id="upp-office" style="color:var(--text-main);"></span>
-      </div>
-      <div class="flex justify-between" id="upp-contact-row">
-        <span style="color:var(--text-muted);">شماره/پل ارتباطی:</span>
-        <span class="font-bold en" id="upp-contact" style="color:var(--text-main);" dir="ltr"></span>
-      </div>
-    </div>
-    <div class="flex gap-3 justify-center mt-5">
-      <button type="button" onclick="closeUserProfilePreview(); openWorkspaceDashboard();" class="font-bold px-4 py-2 rounded-xl text-xs" style="background:var(--accent);color:var(--btn-text-on-accent);">ویرایش پروفایل</button>
-      <button type="button" onclick="closeUserProfilePreview()" class="font-bold px-4 py-2 rounded-xl text-xs" style="background:var(--bg-secondary);color:var(--text-main);border:1px solid var(--border-subtle);">بستن</button>
     </div>
   </div>
 </div>
