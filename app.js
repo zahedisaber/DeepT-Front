@@ -5777,8 +5777,21 @@ function confirmNewClient() {
 // ═══════════════════════════════════════════════════════════
 // STEP 2 — DOCUMENT UPLOAD & TRANSLATION
 // ═══════════════════════════════════════════════════════════
+// The backend document pipeline (Gemini-based multi-page processing) only
+// accepts PDFs; a non-PDF used to reach it anyway and get rejected only
+// after a wasted API call. Checked on file.type OR extension -- drag-and-
+// drop from some file managers doesn't always set a reliable MIME type.
+function isPdfFile(file) {
+    return file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
+}
+
 function handleDocFileSelection(file) {
     if (!file) return;
+    if (!isPdfFile(file)) {
+        showToast('⚠️ فقط فایل PDF پذیرفته می‌شود. لطفاً سند را به‌صورت PDF بارگذاری کنید.');
+        document.getElementById('docFileInput').value = '';
+        return;
+    }
     docSelectedFile = file;
     document.getElementById('docFileInfo').textContent = `📄 ${file.name} (${(file.size/1024).toFixed(0)} KB)`;
     document.getElementById('docFileInfo').classList.remove('hidden');
@@ -6542,6 +6555,11 @@ function qsHandlePassport(file) {
 }
 function qsHandleDoc(file) {
     if (!file) return;
+    if (!isPdfFile(file)) {
+        showToast('⚠️ فقط فایل PDF پذیرفته می‌شود. لطفاً سند را به‌صورت PDF بارگذاری کنید.');
+        document.getElementById('qsDocFile').value = '';
+        return;
+    }
     QS.docFile=file;
     const el=document.getElementById('qsDocFileName');
     el.textContent='📄 '+file.name; el.style.display='block';
