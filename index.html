@@ -1586,10 +1586,11 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                             <th class="py-3 px-3 font-bold">کسر اعتبار</th>
                             <th class="py-3 px-3 font-bold">وضعیت حساب</th>
                             <th class="py-3 px-3 font-bold">پروژه‌ها</th>
+                            <th class="py-3 px-3 font-bold">مشتریان</th>
                         </tr>
                     </thead>
                     <tbody id="adminUsersRowsBlock">
-                        <tr><td colspan="6" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>
+                        <tr><td colspan="9" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -1734,6 +1735,26 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                         </tr>
                     </thead>
                     <tbody id="adminUserJobsRowsBlock"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="adminUserClientsPanel" class="workspace-panel p-6 hidden">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-base font-black" id="adminUserClientsTitle" style="color:var(--text-main);">مشتریان کاربر</h3>
+                <button type="button" onclick="document.getElementById('adminUserClientsPanel').classList.add('hidden')" class="text-sm font-bold px-4 py-2 rounded-lg" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">بستن</button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-right">
+                    <thead>
+                        <tr style="border-bottom:1px solid var(--divider);color:var(--text-muted);">
+                            <th class="py-3 px-3 font-bold">نام</th>
+                            <th class="py-3 px-3 font-bold">کد ملی</th>
+                            <th class="py-3 px-3 font-bold">شماره همراه</th>
+                            <th class="py-3 px-3 font-bold">تاریخ ثبت</th>
+                        </tr>
+                    </thead>
+                    <tbody id="adminUserClientsRowsBlock"></tbody>
                 </table>
             </div>
         </div>
