@@ -6815,6 +6815,9 @@ function renderAdminUsersRows(users) {
             <td class="py-3 px-3">
                 <button onclick="adminViewUserJobs('${u.user_id}', '${(u.email||'').replace(/'/g,"")}')" class="text-sm font-bold px-3 py-2 rounded-lg" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">مشاهده</button>
             </td>
+            <td class="py-3 px-3">
+                <button onclick="adminViewUserClients('${u.user_id}', '${(u.email||'').replace(/'/g,"")}')" class="text-sm font-bold px-3 py-2 rounded-lg" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">مشاهده</button>
+            </td>
         </tr>
     `).join('');
 }
@@ -6965,6 +6968,42 @@ async function adminViewUserJobs(userId, email) {
     }
 }
 
+async function adminViewUserClients(userId, email) {
+    const token = localStorage.getItem('deept_token');
+    const panel = document.getElementById('adminUserClientsPanel');
+    const tbody = document.getElementById('adminUserClientsRowsBlock');
+    document.getElementById('adminUserClientsTitle').textContent = `مشتریان ${email}`;
+    panel.classList.remove('hidden');
+    tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>`;
+    try {
+        const res = await fetch(`${CORE}/clients?user_id=${userId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) {
+            tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در دریافت مشتریان.</td></tr>`;
+            return;
+        }
+        const clients = await res.json();
+        if (!clients.length) {
+            tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-sm" style="color:var(--text-muted);">این کاربر مشتری‌ای ندارد.</td></tr>`;
+            return;
+        }
+        const faName = (c) => `${c.first_name_fa || ''} ${c.last_name_fa || ''}`.trim();
+        const enName = (c) => `${c.first_name || ''} ${c.last_name || ''}`.trim();
+        const displayName = (c) => faName(c) || enName(c) || '—';
+        tbody.innerHTML = clients.map(c => `
+            <tr style="border-bottom:1px solid var(--divider);">
+                <td class="py-2 px-2" style="color:var(--text-main);">${escapeHtml(displayName(c))}</td>
+                <td class="py-2 px-2 en" style="color:var(--text-muted);">${escapeHtml(c.national_id) || '—'}</td>
+                <td class="py-2 px-2 en" style="color:var(--text-muted);">${escapeHtml(c.phone) || '—'}</td>
+                <td class="py-2 px-2 en" style="color:var(--text-muted);">${(c.created_at||'').slice(0,10)}</td>
+            </tr>
+        `).join('');
+    } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در اتصال.</td></tr>`;
+    }
+}
+
 // ── CRM PANEL LOGIC ──
 var adminCrmJobsCache = [];
 
@@ -6978,7 +7017,9 @@ function switchAdminTab(tab) {
     
     const jobsPanel = document.getElementById('adminUserJobsPanel');
     if (jobsPanel) jobsPanel.classList.add('hidden');
-    
+    const clientsPanel = document.getElementById('adminUserClientsPanel');
+    if (clientsPanel) clientsPanel.classList.add('hidden');
+
     if (tab === 'users') {
         if (usersPanel) usersPanel.classList.remove('hidden');
         if (crmPanel) crmPanel.classList.add('hidden');
