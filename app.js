@@ -1179,6 +1179,24 @@ const DP_DOCS = [
     ]},
     { id:"high_school_transcript", label:"ریزنمرات دبیرستان", full:true, fields:[
         { key:"document_title", label:"عنوان مدرک", kind:"simple", def:"Score Report Sheet" },
+    ]},    // Keys/defaults must match national_id_card.py on DeepT-Back-End.
+    { id:"national_id_card", label:"کارت ملی", full:true, fields:[
+        { key:"emblem_line", label:"سطر آرم", kind:"simple", def:"IRI Emblem" },
+        { key:"country_line", label:"جمهوری اسلامی ایران", kind:"simple", def:"Islamic Republic of Iran" },
+        { key:"organization_line", label:"سازمان ثبت احوال کشور", kind:"simple", def:"National Organization for Civil Registration" },
+        { key:"title", label:"عنوان سند", kind:"simple", def:"National ID Card" },
+        { key:"photo_caption", label:"زیرنویس محل عکس", kind:"simple", def:"[Printed photo of the holder]" },
+        { key:"front_label", label:"عنوان روی کارت", kind:"simple", def:"Front" },
+        { key:"label_national_id", label:"شماره ملی", kind:"simple", def:"National ID number:" },
+        { key:"label_given_name", label:"نام", kind:"simple", def:"Given name:" },
+        { key:"label_surname", label:"نام خانوادگی", kind:"simple", def:"Surname:" },
+        { key:"label_date_of_birth", label:"تاریخ تولد", kind:"simple", def:"Date of birth:" },
+        { key:"label_father_name", label:"نام پدر", kind:"simple", def:"Father’s name:" },
+        { key:"label_expiration_date", label:"پایان اعتبار", kind:"simple", def:"Expiration date:" },
+        { key:"overleaf_label", label:"عنوان پشت کارت", kind:"simple", def:"Overleaf" },
+        { key:"label_serial", label:"سریال کارت", kind:"simple", def:"Serial No." },
+        { key:"overleaf_note_1", label:"اعلام تغییر نشانی به ثبت احوال الزام قانونی دارد.", kind:"simple", def:"The National Organization for Civil Registration MUST be informed about any change in the holder’s address" },
+        { key:"overleaf_note_2", label:"از یابنده تقاضا می‌شود کارت را به صندوق پست بیندازد.", kind:"simple", def:"The finder is requested to drop the same in a postbox" },
     ]},
 ];
 
