@@ -7065,7 +7065,7 @@ async function loadAdminCrmData() {
     const token = localStorage.getItem('deept_token');
     const tableBody = document.getElementById('crmJobsTableBody');
     if (tableBody) {
-        tableBody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری داده‌های CRM...</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری داده‌های CRM...</td></tr>`;
     }
     
     try {
@@ -7082,7 +7082,7 @@ async function loadAdminCrmData() {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!res.ok) {
-            if (tableBody) tableBody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در بارگذاری داده‌های CRM.</td></tr>`;
+            if (tableBody) tableBody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در بارگذاری داده‌های CRM.</td></tr>`;
             showToast('خطا در بارگذاری داده‌های CRM');
             return;
         }
@@ -7093,7 +7093,7 @@ async function loadAdminCrmData() {
         updateCrmDashboard();
     } catch (e) {
         console.error(e);
-        if (tableBody) tableBody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در اتصال به سرور.</td></tr>`;
+        if (tableBody) tableBody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در اتصال به سرور.</td></tr>`;
         showToast('خطا در ارتباط با سرور.');
     }
 }
@@ -7410,7 +7410,7 @@ function applyCrmFilters() {
     if (!tbody) return;
     
     if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-sm" style="color:var(--text-muted);">هیچ کاری با مشخصات فیلتر شده یافت نشد.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-sm" style="color:var(--text-muted);">هیچ کاری با مشخصات فیلتر شده یافت نشد.</td></tr>`;
         return;
     }
     
@@ -7429,6 +7429,12 @@ function applyCrmFilters() {
         return 'background:#9ca3af; color:#000;';
     };
     
+    // Not every document type tracks api_cost_usd yet, and a job predating
+    // that field has none -- shown as "—" rather than $0.0000.
+    const apiCostCell = (j) => j.api_cost_usd != null
+        ? `$${j.api_cost_usd.toFixed(4)}`
+        : '<span style="color:var(--text-muted);">—</span>';
+
     tbody.innerHTML = filtered.map(j => {
         const errMsg = j.error_message ? escapeHtml(j.error_message) : '—';
         const dateStr = (j.created_at || '').slice(0, 10) + ' ' + (j.created_at || '').slice(11, 16);
@@ -7443,6 +7449,7 @@ function applyCrmFilters() {
                 </td>
                 <td class="py-2 px-2 text-center en" style="color:var(--text-muted); font-size:0.8rem;">${dateStr}</td>
                 <td class="py-2 px-2 text-center font-mono" style="color:var(--text-main);">${(j.price_toman || 0).toLocaleString()}</td>
+                <td class="py-2 px-2 text-center en font-mono" style="color:var(--text-main);">${apiCostCell(j)}</td>
                 <td class="py-2 px-2 en text-right" style="color:var(--text-muted); font-size:0.85rem;" dir="ltr">${escapeHtml(j.original_filename)}</td>
                 <td class="py-2 px-2 text-xs text-red-400 max-w-xs truncate" title="${errMsg}" style="color: #fb7185;">${errMsg}</td>
             </tr>
