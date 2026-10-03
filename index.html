@@ -779,8 +779,8 @@
         
                 <div id="docDropZone" onclick="document.getElementById('docFileInput').click()" class="drop-zone-chat p-8 text-center cursor-pointer mb-4">
           <div class="text-3xl mb-2">📄</div>
-          <p id="docDropText" class="text-xs" style="color:var(--text-muted);">فایل سند را اینجا بکشید یا کلیک کنید</p>
-          <input type="file" id="docFileInput" accept="image/jpeg,image/png,application/pdf" style="display:none" onchange="handleDocFileSelection(this.files[0])">
+          <p id="docDropText" class="text-xs" style="color:var(--text-muted);">فایل PDF سند را اینجا بکشید یا کلیک کنید</p>
+          <input type="file" id="docFileInput" accept="application/pdf" style="display:none" onchange="handleDocFileSelection(this.files[0])">
           <div id="docFileInfo" class="text-xs font-bold hidden mt-1" style="color:var(--accent);"></div>
         </div>
         <div id="courseCodesToggleWrap" class="hidden flex items-center gap-2 mb-4 p-2.5 rounded-lg text-xs" style="background:var(--panel-bg);border:1px solid var(--border-color);">
@@ -1893,9 +1893,9 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
       </div>
       <div class="qs-drop" id="qsDocDrop" onclick="document.getElementById('qsDocFile').click()">
         <div class="qs-drop-icon">📄</div>
-        <div class="qs-drop-text">فایل سند (تصویر یا PDF) را اینجا بکشید یا کلیک کنید</div>
+        <div class="qs-drop-text">فایل PDF سند را اینجا بکشید یا کلیک کنید</div>
         <div class="qs-file-name" id="qsDocFileName"></div>
-        <input type="file" id="qsDocFile" accept="image/jpeg,image/png,application/pdf" style="display:none" onchange="qsHandleDoc(this.files[0])">
+        <input type="file" id="qsDocFile" accept="application/pdf" style="display:none" onchange="qsHandleDoc(this.files[0])">
       </div>
 
       <!-- Processing animation — shown during backend call -->
@@ -1976,7 +1976,7 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
     <div class="step-card">
       <div class="step-num">۲</div>
       <h3>بارگذاری سند</h3>
-      <p>نوع سند را انتخاب کنید و فایل تصویر یا PDF سند رسمی را بارگذاری کنید.</p>
+      <p>نوع سند را انتخاب کنید و فایل PDF سند رسمی را بارگذاری کنید.</p>
     </div>
     <div class="step-card">
       <div class="step-num">۳</div>
