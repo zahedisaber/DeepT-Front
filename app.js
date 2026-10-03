@@ -435,8 +435,17 @@ function syncUserSessionDOM() {
 // DeepT), not that account's مشتریان. Full editing stays in میز کار's own
 // profile card; "ویرایش پروفایل" here just jumps there.
 // ═══════════════════════════════════════════════════════════
-function openUserProfilePreview() {
+function openUserProfilePreview(event) {
     if (!currentUserSession) return;
+    // A click on userBadge bubbles to the document-level listener below
+    // (added so clicking anywhere outside the popover closes it) --
+    // without stopping it here, the same click that opens the popover
+    // would also immediately close it.
+    if (event) event.stopPropagation();
+
+    const popover = document.getElementById('userProfilePreviewModal');
+    if (!popover.classList.contains('hidden')) { closeUserProfilePreview(); return; }
+
     const displayName = currentUserSession.office || currentUserSession.username || currentUserSession.email || '؟';
     const isOffice = currentUserSession.type === 'office';
     const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
@@ -453,11 +462,17 @@ function openUserProfilePreview() {
     if (contactRow) contactRow.classList.toggle('hidden', !currentUserSession.contact);
     set('upp-contact', currentUserSession.contact || '');
 
-    document.getElementById('userProfilePreviewModal').classList.remove('hidden');
+    popover.classList.remove('hidden');
+    refreshWalletBalanceDisplay();
 }
 function closeUserProfilePreview() {
     document.getElementById('userProfilePreviewModal').classList.add('hidden');
 }
+// Click anywhere outside the popover (it's open: event.stopPropagation()
+// on both the badge and the popover itself keep this from ever seeing a
+// click meant for either) or Escape closes it.
+document.addEventListener('click', () => closeUserProfilePreview());
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeUserProfilePreview(); });
 
 // ═══════════════════════════════════════════════════════════
 // LOGOUT
@@ -485,9 +500,6 @@ function executeLogout() {
 }
 document.getElementById('logoutOverlay').addEventListener('click', function(e) {
     if (e.target === this) closeLogoutConfirm();
-});
-document.getElementById('userProfilePreviewModal').addEventListener('click', function(e) {
-    if (e.target === this) closeUserProfilePreview();
 });
 document.getElementById('myplRepriceModal').addEventListener('click', function(e) {
     if (e.target === this) closeMyPriceListRepriceModal();
@@ -2174,7 +2186,7 @@ async function refreshWalletBalanceDisplay() {
             const formatted = data.balance_toman.toLocaleString();
             // All three copies (میز کار sidebar, header pill, صفحه نخست card)
             // show the same balance -- keep them in lockstep from one fetch.
-            ['walletBalanceDisplay', 'headerWalletBalance', 'home-walletBalanceDisplay'].forEach(id => {
+            ['walletBalanceDisplay', 'headerWalletBalance', 'home-walletBalanceDisplay', 'upp-balance'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.textContent = formatted;
             });
