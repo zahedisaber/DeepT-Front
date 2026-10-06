@@ -35,7 +35,6 @@ const DOCUMENT_REGISTRY = {
         endpoint: `${BACKEND}/api/translate/police-certificate`,
         active:              true,
         usePassportSession:  true,
-        legacySingleSession: true,   // old backend contract -- singular session_id, not yet updated
     },
     'vehicle-deed': {
         label:               'سند مالکیت خودرو (برگ سبز)',
@@ -5811,7 +5810,7 @@ function toggleMultiPassportUI() {
     const docType = document.getElementById('docTemplate').value;
     const docDef  = DOCUMENT_REGISTRY[docType];
     const block   = document.getElementById('multiPassportBlock');
-    if (docDef && docDef.usePassportSession && !docDef.legacySingleSession) {
+    if (docDef && docDef.usePassportSession) {
         block.classList.remove('hidden');
         document.getElementById('multiPassportCount').textContent = confirmedPassports.length;
     } else {
@@ -5984,29 +5983,11 @@ async function executeTranslationPipeline() {
         fd.append('include_course_codes', includeCourseCodes ? 'true' : 'false');
     }
     
-    // Passport session(s). police-certificate still uses its old backend
-    // contract (legacySingleSession) until that repo is updated; every other
-    // document type uses the universal multi-passport contract by default.
-if (docDef.usePassportSession) {
-        if (docDef.legacySingleSession) {
-            let sid = confirmedPassports[0]?.session_id;
-            if (!sid) {
-                try {
-                    statusText.textContent = 'در حال ایجاد جلسه موقت...';
-                    const r = await fetch(`${getActiveBackendOrigin()}/passport/confirm`, {
-                        method: 'POST',
-                        headers: {'Content-Type':'application/json'},
-                        body: JSON.stringify({ first_name:'', last_name:'', father_name:'', date_of_birth:'' })
-                    });
-                    const d = await r.json();
-                    sid = d.session_id;
-                } catch(e) { /* backend will fall back to doc-extracted identity */ }
-            }
-            if (sid) fd.append('session_id', sid);
-        } else {
-            confirmedPassports.forEach(p => fd.append('session_ids', p.session_id));
-            if (selectedClientId) fd.append('client_id', selectedClientId);
-        }
+    // Passport session(s) + client link. Every document type uses the
+    // universal multi-passport contract.
+    if (docDef.usePassportSession) {
+        confirmedPassports.forEach(p => fd.append('session_ids', p.session_id));
+        if (selectedClientId) fd.append('client_id', selectedClientId);
     }
 
     const url = docDef.endpoint;
@@ -6058,12 +6039,9 @@ if (docDef.usePassportSession) {
                 chunkedFd.append('include_course_codes', fd.get('include_course_codes'));
             }
             if (docDef.usePassportSession) {
-                if (docDef.legacySingleSession) {
-                    const sid = fd.get('session_id');
-                    if (sid) chunkedFd.append('session_id', sid);
-                } else {
-                    fd.getAll('session_ids').forEach(sid => chunkedFd.append('session_ids', sid));
-                }
+                fd.getAll('session_ids').forEach(sid => chunkedFd.append('session_ids', sid));
+                const cid = fd.get('client_id');
+                if (cid) chunkedFd.append('client_id', cid);
             }
 
             statusText.textContent = 'در حال پردازش؛ این فرایند ممکن است چند دقیقه طول بکشد. لطفا منتظر بمانید.';
