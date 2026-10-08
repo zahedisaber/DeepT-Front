@@ -6117,7 +6117,12 @@ async function executeTranslationPipeline() {
         } else {
             showToast('❌ خطا در پردازش سند. لطفاً دوباره تلاش کنید یا با پشتیبانی تماس بگیرید.');
         }
-    } finally {
+        // Only re-enable on failure. A successful submission leaves it
+        // disabled on purpose -- the job ticket is already created at this
+        // point, so a second click (or an accidental double-click) would
+        // re-translate and re-charge for the exact same document. The way
+        // back in is "سند مدرک بعدی" (resetForNextDocument), which clears
+        // docSelectedFile and only re-enables once a fresh file is chosen.
         submitBtn.disabled = false;
     }
 }
