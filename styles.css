@@ -58,6 +58,7 @@
     --accent-glow: rgba(0, 255, 255, 0.25);
     --accent-hover: rgba(0, 255, 255, 0.15);
     --card-surface: rgba(18, 18, 18, 0.9);
+    --card-surface-solid: #121212;
     --border-color: rgba(0, 255, 255, 0.28);
     --border-subtle: rgba(255,255,255,0.07);
     --input-bg: #000;
@@ -100,6 +101,7 @@
     --accent-glow: rgba(3,105,161,0.18);
     --accent-hover: rgba(3,105,161,0.08);
     --card-surface: #ffffff;
+    --card-surface-solid: #ffffff;
     --border-color: rgba(3,105,161,0.25);
     --border-subtle: rgba(0,0,0,0.07);
     --input-bg: #f8fafc;
@@ -466,18 +468,6 @@ select.converter-input option {
     border-color: var(--text-main);
     color: var(--text-main);
 }
-.header-btn-workspace {
-    background: var(--accent-gradient);
-    color: #fff;
-    text-shadow: 0 1px 1px rgba(0,0,0,.15);
-    border-color: transparent;
-    font-weight: 900;
-    box-shadow: 0 2px 10px var(--accent-gradient-hover);
-}
-.header-btn-workspace:hover {
-    filter: brightness(1.08);
-    box-shadow: 0 4px 16px var(--accent-gradient-glow);
-}
 .header-btn-logout {
     color: #f87171;
     border-color: rgba(248,113,113,0.3);
@@ -488,29 +478,19 @@ select.converter-input option {
     color: #f87171;
 }
 
-/* Secondary shortcut rail -- same workspace destinations as the header-btn-
-   workspace pills above, as a persistent vertical icon+label rail (see
-   #sideRail in index.html). */
-.side-rail {
-    display: flex;
-    /* Every full-screen workspace view (clientsWorkspace, myPriceListPage,
-       etc.) is `fixed inset-0 z-40` with its own solid full-viewport
-       background, and comes later in the DOM than this rail -- at equal
-       z-index, that later element paints on top and fully hides the rail
-       behind its opaque background. 45 keeps it above all of those while
-       staying below the header-bar (z-50) and every modal (z-[70]+). */
-    z-index: 45;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.25);
-}
+/* Nav destination buttons inside the header-bar -- icon+label stacked,
+   laid out horizontally in the header's own row (previously a duplicate
+   fixed vertical rail pinned to the RTL edge; consolidated into this one
+   toolbar, keeping this look since it read as the more modern of the two). */
 .side-rail-btn {
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     gap: .15rem;
-    width: 100%;
+    min-width: 56px;
     flex-shrink: 0;
-    padding: .55rem .25rem;
+    padding: .4rem .3rem;
     border-radius: .65rem;
     background: transparent;
     border: none;
@@ -532,11 +512,6 @@ select.converter-input option {
     line-height: 1;
     white-space: nowrap;
 }
-@media (max-width: 900px) {
-    /* Narrow viewports keep the header-bar's own (wrapping) nav only --
-       no room for a second, fixed vertical rail alongside the content. */
-    #sideRail { display: none !important; }
-}
 
 @media (min-width: 901px) {
     #workspaceDashboard,
@@ -545,9 +520,40 @@ select.converter-input option {
     #settingsPage,
     #myPriceListPage,
     #clientProfilePage,
-    #adminDashboard {
+    #adminDashboard,
+    #homePanelsPage {
         padding-right: calc(2rem + 66px);
     }
+}
+
+/* صفحه نخست -- round-corner feature cards, built on .workspace-panel's
+   existing card look so this view reads as part of the same app. */
+.home-panel-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: .5rem;
+    cursor: pointer;
+    transition: transform .15s, border-color .2s;
+}
+.home-panel-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--accent);
+}
+.home-panel-icon {
+    width: 30px;
+    height: 30px;
+    color: var(--accent);
+}
+.home-panel-title {
+    font-weight: 900;
+    font-size: .9rem;
+    color: var(--text-main);
+}
+.home-panel-desc {
+    font-size: .72rem;
+    color: var(--text-muted);
 }
 
 /* Landing header */
@@ -695,10 +701,24 @@ header {
     border-radius: 0 0 .6rem .6rem; white-space: nowrap;
 }
 .pricing-title { font-size: 1.1rem; font-weight: 900; color: var(--text); margin-bottom: .4rem; }
+.pricing-price-row {
+    display: flex; align-items: center; gap: .6rem;
+    margin-top: .75rem; direction: ltr; justify-content: flex-end;
+}
+.pricing-price-old {
+    font-family: 'Inter', sans-serif;
+    font-size: 1rem; font-weight: 700; color: var(--muted);
+    text-decoration: line-through;
+}
+.pricing-discount-badge {
+    background: var(--accent); color: var(--accent-btn);
+    font-size: .72rem; font-weight: 700; padding: .15rem .55rem;
+    border-radius: .5rem; white-space: nowrap;
+}
 .pricing-price {
     font-family: 'Inter', sans-serif;
     font-size: 2.2rem; font-weight: 900; color: var(--accent);
-    margin: .75rem 0 .25rem; direction: ltr; text-align: right;
+    margin: .25rem 0 .25rem; direction: ltr; text-align: right;
 }
 .pricing-price span { font-size: .9rem; font-weight: 500; color: var(--muted); }
 .pricing-sub { font-size: .83rem; color: var(--muted); margin-bottom: 1.5rem; line-height: 1.7; }
@@ -909,6 +929,10 @@ footer {
 .qs-pay-box {
     background: var(--accent-dim); border: 1px solid rgba(0,212,255,.25);
     border-radius: 1rem; padding: 1.25rem; margin-bottom: 1.1rem; text-align: center;
+}
+.qs-pay-old {
+    font-family: 'Inter', sans-serif; font-size: .95rem; font-weight: 700;
+    color: var(--muted); text-decoration: line-through; direction: ltr;
 }
 .qs-pay-amount {
     font-family: 'Inter', sans-serif; font-size: 2rem; font-weight: 900;

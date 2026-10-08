@@ -1,8 +1,8 @@
-name: Deploy Front Stage
+name: Deploy Front Main
 
 on:
   push:
-    branches: [stage]
+    branches: [main]
 
 jobs:
   test:
@@ -18,13 +18,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Deploy to stage server
+      - name: Deploy to main server
         uses: appleboy/ssh-action@v1.2.2
         with:
-          host:  ${{ secrets.STAGE_SERVER_HOST }}
-          username:  ${{ secrets.STAGE_SERVER_USER }}
-          key: ${{ secrets.STAGE_SERVER_SSH_KEY }}
+          host:  ${{ secrets.MAIN_SERVER_HOST }}
+          username: ${{ secrets.MAIN_SERVER_USER }}
+          key: ${{ secrets.MAIN_SERVER_SSH_KEY }}
 
           debug: true
           script: |
-            /var/www/deept/deploy-front-stage.sh
+            /var/www/deept/deploy-front-main.sh
