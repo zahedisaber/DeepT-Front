@@ -5041,7 +5041,7 @@ var adminUsersCache = [];
 function renderAdminUsersRows(users) {
     const tbody = document.getElementById('adminUsersRowsBlock');
     if (!users.length) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-sm" style="color:var(--text-muted);">کاربری یافت نشد.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-sm" style="color:var(--text-muted);">کاربری یافت نشد.</td></tr>`;
         return;
     }
     tbody.innerHTML = users.map(u => `
@@ -5049,6 +5049,7 @@ function renderAdminUsersRows(users) {
                         <td class="py-3 px-3 en" style="color:var(--text-main);">${escapeHtml(u.email)}</td>
             <td class="py-3 px-3" style="color:var(--text-main);">${escapeHtml(u.full_name)}</td>
             <td class="py-3 px-3" style="color:var(--text-muted);">${u.account_type === 'office' ? 'دارالترجمه' : 'حقیقی'}</td>
+            <td class="py-3 px-3 en" style="color:var(--text-muted);">${(u.created_at || '').slice(0, 10)} ${(u.created_at || '').slice(11, 16)}</td>
             <td class="py-3 px-3 font-mono font-bold text-base" style="color:var(--accent);">${u.balance_toman.toLocaleString()}</td>
             <td class="py-3 px-3">
                 <div class="flex items-center gap-1.5">
@@ -5095,7 +5096,7 @@ async function loadAdminUsers() {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!res.ok) {
-            tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در دریافت لیست کاربران.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در دریافت لیست کاربران.</td></tr>`;
             return;
         }
         adminUsersCache = await res.json();
@@ -5103,7 +5104,7 @@ async function loadAdminUsers() {
         if (searchInput) searchInput.value = '';
         renderAdminUsersRows(adminUsersCache);
     } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در اتصال.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در اتصال.</td></tr>`;
     }
 }
 async function adminDeduct(userId) {
@@ -5227,6 +5228,7 @@ async function adminViewUserJobs(userId, email) {
 
 // ── CRM PANEL LOGIC ──
 var adminCrmJobsCache = [];
+var adminCrmUsersCache = [];
 
 /* ============ SECTION: ADMIN CRM REPORTS ============
    Time-frame selector, doc-type stats, filters, jobs table. ============ */
@@ -5291,15 +5293,23 @@ async function loadAdminCrmData() {
         if (tf.year) qs.set('year', tf.year);
         if (tf.year && tf.month) qs.set('month', tf.month);
         const url = `${CORE}/jobs/admin/all${qs.toString() ? '?' + qs.toString() : ''}`;
-        const res = await fetch(url, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (!res.ok) {
+        // Users (with created_at) are fetched alongside the jobs -- the CRM
+        // stats grid and the new-users table both need to count signups in
+        // the selected time-frame, and /wallet/admin/users is already the
+        // one admin-authenticated source of that list.
+        const [jobsRes, usersRes] = await Promise.all([
+            fetch(url, { headers: { 'Authorization': `Bearer ${token}` } }),
+            fetch(`${CORE}/wallet/admin/users`, { headers: { 'Authorization': `Bearer ${token}` } })
+        ]);
+        if (!jobsRes.ok) {
             if (tableBody) tableBody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در بارگذاری داده‌های CRM.</td></tr>`;
             showToast('خطا در بارگذاری داده‌های CRM');
             return;
         }
-        adminCrmJobsCache = await res.json();
+        adminCrmJobsCache = await jobsRes.json();
+        if (usersRes.ok) {
+            adminCrmUsersCache = await usersRes.json();
+        }
         
         populateCrmDocTypeFilter();
         populateCrmTimeFrameSelects();
@@ -5474,6 +5484,40 @@ function updateCrmDashboard() {
     document.getElementById('crmStatWorkCount').textContent = totalMonthly.toLocaleString();
     document.getElementById('crmStatWorkDetails').textContent = `موفق: ${completedMonthly.length.toLocaleString()} | ناموفق: ${failedMonthly.length.toLocaleString()}`;
     document.getElementById('crmStatFailureRate').textContent = `${failureRateMonthly}%`;
+
+    // ── New user signups in the SELECTED time-frame ──────────────
+    const usersInFrame = range ? adminCrmUsersCache.filter(u => {
+        const d = new Date(u.created_at);
+        return !isNaN(d) && d >= range.start && d < range.end;
+    }) : [...adminCrmUsersCache];
+    const totalUsers = adminCrmUsersCache.length;
+
+    const newUsersLabelEl = document.getElementById('crmStatNewUsersLabel');
+    const newUsersSubEl = document.getElementById('crmStatNewUsersSub');
+    if (newUsersLabelEl) newUsersLabelEl.textContent = label === 'همهٔ زمان‌ها' ? 'کاربران جدید (کل)' : `کاربران جدید ${label}`;
+    if (newUsersSubEl) newUsersSubEl.textContent = label === 'همهٔ زمان‌ها' ? `مجموع کل کاربران: ${totalUsers.toLocaleString()}` : `از مجموع ${totalUsers.toLocaleString()} کاربر`;
+    document.getElementById('crmStatNewUsers').textContent = usersInFrame.length.toLocaleString();
+
+    // ── New Users Table (email / name / type / exact signup date-time) ──
+    const signupsTbody = document.getElementById('crmNewUsersTableBody');
+    if (signupsTbody) {
+        if (usersInFrame.length === 0) {
+            signupsTbody.innerHTML = `<tr><td colspan="4" class="text-center py-4" style="color:var(--text-muted);">کاربر جدیدی در این بازه ثبت‌نام نکرده است.</td></tr>`;
+        } else {
+            const sortedSignups = [...usersInFrame].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+            signupsTbody.innerHTML = sortedSignups.map(u => {
+                const dt = (u.created_at || '').slice(0, 10) + ' ' + (u.created_at || '').slice(11, 16);
+                return `
+                    <tr style="border-bottom:1px solid var(--divider);">
+                        <td class="py-2 px-2 en text-right" style="color:var(--text-main); font-size:0.8rem;" dir="ltr">${escapeHtml(u.email)}</td>
+                        <td class="py-2 px-2" style="color:var(--text-main);">${escapeHtml(u.full_name)}</td>
+                        <td class="py-2 px-2" style="color:var(--text-muted);">${u.account_type === 'office' ? 'دارالترجمه' : 'حقیقی'}</td>
+                        <td class="py-2 px-2 text-center en" style="color:var(--text-muted); font-size:0.8rem;">${dt}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+    }
     
     // Build per-document-type aggregation for the SELECTED time-frame (global)
     const docTypeStats = {};

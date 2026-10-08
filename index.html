@@ -1186,6 +1186,7 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                             <th class="py-3 px-3 font-bold">ایمیل</th>
                             <th class="py-3 px-3 font-bold">نام</th>
                             <th class="py-3 px-3 font-bold">نوع حساب</th>
+                            <th class="py-3 px-3 font-bold">تاریخ عضویت</th>
                             <th class="py-3 px-3 font-bold">موجودی (تومان)</th>
                             <th class="py-3 px-3 font-bold">شارژ</th>
                             <th class="py-3 px-3 font-bold">کسر اعتبار</th>
@@ -1194,7 +1195,7 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                         </tr>
                     </thead>
                     <tbody id="adminUsersRowsBlock">
-                        <tr><td colspan="6" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>
+                        <tr><td colspan="9" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -1221,7 +1222,7 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
             </div>
 
             <!-- Monthly Stats Grid -->
-            <div id="crmStatsContainer" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div id="crmStatsContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <!-- Stat Card 1: Profit -->
                 <div class="p-4 rounded-xl border" style="background: var(--card-surface); border-color: var(--border-subtle); box-shadow: var(--shadow-accent);">
                     <div class="text-xs font-bold" style="color: var(--text-muted);" id="crmStatProfitLabel">سود بازه انتخابی (تومان)</div>
@@ -1239,6 +1240,12 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                     <div class="text-xs font-bold" style="color: var(--text-muted);" id="crmStatFailureLabel">نرخ ناموفق</div>
                     <div class="text-2xl font-black mt-2 en" id="crmStatFailureRate">0%</div>
                     <div class="text-xs mt-1" style="color: var(--text-muted);">نسبت کارهای ناموفق به کل</div>
+                </div>
+                <!-- Stat Card 4: New Users -->
+                <div class="p-4 rounded-xl border" style="background: var(--card-surface); border-color: var(--border-subtle); box-shadow: var(--shadow-accent);">
+                    <div class="text-xs font-bold" style="color: var(--text-muted);" id="crmStatNewUsersLabel">کاربران جدید</div>
+                    <div class="text-2xl font-black mt-2 en" id="crmStatNewUsers">0</div>
+                    <div class="text-xs mt-1" style="color: var(--text-muted);" id="crmStatNewUsersSub">مجموع کل کاربران: 0</div>
                 </div>
             </div>
 
@@ -1272,6 +1279,26 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                     <div id="crmDocTypeSummaryGraphContainer" class="flex flex-col gap-3">
                         <div class="text-center py-4 text-xs" style="color:var(--text-muted);">در حال بارگذاری...</div>
                     </div>
+                </div>
+            </div>
+
+            <!-- New Users (Signups) Table -->
+            <div class="p-6 rounded-xl border mb-6" style="background: var(--card-surface); border-color: var(--border-subtle); box-shadow: var(--shadow-accent);">
+                <h4 class="text-sm font-black mb-4" style="color:var(--text-main);">🆕 کاربران جدید در بازه انتخابی</h4>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs text-right">
+                        <thead>
+                            <tr style="border-bottom:1px solid var(--divider); color:var(--text-muted);">
+                                <th class="py-2 px-2 font-bold">ایمیل</th>
+                                <th class="py-2 px-2 font-bold">نام</th>
+                                <th class="py-2 px-2 font-bold">نوع حساب</th>
+                                <th class="py-2 px-2 font-bold text-center">تاریخ و ساعت عضویت</th>
+                            </tr>
+                        </thead>
+                        <tbody id="crmNewUsersTableBody">
+                            <tr><td colspan="4" class="text-center py-4" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
