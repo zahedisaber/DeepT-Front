@@ -58,6 +58,7 @@
     --accent-glow: rgba(0, 255, 255, 0.25);
     --accent-hover: rgba(0, 255, 255, 0.15);
     --card-surface: rgba(18, 18, 18, 0.9);
+    --card-surface-solid: #121212;
     --border-color: rgba(0, 255, 255, 0.28);
     --border-subtle: rgba(255,255,255,0.07);
     --input-bg: #000;
@@ -100,6 +101,7 @@
     --accent-glow: rgba(3,105,161,0.18);
     --accent-hover: rgba(3,105,161,0.08);
     --card-surface: #ffffff;
+    --card-surface-solid: #ffffff;
     --border-color: rgba(3,105,161,0.25);
     --border-subtle: rgba(0,0,0,0.07);
     --input-bg: #f8fafc;
@@ -699,10 +701,24 @@ header {
     border-radius: 0 0 .6rem .6rem; white-space: nowrap;
 }
 .pricing-title { font-size: 1.1rem; font-weight: 900; color: var(--text); margin-bottom: .4rem; }
+.pricing-price-row {
+    display: flex; align-items: center; gap: .6rem;
+    margin-top: .75rem; direction: ltr; justify-content: flex-end;
+}
+.pricing-price-old {
+    font-family: 'Inter', sans-serif;
+    font-size: 1rem; font-weight: 700; color: var(--muted);
+    text-decoration: line-through;
+}
+.pricing-discount-badge {
+    background: var(--accent); color: var(--accent-btn);
+    font-size: .72rem; font-weight: 700; padding: .15rem .55rem;
+    border-radius: .5rem; white-space: nowrap;
+}
 .pricing-price {
     font-family: 'Inter', sans-serif;
     font-size: 2.2rem; font-weight: 900; color: var(--accent);
-    margin: .75rem 0 .25rem; direction: ltr; text-align: right;
+    margin: .25rem 0 .25rem; direction: ltr; text-align: right;
 }
 .pricing-price span { font-size: .9rem; font-weight: 500; color: var(--muted); }
 .pricing-sub { font-size: .83rem; color: var(--muted); margin-bottom: 1.5rem; line-height: 1.7; }
@@ -913,6 +929,10 @@ footer {
 .qs-pay-box {
     background: var(--accent-dim); border: 1px solid rgba(0,212,255,.25);
     border-radius: 1rem; padding: 1.25rem; margin-bottom: 1.1rem; text-align: center;
+}
+.qs-pay-old {
+    font-family: 'Inter', sans-serif; font-size: .95rem; font-weight: 700;
+    color: var(--muted); text-decoration: line-through; direction: ltr;
 }
 .qs-pay-amount {
     font-family: 'Inter', sans-serif; font-size: 2rem; font-weight: 900;

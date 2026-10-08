@@ -101,9 +101,45 @@
   <div id="headerWalletBadge" class="hidden items-center gap-1 text-xs font-black" style="color:var(--accent);" title="موجودی کیف پول">
     💰 <span id="headerWalletBalance">۰</span><span style="color:var(--text-muted);font-weight:400;">تومان</span>
   </div>
-  <div id="userBadge" class="hidden items-center gap-2 text-xs" onclick="openUserProfilePreview()" style="cursor:pointer;" title="نمایش پروفایل من">
+  <div id="userBadge" class="hidden items-center gap-2 text-xs" onclick="openUserProfilePreview(event)" style="cursor:pointer;position:relative;" title="نمایش پروفایل من">
     <div id="headerAvatarBadge" class="w-7 h-7 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center font-black text-black text-xs">D</div>
     <span id="headerUserName" class="font-bold" style="color:var(--text-main);"></span>
+
+    <!-- Account popover, Gmail/HubSpot-style: a small card anchored right
+         under the avatar badge, not a centered full-screen dialog. Opens on
+         click, closes on an outside click, Escape, or its own buttons. -->
+    <div role="dialog" aria-label="پروفایل من" id="userProfilePreviewModal" class="hidden" onclick="event.stopPropagation()"
+         style="position:absolute;top:calc(100% + 10px);left:0;width:280px;max-width:calc(100vw - 2rem);z-index:80;background:var(--card-surface-solid);border:1px solid var(--border-color);border-radius:1rem;box-shadow:0 12px 32px rgba(0,0,0,.25);padding:1.25rem;cursor:default;text-align:right;">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center font-black text-xl text-black shrink-0" id="upp-avatar">D</div>
+        <div class="min-w-0">
+          <h3 class="font-black text-sm truncate" id="upp-name" style="color:var(--text-main);"></h3>
+          <span class="text-xs en truncate block" id="upp-email" style="color:var(--text-muted);"></span>
+        </div>
+      </div>
+      <div class="space-y-2 text-xs pt-3" style="border-top:1px solid var(--divider);">
+        <div class="flex justify-between">
+          <span style="color:var(--text-muted);">نوع حساب:</span>
+          <span class="font-bold" id="upp-type" style="color:var(--text-main);"></span>
+        </div>
+        <div class="flex justify-between" id="upp-office-row">
+          <span style="color:var(--text-muted);">دفتر ترجمه:</span>
+          <span class="font-bold" id="upp-office" style="color:var(--text-main);"></span>
+        </div>
+        <div class="flex justify-between" id="upp-contact-row">
+          <span style="color:var(--text-muted);">شماره/پل ارتباطی:</span>
+          <span class="font-bold en" id="upp-contact" style="color:var(--text-main);" dir="ltr"></span>
+        </div>
+        <div class="flex justify-between">
+          <span style="color:var(--text-muted);">کیف پول:</span>
+          <span class="font-bold en" style="color:var(--accent);" dir="ltr"><span id="upp-balance">۰</span> <span style="color:var(--text-muted);">تومان</span></span>
+        </div>
+      </div>
+      <div class="flex gap-2 justify-center mt-4">
+        <button type="button" onclick="closeUserProfilePreview(); openWorkspaceDashboard();" class="flex-1 font-bold px-3 py-2 rounded-xl text-xs" style="background:var(--accent);color:var(--btn-text-on-accent);">ویرایش پروفایل</button>
+        <button type="button" onclick="closeUserProfilePreview()" class="flex-1 font-bold px-3 py-2 rounded-xl text-xs" style="background:var(--bg-secondary);color:var(--text-main);border:1px solid var(--border-subtle);">بستن</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -116,41 +152,6 @@
     <div class="flex gap-3 justify-center">
       <button type="button" onclick="executeLogout()" class="bg-red-500 text-white font-bold px-6 py-2.5 rounded-xl text-sm">بله، خروج</button>
       <button type="button" onclick="closeLogoutConfirm()" class="font-bold px-6 py-2.5 rounded-xl text-sm" style="background:var(--bg-secondary);color:var(--text-main);border:1px solid var(--border-subtle);">انصراف</button>
-    </div>
-  </div>
-</div>
-
-<!-- ── Header user-badge click -- quick read-only preview of the logged-in
-     account's own profile (DeepT account holder: a translator or office),
-     not to be confused with مشتریان (that account's own clients). Full
-     editing stays in میز کار's own profile card (saveProfileConfiguration());
-     this is just a glance without leaving wherever you are. ── -->
-<div role="dialog" aria-modal="true" id="userProfilePreviewModal" class="modal-overlay fixed inset-0 z-[70] hidden flex items-center justify-center p-4">
-  <div class="w-full max-w-sm p-6" style="background:var(--card-surface);border:1px solid var(--border-color);border-radius:1rem;">
-    <div class="flex items-center gap-3 mb-4">
-      <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center font-black text-xl text-black" id="upp-avatar">D</div>
-      <div>
-        <h3 class="font-black text-base" id="upp-name" style="color:var(--text-main);"></h3>
-        <span class="text-xs en" id="upp-email" style="color:var(--text-muted);"></span>
-      </div>
-    </div>
-    <div class="space-y-2 text-xs pt-3" style="border-top:1px solid var(--divider);">
-      <div class="flex justify-between">
-        <span style="color:var(--text-muted);">نوع حساب:</span>
-        <span class="font-bold" id="upp-type" style="color:var(--text-main);"></span>
-      </div>
-      <div class="flex justify-between" id="upp-office-row">
-        <span style="color:var(--text-muted);">دفتر ترجمه:</span>
-        <span class="font-bold" id="upp-office" style="color:var(--text-main);"></span>
-      </div>
-      <div class="flex justify-between" id="upp-contact-row">
-        <span style="color:var(--text-muted);">شماره/پل ارتباطی:</span>
-        <span class="font-bold en" id="upp-contact" style="color:var(--text-main);" dir="ltr"></span>
-      </div>
-    </div>
-    <div class="flex gap-3 justify-center mt-5">
-      <button type="button" onclick="closeUserProfilePreview(); openWorkspaceDashboard();" class="font-bold px-4 py-2 rounded-xl text-xs" style="background:var(--accent);color:var(--btn-text-on-accent);">ویرایش پروفایل</button>
-      <button type="button" onclick="closeUserProfilePreview()" class="font-bold px-4 py-2 rounded-xl text-xs" style="background:var(--bg-secondary);color:var(--text-main);border:1px solid var(--border-subtle);">بستن</button>
     </div>
   </div>
 </div>
@@ -778,8 +779,8 @@
         
                 <div id="docDropZone" onclick="document.getElementById('docFileInput').click()" class="drop-zone-chat p-8 text-center cursor-pointer mb-4">
           <div class="text-3xl mb-2">📄</div>
-          <p id="docDropText" class="text-xs" style="color:var(--text-muted);">فایل سند را اینجا بکشید یا کلیک کنید</p>
-          <input type="file" id="docFileInput" accept="image/jpeg,image/png,application/pdf" style="display:none" onchange="handleDocFileSelection(this.files[0])">
+          <p id="docDropText" class="text-xs" style="color:var(--text-muted);">فایل PDF سند را اینجا بکشید یا کلیک کنید</p>
+          <input type="file" id="docFileInput" accept="application/pdf" style="display:none" onchange="handleDocFileSelection(this.files[0])">
           <div id="docFileInfo" class="text-xs font-bold hidden mt-1" style="color:var(--accent);"></div>
         </div>
         <div id="courseCodesToggleWrap" class="hidden flex items-center gap-2 mb-4 p-2.5 rounded-lg text-xs" style="background:var(--panel-bg);border:1px solid var(--border-color);">
@@ -1585,10 +1586,11 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                             <th class="py-3 px-3 font-bold">کسر اعتبار</th>
                             <th class="py-3 px-3 font-bold">وضعیت حساب</th>
                             <th class="py-3 px-3 font-bold">پروژه‌ها</th>
+                            <th class="py-3 px-3 font-bold">مشتریان</th>
                         </tr>
                     </thead>
                     <tbody id="adminUsersRowsBlock">
-                        <tr><td colspan="6" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>
+                        <tr><td colspan="9" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -1615,7 +1617,7 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
             </div>
 
             <!-- Monthly Stats Grid -->
-            <div id="crmStatsContainer" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div id="crmStatsContainer" class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                 <!-- Stat Card 1: Profit -->
                 <div class="p-4 rounded-xl border" style="background: var(--card-surface); border-color: var(--border-subtle); box-shadow: var(--shadow-accent);">
                     <div class="text-xs font-bold" style="color: var(--text-muted);" id="crmStatProfitLabel">سود بازه انتخابی (تومان)</div>
@@ -1634,6 +1636,12 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                     <div class="text-2xl font-black mt-2 en" id="crmStatFailureRate">0%</div>
                     <div class="text-xs mt-1" style="color: var(--text-muted);">نسبت کارهای ناموفق به کل</div>
                 </div>
+                <!-- Stat Card 4: Total API Cost (admin-internal COGS, not shown to translator accounts) -->
+                <div class="p-4 rounded-xl border" style="background: var(--card-surface); border-color: var(--border-subtle); box-shadow: var(--shadow-accent);">
+                    <div class="text-xs font-bold" style="color: var(--text-muted);" id="crmStatApiCostLabel">هزینه API (دلار)</div>
+                    <div class="text-2xl font-black mt-2 en" id="crmStatApiCost">$0.00</div>
+                    <div class="text-xs mt-1" style="color: var(--text-muted);" id="crmStatApiCostSub">مجموع هزینهٔ واقعی Gemini — همهٔ زمان‌ها</div>
+                </div>
             </div>
 
             <!-- Document Type Summary Table & Graph Grid -->
@@ -1651,10 +1659,11 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                                     <th class="py-2 px-1 font-bold text-center">ناموفق</th>
                                     <th class="py-2 px-1 font-bold text-center">درصد سهم</th>
                                     <th class="py-2 px-1 font-bold text-center">درآمد (تومان)</th>
+                                    <th class="py-2 px-1 font-bold text-center">هزینه API ($)</th>
                                 </tr>
                             </thead>
                             <tbody id="crmDocTypeSummaryTableBody">
-                                <tr><td colspan="6" class="text-center py-4" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>
+                                <tr><td colspan="7" class="text-center py-4" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -1705,12 +1714,13 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                             <th class="py-3 px-2 font-bold text-center">وضعیت</th>
                             <th class="py-3 px-2 font-bold text-center">تاریخ</th>
                             <th class="py-3 px-2 font-bold text-center">هزینه (تومان)</th>
+                            <th class="py-3 px-2 font-bold text-center">هزینه API ($)</th>
                             <th class="py-3 px-2 font-bold">نام فایل</th>
                             <th class="py-3 px-2 font-bold">جزئیات خطا</th>
                         </tr>
                     </thead>
                     <tbody id="crmJobsTableBody">
-                        <tr><td colspan="7" class="text-center py-8 text-sm" style="color:var(--text-muted);">داده‌ای وجود ندارد.</td></tr>
+                        <tr><td colspan="8" class="text-center py-8 text-sm" style="color:var(--text-muted);">داده‌ای وجود ندارد.</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -1728,11 +1738,32 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                             <th class="py-3 px-3 font-bold">نوع سند</th>
                             <th class="py-3 px-3 font-bold">وضعیت</th>
                             <th class="py-3 px-3 font-bold">قیمت (تومان)</th>
+                            <th class="py-3 px-3 font-bold">هزینه API ($)</th>
                             <th class="py-3 px-3 font-bold">نام فایل</th>
                             <th class="py-3 px-3 font-bold">تاریخ</th>
                         </tr>
                     </thead>
                     <tbody id="adminUserJobsRowsBlock"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="adminUserClientsPanel" class="workspace-panel p-6 hidden">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-base font-black" id="adminUserClientsTitle" style="color:var(--text-main);">مشتریان کاربر</h3>
+                <button type="button" onclick="document.getElementById('adminUserClientsPanel').classList.add('hidden')" class="text-sm font-bold px-4 py-2 rounded-lg" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">بستن</button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-right">
+                    <thead>
+                        <tr style="border-bottom:1px solid var(--divider);color:var(--text-muted);">
+                            <th class="py-3 px-3 font-bold">نام</th>
+                            <th class="py-3 px-3 font-bold">کد ملی</th>
+                            <th class="py-3 px-3 font-bold">شماره همراه</th>
+                            <th class="py-3 px-3 font-bold">تاریخ ثبت</th>
+                        </tr>
+                    </thead>
+                    <tbody id="adminUserClientsRowsBlock"></tbody>
                 </table>
             </div>
         </div>
@@ -1892,9 +1923,9 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
       </div>
       <div class="qs-drop" id="qsDocDrop" onclick="document.getElementById('qsDocFile').click()">
         <div class="qs-drop-icon">📄</div>
-        <div class="qs-drop-text">فایل سند (تصویر یا PDF) را اینجا بکشید یا کلیک کنید</div>
+        <div class="qs-drop-text">فایل PDF سند را اینجا بکشید یا کلیک کنید</div>
         <div class="qs-file-name" id="qsDocFileName"></div>
-        <input type="file" id="qsDocFile" accept="image/jpeg,image/png,application/pdf" style="display:none" onchange="qsHandleDoc(this.files[0])">
+        <input type="file" id="qsDocFile" accept="application/pdf" style="display:none" onchange="qsHandleDoc(this.files[0])">
       </div>
 
       <!-- Processing animation — shown during backend call -->
@@ -1915,7 +1946,8 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
     <!-- ── PANEL 3: Payment & Download ── -->
     <div class="qs-panel" id="qsPanel3">
       <div class="qs-pay-box">
-        <div class="qs-pay-amount">هر صفحه 30000 هزار تومان</div>
+        <div class="qs-pay-old">۴۹۰،۰۰۰ ریال / صفحه</div>
+        <div class="qs-pay-amount">۳۴۵،۰۰۰ ریال / صفحه</div>
         <div class="qs-pay-label">هزینه ترجمه یک سند</div>
       </div>
       <p style="font-size:.83rem;color:var(--muted);margin-bottom:1.1rem;line-height:1.75;text-align:center;">
@@ -1975,7 +2007,7 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
     <div class="step-card">
       <div class="step-num">۲</div>
       <h3>بارگذاری سند</h3>
-      <p>نوع سند را انتخاب کنید و فایل تصویر یا PDF سند رسمی را بارگذاری کنید.</p>
+      <p>نوع سند را انتخاب کنید و فایل PDF سند رسمی را بارگذاری کنید.</p>
     </div>
     <div class="step-card">
       <div class="step-num">۳</div>
@@ -2058,13 +2090,18 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
     <div class="pricing-card featured">
       <div class="pricing-badge">پیشنهادی</div>
       <div class="pricing-title">حساب کاربری</div>
-      <div class="pricing-price">۳۰،۰۰۰ <span>تومان / صفحه</span></div>
+      <div class="pricing-price-row">
+        <span class="pricing-price-old">۴۹۰،۰۰۰ ریال</span>
+        <span class="pricing-discount-badge">۳۰٪ تخفیف</span>
+      </div>
+      <div class="pricing-price">۳۴۵،۰۰۰ <span>ریال / صفحه</span></div>
       <p class="pricing-sub">ثبت‌نام رایگان، تاریخچه کامل، کیف پول داخلی و قیمت کمتر به‌ازای هر ترجمه.</p>
       <ul class="pricing-features">
         <li>ثبت‌نام رایگان — بدون هزینه اولیه</li>
         <li>سوابق تمام ترجمه‌ها</li>
         <li>کیف پول داخلی</li>
         <li>پروفایل مترجم / دارالترجمه</li>
+        <li>مدیریت مشتریان (CRM) رایگان برای ۳ ماه اول</li>
       </ul>
       <button type="button" class="pricing-btn pricing-btn-primary" onclick="openSignup()">
         ثبت‌نام رایگان

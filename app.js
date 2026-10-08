@@ -35,7 +35,6 @@ const DOCUMENT_REGISTRY = {
         endpoint: `${BACKEND}/api/translate/police-certificate`,
         active:              true,
         usePassportSession:  true,
-        legacySingleSession: true,   // old backend contract -- singular session_id, not yet updated
     },
     'vehicle-deed': {
         label:               'سند مالکیت خودرو (برگ سبز)',
@@ -435,8 +434,17 @@ function syncUserSessionDOM() {
 // DeepT), not that account's مشتریان. Full editing stays in میز کار's own
 // profile card; "ویرایش پروفایل" here just jumps there.
 // ═══════════════════════════════════════════════════════════
-function openUserProfilePreview() {
+function openUserProfilePreview(event) {
     if (!currentUserSession) return;
+    // A click on userBadge bubbles to the document-level listener below
+    // (added so clicking anywhere outside the popover closes it) --
+    // without stopping it here, the same click that opens the popover
+    // would also immediately close it.
+    if (event) event.stopPropagation();
+
+    const popover = document.getElementById('userProfilePreviewModal');
+    if (!popover.classList.contains('hidden')) { closeUserProfilePreview(); return; }
+
     const displayName = currentUserSession.office || currentUserSession.username || currentUserSession.email || '؟';
     const isOffice = currentUserSession.type === 'office';
     const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
@@ -453,11 +461,17 @@ function openUserProfilePreview() {
     if (contactRow) contactRow.classList.toggle('hidden', !currentUserSession.contact);
     set('upp-contact', currentUserSession.contact || '');
 
-    document.getElementById('userProfilePreviewModal').classList.remove('hidden');
+    popover.classList.remove('hidden');
+    refreshWalletBalanceDisplay();
 }
 function closeUserProfilePreview() {
     document.getElementById('userProfilePreviewModal').classList.add('hidden');
 }
+// Click anywhere outside the popover (it's open: event.stopPropagation()
+// on both the badge and the popover itself keep this from ever seeing a
+// click meant for either) or Escape closes it.
+document.addEventListener('click', () => closeUserProfilePreview());
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeUserProfilePreview(); });
 
 // ═══════════════════════════════════════════════════════════
 // LOGOUT
@@ -485,9 +499,6 @@ function executeLogout() {
 }
 document.getElementById('logoutOverlay').addEventListener('click', function(e) {
     if (e.target === this) closeLogoutConfirm();
-});
-document.getElementById('userProfilePreviewModal').addEventListener('click', function(e) {
-    if (e.target === this) closeUserProfilePreview();
 });
 document.getElementById('myplRepriceModal').addEventListener('click', function(e) {
     if (e.target === this) closeMyPriceListRepriceModal();
@@ -1066,7 +1077,69 @@ const DP_DOCS = [
           "کارورزی": "Internship",
       } },
     },
-    { id:"general_transcript", label:"ریزنمرات سیستم گلستان", full:false, fields:[],
+    { id:"general_transcript", label:"ریزنمرات سیستم گلستان", full:true, fields:[
+        // Every fixed English text DeepT-Back-End's general_transcript.py
+        // prints -- keys and defaults must match its PHRASE_DEFAULTS exactly
+        // (generated from it). Saved as document_phrases["general_transcript"].
+        { key:"document_subtitle", label:"عنوان کارنامه (زیر نام دانشگاه)", kind:"simple", def:"Academic Transcript of Records" },
+        { key:"label_student_name", label:"برچسب نام دانشجو", kind:"simple", def:"Student Name" },
+        { key:"label_father_name", label:"برچسب نام پدر", kind:"simple", def:"Father's Name" },
+        { key:"label_date_of_birth", label:"برچسب تاریخ تولد", kind:"simple", def:"Date of Birth" },
+        { key:"label_national_id", label:"برچسب کد ملی", kind:"simple", def:"National ID" },
+        { key:"label_birth_certificate_number", label:"برچسب شماره شناسنامه", kind:"simple", def:"Birth Certificate Number" },
+        { key:"semester_word", label:"واژهٔ «نیمسال» در عنوان ترم", kind:"simple", def:"Semester" },
+        { key:"summer_semester", label:"ترم تابستان", kind:"simple", def:"Summer Semester" },
+        { key:"academic_year_word", label:"واژهٔ «سال تحصیلی» در عنوان ترم", kind:"simple", def:"Academic Year" },
+        { key:"status_academic_probation", label:"وضعیت «مشروط»", kind:"simple", def:"Academic Probation" },
+        { key:"note_prefix", label:"پیشوند توضیحات ترم", kind:"simple", def:"Note:" },
+        { key:"col_code", label:"ستون کد درس", kind:"simple", def:"Code" },
+        { key:"col_name", label:"ستون نام درس", kind:"simple", def:"Course Name" },
+        { key:"col_credits", label:"ستون واحد", kind:"simple", def:"Credit" },
+        { key:"col_score", label:"ستون نمره", kind:"simple", def:"Score" },
+        { key:"col_effect", label:"ستون اثر", kind:"simple", def:"Effect" },
+        { key:"stat_gpa", label:"معدل ترم", kind:"simple", def:"GPA" },
+        { key:"stat_attempted_credits", label:"واحد اخذ شده", kind:"simple", def:"Attempted Credits" },
+        { key:"stat_earned_credits", label:"واحد گذرانده", kind:"simple", def:"Earned Credits" },
+        { key:"stat_total_earned_credits", label:"گذرانده متوالی (کل)", kind:"simple", def:"Total Earned Credits" },
+        { key:"stat_cgpa", label:"معدل کل", kind:"simple", def:"CGPA" },
+        { key:"abbr_ann", label:"اختصار «اع ش» در ستون نمره", kind:"simple", def:"Ann" },
+        { key:"abbr_ann_meaning", label:"توضیح «اع ش» (اعلام شده)", kind:"simple", def:"Announced" },
+        { key:"abbr_ew", label:"اختصار «ح ا» در ستون نمره", kind:"simple", def:"EW" },
+        { key:"abbr_ew_meaning", label:"توضیح «ح ا» (حذف اضطراری)", kind:"simple", def:"Emergency Withdrawal" },
+        { key:"abbr_aw", label:"اختصار «ح م» در ستون نمره", kind:"simple", def:"AW" },
+        { key:"abbr_aw_meaning", label:"توضیح «ح م» (حذف آموزشی)", kind:"simple", def:"Academic Withdrawal" },
+        { key:"abbr_abw", label:"اختصار «اع ح» در ستون نمره", kind:"simple", def:"ABW" },
+        { key:"abbr_abw_meaning", label:"توضیح «اع ح» (اعلام شده در حذف آیین نامه)", kind:"simple", def:"Announced in Bylaw Withdrawal" },
+        { key:"abbr_ip", label:"اختصار «اد پ» در ستون نمره", kind:"simple", def:"IP" },
+        { key:"abbr_ip_meaning", label:"توضیح «اد پ» (ادامه پروژه)", kind:"simple", def:"In Progress" },
+        { key:"score_pass", label:"«قبول» در ستون نمره", kind:"simple", def:"Pass" },
+        { key:"degree_bachelor", label:"مقطع کارشناسی", kind:"simple", def:"Bachelor's Degree" },
+        { key:"degree_master", label:"مقطع کارشناسی ارشد", kind:"simple", def:"Master's Degree" },
+        { key:"degree_phd", label:"مقطع دکتری", kind:"simple", def:"PhD Degree" },
+        { key:"study_mode_tuition_free", label:"دوره روزانه", kind:"simple", def:"Tuition-Free" },
+        { key:"study_mode_tuition_based", label:"دوره شبانه", kind:"simple", def:"Tuition-Based" },
+        { key:"course_type_general", label:"نوع درس: عمومی", kind:"simple", def:"General" },
+        { key:"course_type_basic", label:"نوع درس: پایه", kind:"simple", def:"Basic" },
+        { key:"course_type_main", label:"نوع درس: اصلی", kind:"simple", def:"Main" },
+        { key:"course_type_specialized", label:"نوع درس: تخصصی", kind:"simple", def:"Specialized" },
+        { key:"course_type_optional", label:"نوع درس: اختیاری", kind:"simple", def:"Optional" },
+        { key:"course_type_internship", label:"نوع درس: کارآموزی", kind:"simple", def:"Internship" },
+        { key:"course_type_project", label:"نوع درس: پروژه", kind:"simple", def:"Project" },
+        { key:"course_type_elective", label:"نوع درس: انتخابی", kind:"simple", def:"Elective" },
+        { key:"course_type_practical", label:"نوع درس: عملی", kind:"simple", def:"Practical" },
+        { key:"title_course_type_table", label:"عنوان جدول وضعیت دروس گذرانده بر اساس نوع درس", kind:"simple", def:"Status of Passed Courses Based on Course Type" },
+        { key:"label_total_attempted_credits", label:"تعداد واحد اخذ شده تا کنون", kind:"simple", def:"Total Attempted Credits to Date" },
+        { key:"title_program_summary", label:"عنوان بخش خلاصه وضعیت تحصیلی", kind:"simple", def:"PROGRAM SUMMARY RECORD HIGHLIGHTS" },
+        { key:"label_student_cgpa", label:"معدل کل دانشجو", kind:"simple", def:"Student CGPA" },
+        { key:"label_university_cgpa", label:"معدل دانشگاه", kind:"simple", def:"University CGPA" },
+        { key:"label_faculty_cgpa", label:"معدل دانشکده", kind:"simple", def:"Faculty CGPA" },
+        { key:"label_major_cgpa", label:"معدل رشته", kind:"simple", def:"Major CGPA" },
+        { key:"grade_table_title", label:"عنوان جدول توضیح وضع نمرات", kind:"simple", def:"Grade Status Explanation" },
+        { key:"grade_col_numeric", label:"ستون نمره عددی", kind:"simple", def:"Numeric Grade" },
+        { key:"grade_col_letter", label:"ستون معادل حرفی", kind:"simple", def:"Letter Equivalent" },
+        { key:"title_additional_data", label:"عنوان بخش اطلاعات تکمیلی", kind:"simple", def:"ADDITIONAL TRANSCRIPT DATA" },
+        { key:"label_date_of_translation", label:"برچسب تاریخ ترجمه", kind:"simple", def:"Date of Translation" },
+    ],
       // Course-name glossary for DeepT-Back-End's general_transcript.py --
       // same renderTermGlossary() table as academic_transcript above. These
       // are that file's DEFAULT_COURSE_NAME_GLOSSARY built-ins; a translator
@@ -1105,6 +1178,24 @@ const DP_DOCS = [
     ]},
     { id:"high_school_transcript", label:"ریزنمرات دبیرستان", full:true, fields:[
         { key:"document_title", label:"عنوان مدرک", kind:"simple", def:"Score Report Sheet" },
+    ]},    // Keys/defaults must match national_id_card.py on DeepT-Back-End.
+    { id:"national_id_card", label:"کارت ملی", full:true, fields:[
+        { key:"emblem_line", label:"سطر آرم", kind:"simple", def:"IRI Emblem" },
+        { key:"country_line", label:"جمهوری اسلامی ایران", kind:"simple", def:"Islamic Republic of Iran" },
+        { key:"organization_line", label:"سازمان ثبت احوال کشور", kind:"simple", def:"National Organization for Civil Registration" },
+        { key:"title", label:"عنوان سند", kind:"simple", def:"National ID Card" },
+        { key:"photo_caption", label:"زیرنویس محل عکس", kind:"simple", def:"[Printed photo of the holder]" },
+        { key:"front_label", label:"عنوان روی کارت", kind:"simple", def:"Front" },
+        { key:"label_national_id", label:"شماره ملی", kind:"simple", def:"National ID number:" },
+        { key:"label_given_name", label:"نام", kind:"simple", def:"Given name:" },
+        { key:"label_surname", label:"نام خانوادگی", kind:"simple", def:"Surname:" },
+        { key:"label_date_of_birth", label:"تاریخ تولد", kind:"simple", def:"Date of birth:" },
+        { key:"label_father_name", label:"نام پدر", kind:"simple", def:"Father’s name:" },
+        { key:"label_expiration_date", label:"پایان اعتبار", kind:"simple", def:"Expiration date:" },
+        { key:"overleaf_label", label:"عنوان پشت کارت", kind:"simple", def:"Overleaf" },
+        { key:"label_serial", label:"سریال کارت", kind:"simple", def:"Serial No." },
+        { key:"overleaf_note_1", label:"اعلام تغییر نشانی به ثبت احوال الزام قانونی دارد.", kind:"simple", def:"The National Organization for Civil Registration MUST be informed about any change in the holder’s address" },
+        { key:"overleaf_note_2", label:"از یابنده تقاضا می‌شود کارت را به صندوق پست بیندازد.", kind:"simple", def:"The finder is requested to drop the same in a postbox" },
     ]},
 ];
 
@@ -2174,7 +2265,7 @@ async function refreshWalletBalanceDisplay() {
             const formatted = data.balance_toman.toLocaleString();
             // All three copies (میز کار sidebar, header pill, صفحه نخست card)
             // show the same balance -- keep them in lockstep from one fetch.
-            ['walletBalanceDisplay', 'headerWalletBalance', 'home-walletBalanceDisplay'].forEach(id => {
+            ['walletBalanceDisplay', 'headerWalletBalance', 'home-walletBalanceDisplay', 'upp-balance'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.textContent = formatted;
             });
@@ -5735,7 +5826,7 @@ function toggleMultiPassportUI() {
     const docType = document.getElementById('docTemplate').value;
     const docDef  = DOCUMENT_REGISTRY[docType];
     const block   = document.getElementById('multiPassportBlock');
-    if (docDef && docDef.usePassportSession && !docDef.legacySingleSession) {
+    if (docDef && docDef.usePassportSession) {
         block.classList.remove('hidden');
         document.getElementById('multiPassportCount').textContent = confirmedPassports.length;
     } else {
@@ -5781,8 +5872,21 @@ function confirmNewClient() {
 // ═══════════════════════════════════════════════════════════
 // STEP 2 — DOCUMENT UPLOAD & TRANSLATION
 // ═══════════════════════════════════════════════════════════
+// The backend document pipeline (Gemini-based multi-page processing) only
+// accepts PDFs; a non-PDF used to reach it anyway and get rejected only
+// after a wasted API call. Checked on file.type OR extension -- drag-and-
+// drop from some file managers doesn't always set a reliable MIME type.
+function isPdfFile(file) {
+    return file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
+}
+
 function handleDocFileSelection(file) {
     if (!file) return;
+    if (!isPdfFile(file)) {
+        showToast('⚠️ فقط فایل PDF پذیرفته می‌شود. لطفاً سند را به‌صورت PDF بارگذاری کنید.');
+        document.getElementById('docFileInput').value = '';
+        return;
+    }
     docSelectedFile = file;
     document.getElementById('docFileInfo').textContent = `📄 ${file.name} (${(file.size/1024).toFixed(0)} KB)`;
     document.getElementById('docFileInfo').classList.remove('hidden');
@@ -5895,29 +5999,11 @@ async function executeTranslationPipeline() {
         fd.append('include_course_codes', includeCourseCodes ? 'true' : 'false');
     }
     
-    // Passport session(s). police-certificate still uses its old backend
-    // contract (legacySingleSession) until that repo is updated; every other
-    // document type uses the universal multi-passport contract by default.
-if (docDef.usePassportSession) {
-        if (docDef.legacySingleSession) {
-            let sid = confirmedPassports[0]?.session_id;
-            if (!sid) {
-                try {
-                    statusText.textContent = 'در حال ایجاد جلسه موقت...';
-                    const r = await fetch(`${getActiveBackendOrigin()}/passport/confirm`, {
-                        method: 'POST',
-                        headers: {'Content-Type':'application/json'},
-                        body: JSON.stringify({ first_name:'', last_name:'', father_name:'', date_of_birth:'' })
-                    });
-                    const d = await r.json();
-                    sid = d.session_id;
-                } catch(e) { /* backend will fall back to doc-extracted identity */ }
-            }
-            if (sid) fd.append('session_id', sid);
-        } else {
-            confirmedPassports.forEach(p => fd.append('session_ids', p.session_id));
-            if (selectedClientId) fd.append('client_id', selectedClientId);
-        }
+    // Passport session(s) + client link. Every document type uses the
+    // universal multi-passport contract.
+    if (docDef.usePassportSession) {
+        confirmedPassports.forEach(p => fd.append('session_ids', p.session_id));
+        if (selectedClientId) fd.append('client_id', selectedClientId);
     }
 
     const url = docDef.endpoint;
@@ -5969,12 +6055,9 @@ if (docDef.usePassportSession) {
                 chunkedFd.append('include_course_codes', fd.get('include_course_codes'));
             }
             if (docDef.usePassportSession) {
-                if (docDef.legacySingleSession) {
-                    const sid = fd.get('session_id');
-                    if (sid) chunkedFd.append('session_id', sid);
-                } else {
-                    fd.getAll('session_ids').forEach(sid => chunkedFd.append('session_ids', sid));
-                }
+                fd.getAll('session_ids').forEach(sid => chunkedFd.append('session_ids', sid));
+                const cid = fd.get('client_id');
+                if (cid) chunkedFd.append('client_id', cid);
             }
 
             statusText.textContent = 'در حال پردازش؛ این فرایند ممکن است چند دقیقه طول بکشد. لطفا منتظر بمانید.';
@@ -6546,6 +6629,11 @@ function qsHandlePassport(file) {
 }
 function qsHandleDoc(file) {
     if (!file) return;
+    if (!isPdfFile(file)) {
+        showToast('⚠️ فقط فایل PDF پذیرفته می‌شود. لطفاً سند را به‌صورت PDF بارگذاری کنید.');
+        document.getElementById('qsDocFile').value = '';
+        return;
+    }
     QS.docFile=file;
     const el=document.getElementById('qsDocFileName');
     el.textContent='📄 '+file.name; el.style.display='block';
@@ -6721,6 +6809,9 @@ function renderAdminUsersRows(users) {
             <td class="py-3 px-3">
                 <button onclick="adminViewUserJobs('${u.user_id}', '${(u.email||'').replace(/'/g,"")}')" class="text-sm font-bold px-3 py-2 rounded-lg" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">مشاهده</button>
             </td>
+            <td class="py-3 px-3">
+                <button onclick="adminViewUserClients('${u.user_id}', '${(u.email||'').replace(/'/g,"")}')" class="text-sm font-bold px-3 py-2 rounded-lg" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">مشاهده</button>
+            </td>
         </tr>
     `).join('');
 }
@@ -6841,33 +6932,75 @@ async function adminViewUserJobs(userId, email) {
     const tbody = document.getElementById('adminUserJobsRowsBlock');
     document.getElementById('adminUserJobsTitle').textContent = `پروژه‌های ${email}`;
     panel.classList.remove('hidden');
-    tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>`;
     try {
         const res = await fetch(`${CORE}/jobs?user_id=${userId}`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!res.ok) {
-            tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در دریافت پروژه‌ها.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در دریافت پروژه‌ها.</td></tr>`;
             return;
         }
         const jobs = await res.json();
         if (!jobs.length) {
-            tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">این کاربر پروژه‌ای ندارد.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-sm" style="color:var(--text-muted);">این کاربر پروژه‌ای ندارد.</td></tr>`;
             return;
         }
         const typeLabel = (t) => DOCUMENT_REGISTRY[t]?.label || t;
         const statusLabel = (s) => ({queued:'در صف', processing:'در حال پردازش', completed:'تکمیل شده', failed:'ناموفق'}[s] || s);
+        // Not every document type tracks api_cost_usd yet, and a job
+        // predating that field has none -- shown as "—" rather than $0.00.
+        const costCell = (j) => j.api_cost_usd != null
+            ? `$${j.api_cost_usd.toFixed(4)}`
+            : '<span style="color:var(--text-muted);">—</span>';
         tbody.innerHTML = jobs.map(j => `
             <tr style="border-bottom:1px solid var(--divider);">
                 <td class="py-2 px-2" style="color:var(--text-main);">${typeLabel(j.document_type)}</td>
                 <td class="py-2 px-2" style="color:var(--text-muted);">${statusLabel(j.status)}</td>
                 <td class="py-2 px-2 font-mono" style="color:var(--text-main);">${(j.price_toman||0).toLocaleString()}</td>
+                <td class="py-2 px-2 en font-mono" style="color:var(--text-main);">${costCell(j)}</td>
                                 <td class="py-2 px-2 en" style="color:var(--text-muted);">${escapeHtml(j.original_filename)}</td>
                 <td class="py-2 px-2 en" style="color:var(--text-muted);">${(j.created_at||'').slice(0,10)}</td>
             </tr>
         `).join('');
     } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در اتصال.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در اتصال.</td></tr>`;
+    }
+}
+
+async function adminViewUserClients(userId, email) {
+    const token = localStorage.getItem('deept_token');
+    const panel = document.getElementById('adminUserClientsPanel');
+    const tbody = document.getElementById('adminUserClientsRowsBlock');
+    document.getElementById('adminUserClientsTitle').textContent = `مشتریان ${email}`;
+    panel.classList.remove('hidden');
+    tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>`;
+    try {
+        const res = await fetch(`${CORE}/clients?user_id=${userId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) {
+            tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در دریافت مشتریان.</td></tr>`;
+            return;
+        }
+        const clients = await res.json();
+        if (!clients.length) {
+            tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-sm" style="color:var(--text-muted);">این کاربر مشتری‌ای ندارد.</td></tr>`;
+            return;
+        }
+        const faName = (c) => `${c.first_name_fa || ''} ${c.last_name_fa || ''}`.trim();
+        const enName = (c) => `${c.first_name || ''} ${c.last_name || ''}`.trim();
+        const displayName = (c) => faName(c) || enName(c) || '—';
+        tbody.innerHTML = clients.map(c => `
+            <tr style="border-bottom:1px solid var(--divider);">
+                <td class="py-2 px-2" style="color:var(--text-main);">${escapeHtml(displayName(c))}</td>
+                <td class="py-2 px-2 en" style="color:var(--text-muted);">${escapeHtml(c.national_id) || '—'}</td>
+                <td class="py-2 px-2 en" style="color:var(--text-muted);">${escapeHtml(c.phone) || '—'}</td>
+                <td class="py-2 px-2 en" style="color:var(--text-muted);">${(c.created_at||'').slice(0,10)}</td>
+            </tr>
+        `).join('');
+    } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در اتصال.</td></tr>`;
     }
 }
 
@@ -6884,7 +7017,9 @@ function switchAdminTab(tab) {
     
     const jobsPanel = document.getElementById('adminUserJobsPanel');
     if (jobsPanel) jobsPanel.classList.add('hidden');
-    
+    const clientsPanel = document.getElementById('adminUserClientsPanel');
+    if (clientsPanel) clientsPanel.classList.add('hidden');
+
     if (tab === 'users') {
         if (usersPanel) usersPanel.classList.remove('hidden');
         if (crmPanel) crmPanel.classList.add('hidden');
@@ -6924,7 +7059,7 @@ async function loadAdminCrmData() {
     const token = localStorage.getItem('deept_token');
     const tableBody = document.getElementById('crmJobsTableBody');
     if (tableBody) {
-        tableBody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری داده‌های CRM...</td></tr>`;
+        tableBody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری داده‌های CRM...</td></tr>`;
     }
     
     try {
@@ -6941,7 +7076,7 @@ async function loadAdminCrmData() {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!res.ok) {
-            if (tableBody) tableBody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در بارگذاری داده‌های CRM.</td></tr>`;
+            if (tableBody) tableBody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در بارگذاری داده‌های CRM.</td></tr>`;
             showToast('خطا در بارگذاری داده‌های CRM');
             return;
         }
@@ -6952,7 +7087,7 @@ async function loadAdminCrmData() {
         updateCrmDashboard();
     } catch (e) {
         console.error(e);
-        if (tableBody) tableBody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در اتصال به سرور.</td></tr>`;
+        if (tableBody) tableBody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در اتصال به سرور.</td></tr>`;
         showToast('خطا در ارتباط با سرور.');
     }
 }
@@ -7105,34 +7240,45 @@ function updateCrmDashboard() {
     
     const profitMonthly = completedMonthly.reduce((sum, j) => sum + (j.price_toman || 0), 0);
     const failureRateMonthly = totalMonthly > 0 ? ((failedMonthly.length / totalMonthly) * 100).toFixed(1) : '0';
+    // Only completed jobs get an api_cost_usd today (set once extraction
+    // finishes -- see DeepT-Core's PATCH /jobs/{job_id}); a job predating
+    // this field, or whose document type doesn't track cost yet, is null
+    // and contributes 0 rather than breaking the sum.
+    const apiCostMonthly = filteredForStats.reduce((sum, j) => sum + (j.api_cost_usd || 0), 0);
 
     // Dynamic labels — beside همهٔ زمان‌ها concept
     const profitLabelEl = document.getElementById('crmStatProfitLabel');
     const profitSubEl = document.getElementById('crmStatProfitSub');
     const workLabelEl = document.getElementById('crmStatWorkLabel');
     const failureLabelEl = document.getElementById('crmStatFailureLabel');
+    const apiCostLabelEl = document.getElementById('crmStatApiCostLabel');
+    const apiCostSubEl = document.getElementById('crmStatApiCostSub');
     if (profitLabelEl) profitLabelEl.textContent = label === 'همهٔ زمان‌ها' ? 'سود بازه انتخابی (تومان)' : `سود ${label} (تومان)`;
     if (profitSubEl) profitSubEl.textContent = label === 'همهٔ زمان‌ها' ? 'جمع پرداختی کارهای موفق — همهٔ زمان‌ها' : `جمع پرداختی کارهای موفق — ${label}`;
     if (workLabelEl) workLabelEl.textContent = label === 'همهٔ زمان‌ها' ? 'تعداد کل کارها' : `تعداد کل کارهای ${label}`;
     if (failureLabelEl) failureLabelEl.textContent = label === 'همهٔ زمان‌ها' ? 'نرخ ناموفق' : `نرخ ناموفق ${label}`;
-    
+    if (apiCostLabelEl) apiCostLabelEl.textContent = label === 'همهٔ زمان‌ها' ? 'هزینه API (دلار)' : `هزینه API ${label} (دلار)`;
+    if (apiCostSubEl) apiCostSubEl.textContent = label === 'همهٔ زمان‌ها' ? 'مجموع هزینهٔ واقعی Gemini — همهٔ زمان‌ها' : `مجموع هزینهٔ واقعی Gemini — ${label}`;
+
     document.getElementById('crmStatProfit').textContent = profitMonthly.toLocaleString();
     document.getElementById('crmStatWorkCount').textContent = totalMonthly.toLocaleString();
     document.getElementById('crmStatWorkDetails').textContent = `موفق: ${completedMonthly.length.toLocaleString()} | ناموفق: ${failedMonthly.length.toLocaleString()}`;
     document.getElementById('crmStatFailureRate').textContent = `${failureRateMonthly}%`;
+    document.getElementById('crmStatApiCost').textContent = `$${apiCostMonthly.toFixed(2)}`;
     
     // Build per-document-type aggregation for the SELECTED time-frame (global)
     const docTypeStats = {};
     Object.entries(DOCUMENT_REGISTRY).forEach(([key, doc]) => {
-        docTypeStats[key] = { label: doc.label, total: 0, completed: 0, failed: 0, revenue: 0 };
+        docTypeStats[key] = { label: doc.label, total: 0, completed: 0, failed: 0, revenue: 0, apiCost: 0 };
     });
-    
+
     filteredForStats.forEach(j => {
         const t = j.document_type;
         if (!docTypeStats[t]) {
-            docTypeStats[t] = { label: t, total: 0, completed: 0, failed: 0, revenue: 0 };
+            docTypeStats[t] = { label: t, total: 0, completed: 0, failed: 0, revenue: 0, apiCost: 0 };
         }
         docTypeStats[t].total++;
+        docTypeStats[t].apiCost += (j.api_cost_usd || 0);
         if (j.status === 'completed') {
             docTypeStats[t].completed++;
             docTypeStats[t].revenue += (j.price_toman || 0);
@@ -7154,7 +7300,7 @@ function updateCrmDashboard() {
     const tableTbody = document.getElementById('crmDocTypeSummaryTableBody');
     if (tableTbody) {
         if (activeTypes.length === 0) {
-            tableTbody.innerHTML = `<tr><td colspan="6" class="text-center py-4" style="color:var(--text-muted);">داده‌ای وجود ندارد.</td></tr>`;
+            tableTbody.innerHTML = `<tr><td colspan="7" class="text-center py-4" style="color:var(--text-muted);">داده‌ای وجود ندارد.</td></tr>`;
         } else {
             tableTbody.innerHTML = activeTypes.map(([key, s], idx) => {
                 const share = grandTotal > 0 ? ((s.total / grandTotal) * 100).toFixed(1) : '0.0';
@@ -7169,6 +7315,7 @@ function updateCrmDashboard() {
                         <td class="py-2 px-1 text-center en" style="color:#f87171;">${s.failed.toLocaleString()}</td>
                         <td class="py-2 px-1 text-center en font-bold" style="color:var(--accent);">${share}%</td>
                         <td class="py-2 px-1 text-center en" style="color:var(--text-muted);">${s.revenue.toLocaleString()}</td>
+                        <td class="py-2 px-1 text-center en" style="color:var(--text-muted);">$${s.apiCost.toFixed(2)}</td>
                     </tr>
                 `;
             }).join('');
@@ -7257,7 +7404,7 @@ function applyCrmFilters() {
     if (!tbody) return;
     
     if (filtered.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-sm" style="color:var(--text-muted);">هیچ کاری با مشخصات فیلتر شده یافت نشد.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-sm" style="color:var(--text-muted);">هیچ کاری با مشخصات فیلتر شده یافت نشد.</td></tr>`;
         return;
     }
     
@@ -7276,6 +7423,12 @@ function applyCrmFilters() {
         return 'background:#9ca3af; color:#000;';
     };
     
+    // Not every document type tracks api_cost_usd yet, and a job predating
+    // that field has none -- shown as "—" rather than $0.0000.
+    const apiCostCell = (j) => j.api_cost_usd != null
+        ? `$${j.api_cost_usd.toFixed(4)}`
+        : '<span style="color:var(--text-muted);">—</span>';
+
     tbody.innerHTML = filtered.map(j => {
         const errMsg = j.error_message ? escapeHtml(j.error_message) : '—';
         const dateStr = (j.created_at || '').slice(0, 10) + ' ' + (j.created_at || '').slice(11, 16);
@@ -7290,6 +7443,7 @@ function applyCrmFilters() {
                 </td>
                 <td class="py-2 px-2 text-center en" style="color:var(--text-muted); font-size:0.8rem;">${dateStr}</td>
                 <td class="py-2 px-2 text-center font-mono" style="color:var(--text-main);">${(j.price_toman || 0).toLocaleString()}</td>
+                <td class="py-2 px-2 text-center en font-mono" style="color:var(--text-main);">${apiCostCell(j)}</td>
                 <td class="py-2 px-2 en text-right" style="color:var(--text-muted); font-size:0.85rem;" dir="ltr">${escapeHtml(j.original_filename)}</td>
                 <td class="py-2 px-2 text-xs text-red-400 max-w-xs truncate" title="${errMsg}" style="color: #fb7185;">${errMsg}</td>
             </tr>
