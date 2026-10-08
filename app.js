@@ -2181,11 +2181,27 @@ async function refreshWalletBalanceDisplay() {
         }
     } catch (e) { /* leave last-known display value on transient network failure */ }
 }
-function submitSupportTicket() {
-    const text = document.getElementById('supportTicketMsg').value;
+async function submitSupportTicket() {
+    const textEl = document.getElementById('supportTicketMsg');
+    const text = textEl.value.trim();
     if (!text) return;
-    showToast('📩 پیام شما ثبت شد.');
-    document.getElementById('supportTicketMsg').value = '';
+    const token = getToken();
+    if (!token) { openAuthModal(); return; }
+    try {
+        const res = await fetch(`${CORE}/support/tickets`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: text })
+        });
+        if (res.ok) {
+            textEl.value = '';
+            showToast('📩 پیام شما ثبت شد.');
+        } else {
+            showToast('❌ ارسال تیکت ناموفق بود. دوباره تلاش کنید.');
+        }
+    } catch (e) {
+        showToast('❌ ارسال تیکت ناموفق بود. اتصال خود را بررسی کنید.');
+    }
 }
 
 // ═══════════════════════════════════════════════════════════
