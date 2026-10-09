@@ -39,7 +39,12 @@ const DOCUMENT_REGISTRY = {
     'vehicle-deed': {
         label:               'سند مالکیت خودرو (برگ سبز)',
         endpoint: `${BACKEND}/api/translate/vehicle-deed`,
-        active:              true,
+        // Pulled from میز کار pending a fix -- too many bad translations
+        // coming out of vehicle_deed.py right now. Flip back to true once
+        // that's sorted; this alone is enough to restore it everywhere
+        // (dropdown, search list, and the registry's own active/endpoint
+        // checks in executeTranslationPipeline()).
+        active:              false,
         usePassportSession:  true,
     },
     'notary-deed': {
