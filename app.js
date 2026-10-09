@@ -395,6 +395,7 @@ function syncUserSessionDOM() {
     toggle('railScheduleBtn',    !loggedIn);
     toggle('railPriceListBtn',   !loggedIn);
     toggle('railSettingsBtn',    !loggedIn);
+    toggle('railAccountSettingsBtn', !loggedIn);
     toggle('railAdminPanelBtn',  !loggedIn || localStorage.getItem('deept_is_admin') !== '1');
     toggle('railHrClockBtn',    !isOffice);
     // صفحه نخست panel grid -- same admin/office gating as the rail buttons above.
@@ -2316,6 +2317,7 @@ async function openWorkspaceDashboard(pushHistory = true) {
     document.getElementById('clientProfilePage').classList.add('hidden');
     document.getElementById('workSchedulePage').classList.add('hidden');
     document.getElementById('settingsPage').classList.add('hidden');
+    document.getElementById('accountSettingsPage').classList.add('hidden');
     document.getElementById('myPriceListPage').classList.add('hidden');
     document.getElementById('homePanelsPage').classList.add('hidden');
     document.getElementById('dateConverterPage').classList.add('hidden');
@@ -2354,6 +2356,7 @@ async function openClientsWorkspace(pushHistory = true) {
     document.getElementById('clientProfilePage').classList.add('hidden');
     document.getElementById('workSchedulePage').classList.add('hidden');
     document.getElementById('settingsPage').classList.add('hidden');
+    document.getElementById('accountSettingsPage').classList.add('hidden');
     document.getElementById('myPriceListPage').classList.add('hidden');
     document.getElementById('homePanelsPage').classList.add('hidden');
     document.getElementById('dateConverterPage').classList.add('hidden');
@@ -4006,7 +4009,7 @@ function hideWorkspaceViews() {
     const lp = document.getElementById('landingPage');
     if (lp) lp.style.display = 'none';
     ['workspaceDashboard', 'clientsWorkspace', 'adminDashboard',
-     'clientProfilePage', 'workSchedulePage', 'settingsPage', 'myPriceListPage', 'hrPage', 'homePanelsPage', 'dateConverterPage'].forEach(id => {
+     'clientProfilePage', 'workSchedulePage', 'settingsPage', 'accountSettingsPage', 'myPriceListPage', 'hrPage', 'homePanelsPage', 'dateConverterPage'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.add('hidden');
     });
@@ -4253,6 +4256,94 @@ function closeSettingsPage() {
     document.getElementById('settingsPage').classList.add('hidden');
     document.body.style.overflow = 'auto';
     openWorkspaceDashboard(false);
+}
+
+// تنظیمات حساب -- its own top-level page (see the header's "حساب" button +
+// صفحه نخست card), for the operations that touch the account itself rather
+// than a translation: changing the password and the login email. See
+// index.html's #accountSettingsPage and DeepT-Core's auth.py.
+function openAccountSettingsPage(pushHistory = true) {
+    if (!currentUserSession) { openAuthModal(); return; }
+    showFullView('accountSettingsPage');
+    if (pushHistory) navigateTo('/account-settings');
+    const emailEl = document.getElementById('acct-current-email');
+    if (emailEl) emailEl.textContent = currentUserSession.email || '—';
+    ['acct-cur-pass', 'acct-new-pass', 'acct-new-pass2', 'acct-new-email', 'acct-email-pass'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    ['acct-pass-status', 'acct-email-status'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+    });
+}
+
+function closeAccountSettingsPage() {
+    document.getElementById('accountSettingsPage').classList.add('hidden');
+    document.body.style.overflow = 'auto';
+    openWorkspaceDashboard(false);
+}
+
+function showAccountStatus(id, msg, ok) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = msg;
+    el.style.color = ok ? '#34d399' : '#f87171';
+    el.classList.remove('hidden');
+}
+
+async function changeAccountPassword() {
+    const cur = document.getElementById('acct-cur-pass').value;
+    const nw  = document.getElementById('acct-new-pass').value;
+    const nw2 = document.getElementById('acct-new-pass2').value;
+    const btn = document.getElementById('acct-pass-btn');
+    if (!cur || !nw || !nw2) { showAccountStatus('acct-pass-status', 'لطفاً همه فیلدها را پر کنید.', false); return; }
+    if (nw.length < 8)       { showAccountStatus('acct-pass-status', 'رمز عبور جدید باید حداقل ۸ کاراکتر باشد.', false); return; }
+    if (nw !== nw2)          { showAccountStatus('acct-pass-status', 'رمز عبور جدید و تکرار آن یکسان نیستند.', false); return; }
+
+    const originalLabel = btn.textContent;
+    btn.disabled = true; btn.textContent = 'در حال ثبت...';
+    try {
+        const res = await fetch(`${CORE}/auth/change-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
+            body: JSON.stringify({ current_password: cur, new_password: nw })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || 'خطای سرور');
+        showAccountStatus('acct-pass-status', '✅ ' + (data.message || 'رمز عبور با موفقیت تغییر کرد.'), true);
+        ['acct-cur-pass', 'acct-new-pass', 'acct-new-pass2'].forEach(id => { document.getElementById(id).value = ''; });
+    } catch (e) {
+        showAccountStatus('acct-pass-status', '❌ ' + e.message, false);
+    } finally {
+        btn.disabled = false; btn.textContent = originalLabel;
+    }
+}
+
+async function changeAccountEmail() {
+    const newEmail = document.getElementById('acct-new-email').value.trim();
+    const pass     = document.getElementById('acct-email-pass').value;
+    const btn      = document.getElementById('acct-email-btn');
+    if (!newEmail || !pass)        { showAccountStatus('acct-email-status', 'لطفاً همه فیلدها را پر کنید.', false); return; }
+    if (!newEmail.includes('@'))   { showAccountStatus('acct-email-status', 'یک ایمیل معتبر وارد کنید.', false); return; }
+
+    const originalLabel = btn.textContent;
+    btn.disabled = true; btn.textContent = 'در حال ارسال...';
+    try {
+        const res = await fetch(`${CORE}/auth/change-email`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
+            body: JSON.stringify({ new_email: newEmail, password: pass })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || 'خطای سرور');
+        showAccountStatus('acct-email-status', '✅ ' + (data.message || 'لینک تایید ارسال شد.'), true);
+        ['acct-new-email', 'acct-email-pass'].forEach(id => { document.getElementById(id).value = ''; });
+    } catch (e) {
+        showAccountStatus('acct-email-status', '❌ ' + e.message, false);
+    } finally {
+        btn.disabled = false; btn.textContent = originalLabel;
+    }
 }
 
 // حضور غیاب پرسنل -- its own top-level page (see the header's "🕐 حضور
@@ -5079,6 +5170,17 @@ function applyRouteForPath(path) {
 
         if (currentUserSession) {
             openSettingsPage(false);
+        } else {
+            navigateTo('/', false);
+            showLandingView();
+            openLogin();
+            showToast('برای دسترسی به این بخش، ابتدا وارد شوید.');
+        }
+
+    } else if (path === '/account-settings') {
+
+        if (currentUserSession) {
+            openAccountSettingsPage(false);
         } else {
             navigateTo('/', false);
             showLandingView();
@@ -6234,6 +6336,23 @@ let pendingResetToken = null;
         openResetPassword(resetToken);
         window.history.replaceState({}, document.title, window.location.pathname);
     }
+    // Email-change confirmation redirect (from DeepT-Core's
+    // /auth/confirm-email-change, after clicking the link mailed to the NEW
+    // address) -- the account's login email has now moved, so the user must
+    // re-enter it: log out any stale session and open the login modal.
+    const emailChanged = params.get('email_changed');
+    if (emailChanged === 'success') {
+        // Log out any still-open session first (its cached email is now
+        // stale and its token still points at the old address), then show
+        // the message after executeLogout()'s own toast so it isn't overwritten.
+        if (currentUserSession) executeLogout();
+        openLogin();
+        showToast('✅ ایمیل حساب با موفقیت تغییر کرد. لطفاً با ایمیل جدید وارد شوید.');
+        window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (emailChanged === 'error') {
+        showToast('⚠️ لینک تغییر ایمیل نامعتبر یا منقضی شده است.');
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
 })();
 
 // ── AUTH ──
@@ -6738,6 +6857,7 @@ function showAdminDashboard() {
     document.getElementById('clientProfilePage').classList.add('hidden');
     document.getElementById('workSchedulePage').classList.add('hidden');
     document.getElementById('settingsPage').classList.add('hidden');
+    document.getElementById('accountSettingsPage').classList.add('hidden');
     document.getElementById('myPriceListPage').classList.add('hidden');
     document.getElementById('homePanelsPage').classList.add('hidden');
     document.getElementById('dateConverterPage').classList.add('hidden');

@@ -362,6 +362,7 @@ select.converter-input option {
 /* Password input with show/hide toggle (eye) */
 .password-wrap { position: relative; margin-bottom: .9rem; }
 .password-wrap .modal-input { padding-right: 2.6rem; margin-bottom: 0; }
+.password-wrap .auth-input { padding-right: 2.4rem; margin-bottom: 0; }
 .password-toggle {
     position: absolute; top: 50%; transform: translateY(-50%);
     right: .7rem; border: none; background: none; cursor: pointer;
@@ -518,6 +519,7 @@ select.converter-input option {
     #clientsWorkspace,
     #workSchedulePage,
     #settingsPage,
+    #accountSettingsPage,
     #myPriceListPage,
     #clientProfilePage,
     #adminDashboard,
