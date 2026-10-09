@@ -496,6 +496,10 @@ function executeLogout() {
     closeChatInterface();
     syncUserSessionDOM();
     showLandingView();
+    // Leave the address bar on '/' -- otherwise it keeps showing the last
+    // authenticated route (e.g. /dashboard or /account-settings) even though
+    // a logged-out user shouldn't be able to land back on it.
+    window.history.replaceState({}, document.title, '/');
     showToast('👋 با موفقیت خارج شدید.');
 }
 document.getElementById('logoutOverlay').addEventListener('click', function(e) {
@@ -2396,6 +2400,8 @@ function showLandingView() {
     if (sp) sp.classList.add('hidden');
     const st = document.getElementById('settingsPage');
     if (st) st.classList.add('hidden');
+    const ast = document.getElementById('accountSettingsPage');
+    if (ast) ast.classList.add('hidden');
     const pl = document.getElementById('myPriceListPage');
     if (pl) pl.classList.add('hidden');
     const hp = document.getElementById('homePanelsPage');
