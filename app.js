@@ -39,12 +39,9 @@ const DOCUMENT_REGISTRY = {
     'vehicle-deed': {
         label:               'سند مالکیت خودرو (برگ سبز)',
         endpoint: `${BACKEND}/api/translate/vehicle-deed`,
-        // Pulled from میز کار pending a fix -- too many bad translations
-        // coming out of vehicle_deed.py right now. Flip back to true once
-        // that's sorted; this alone is enough to restore it everywhere
-        // (dropdown, search list, and the registry's own active/endpoint
-        // checks in executeTranslationPipeline()).
-        active:              false,
+        // Re-enabled after the BackEnd rework (DeepT-Back-End #71: eboo OCR
+        // for the Number / postal code / national ID, Gemini for the rest).
+        active:              true,
         usePassportSession:  true,
     },
     'notary-deed': {
