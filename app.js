@@ -108,7 +108,7 @@ const DOCUMENT_REGISTRY = {
         usePassportSession:  true,
     },
     'insurance-list-receipt': {
-        label:               'رسید بیمه شدگان لیست اینترنتی تامین اجتماعی (لیست کارکنان و دستمزد)',
+        label:               'رسید بیمه شدگان لیست اینترنتی-تامین اجتماعی',
         // Employer's monthly list: page-1 summary + employee wage table
         // (see insurance_list_receipt.py on DeepT-Back-End). No passport
         // matching on the backend -- usePassportSession only keeps the
