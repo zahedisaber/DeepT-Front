@@ -107,6 +107,16 @@ const DOCUMENT_REGISTRY = {
         active:              true,
         usePassportSession:  true,
     },
+    'insurance-list-receipt': {
+        label:               'رسید بیمه شدگان لیست اینترنتی تامین اجتماعی (لیست کارکنان و دستمزد)',
+        // Employer's monthly list: page-1 summary + employee wage table
+        // (see insurance_list_receipt.py on DeepT-Back-End). No passport
+        // matching on the backend -- usePassportSession only keeps the
+        // usual client link (client_id) in the request.
+        endpoint: `${BACKEND}/api/translate/insurance-list-receipt`,
+        active:              true,
+        usePassportSession:  true,
+    },
     'building-permit': {
         label:               'پروانه های ساختمانی',
         endpoint: `${BACKEND}/api/translate/building-permit`,
