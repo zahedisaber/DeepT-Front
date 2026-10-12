@@ -308,6 +308,45 @@ async function syncProfileFromServer() {
     } catch (e) { /* offline or Core unreachable -- keep the cached value, try again next load */ }
 }
 
+// ═══════════════════════════════════════════════════════════
+// SYSTEM ANNOUNCEMENT BANNER (پنل مدیریت → publishSystemAnnouncement())
+// ═══════════════════════════════════════════════════════════
+// Shows an admin-published alert at the top of every logged-in user's
+// dashboard (see announcements.py). Keyed by the announcement's own
+// created_at, not a plain "seen it" flag -- so dismissing one doesn't
+// hide a newer one published later in the same browser.
+async function loadSystemAnnouncement() {
+    if (!currentUserSession || !currentUserSession.token) return;
+    const banner = document.getElementById('systemAnnouncementBanner');
+    if (!banner) return;
+    try {
+        const res = await fetch(`${CORE}/announcements/active`, {
+            headers: { 'Authorization': `Bearer ${currentUserSession.token}` }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data.active) { banner.classList.add('hidden'); return; }
+        if (localStorage.getItem('deept_dismissed_announcement') === data.created_at) {
+            banner.classList.add('hidden');
+            return;
+        }
+        document.getElementById('systemAnnouncementText').textContent = data.message;
+        banner.dataset.createdAt = data.created_at;
+        banner.classList.remove('hidden');
+        banner.classList.add('flex');
+    } catch (e) { /* offline or Core unreachable -- leave banner as it was */ }
+}
+
+function dismissSystemAnnouncement() {
+    const banner = document.getElementById('systemAnnouncementBanner');
+    if (!banner) return;
+    if (banner.dataset.createdAt) {
+        localStorage.setItem('deept_dismissed_announcement', banner.dataset.createdAt);
+    }
+    banner.classList.add('hidden');
+    banner.classList.remove('flex');
+}
+
 let currentUserSession = loadSession();
 let trackingProjectsDatabase = [];
 let resetPasswordToken = null; // carried from ?reset_token=... on page load through to handleResetPassword()
@@ -6210,6 +6249,7 @@ let pendingResetToken = null;
     // a saved profile edit shows up in a different tab/session. Self-heals
     // on every page load instead of requiring a re-login.
     syncProfileFromServer();
+    loadSystemAnnouncement();
 
     // GitHub Pages has no server routing: a refresh on /dashboard etc. lands
     // on 404.html, which stashes the intended path (+ query string, e.g. a
@@ -6312,6 +6352,7 @@ document.getElementById('loginSuccess').classList.add('show');
 
 currentUserSession = loadSession();
 syncUserSessionDOM();
+loadSystemAnnouncement();
 
 setTimeout(() => {
     closeModals();
@@ -6769,6 +6810,7 @@ function showAdminDashboard() {
     document.getElementById('adminDashboard').classList.remove('hidden');
     switchAdminTab('users');
     loadAdminUsers();
+    loadAdminAnnouncementStatus();
     // Without its own URL, a reload had nowhere to route back to and fell
     // through to the landing page instead -- navigateTo is a no-op if the
     // address bar already says /admin (e.g. when applyRouteForPath itself
@@ -6865,6 +6907,64 @@ async function loadAdminUsers() {
         renderAdminUsersRows(adminUsersCache);
     } catch (e) {
         tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در اتصال.</td></tr>`;
+    }
+}
+
+// ── System announcement publisher (پنل مدیریت) ──────────────────────────────
+async function loadAdminAnnouncementStatus() {
+    const token = localStorage.getItem('deept_token');
+    const statusEl = document.getElementById('adminAnnouncementStatus');
+    try {
+        const res = await fetch(`${CORE}/announcements/active`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) { statusEl.textContent = 'خطا در دریافت وضعیت.'; return; }
+        const data = await res.json();
+        if (data.active) {
+            statusEl.textContent = `فعال: «${data.message}»`;
+            statusEl.style.color = 'var(--accent)';
+        } else {
+            statusEl.textContent = 'غیرفعال — اعلانی منتشر نشده است.';
+            statusEl.style.color = 'var(--text-muted)';
+        }
+    } catch (e) {
+        statusEl.textContent = 'خطا در اتصال.';
+    }
+}
+
+async function publishSystemAnnouncement() {
+    const token = localStorage.getItem('deept_token');
+    const input = document.getElementById('adminAnnouncementInput');
+    const message = input.value.trim();
+    if (!message) { showToast('متن اعلان نمی‌تواند خالی باشد.'); return; }
+    try {
+        const res = await fetch(`${CORE}/announcements`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message })
+        });
+        if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || 'خطای سرور'); }
+        input.value = '';
+        showToast('✅ اعلان منتشر شد.');
+        await loadAdminAnnouncementStatus();
+    } catch (e) {
+        showToast(`❌ ${e.message || 'انتشار اعلان ناموفق بود.'}`);
+    }
+}
+
+async function clearSystemAnnouncement() {
+    if (!confirm('اعلان فعال پاک شود؟')) return;
+    const token = localStorage.getItem('deept_token');
+    try {
+        const res = await fetch(`${CORE}/announcements/active`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error();
+        showToast('✅ اعلان پاک شد.');
+        await loadAdminAnnouncementStatus();
+    } catch (e) {
+        showToast('❌ پاک کردن اعلان ناموفق بود.');
     }
 }
 async function adminDeduct(userId) {

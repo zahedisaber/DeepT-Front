@@ -55,7 +55,8 @@
      page, and openWorkspaceDashboard()/showFullView()/showAdminDashboard()
      unhide it for authenticated views. Without this, the first paint before
      app.js runs shows the dashboard header above the landing header. -->
-<div class="header-bar hidden fixed top-0 left-0 right-0 z-50 px-4 py-3 flex items-center justify-between gap-2">
+<div class="header-bar hidden fixed top-0 left-0 right-0 z-50 px-4 py-3 flex flex-col">
+  <div class="flex items-center justify-between gap-2">
   <div class="flex items-center gap-1 flex-wrap">
     <button type="button" id="railHomeBtn" onclick="goToHomePage()" class="side-rail-btn hidden" title="صفحه نخست">
       <svg class="side-rail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5 12 4l8 7.5"/><path d="M6 10v9a1 1 0 0 0 1 1h4v-5h2v5h4a1 1 0 0 0 1-1v-9"/></svg>
@@ -140,6 +141,17 @@
         <button type="button" onclick="closeUserProfilePreview()" class="flex-1 font-bold px-3 py-2 rounded-xl text-xs" style="background:var(--bg-secondary);color:var(--text-main);border:1px solid var(--border-subtle);">بستن</button>
       </div>
     </div>
+  </div>
+  </div>
+
+  <!-- Admin-published platform-wide alert (see announcements.py /
+       loadSystemAnnouncement() in app.js) -- grows header-bar's own height,
+       which every openXPage()'s `headerEl.offsetHeight + 16` content
+       padding already measures live, so nothing else needs to account for
+       it appearing/disappearing. -->
+  <div id="systemAnnouncementBanner" class="hidden items-start justify-between gap-3 px-1 pb-2 pt-1 text-xs font-bold" style="color:var(--text-main);border-top:1px solid var(--border-subtle);margin-top:.5rem;">
+    <span>⚠️ <span id="systemAnnouncementText"></span></span>
+    <button type="button" onclick="dismissSystemAnnouncement()" class="shrink-0 font-black px-2" style="color:var(--text-muted);" title="بستن">✕</button>
   </div>
 </div>
 
@@ -1553,6 +1565,22 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
         <div class="flex items-center justify-between mb-6">
             <h2 class="text-2xl font-black" style="color:var(--text-main);">پنل مدیریت</h2>
             <button type="button" onclick="adminLogout()" class="text-sm font-bold px-4 py-2 rounded-lg" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">خروج</button>
+        </div>
+
+        <!-- Platform-wide alert banner publisher (see announcements.py /
+             publishSystemAnnouncement() in app.js) -- shown at the top of
+             پنل مدیریت regardless of tab, since it isn't CRM- or
+             users-specific. -->
+        <div class="workspace-panel p-5 mb-6">
+            <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+                <h3 class="text-sm font-black" style="color:var(--text-main);">اعلان سراسری (نمایش در داشبورد همه کاربران)</h3>
+                <span id="adminAnnouncementStatus" class="text-xs font-bold" style="color:var(--text-muted);">در حال بارگذاری...</span>
+            </div>
+            <textarea id="adminAnnouncementInput" rows="2" placeholder="متن اعلان را اینجا بنویسید..." class="auth-input text-sm w-full mb-3" style="resize:vertical;"></textarea>
+            <div class="flex gap-2 flex-wrap">
+                <button type="button" onclick="publishSystemAnnouncement()" class="text-sm font-bold px-4 py-2 rounded-lg" style="background:var(--accent);color:var(--btn-text-on-accent);">انتشار اعلان</button>
+                <button type="button" onclick="clearSystemAnnouncement()" class="text-sm font-bold px-4 py-2 rounded-lg" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">پاک کردن اعلان فعال</button>
+            </div>
         </div>
 
         <!-- Tabs for Admin Dashboard -->
