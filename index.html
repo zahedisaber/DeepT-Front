@@ -149,9 +149,9 @@
        which every openXPage()'s `headerEl.offsetHeight + 16` content
        padding already measures live, so nothing else needs to account for
        it appearing/disappearing. -->
-  <div id="systemAnnouncementBanner" class="hidden items-start justify-between gap-3 px-1 pb-2 pt-1 text-xs font-bold" style="color:var(--text-main);border-top:1px solid var(--border-subtle);margin-top:.5rem;">
+  <div id="systemAnnouncementBanner" class="hidden items-start justify-between gap-3 px-3 py-2 text-xs font-bold" style="color:var(--alert-text);background:var(--alert-bg);border:1px solid var(--alert-border);border-radius:.6rem;margin-top:.5rem;">
     <span>⚠️ <span id="systemAnnouncementText"></span></span>
-    <button type="button" onclick="dismissSystemAnnouncement()" class="shrink-0 font-black px-2" style="color:var(--text-muted);" title="بستن">✕</button>
+    <button type="button" onclick="dismissSystemAnnouncement()" class="shrink-0 font-black px-2" style="color:var(--alert-text);opacity:.75;" title="بستن">✕</button>
   </div>
 </div>
 

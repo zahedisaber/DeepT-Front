@@ -75,6 +75,9 @@
     --modal-overlay: rgba(0,0,0,0.85);
     --toast-bg: #111;
     --toast-border: rgba(0,255,255,0.4);
+    --alert-bg: rgba(245,158,11,0.14);
+    --alert-border: rgba(245,158,11,0.4);
+    --alert-text: #fbbf24;
 
     /* Landing namespace */
     --bg:          #0c0c0e;
@@ -118,6 +121,9 @@
     --modal-overlay: rgba(15,27,42,0.7);
     --toast-bg: #fff;
     --toast-border: rgba(3,105,161,0.35);
+    --alert-bg: rgba(217,119,6,0.12);
+    --alert-border: rgba(217,119,6,0.35);
+    --alert-text: #b45309;
 
     --bg:          #f4f6fb;
     --bg2:         #eceef5;
