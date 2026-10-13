@@ -49,6 +49,11 @@ const DOCUMENT_REGISTRY = {
         endpoint: `${BACKEND}/api/translate/notary-deed`,
         active:              true,
         usePassportSession:  true,
+        // Notary deed scans run large (multi-page, high-res) and were
+        // failing after all 3 direct-upload attempts with no fallback
+        // (DeepT-Back-End now accepts upload_id here too -- see
+        // notary_deed.py's handle_notary_translation).
+        chunkedUpload:       true,
     },
     'academic-transcript': {
         label:               'ریزنمرات علوم پزشکی',
