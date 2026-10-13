@@ -6,9 +6,11 @@
    / client-profile / admin-CRM, Sanam import, wallet+Shaparak, date tool,
    quick-start (no-signup), SPA routing (404.html redirect -> applyRouteForPath).
 
-   INTEGRATION CONTRACTS (do not change without a matching backend change):
-     CORE            -> https://core.deept.ir  (auth/wallet/jobs/clients/invoices)
-     BACKEND         -> https://backend.deept.ir (translation + passport)
+   This branch (backup-site) points at the isolated backup.deept.ir
+   deployment's own backend/core, kept separate from production so this
+   site never touches real production data or load:
+     CORE            -> https://core-backup.deept.ir  (auth/wallet/jobs/clients/invoices)
+     BACKEND         -> https://backend-backup.deept.ir (translation + passport)
      X-Service-Secret -> INTERNAL_SERVICE_SECRET (service-to-service, BackEnd side)
    State is persisted in localStorage under the deept_* keys (see SESSION section).
 /* ============ CONFIGURATION & BACKEND ENDPOINTS ============ Core = auth/wallet/jobs/clients/invoices; BackEnd = translation + passport.
@@ -17,8 +19,8 @@
 // const CORE    = 'http://127.0.0.1:8001';
 // const BACKEND = 'http://127.0.0.1:8000';
 
-const CORE    = 'https://core.deept.ir';
-const BACKEND = 'https://backend.deept.ir';
+const CORE    = 'https://core-backup.deept.ir';
+const BACKEND = 'https://backend-backup.deept.ir';
 
 // ═══════════════════════════════════════════════════════════
 // DOCUMENT REGISTRY
@@ -5992,7 +5994,7 @@ async function uploadFileInChunks(file, onProgress) {
         let succeeded = false;
         for (let attempt = 1; attempt <= MAX_RETRIES_PER_CHUNK; attempt++) {
             try {
-                const res = await fetch('https://backend.deept.ir/upload/chunk', {
+                const res = await fetch(`${BACKEND}/upload/chunk`, {
                     method: 'POST',
                     body: fd,
                 });
