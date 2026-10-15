@@ -1125,7 +1125,21 @@ const DP_DOCS = [
         { key:"notary_certification_statement", label:"با احراز هویت طرفین، اینجانب سردفتر گواهی می‌نمایم که کلیه مندرجات این سند در حضور اینجانب تنظیم گردیده است. امضا، مهر و منگنه شده توسط {{notary_name}}، سردفتر اسناد رسمی شماره {{notary_office}} {{notary_loc}}.", kind:"complex",
           tokens:[{key:"notary_name",label:"نام سردفتر"},{key:"notary_loc",label:"محل دفترخانه"},{key:"notary_office",label:"شماره دفترخانه"}],
           def:"Having ascertained of the parties' identities, I, the notary public, certify that all written contents of this deed were drawn up before me. Signed, sealed and embossed by {{notary_name}}, {{notary_loc}} Notary Public No. {{notary_office}}." },
-    ]},
+    ],
+      // Fixed term equivalents for DeepT-Back-End's notary_deed.py -- its
+      // DEFAULT_TERM_GLOSSARY, keep the two in sync. Applied everywhere in
+      // the deed (roles, title, table cells, legal text); a translator can
+      // change, delete or add terms, saved as term_glossary["notary_deed"].
+      glossary: {
+        hint: 'واژه‌هایی که در سراسر سند دفترخانه (نقش طرفین، عنوان سند، جدول‌ها و متن سند) همیشه به همین معادل انگلیسی ترجمه می‌شوند. معادل هر واژه را ویرایش یا حذف کنید، یا واژهٔ جدید اضافه کنید.',
+        defaults: {
+          "موکل": "Principal",
+          "وکالتنامه": "Power of Attorney",
+          "عقد خارج لازم": "Separate binding contract",
+          "متعهد": "Affiant",
+          "متعهد له": "Beneficiary",
+          "روبروی": "across from",
+      } } },
     { id:"academic_transcript", label:"ریزنمرات دانشگاهی", full:false, fields:[],
       // Open-ended Persian-term -> English-equivalent glossary (course
       // names DeepT-Back-End's academic_transcript.py always translates
@@ -1272,6 +1286,10 @@ let dpCurrentDoc = DP_DOCS[0].id;
 let dpGlossaryServer = {};  // {doc_type: {persian_term: english}} -- last known saved state, from GET
 let dpGlossaryDraft = {};   // {doc_type: {persian_term: english}} -- unsaved edits
 let dpGlossarySearch = '';  // current client-side filter text for the glossary table
+// Draft marker for "delete this BUILT-IN term" -- saved as "" (DeepT-Back-End's
+// doc_prefs.get_term_glossary() drops a default term saved as ""). Distinct
+// from a draft of '', which means "clear my override" and is sent as null.
+const DP_GLOSSARY_REMOVED = '\u0000removed';
 
 /* ============ SECTION: DOCUMENT-PHRASE OVERRIDES ============
    Per-document-type phrase catalog (PATCH /users/me/preferences merge,
@@ -1667,7 +1685,10 @@ async function saveCurrentDocumentSettings(){
     if (doc.glossary){
         const changes = dpGlossaryDraft[doc.id] || {};
         const toSend = {};
-        for (const term in changes) toSend[term] = changes[term] === '' ? null : changes[term];
+        for (const term in changes){
+            const v = changes[term];
+            toSend[term] = v === DP_GLOSSARY_REMOVED ? '' : (v === '' ? null : v);
+        }
         if (Object.keys(toSend).length) body.term_glossary = { [doc.id]: toSend };
     }
 
@@ -1750,19 +1771,61 @@ function dpGlossaryRows(doc){
     const rows = [];
     terms.forEach(term => {
         const isDefault = Object.prototype.hasOwnProperty.call(defaults, term);
-        let value;
-        if (draft[term] !== undefined) value = draft[term];
-        else if (server[term] !== undefined) value = server[term];
-        else value = defaults[term];
-        const savedVal = server[term] !== undefined ? server[term] : (isDefault ? defaults[term] : undefined);
-        const dirty = draft[term] !== undefined && draft[term] !== savedVal;
-        rows.push({ term, value, isDefault, dirty, hasOverride: server[term] !== undefined });
+        const savedVal = dpGlossarySavedValue(doc, term);
+        const pending = draft[term] !== undefined ? dpGlossaryResolve(doc, term, draft[term]) : savedVal;
+        // A built-in term saved (or about to be saved) as "" is deleted:
+        // it stays listed, struck through, so it can be restored.
+        const removed = isDefault && pending === '';
+        // Shown value: what the term will be once saved (a reset shows the
+        // default it goes back to right away).
+        const value = removed ? '' : (pending !== undefined ? pending : '');
+        const dirty = draft[term] !== undefined;
+        rows.push({ term, value, isDefault, removed, dirty,
+                    hasOverride: server[term] !== undefined && server[term] !== '' });
     });
     rows.sort((a, b) => a.term.localeCompare(b.term, 'fa'));
     return rows;
 }
 
+// What a term is saved as right now: the translator's saved entry ("" = a
+// deleted built-in term), else the document type's own default.
+function dpGlossarySavedValue(doc, term){
+    const server = dpGlossaryServer[doc.id] || {};
+    if (server[term] !== undefined) return server[term];
+    const defaults = doc.glossary.defaults || {};
+    return Object.prototype.hasOwnProperty.call(defaults, term) ? defaults[term] : undefined;
+}
+
+// What a term would be saved as once a draft value is sent: the removed
+// marker -> "", '' -> override cleared (back to the default, if any).
+function dpGlossaryResolve(doc, term, draftVal){
+    if (draftVal === DP_GLOSSARY_REMOVED) return '';
+    if (draftVal === ''){
+        const defaults = doc.glossary.defaults || {};
+        return Object.prototype.hasOwnProperty.call(defaults, term) ? defaults[term] : undefined;
+    }
+    return draftVal;
+}
+
+function dpGlossaryButton(label, dataKey, term, disabled){
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'text-[10px] font-bold px-2 py-1 rounded-md shrink-0';
+    btn.style.cssText = 'background:var(--panel-bg);color:var(--text-muted);border:1px solid var(--border-subtle);';
+    btn.dataset[dataKey] = term;
+    btn.textContent = label;
+    btn.disabled = !!disabled;
+    return btn;
+}
+
 function renderTermGlossary(doc){
+    const hint = document.getElementById('dp-glossary-hint');
+    if (hint){
+        // The markup's own text is the course-name wording the transcript
+        // glossaries use; a document type can give its own (glossary.hint).
+        if (hint.dataset.defaultHint === undefined) hint.dataset.defaultHint = hint.textContent;
+        hint.textContent = doc.glossary.hint || hint.dataset.defaultHint;
+    }
     const rowsEl = document.getElementById('dp-glossary-rows');
     rowsEl.innerHTML = '';
     const q = dpGlossarySearch.trim();
@@ -1787,7 +1850,7 @@ function renderTermGlossary(doc){
 
         const termLabel = document.createElement('div');
         termLabel.className = 'text-xs font-bold shrink-0';
-        termLabel.style.cssText = 'color:var(--text-main);width:9rem;';
+        termLabel.style.cssText = 'color:var(--text-main);width:9rem;' + (r.removed ? 'text-decoration:line-through;opacity:.55;' : '');
         termLabel.textContent = r.term;
         row.appendChild(termLabel);
 
@@ -1798,29 +1861,31 @@ function renderTermGlossary(doc){
         input.dir = 'ltr';
         input.value = r.value;
         input.dataset.dpGlossaryInput = r.term;
+        if (r.removed){
+            input.disabled = true;
+            input.dir = 'rtl';
+            input.placeholder = 'حذف شده — در ترجمه اعمال نمی‌شود';
+        }
         row.appendChild(input);
 
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'text-[10px] font-bold px-2 py-1 rounded-md shrink-0';
-        btn.style.cssText = 'background:var(--panel-bg);color:var(--text-muted);border:1px solid var(--border-subtle);';
-        btn.dataset.dpGlossaryRemove = r.term;
-        btn.textContent = r.isDefault ? '↺ بازنشانی' : '🗑 حذف';
-        // Nothing to undo on an untouched default term: no saved override,
-        // no pending edit.
-        btn.disabled = !r.dirty && !r.hasOverride;
-        row.appendChild(btn);
+        if (!r.isDefault){
+            row.appendChild(dpGlossaryButton('🗑 حذف', 'dpGlossaryRemove', r.term));
+        } else if (r.removed){
+            row.appendChild(dpGlossaryButton('↺ بازگرداندن', 'dpGlossaryRestore', r.term));
+        } else {
+            // Nothing to reset on an untouched default term: no saved
+            // override, no pending edit.
+            row.appendChild(dpGlossaryButton('↺ بازنشانی', 'dpGlossaryRestore', r.term, !r.dirty && !r.hasOverride));
+            row.appendChild(dpGlossaryButton('🗑 حذف', 'dpGlossaryDelete', r.term));
+        }
 
         rowsEl.appendChild(row);
     });
 }
 
 function dpCommitGlossaryTerm(doc, term, newValue){
-    const server = dpGlossaryServer[doc.id] || {};
-    const isDefault = Object.prototype.hasOwnProperty.call(doc.glossary.defaults, term);
-    const savedVal = server[term] !== undefined ? server[term] : (isDefault ? doc.glossary.defaults[term] : undefined);
     if (!dpGlossaryDraft[doc.id]) dpGlossaryDraft[doc.id] = {};
-    if (newValue === savedVal){
+    if (dpGlossaryResolve(doc, term, newValue) === dpGlossarySavedValue(doc, term)){
         delete dpGlossaryDraft[doc.id][term];
         if (Object.keys(dpGlossaryDraft[doc.id]).length === 0) delete dpGlossaryDraft[doc.id];
     } else {
@@ -1846,10 +1911,21 @@ document.addEventListener('input', (e) => {
 });
 
 document.addEventListener('click', (e) => {
-    const removeBtn = e.target.closest('[data-dp-glossary-remove]');
+    // 🗑 on a translator-added term, and ↺ on a built-in one, both clear
+    // the translator's own entry (sent as null). 🗑 on a built-in term
+    // marks it deleted (sent as "").
+    const removeBtn = e.target.closest('[data-dp-glossary-remove], [data-dp-glossary-restore]');
     if (removeBtn){
         const doc = DP_DOCS.find(d => d.id === dpCurrentDoc);
-        dpCommitGlossaryTerm(doc, removeBtn.dataset.dpGlossaryRemove, '');
+        const term = removeBtn.dataset.dpGlossaryRemove || removeBtn.dataset.dpGlossaryRestore;
+        dpCommitGlossaryTerm(doc, term, '');
+        renderTermGlossary(doc);
+        return;
+    }
+    const deleteBtn = e.target.closest('[data-dp-glossary-delete]');
+    if (deleteBtn){
+        const doc = DP_DOCS.find(d => d.id === dpCurrentDoc);
+        dpCommitGlossaryTerm(doc, deleteBtn.dataset.dpGlossaryDelete, DP_GLOSSARY_REMOVED);
         renderTermGlossary(doc);
         return;
     }
