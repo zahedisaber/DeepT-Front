@@ -1277,7 +1277,9 @@ let dpGlossarySearch = '';  // current client-side filter text for the glossary 
    Per-document-type phrase catalog (PATCH /users/me/preferences merge,
    {{token}} chips are JS-rendered units, never raw braces). ============ */
 function dpEffectiveValue(docId, key, def){
-    if (dpDraft[docId] && dpDraft[docId][key] !== undefined) return dpDraft[docId][key];
+    // A '' draft means "clear the saved override" (sent as null on save),
+    // so the editor shows the default text it will fall back to.
+    if (dpDraft[docId] && dpDraft[docId][key] !== undefined) return dpDraft[docId][key] === '' ? def : dpDraft[docId][key];
     if (dpServerPhrases[docId] && dpServerPhrases[docId][key] !== undefined) return dpServerPhrases[docId][key];
     return def;
 }
@@ -1586,7 +1588,16 @@ document.addEventListener('click', (e) => {
     const resetBtn = e.target.closest('[data-dp-reset]');
     if (resetBtn){
         const doc = DP_DOCS.find(d => d.id === dpCurrentDoc);
-        if (dpDraft[doc.id]) delete dpDraft[doc.id][resetBtn.dataset.dpReset];
+        const key = resetBtn.dataset.dpReset;
+        if (dpServerPhrases[doc.id] && dpServerPhrases[doc.id][key] != null){
+            // A saved override exists -- dropping the draft alone would just
+            // bring that saved text back, never the default. Queue clearing it.
+            if (!dpDraft[doc.id]) dpDraft[doc.id] = {};
+            dpDraft[doc.id][key] = '';
+        } else if (dpDraft[doc.id]) {
+            delete dpDraft[doc.id][key];
+            if (Object.keys(dpDraft[doc.id]).length === 0) delete dpDraft[doc.id];
+        }
         renderDocumentPhrases();
         return;
     }
@@ -1655,7 +1666,7 @@ async function saveCurrentDocumentSettings(){
         // warning) so the translator can keep fixing it.
         for (const key in changes){
             const f = doc.fields.find(f => f.key === key);
-            if (f.kind === 'complex' && !dpCheckComplex(changes[key], f.tokens).valid){
+            if (f.kind === 'complex' && changes[key] !== '' && !dpCheckComplex(changes[key], f.tokens).valid){
                 blockedCount++;
                 continue;
             }
