@@ -122,6 +122,15 @@ const DOCUMENT_REGISTRY = {
         active:              true,
         usePassportSession:  true,
     },
+    'insurance-wage-record': {
+        label:               'سوابق پرداخت حق بیمه و ریز دستمزد - تامین اجتماعی',
+        // Days worked and wage per month for every workshop-year (see
+        // insurance_wage_record.py on DeepT-Back-End). The backend matches
+        // passport sessions to the insured person (name + date of birth).
+        endpoint: `${BACKEND}/api/translate/insurance-wage-record`,
+        active:              true,
+        usePassportSession:  true,
+    },
     'building-permit': {
         label:               'پروانه های ساختمانی',
         endpoint: `${BACKEND}/api/translate/building-permit`,
