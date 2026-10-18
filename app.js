@@ -991,7 +991,18 @@ async function saveProfileConfiguration() {
         currentUserSession.office  = data.office_name || '';
         currentUserSession.contact = data.contact_info || '';
         syncUserSessionDOM();
-        showToast('✅ پروفایل بروزرسانی شد.');
+        // office_bonus_status is only ever present the ONE time account_type
+        // actually transitions to "office" (see auth.py's
+        // _maybe_grant_office_bonus) -- null on every other save, including
+        // a translator who's already an office account editing their name.
+        if (data.office_bonus_status === 'granted') {
+            showToast('✅ پروفایل بروزرسانی شد. ۲۰۰,۰۰۰ تومان اعتبار هدیه ثبت‌نام دارالترجمه به کیف پول شما اضافه شد!', 4000);
+            refreshWalletBalanceDisplay();
+        } else if (data.office_bonus_status === 'held_for_review') {
+            showToast('✅ پروفایل بروزرسانی شد. اعتبار هدیه ثبت‌نام دارالترجمه شما در حال بررسی توسط تیم دیپتی است.', 4000);
+        } else {
+            showToast('✅ پروفایل بروزرسانی شد.');
+        }
     } catch (e) {
         showToast('❌ خطا در ذخیره پروفایل: ' + e.message);
     } finally {
@@ -6930,8 +6941,67 @@ async function loadAdminUsers() {
         const searchInput = document.getElementById('adminUserSearchInput');
         if (searchInput) searchInput.value = '';
         renderAdminUsersRows(adminUsersCache);
+        renderPendingBonusRequests(adminUsersCache);
     } catch (e) {
         tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در اتصال.</td></tr>`;
+    }
+}
+
+// ── Office-signup bonus review (پنل مدیریت) ─────────────────────────────────
+// Lists accounts _maybe_grant_office_bonus (auth.py) held instead of
+// auto-crediting -- their signup_ip or normalized email matched an
+// account that already got the OFFICE_SIGNUP_BONUS_TOMAN bonus. Never
+// auto-blocked server-side; this is where a human decides.
+function renderPendingBonusRequests(users) {
+    const panel = document.getElementById('adminPendingBonusPanel');
+    const rows = document.getElementById('adminPendingBonusRows');
+    const pending = users.filter(u => u.office_bonus_status === 'held_for_review');
+    if (!pending.length) { panel.classList.add('hidden'); return; }
+
+    panel.classList.remove('hidden');
+    rows.innerHTML = pending.map(u => `
+        <div class="flex items-center justify-between gap-3 flex-wrap text-sm py-2" style="border-bottom:1px solid var(--divider);">
+            <div class="min-w-0">
+                <span class="font-bold en" dir="ltr" style="color:var(--text-main);">${escapeHtml(u.email)}</span>
+                <span style="color:var(--text-muted);"> — ${escapeHtml(u.full_name || '')}</span>
+                <span class="text-xs en block" dir="ltr" style="color:var(--text-muted);">IP: ${escapeHtml(u.signup_ip || 'نامشخص')}</span>
+            </div>
+            <div class="flex gap-2 shrink-0">
+                <button type="button" onclick="approveOfficeBonus('${u.user_id}')" class="text-xs font-bold px-3 py-1.5 rounded-lg" style="background:var(--accent);color:var(--btn-text-on-accent);">تایید اعتبار</button>
+                <button type="button" onclick="denyOfficeBonus('${u.user_id}')" class="text-xs font-bold px-3 py-1.5 rounded-lg" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">رد</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function approveOfficeBonus(userId) {
+    const token = localStorage.getItem('deept_token');
+    try {
+        const res = await fetch(`${CORE}/auth/admin/office-bonus/${userId}/approve`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || 'خطای سرور'); }
+        showToast('✅ اعتبار دفتر تایید و به کیف پول کاربر اضافه شد.');
+        loadAdminUsers();
+    } catch (e) {
+        showToast(`❌ ${e.message || 'تایید اعتبار ناموفق بود.'}`);
+    }
+}
+
+async function denyOfficeBonus(userId) {
+    if (!confirm('درخواست اعتبار دفتر این کاربر رد شود؟')) return;
+    const token = localStorage.getItem('deept_token');
+    try {
+        const res = await fetch(`${CORE}/auth/admin/office-bonus/${userId}/deny`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || 'خطای سرور'); }
+        showToast('اعتبار دفتر رد شد.');
+        loadAdminUsers();
+    } catch (e) {
+        showToast(`❌ ${e.message || 'رد درخواست ناموفق بود.'}`);
     }
 }
 

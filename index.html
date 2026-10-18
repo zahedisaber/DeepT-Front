@@ -1594,6 +1594,15 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
         </div>
         <div class="flex gap-2 border-b mb-6" style="border-color: var(--divider);">
 
+        <!-- Office-signup bonus requests held for review (see auth.py's
+             _maybe_grant_office_bonus) -- a new office account whose
+             signup_ip or normalized email matches an account that already
+             got the bonus. Hidden whenever there's nothing pending. -->
+        <div id="adminPendingBonusPanel" class="workspace-panel p-5 mb-6 hidden">
+            <h3 class="text-sm font-black mb-3" style="color:var(--alert-text);">⚠️ درخواست‌های اعتبار دفتر در انتظار بررسی</h3>
+            <div id="adminPendingBonusRows" class="flex flex-col gap-2"></div>
+        </div>
+
         <div id="adminUsersPanel" class="workspace-panel p-6 mb-6">
             <div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
                 <h3 class="text-base font-black" style="color:var(--text-main);">لیست کاربران</h3>
