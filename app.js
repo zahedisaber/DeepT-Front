@@ -957,6 +957,14 @@ async function saveProfileConfiguration() {
     const contact = document.getElementById('profileContactInput').value;
     const office  = type === 'office' ? document.getElementById('officeNameInput').value : '';
 
+    // Mirrors auth.py's update_profile() requirement: an office account needs
+    // a real office name/license number and a way to reach them, so catch it
+    // here instead of making the user wait for the server's 400.
+    if (type === 'office' && (!office.trim() || !contact.trim())) {
+        showToast('❌ برای ثبت به عنوان دارالترجمه، وارد کردن نام/شماره پروانه دفتر و شماره تماس الزامی است.');
+        return;
+    }
+
     // Test/mock session (see initializeApp()'s ?test=1 handling) has no
     // real account behind it to PATCH -- keep the old localStorage-only
     // behavior for it.
