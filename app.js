@@ -2346,12 +2346,37 @@ function printMyPriceList() {
 // ═══════════════════════════════════════════════════════════
 /* ============ SECTION: WALLET, PAYMENT & SUPPORT ============
    Shaparak gateway redirect + wallet balance refresh + support tickets. ============ */
-function triggerShaparakPayment() {
-    // Real payment isn't live yet -- during the trial, credit is added
-    // manually by the admin. No self-service top-up exists on the frontend
-    // at all right now; this replaces the old fake simulator, which showed
-    // a fabricated number disconnected from the real backend balance.
-    showToast('برای افزایش اعتبار با پشتیبانی تماس بگیرید.');
+const MIN_TOPUP_TOMAN = 25000;
+
+async function triggerShaparakPayment() {
+    if (!currentUserSession) { openAuthModal(); return; }
+    const amountEl = document.getElementById('paymentAmountInput');
+    if (!amountEl) {
+        // The home dashboard's quick "افزایش اعتبار" shortcut has no amount
+        // field of its own -- send the user to the workspace wallet panel,
+        // where paymentAmountInput lives next to the real "درگاه" button.
+        openWorkspaceDashboard();
+        return;
+    }
+    const amount = parseInt(amountEl.value, 10);
+    if (!amount || amount < MIN_TOPUP_TOMAN) {
+        showToast(`❌ حداقل مبلغ شارژ ${MIN_TOPUP_TOMAN.toLocaleString()} تومان است.`);
+        return;
+    }
+    const token = getToken();
+    if (!token) { openAuthModal(); return; }
+    try {
+        const res = await fetch(`${CORE}/wallet/topup/initiate`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ amount_toman: amount })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || 'خطای درگاه پرداخت');
+        window.location.href = data.payment_url;
+    } catch (e) {
+        showToast('❌ خطا در اتصال به درگاه پرداخت: ' + e.message);
+    }
 }
 
 async function refreshWalletBalanceDisplay() {
@@ -6340,6 +6365,19 @@ let pendingResetToken = null;
     const resetToken = params.get('reset_token');
     if (resetToken) {
         openResetPassword(resetToken);
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+    // Wallet top-up redirect (from DeepT-Core's GET /wallet/topup/callback,
+    // after Zibal confirms or denies the payment) -- same redirect-with-flag
+    // pattern as the activation/reset-token links above.
+    const topupStatus = params.get('topup');
+    if (topupStatus === 'success') {
+        const amt = parseInt(params.get('amount'), 10);
+        showToast(amt ? `✅ کیف پول شما به مبلغ ${amt.toLocaleString()} تومان شارژ شد.` : '✅ شارژ کیف پول با موفقیت انجام شد.', 4000);
+        refreshWalletBalanceDisplay();
+        window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (topupStatus === 'failed') {
+        showToast('❌ پرداخت ناموفق بود یا لغو شد.');
         window.history.replaceState({}, document.title, window.location.pathname);
     }
 })();
