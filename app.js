@@ -92,6 +92,16 @@ const DOCUMENT_REGISTRY = {
         active:              true,
         usePassportSession:  true,
     },
+    'azad-provisional-transcript': {
+        label:               'ریزنمرات موقت دانشگاه آزاد اسلامی',
+        // Provisional transcript printout: semester blocks read from
+        // enlarged crops (see azad_provisional_transcript.py on
+        // DeepT-Back-End). Passport sessions are matched to the student.
+        endpoint: `${BACKEND}/api/translate/azad-provisional-transcript`,
+        active:              true,
+        usePassportSession:  true,
+        courseCodesToggle:   true,
+    },
     'general-transcript': {
         label:               'ریزنمرات سیستم گلستان',
         endpoint: `${BACKEND}/api/translate/general-transcript`,
@@ -1250,6 +1260,16 @@ const DP_DOCS = [
       // extraction model, not a post-processing substitution -- see
       // azad_transcript.py's DEFAULT_COURSE_NAME_GLOSSARY), same
       // renderTermGlossary() UI as academic_transcript's glossary below.
+      glossary: { defaults: {
+          "روستا": "Rural Architecture",
+          "دفاع مقدس": "Iran-Iraq War",
+      } },
+    },
+    { id:"azad_provisional_transcript", label:"ریزنمرات موقت دانشگاه آزاد", full:true, fields:[],
+      // Same course-name glossary as azad_transcript (the provisional
+      // transcript's prompt uses azad_transcript.py's
+      // DEFAULT_COURSE_NAME_GLOSSARY), saved separately as
+      // term_glossary["azad_provisional_transcript"].
       glossary: { defaults: {
           "روستا": "Rural Architecture",
           "دفاع مقدس": "Iran-Iraq War",
