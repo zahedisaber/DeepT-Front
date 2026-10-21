@@ -1670,6 +1670,26 @@ document.addEventListener('click', (e) => {
     }
 });
 
+// Saved overrides that are word-for-word an old default wording were never
+// real customizations -- show (and let the backend print) the current
+// default instead. Mirrors _NOTE_2_OLD_DEFAULT in DeepT-Back-End's
+// police_certificate.py.
+const DP_STALE_DEFAULTS = {
+    police_certificate: {
+        note_2: "2. This certificate was issued electronically by inspecting the existing records in accordance with Note 2 of Article 10 of the mentioned By-law. Authenticity can be verified for two months at www.adliran.ir.",
+    },
+};
+
+function dpDropStaleDefaults(phrases){
+    for (const docId in DP_STALE_DEFAULTS){
+        const saved = phrases[docId];
+        if (!saved) continue;
+        for (const key in DP_STALE_DEFAULTS[docId]){
+            if (typeof saved[key] === 'string' && saved[key].trim() === DP_STALE_DEFAULTS[docId][key]) delete saved[key];
+        }
+    }
+}
+
 async function loadDocumentPhrasesCatalog(){
     populateDocSelect();
     if (!currentUserSession) { renderDocumentPhrases(); return; }
@@ -1680,6 +1700,7 @@ async function loadDocumentPhrasesCatalog(){
         const p = await res.json();
         dpServerPhrases = p.document_phrases || {};
         dpGlossaryServer = p.term_glossary || {};
+        dpDropStaleDefaults(dpServerPhrases);
     } catch (e) {
         dpServerPhrases = {};
         dpGlossaryServer = {};
@@ -1755,6 +1776,7 @@ async function saveCurrentDocumentSettings(){
         let savedCount = 0;
         if (body.document_phrases){
             dpServerPhrases = p.document_phrases || {};
+            dpDropStaleDefaults(dpServerPhrases);
             // Only the fields actually sent (the valid ones) are cleared
             // from the draft -- a blocked complex field stays in draft,
             // with its warning, even though the rest of this save succeeded.
