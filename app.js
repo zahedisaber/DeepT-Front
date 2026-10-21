@@ -2399,6 +2399,69 @@ async function triggerShaparakPayment() {
     }
 }
 
+// Card-to-card (Cartbecart, see DeepT-Core's cardtocard.py): the user
+// transfers an exact amount to the office's card from their own banking app;
+// the wallet is credited once the bank's SMS is matched. Same amount field
+// as the gateway; Cartbecart's own page shows the card and the exact amount.
+async function triggerCardToCardPayment() {
+    if (!currentUserSession) { openAuthModal(); return; }
+    const amountEl = document.getElementById('paymentAmountInput');
+    if (!amountEl) { openWorkspaceDashboard(); return; }
+    const amount = parseInt(amountEl.value, 10);
+    if (!amount || amount < MIN_TOPUP_TOMAN) {
+        showToast(`❌ حداقل مبلغ شارژ ${MIN_TOPUP_TOMAN.toLocaleString()} تومان است.`);
+        return;
+    }
+    const token = getToken();
+    if (!token) { openAuthModal(); return; }
+    try {
+        const res = await fetch(`${CORE}/wallet/topup/card/initiate`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ amount_toman: amount })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || 'خطای پرداخت کارت‌به‌کارت');
+        window.location.href = data.payment_url;
+    } catch (e) {
+        showToast('❌ ' + e.message);
+    }
+}
+
+// After card-to-card, the bank's SMS can take a while to be matched (and
+// a transfer that doesn't match exactly waits for the office to approve it
+// by hand) -- keep checking while the page is open, then tell the user.
+async function pollCardTopup(requestId, startedAt = Date.now()) {
+    const token = getToken();
+    if (!token) return;
+    try {
+        const res = await fetch(`${CORE}/wallet/topup/card/status/${encodeURIComponent(requestId)}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+            const data = await res.json();
+            if (data.status === 'paid') {
+                showToast(`✅ کیف پول شما به مبلغ ${Number(data.amount_toman).toLocaleString()} تومان شارژ شد.`, 5000);
+                refreshWalletBalanceDisplay();
+                return;
+            }
+            if (data.status === 'failed') {
+                showToast('❌ واریز کارت‌به‌کارت تأیید نشد یا مهلت آن تمام شد.', 5000);
+                return;
+            }
+            if (data.status === 'needs_review' && !pollCardTopup.reviewNoted) {
+                pollCardTopup.reviewNoted = true;
+                showToast('⏳ واریز شما دریافت شد و در حال بررسی است. پس از تأیید، کیف پول شارژ می‌شود.', 6000);
+            }
+        }
+    } catch (e) { /* transient network error -- just try again */ }
+    // Stop after 2 hours on this page; the server still credits the wallet
+    // whenever Cartbecart confirms, and the balance shows on the next visit.
+    if (Date.now() - startedAt < 2 * 60 * 60 * 1000) {
+        setTimeout(() => pollCardTopup(requestId, startedAt), 15000);
+    }
+}
+
 async function refreshWalletBalanceDisplay() {
     if (!currentUserSession) return;
     const token = localStorage.getItem('deept_token');
@@ -6399,6 +6462,12 @@ let pendingResetToken = null;
     } else if (topupStatus === 'failed') {
         showToast('❌ پرداخت ناموفق بود یا لغو شد.');
         window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (topupStatus === 'pending') {
+        // Card-to-card: back from Cartbecart's page before the transfer was matched.
+        const requestId = params.get('id');
+        showToast('⏳ پرداخت کارت‌به‌کارت شما در انتظار تأیید است. پس از تأیید، کیف پول خودکار شارژ می‌شود.', 6000);
+        window.history.replaceState({}, document.title, window.location.pathname);
+        if (requestId) pollCardTopup(requestId);
     }
 })();
 
