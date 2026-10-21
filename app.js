@@ -1139,7 +1139,7 @@ const DP_DOCS = [
         { key:"qr_caption", label:"زیرنویس کد QR", kind:"simple", def:"[Printed QR Code]" },
         { key:"postscript_label", label:"برچسب پی‌نوشت", kind:"simple", def:"Postscript:" },
         { key:"note_1", label:"پی‌نوشت ۱ — مادهٔ ۶۵۵", kind:"simple", def:"1. By the virtue of Article 655 of Criminal Procedure, the electronic copy of this certificate shall be valid and sufficient, and no seal is required." },
-        { key:"note_2", label:"پی‌نوشت ۲ — استعلام آنلاین", kind:"simple", def:"2. This certificate was issued electronically by inspecting the existing records in accordance with Note 2 of Article 10 of the mentioned By-law. Authenticity can be verified for two months at www.adliran.ir." },
+        { key:"note_2", label:"پی‌نوشت ۲ — استعلام آنلاین", kind:"simple", def:"2. This certificate was issued electronically by inspecting the existing records in accordance with Note 2 of Article 10 of the mentioned By-law and according to Article 25 of the Islamic Penal Code enacted in 2013. The certificate authenticity can be verified for two months since the issue date by visiting www.adliran.ir." },
         { key:"note_3", label:"پی‌نوشت ۳ — مبلغ پرداختی", kind:"complex",
           tokens:[{key:"amount",label:"مبلغ"},{key:"transaction_number",label:"شمارهٔ تراکنش"}],
           def:"3. A sum of {{amount}} Rials was received for electronic services through No. {{transaction_number}}." },
