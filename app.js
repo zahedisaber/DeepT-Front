@@ -2300,6 +2300,30 @@ async function submitSupportTicket() {
     }
 }
 
+async function submitTranslationFailureToSupport(jobId) {
+    const token = getToken();
+    if (!token) { openAuthModal(); return; }
+    const btn = document.getElementById(`sendToSupport-${jobId}`);
+    if (btn) { btn.disabled = true; btn.textContent = 'در حال ارسال...'; }
+    try {
+        const res = await fetch(`${CORE}/support/translation-failure`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ job_id: jobId })
+        });
+        if (res.ok) {
+            showToast('📩 سند شما برای ترجمه دستی به پشتیبانی ارسال شد.');
+            if (btn) { btn.textContent = 'ارسال شد ✓'; btn.disabled = true; }
+        } else {
+            showToast('❌ ارسال سند ناموفق بود. دوباره تلاش کنید.');
+            if (btn) { btn.disabled = false; btn.textContent = 'ارسال سند به پشتیبانی'; }
+        }
+    } catch (e) {
+        showToast('❌ ارسال سند ناموفق بود. اتصال خود را بررسی کنید.');
+        if (btn) { btn.disabled = false; btn.textContent = 'ارسال سند به پشتیبانی'; }
+    }
+}
+
 // ═══════════════════════════════════════════════════════════
 // WORKSPACE DASHBOARD
 // ═══════════════════════════════════════════════════════════
@@ -2569,7 +2593,7 @@ async function renderDashboardActiveProjects() {
         if (job.status === 'completed') {
             actionsHtml = `<button onclick="downloadJobResult('${job.id}')" class="font-bold hover:underline" style="color:var(--accent);">دانلود DOCX</button>`;
         } else if (job.status === 'failed') {
-                        actionsHtml = `<span style="color:#f87171;font-size:11px;">${escapeHtml(job.error_message) || 'خطا رخ داد'}</span>`;
+                        actionsHtml = `<button id="sendToSupport-${job.id}" onclick="submitTranslationFailureToSupport('${job.id}')" class="font-bold hover:underline" style="color:var(--accent);background:none;border:none;cursor:pointer;">ارسال سند به پشتیبانی</button>`;
         } else {
             actionsHtml = `<span style="color:var(--text-muted);">در حال پردازش...</span>`;
         }
