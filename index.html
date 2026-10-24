@@ -1674,6 +1674,9 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
             <button type="button" onclick="switchAdminTab('crm')" id="adminTabCrm" class="px-4 py-2 text-sm font-bold border-b-2 border-transparent transition-all duration-200" style="color: var(--text-muted); background: transparent;">
                 گزارشات و CRM
             </button>
+            <button type="button" onclick="switchAdminTab('failed')" id="adminTabFailed" class="px-4 py-2 text-sm font-bold border-b-2 border-transparent transition-all duration-200" style="color: var(--text-muted); background: transparent;">
+                اسناد ناموفق
+            </button>
         </div>
         <div class="flex gap-2 border-b mb-6" style="border-color: var(--divider);">
 
@@ -1801,6 +1804,7 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                         <option value="queued">در صف</option>
                         <option value="processing">در حال پردازش</option>
                         <option value="completed">تکمیل شده</option>
+                        <option value="support_translated">ترجمه شده توسط پشتیبانی</option>
                         <option value="failed">ناموفق</option>
                     </select>
                     <select id="crmDateFilter" class="auth-input text-sm w-36 py-2" onchange="applyCrmFilters()" style="background: var(--input-bg); color: var(--text-main); border-color: var(--input-border); border-radius: 0.5rem; padding: 0.5rem;">
@@ -1835,6 +1839,31 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                     </tbody>
                 </table>
             </div>
+        </div>
+
+        <!-- Failed Documents Panel (needs manual translation by support) -->
+        <div id="adminFailedDocsPanel" class="workspace-panel p-6 mb-6 hidden">
+            <div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
+                <h3 class="text-base font-black" style="color:var(--text-main);">اسناد ناموفق — نیازمند ترجمه توسط پشتیبانی</h3>
+                <button type="button" onclick="loadAdminFailedDocs()" class="text-sm font-bold px-4 py-2 rounded-lg" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">بروزرسانی</button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-right">
+                    <thead>
+                        <tr style="border-bottom:1px solid var(--divider);color:var(--text-muted);">
+                            <th class="py-3 px-3 font-bold">شناسه / نام سند</th>
+                            <th class="py-3 px-3 font-bold">نوع سند</th>
+                            <th class="py-3 px-3 font-bold text-center">تاریخ</th>
+                            <th class="py-3 px-3 font-bold text-center">عملیات</th>
+                        </tr>
+                    </thead>
+                    <tbody id="adminFailedDocsRowsBlock">
+                        <tr><td colspan="4" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <!-- Hidden file input used by the "ترجمه سند" button to upload the manual translation -->
+            <input type="file" id="supportTranslationFileInput" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="hidden" onchange="onSupportTranslationFileChosen(this)">
         </div>
 
         <div id="adminUserJobsPanel" class="workspace-panel p-6 hidden">
