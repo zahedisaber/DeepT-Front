@@ -2563,6 +2563,7 @@ async function renderDashboardActiveProjects() {
         processing: { text: 'در حال پردازش', color: '#fb923c' },
         completed:  { text: 'آماده',      color: '#4ade80' },
         support_translated: { text: 'ترجمه شده توسط پشتیبانی', color: '#4ade80' },
+        pending_support: { text: 'ارسال شده به پشتیبانی', color: '#60a5fa' },
         failed:     { text: 'ناموفق',     color: '#f87171' },
     };
 
@@ -2574,8 +2575,10 @@ async function renderDashboardActiveProjects() {
         let actionsHtml;
         if (job.status === 'completed' || job.status === 'support_translated') {
             actionsHtml = `<button onclick="downloadJobResult('${job.id}')" class="font-bold hover:underline" style="color:var(--accent);">دانلود DOCX</button>`;
-        } else if (job.status === 'failed') {
+        } else if (job.status === 'pending_support') {
                         actionsHtml = `<span style="color:var(--text-muted);font-size:11px;">در انتظار ترجمه توسط پشتیبانی</span>`;
+        } else if (job.status === 'failed') {
+                        actionsHtml = `<button onclick="submitJobToSupport('${job.id}')" class="font-bold hover:underline" style="color:var(--accent);background:none;border:none;cursor:pointer;">ارسال به پشتیبانی</button>`;
         } else {
             actionsHtml = `<span style="color:var(--text-muted);">در حال پردازش...</span>`;
         }
@@ -5106,6 +5109,25 @@ function purgeFile(idx) {
         showToast('🗑️ فایل حذف شد.');
     }
 }
+
+async function submitJobToSupport(jobId) {
+    const token = getToken();
+    if (!token) { openAuthModal(); return; }
+    try {
+        const res = await fetch(`${CORE}/jobs/${jobId}/send-to-support`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+            showToast('📩 سند برای ترجمه دستی به پشتیبانی ارسال شد.');
+            await renderDashboardActiveProjects();
+        } else {
+            showToast('❌ ارسال سند به پشتیبانی ناموفق بود. دوباره تلاش کنید.');
+        }
+    } catch (e) {
+        showToast('❌ ارسال سند به پشتیبانی ناموفق بود. اتصال خود را بررسی کنید.');
+    }
+}
 // Runs regardless of which view is open (not just while میز کار is
 // visible) so a job-complete notification can fire even when the user is
 // elsewhere in the app; renderDashboardActiveProjects() itself guards on
@@ -7186,6 +7208,8 @@ function switchAdminTab(tab) {
     }
 }
 
+let adminFailedDocsCache = [];
+
 async function loadAdminFailedDocs() {
     const token = localStorage.getItem('deept_token');
     const tbody = document.getElementById('adminFailedDocsRowsBlock');
@@ -7195,8 +7219,8 @@ async function loadAdminFailedDocs() {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!res.ok) throw new Error('failed_load');
-        const jobs = await res.json();
-        renderAdminFailedDocs(jobs);
+        adminFailedDocsCache = await res.json();
+        renderAdminFailedDocs(adminFailedDocsCache);
     } catch (e) {
         if (tbody) tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در بارگذاری اسناد ناموفق.</td></tr>`;
         showToast('خطا در بارگذاری اسناد ناموفق');
@@ -7217,9 +7241,12 @@ function renderAdminFailedDocs(jobs) {
         const fname = escapeHtml(j.original_filename || '—');
         let ops;
         if (j.status === 'support_translated') {
-            ops = `<a href="javascript:void(0)" onclick="downloadJobResult('${j.id}')" class="font-bold hover:underline" style="color:var(--accent);">دانلود</a>`;
+            ops = `<div class="flex items-center justify-center gap-2">
+                <a href="javascript:void(0)" onclick="downloadJobResult('${j.id}')" class="font-bold hover:underline" style="color:var(--accent);">دانلود</a>
+                <button type="button" id="sendToUser-${j.id}" onclick="sendSupportTranslationToUser('${j.id}')" class="font-bold px-3 py-1 rounded-lg" style="background:var(--accent);color:#000;border:none;cursor:pointer;">ارسال به کاربر</button>
+            </div>`;
         } else {
-            ops = `<button type="button" onclick="promptSupportTranslation('${j.id}')" class="font-bold px-3 py-1 rounded-lg" style="background:var(--accent);color:#000;border:none;cursor:pointer;">ترجمه سند</button>`;
+            ops = `<button type="button" onclick="openSupportTranslation('${j.id}')" class="font-bold px-3 py-1 rounded-lg" style="background:var(--accent);color:#000;border:none;cursor:pointer;">ترجمه سند</button>`;
         }
         return `<tr style="border-bottom:1px solid var(--divider);">
             <td class="py-2 px-3">
@@ -7235,8 +7262,57 @@ function renderAdminFailedDocs(jobs) {
 
 let pendingSupportTranslationJobId = null;
 
-function promptSupportTranslation(jobId) {
+function openSupportTranslation(jobId) {
     pendingSupportTranslationJobId = jobId;
+    const job = adminFailedDocsCache.find(j => j.id === jobId);
+    if (!job) return;
+
+    const typeLabel = DOCUMENT_REGISTRY[job.document_type]?.label || escapeHtml(job.document_type);
+    const identities = Array.isArray(job.identity_info) ? job.identity_info : [];
+
+    let identityHtml;
+    if (!identities.length) {
+        identityHtml = `<p class="text-sm" style="color:var(--text-muted);">اطلاعات گذرنامه‌ای برای این سند ثبت نشده است.</p>`;
+    } else {
+        identityHtml = identities.map((id, idx) => {
+            const fields = [
+                ['نام', id.first_name],
+                ['نام خانوادگی', id.last_name],
+                ['نام پدر', id.father_name],
+                ['تاریخ تولد', id.date_of_birth],
+                ['کد ملی', id.national_id],
+                ['نام (فارسی)', id.first_name_fa],
+                ['نام خانوادگی (فارسی)', id.last_name_fa],
+            ];
+            const rows = fields.filter(([, v]) => v).map(([k, v]) =>
+                `<div class="flex justify-between gap-4 py-1" style="border-bottom:1px solid var(--divider);"><span class="text-xs font-bold" style="color:var(--text-muted);">${escapeHtml(k)}</span><span class="text-sm en" dir="ltr" style="color:var(--text-main);">${escapeHtml(v)}</span></div>`
+            ).join('');
+            return `<div class="p-3 rounded-lg mb-2" style="background:var(--bg-main);"><div class="text-xs font-black mb-1" style="color:var(--accent);">نفر ${idx + 1}</div>${rows}</div>`;
+        }).join('');
+    }
+
+    const body = document.getElementById('supportTranslationBody');
+    if (body) {
+        body.innerHTML = `
+            <div class="mb-3">
+                <div class="text-xs font-bold" style="color:var(--text-muted);">نوع سند</div>
+                <div class="text-sm font-black" style="color:var(--text-main);">${typeLabel}</div>
+            </div>
+            <div class="mb-1 text-xs font-bold" style="color:var(--text-muted);">اطلاعات گذرنامه / هویت</div>
+            ${identityHtml}
+        `;
+    }
+    const downloadBtn = document.getElementById('supportDownloadOriginalBtn');
+    if (downloadBtn) downloadBtn.onclick = () => downloadJobOriginal(jobId);
+    document.getElementById('supportTranslationModal').classList.remove('hidden');
+}
+
+function closeSupportTranslationModal() {
+    document.getElementById('supportTranslationModal').classList.add('hidden');
+}
+
+function promptSupportTranslation() {
+    if (!pendingSupportTranslationJobId) return;
     const input = document.getElementById('supportTranslationFileInput');
     if (input) input.click();
 }
@@ -7258,6 +7334,7 @@ async function onSupportTranslationFileChosen(input) {
         });
         if (res.ok) {
             showToast('✅ ترجمه ثبت شد و برای کاربر قابل دانلود است.');
+            closeSupportTranslationModal();
             loadAdminFailedDocs();
         } else {
             showToast('❌ ثبت ترجمه ناموفق بود. دوباره تلاش کنید.');
@@ -7278,6 +7355,29 @@ function readFileAsBase64(file) {
         reader.onerror = () => reject(reader.error);
         reader.readAsDataURL(file);
     });
+}
+
+async function sendSupportTranslationToUser(jobId) {
+    const token = getToken();
+    if (!token) return;
+    const btn = document.getElementById(`sendToUser-${jobId}`);
+    if (btn) { btn.disabled = true; btn.textContent = 'در حال ارسال...'; }
+    try {
+        const res = await fetch(`${CORE}/jobs/${jobId}/send-to-user`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+            showToast('📩 ترجمه برای کاربر ارسال شد.');
+            if (btn) { btn.textContent = 'ارسال شد ✓'; btn.disabled = true; }
+        } else {
+            showToast('❌ ارسال به کاربر ناموفق بود. دوباره تلاش کنید.');
+            if (btn) { btn.disabled = false; btn.textContent = 'ارسال به کاربر'; }
+        }
+    } catch (e) {
+        showToast('❌ ارسال به کاربر ناموفق بود. اتصال خود را بررسی کنید.');
+        if (btn) { btn.disabled = false; btn.textContent = 'ارسال به کاربر'; }
+    }
 }
 
 async function downloadJobOriginal(jobId) {
@@ -7705,11 +7805,13 @@ function applyCrmFilters() {
         processing: 'در حال پردازش',
         completed: 'تکمیل شده',
         support_translated: 'ترجمه شده توسط پشتیبانی',
+        pending_support: 'ارسال شده به پشتیبانی',
         failed: 'ناموفق'
     }[s] || s);
     
     const statusBadgeStyle = (s) => {
         if (s === 'completed' || s === 'support_translated') return 'background:#4ade80; color:#000; font-weight:bold;';
+        if (s === 'pending_support') return 'background:#60a5fa; color:#000; font-weight:bold;';
         if (s === 'failed') return 'background:#f87171; color:#fff; font-weight:bold;';
         if (s === 'processing') return 'background:#60a5fa; color:#000; font-weight:bold;';
         return 'background:#9ca3af; color:#000;';
