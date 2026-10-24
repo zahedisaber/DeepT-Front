@@ -2300,30 +2300,6 @@ async function submitSupportTicket() {
     }
 }
 
-async function submitTranslationFailureToSupport(jobId) {
-    const token = getToken();
-    if (!token) { openAuthModal(); return; }
-    const btn = document.getElementById(`sendToSupport-${jobId}`);
-    if (btn) { btn.disabled = true; btn.textContent = 'در حال ارسال...'; }
-    try {
-        const res = await fetch(`${CORE}/support/translation-failure`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ job_id: jobId })
-        });
-        if (res.ok) {
-            showToast('📩 سند شما برای ترجمه دستی به پشتیبانی ارسال شد.');
-            if (btn) { btn.textContent = 'ارسال شد ✓'; btn.disabled = true; }
-        } else {
-            showToast('❌ ارسال سند ناموفق بود. دوباره تلاش کنید.');
-            if (btn) { btn.disabled = false; btn.textContent = 'ارسال سند به پشتیبانی'; }
-        }
-    } catch (e) {
-        showToast('❌ ارسال سند ناموفق بود. اتصال خود را بررسی کنید.');
-        if (btn) { btn.disabled = false; btn.textContent = 'ارسال سند به پشتیبانی'; }
-    }
-}
-
 // ═══════════════════════════════════════════════════════════
 // WORKSPACE DASHBOARD
 // ═══════════════════════════════════════════════════════════
@@ -2565,11 +2541,16 @@ async function renderDashboardActiveProjects() {
         if (res.ok) jobs = await res.json();
     } catch (e) { /* keep whatever was last rendered on a transient failure */ }
 
-    const newlyCompleted = jobs.filter(j => j.status === 'completed' && lastKnownJobStatuses[j.id] && lastKnownJobStatuses[j.id] !== 'completed');
+    const isDone = (s) => s === 'completed' || s === 'support_translated';
+    const newlyCompleted = jobs.filter(j => isDone(j.status) && lastKnownJobStatuses[j.id] && !isDone(lastKnownJobStatuses[j.id]));
     jobs.forEach(j => { lastKnownJobStatuses[j.id] = j.status; });
     newlyCompleted.forEach(notifyJobCompleted);
 
-    allJobsTerminal = jobs.length > 0 && jobs.every(j => j.status === 'completed' || j.status === 'failed');
+    // Keep polling while any job is still in flight (queued/processing) OR
+    // failed -- a failed job can later become support_translated once the
+    // admin uploads a manual translation, and the dashboard should pick that
+    // up (and notify) without a manual refresh.
+    allJobsTerminal = jobs.length > 0 && jobs.every(j => isDone(j.status));
 
     tbody.innerHTML = '';
     if (!jobs.length) {
@@ -2581,6 +2562,7 @@ async function renderDashboardActiveProjects() {
         queued:     { text: 'در صف',      color: '#94a3b8' },
         processing: { text: 'در حال پردازش', color: '#fb923c' },
         completed:  { text: 'آماده',      color: '#4ade80' },
+        support_translated: { text: 'ترجمه شده توسط پشتیبانی', color: '#4ade80' },
         failed:     { text: 'ناموفق',     color: '#f87171' },
     };
 
@@ -2590,10 +2572,10 @@ async function renderDashboardActiveProjects() {
         const st = STATUS_LABELS[job.status] || { text: escapeHtml(job.status), color: 'var(--text-muted)' };
 
         let actionsHtml;
-        if (job.status === 'completed') {
+        if (job.status === 'completed' || job.status === 'support_translated') {
             actionsHtml = `<button onclick="downloadJobResult('${job.id}')" class="font-bold hover:underline" style="color:var(--accent);">دانلود DOCX</button>`;
         } else if (job.status === 'failed') {
-                        actionsHtml = `<button id="sendToSupport-${job.id}" onclick="submitTranslationFailureToSupport('${job.id}')" class="font-bold hover:underline" style="color:var(--accent);background:none;border:none;cursor:pointer;">ارسال سند به پشتیبانی</button>`;
+                        actionsHtml = `<span style="color:var(--text-muted);font-size:11px;">در انتظار ترجمه توسط پشتیبانی</span>`;
         } else {
             actionsHtml = `<span style="color:var(--text-muted);">در حال پردازش...</span>`;
         }
@@ -7164,46 +7146,162 @@ var adminCrmUsersCache = [];
 function switchAdminTab(tab) {
     const usersPanel = document.getElementById('adminUsersPanel');
     const crmPanel = document.getElementById('adminCrmPanel');
+    const failedPanel = document.getElementById('adminFailedDocsPanel');
     const tabUsersBtn = document.getElementById('adminTabUsers');
     const tabCrmBtn = document.getElementById('adminTabCrm');
-    
+    const tabFailedBtn = document.getElementById('adminTabFailed');
+
     const jobsPanel = document.getElementById('adminUserJobsPanel');
     if (jobsPanel) jobsPanel.classList.add('hidden');
     const clientsPanel = document.getElementById('adminUserClientsPanel');
     if (clientsPanel) clientsPanel.classList.add('hidden');
 
-    if (tab === 'users') {
-        if (usersPanel) usersPanel.classList.remove('hidden');
-        if (crmPanel) crmPanel.classList.add('hidden');
-        
-        if (tabUsersBtn) {
-            tabUsersBtn.classList.add('border-b-2');
-            tabUsersBtn.style.borderColor = 'var(--accent)';
-            tabUsersBtn.style.color = 'var(--accent)';
-            tabUsersBtn.classList.remove('border-transparent');
+    const tabs = [
+        ['users', usersPanel, tabUsersBtn],
+        ['crm', crmPanel, tabCrmBtn],
+        ['failed', failedPanel, tabFailedBtn],
+    ];
+
+    for (const [key, panel, btn] of tabs) {
+        const active = (tab === key);
+        if (panel) panel.classList.toggle('hidden', !active);
+        if (btn) {
+            if (active) {
+                btn.classList.add('border-b-2');
+                btn.style.borderColor = 'var(--accent)';
+                btn.style.color = 'var(--accent)';
+                btn.classList.remove('border-transparent');
+            } else {
+                btn.classList.remove('border-b-2');
+                btn.style.borderColor = 'transparent';
+                btn.style.color = 'var(--text-muted)';
+            }
         }
-        if (tabCrmBtn) {
-            tabCrmBtn.classList.remove('border-b-2');
-            tabCrmBtn.style.borderColor = 'transparent';
-            tabCrmBtn.style.color = 'var(--text-muted)';
-        }
-    } else if (tab === 'crm') {
-        if (usersPanel) usersPanel.classList.add('hidden');
-        if (crmPanel) crmPanel.classList.remove('hidden');
-        
-        if (tabCrmBtn) {
-            tabCrmBtn.classList.add('border-b-2');
-            tabCrmBtn.style.borderColor = 'var(--accent)';
-            tabCrmBtn.style.color = 'var(--accent)';
-            tabCrmBtn.classList.remove('border-transparent');
-        }
-        if (tabUsersBtn) {
-            tabUsersBtn.classList.remove('border-b-2');
-            tabUsersBtn.style.borderColor = 'transparent';
-            tabUsersBtn.style.color = 'var(--text-muted)';
-        }
-        
+    }
+
+    if (tab === 'crm') {
         loadAdminCrmData();
+    } else if (tab === 'failed') {
+        loadAdminFailedDocs();
+    }
+}
+
+async function loadAdminFailedDocs() {
+    const token = localStorage.getItem('deept_token');
+    const tbody = document.getElementById('adminFailedDocsRowsBlock');
+    if (tbody) tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>`;
+    try {
+        const res = await fetch(`${CORE}/jobs/admin/failed`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error('failed_load');
+        const jobs = await res.json();
+        renderAdminFailedDocs(jobs);
+    } catch (e) {
+        if (tbody) tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در بارگذاری اسناد ناموفق.</td></tr>`;
+        showToast('خطا در بارگذاری اسناد ناموفق');
+    }
+}
+
+function renderAdminFailedDocs(jobs) {
+    const tbody = document.getElementById('adminFailedDocsRowsBlock');
+    if (!tbody) return;
+    if (!jobs.length) {
+        tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-sm" style="color:var(--text-muted);">سند ناموفقی وجود ندارد.</td></tr>`;
+        return;
+    }
+    const typeLabel = (t) => DOCUMENT_REGISTRY[t]?.label || escapeHtml(t);
+    tbody.innerHTML = jobs.map(j => {
+        const dateStr = j.created_at ? new Date(j.created_at).toLocaleDateString('fa-IR') : '—';
+        const shortId = escapeHtml((j.id || '').slice(0, 8));
+        const fname = escapeHtml(j.original_filename || '—');
+        let ops;
+        if (j.status === 'support_translated') {
+            ops = `<a href="javascript:void(0)" onclick="downloadJobResult('${j.id}')" class="font-bold hover:underline" style="color:var(--accent);">دانلود</a>`;
+        } else {
+            ops = `<button type="button" onclick="promptSupportTranslation('${j.id}')" class="font-bold px-3 py-1 rounded-lg" style="background:var(--accent);color:#000;border:none;cursor:pointer;">ترجمه سند</button>`;
+        }
+        return `<tr style="border-bottom:1px solid var(--divider);">
+            <td class="py-2 px-3">
+                <div class="font-black en" style="color:var(--text-main);">${shortId}</div>
+                <a href="javascript:void(0)" onclick="downloadJobOriginal('${j.id}')" class="text-xs hover:underline" style="color:var(--accent);">${fname}</a>
+            </td>
+            <td class="py-2 px-3" style="color:var(--text-main);">${typeLabel(j.document_type)}</td>
+            <td class="py-2 px-3 text-center" style="color:var(--text-muted);">${dateStr}</td>
+            <td class="py-2 px-3 text-center">${ops}</td>
+        </tr>`;
+    }).join('');
+}
+
+let pendingSupportTranslationJobId = null;
+
+function promptSupportTranslation(jobId) {
+    pendingSupportTranslationJobId = jobId;
+    const input = document.getElementById('supportTranslationFileInput');
+    if (input) input.click();
+}
+
+async function onSupportTranslationFileChosen(input) {
+    const file = input.files && input.files[0];
+    input.value = '';
+    if (!file || !pendingSupportTranslationJobId) return;
+    const jobId = pendingSupportTranslationJobId;
+    pendingSupportTranslationJobId = null;
+    const token = getToken();
+    if (!token) return;
+    try {
+        const b64 = await readFileAsBase64(file);
+        const res = await fetch(`${CORE}/jobs/${jobId}/support-translation`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ result_filename: file.name, result_file_b64: b64 })
+        });
+        if (res.ok) {
+            showToast('✅ ترجمه ثبت شد و برای کاربر قابل دانلود است.');
+            loadAdminFailedDocs();
+        } else {
+            showToast('❌ ثبت ترجمه ناموفق بود. دوباره تلاش کنید.');
+        }
+    } catch (e) {
+        showToast('❌ ثبت ترجمه ناموفق بود. اتصال خود را بررسی کنید.');
+    }
+}
+
+function readFileAsBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const result = reader.result || '';
+            const comma = result.indexOf(',');
+            resolve(comma >= 0 ? result.slice(comma + 1) : result);
+        };
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(file);
+    });
+}
+
+async function downloadJobOriginal(jobId) {
+    const token = localStorage.getItem('deept_token');
+    try {
+        const res = await fetch(`${CORE}/jobs/${jobId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) { showToast('خطا در دریافت فایل.'); return; }
+        const job = await res.json();
+        if (!job.original_file_b64) { showToast('فایل اصلی موجود نیست یا منقضی شده است.'); return; }
+        const byteChars = atob(job.original_file_b64);
+        const byteNumbers = new Array(byteChars.length);
+        for (let i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
+        const blob = new Blob([new Uint8Array(byteNumbers)]);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = job.original_filename || 'document';
+        document.body.appendChild(a); a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    } catch (e) {
+        showToast('خطا در دانلود فایل.');
     }
 }
 
@@ -7606,11 +7704,12 @@ function applyCrmFilters() {
         queued: 'در صف',
         processing: 'در حال پردازش',
         completed: 'تکمیل شده',
+        support_translated: 'ترجمه شده توسط پشتیبانی',
         failed: 'ناموفق'
     }[s] || s);
     
     const statusBadgeStyle = (s) => {
-        if (s === 'completed') return 'background:#4ade80; color:#000; font-weight:bold;';
+        if (s === 'completed' || s === 'support_translated') return 'background:#4ade80; color:#000; font-weight:bold;';
         if (s === 'failed') return 'background:#f87171; color:#fff; font-weight:bold;';
         if (s === 'processing') return 'background:#60a5fa; color:#000; font-weight:bold;';
         return 'background:#9ca3af; color:#000;';
