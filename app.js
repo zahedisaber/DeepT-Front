@@ -1164,6 +1164,13 @@ const DP_DOCS = [
           tokens:[{key:"notary_name",label:"نام سردفتر"},{key:"notary_loc",label:"محل دفترخانه"},{key:"notary_office",label:"شماره دفترخانه"}],
           def:"Having ascertained of the parties' identities, I, the notary public, certify that all written contents of this deed were drawn up before me. Signed, sealed and embossed by {{notary_name}}, {{notary_loc}} Notary Public No. {{notary_office}}." },
     ]},
+    // The shared course-name dictionary (DeepT-Core course_terms.py): its
+    // rows are the admin-approved master dictionary, fetched when this entry
+    // is opened (loadSharedCourseTerms); a translator's edits are saved as
+    // term_glossary["transcripts"] -- applied to every transcript type, for
+    // their own documents only -- and go to the admin as suggestions.
+    { id:"transcripts", label:"دیکشنری مشترک نام دروس (همهٔ ریزنمرات)", full:false, fields:[],
+      glossary: { defaults: {}, shared: true } },
     { id:"academic_transcript", label:"ریزنمرات دانشگاهی", full:false, fields:[],
       // Open-ended Persian-term -> English-equivalent glossary (course
       // names DeepT-Back-End's academic_transcript.py always translates
@@ -1472,9 +1479,11 @@ function renderDocumentPhrases(){
     // sections render side by side when both apply; saveCurrentDocumentSettings()
     // sends whichever of the two has pending changes, combined in one request.
     const glossarySection = document.getElementById('dp-glossary-section');
+    document.getElementById('dp-glossary-shared-note').classList.toggle('hidden', !(doc.glossary && doc.glossary.shared));
     if (doc.glossary){
         glossarySection.classList.remove('hidden');
         renderTermGlossary(doc);
+        if (doc.glossary.shared && !doc.glossary.loaded) loadSharedCourseTerms(doc);
     } else {
         glossarySection.classList.add('hidden');
     }
@@ -1819,6 +1828,25 @@ function dpGlossaryRows(doc){
     });
     rows.sort((a, b) => a.term.localeCompare(b.term, 'fa'));
     return rows;
+}
+
+// The shared dictionary's rows are the admin-approved master dictionary,
+// fetched once per page load; a failed fetch leaves only the translator's
+// own entries showing and is retried next time the entry is opened.
+async function loadSharedCourseTerms(doc){
+    doc.glossary.loaded = true;
+    try {
+        const res = await fetch(`${CORE}/course-terms`, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('deept_token')}` }
+        });
+        if (!res.ok) throw new Error(res.status);
+        const terms = await res.json();
+        doc.glossary.defaults = Object.fromEntries(terms.map(t => [t.term_fa, t.translation_en]));
+    } catch (e) {
+        doc.glossary.loaded = false;
+        return;
+    }
+    if (dpCurrentDoc === doc.id) renderTermGlossary(doc);
 }
 
 function renderTermGlossary(doc){
@@ -7361,9 +7389,183 @@ async function adminViewUserClients(userId, email) {
 // ── CRM PANEL LOGIC ──
 var adminCrmJobsCache = [];
 
+/* ============ SECTION: ADMIN COURSE DICTIONARY ============
+   Shared course-name dictionary (DeepT-Core course_terms.py): pending
+   suggestions grouped by course -- approve one candidate (as is, or edited
+   in the box first) or reject them -- and the approved dictionary, editable
+   and deletable. Every string here comes from translations or translators'
+   own glossaries, so it is only ever set as textContent/value, never HTML. ============ */
+let adminMasterTerms = [];
+
+function adminTermsHeaders() {
+    return { 'Authorization': `Bearer ${localStorage.getItem('deept_token')}`, 'Content-Type': 'application/json' };
+}
+
+function termsEl(tag, text, css) {
+    const el = document.createElement(tag);
+    if (text !== undefined) el.textContent = text;
+    if (css) el.style.cssText = css;
+    return el;
+}
+
+function termsButton(label, onClick, primary) {
+    const b = termsEl('button', label, primary
+        ? 'background:var(--accent);color:var(--btn-text-on-accent);'
+        : 'background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);');
+    b.type = 'button';
+    b.className = 'text-[11px] font-bold px-3 py-1.5 rounded-md shrink-0';
+    b.onclick = onClick;
+    return b;
+}
+
+async function loadAdminCourseTerms() {
+    const box = document.getElementById('adminTermSuggestions');
+    box.replaceChildren(termsEl('div', 'در حال بارگذاری...', 'color:var(--text-muted);font-size:.8rem;'));
+    try {
+        const [sRes, mRes] = await Promise.all([
+            fetch(`${CORE}/admin/course-terms/suggestions`, { headers: adminTermsHeaders() }),
+            fetch(`${CORE}/course-terms`, { headers: adminTermsHeaders() }),
+        ]);
+        if (!sRes.ok || !mRes.ok) throw new Error(`${sRes.status}/${mRes.status}`);
+        renderAdminTermSuggestions(await sRes.json());
+        adminMasterTerms = await mRes.json();
+        renderAdminMasterTerms();
+    } catch (e) {
+        box.replaceChildren(termsEl('div', 'خطا در دریافت دیکشنری.', 'color:#f87171;font-size:.8rem;'));
+    }
+}
+
+function renderAdminTermSuggestions(groups) {
+    const box = document.getElementById('adminTermSuggestions');
+    box.replaceChildren();
+    if (!groups.length) {
+        box.appendChild(termsEl('div', 'پیشنهادی در انتظار نیست.', 'color:var(--text-muted);font-size:.8rem;'));
+        return;
+    }
+    groups.forEach(g => {
+        const card = termsEl('div', undefined, 'background:var(--bg-main);border:1px solid var(--border-subtle);');
+        card.className = 'p-3 rounded-lg';
+        const head = termsEl('div', undefined);
+        head.className = 'flex items-center gap-3 mb-2 flex-wrap';
+        head.appendChild(termsEl('span', g.term_fa, 'font-weight:900;color:var(--text-main);'));
+        head.appendChild(termsEl('span', `${g.seen_count} بار`, 'font-size:.7rem;color:var(--text-muted);'));
+        if (g.master) head.appendChild(termsEl('span', `در دیکشنری: ${g.master.translation_en}`, 'font-size:.7rem;color:var(--accent);direction:ltr;'));
+        card.appendChild(head);
+
+        g.candidates.forEach(c => {
+            const row = termsEl('div', undefined);
+            row.className = 'flex items-center gap-2 mb-1';
+            row.appendChild(termsEl('span', c.translation_en, 'flex:1;direction:ltr;text-align:left;font-size:.8rem;color:var(--text-main);'));
+            const src = [c.from_translation ? 'ترجمه' : '', c.from_user_edit ? 'ویرایش مترجم' : ''].filter(Boolean).join(' + ');
+            row.appendChild(termsEl('span', `${src} · ${c.seen_count}`, 'font-size:.65rem;color:var(--text-muted);'));
+            row.appendChild(termsButton('تأیید', () => approveCourseTerm(g.term_fa, c.translation_en), true));
+            card.appendChild(row);
+        });
+
+        const edit = termsEl('div', undefined);
+        edit.className = 'flex items-center gap-2 mt-2';
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.dir = 'ltr';
+        input.className = 'auth-input w-full en';
+        input.style.fontSize = '.75rem';
+        input.value = g.candidates.length ? g.candidates[0].translation_en : '';
+        edit.appendChild(input);
+        edit.appendChild(termsButton('تأیید با این ترجمه', () => approveCourseTerm(g.term_fa, input.value), true));
+        edit.appendChild(termsButton('رد همه', () => rejectCourseTerms(g.candidates.map(c => c.id))));
+        card.appendChild(edit);
+        box.appendChild(card);
+    });
+}
+
+function renderAdminMasterTerms() {
+    const box = document.getElementById('adminTermMaster');
+    const q = (document.getElementById('adminTermSearch').value || '').trim().toLowerCase();
+    box.replaceChildren();
+    const rows = adminMasterTerms.filter(t => !q || t.term_fa.includes(q) || t.translation_en.toLowerCase().includes(q));
+    if (!rows.length) {
+        box.appendChild(termsEl('div', q ? 'موردی پیدا نشد.' : 'دیکشنری هنوز خالی است.', 'color:var(--text-muted);font-size:.8rem;'));
+        return;
+    }
+    rows.forEach(t => {
+        const row = termsEl('div', undefined, 'background:var(--bg-main);border:1px solid var(--border-subtle);');
+        row.className = 'flex items-center gap-2 p-2 rounded-lg';
+        row.appendChild(termsEl('span', t.term_fa, 'width:12rem;font-weight:700;font-size:.8rem;color:var(--text-main);'));
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.dir = 'ltr';
+        input.className = 'auth-input w-full en';
+        input.style.fontSize = '.75rem';
+        input.value = t.translation_en;
+        row.appendChild(input);
+        row.appendChild(termsButton('ذخیره', () => editCourseTerm(t.id, input.value), true));
+        row.appendChild(termsButton('حذف', () => deleteCourseTerm(t.id, t.term_fa)));
+        box.appendChild(row);
+    });
+}
+
+async function adminTermsRequest(url, options, okMessage) {
+    try {
+        const res = await fetch(url, { headers: adminTermsHeaders(), ...options });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            showToast(err.detail || 'خطا در ذخیره.');
+            return;
+        }
+        showToast(okMessage);
+        loadAdminCourseTerms();
+    } catch (e) {
+        showToast('خطا در اتصال.');
+    }
+}
+
+function approveCourseTerm(termFa, translationEn) {
+    if (!translationEn.trim()) { showToast('ترجمه خالی است.'); return; }
+    adminTermsRequest(`${CORE}/admin/course-terms/approve`,
+        { method: 'POST', body: JSON.stringify({ term_fa: termFa, translation_en: translationEn.trim() }) },
+        'به دیکشنری اضافه شد.');
+}
+
+function rejectCourseTerms(ids) {
+    adminTermsRequest(`${CORE}/admin/course-terms/reject`,
+        { method: 'POST', body: JSON.stringify({ suggestion_ids: ids }) }, 'رد شد.');
+}
+
+function editCourseTerm(id, translationEn) {
+    if (!translationEn.trim()) { showToast('ترجمه خالی است.'); return; }
+    adminTermsRequest(`${CORE}/admin/course-terms/${encodeURIComponent(id)}`,
+        { method: 'PATCH', body: JSON.stringify({ translation_en: translationEn.trim() }) }, 'ذخیره شد.');
+}
+
+function deleteCourseTerm(id, termFa) {
+    if (!confirm(`«${termFa}» از دیکشنری حذف شود؟`)) return;
+    adminTermsRequest(`${CORE}/admin/course-terms/${encodeURIComponent(id)}`, { method: 'DELETE' }, 'حذف شد.');
+}
+
 /* ============ SECTION: ADMIN CRM REPORTS ============
    Time-frame selector, doc-type stats, filters, jobs table. ============ */
 function switchAdminTab(tab) {
+    // The course dictionary tab: shown alone; the users/CRM tabs below
+    // otherwise work as before.
+    const termsPanel = document.getElementById('adminTermsPanel');
+    const tabTermsBtn = document.getElementById('adminTabTerms');
+    if (termsPanel) termsPanel.classList.toggle('hidden', tab !== 'terms');
+    if (tabTermsBtn) {
+        tabTermsBtn.style.borderColor = tab === 'terms' ? 'var(--accent)' : 'transparent';
+        tabTermsBtn.style.color = tab === 'terms' ? 'var(--accent)' : 'var(--text-muted)';
+    }
+    if (tab === 'terms') {
+        ['adminUsersPanel', 'adminCrmPanel', 'adminUserJobsPanel', 'adminUserClientsPanel'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.classList.add('hidden');
+        });
+        ['adminTabUsers', 'adminTabCrm'].forEach(id => {
+            const btn = document.getElementById(id);
+            if (btn) { btn.style.borderColor = 'transparent'; btn.style.color = 'var(--text-muted)'; }
+        });
+        loadAdminCourseTerms();
+        return;
+    }
     const usersPanel = document.getElementById('adminUsersPanel');
     const crmPanel = document.getElementById('adminCrmPanel');
     const tabUsersBtn = document.getElementById('adminTabUsers');

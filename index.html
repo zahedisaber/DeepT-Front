@@ -1277,6 +1277,7 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                      renderTermGlossary() in app.js. ─────────────────── -->
                 <div id="dp-glossary-section" class="hidden">
                     <p class="text-[11px] mb-2" style="color:var(--text-muted);">واژه‌های فارسیِ نام درس که همیشه باید به همان معادل انگلیسیِ ثابت ترجمه شوند. معادل هر واژه را ویرایش کنید، واژهٔ جدید اضافه کنید، یا با جست‌وجو در فهرست بگردید.</p>
+                    <p id="dp-glossary-shared-note" class="text-[11px] mb-2 p-2 rounded-lg hidden" style="background:var(--bg-main);border:1px dashed var(--border-subtle);color:var(--text-muted);line-height:1.9;">این فهرست، دیکشنری مشترک نام دروس است که مدیر تأیید کرده و در همهٔ ریزنمرات (گلستان، علوم پزشکی، آزاد، دبیرستان) اعمال می‌شود. هر ویرایش شما فقط در ترجمه‌های خودتان اعمال می‌شود و برای بررسی به مدیر ارسال می‌شود.</p>
 
                     <input type="text" id="dp-glossary-search" class="auth-input mb-2" placeholder="جست‌وجو در واژه‌ها (فارسی یا انگلیسی)...">
 
@@ -1605,6 +1606,9 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
             <button type="button" onclick="switchAdminTab('crm')" id="adminTabCrm" class="px-4 py-2 text-sm font-bold border-b-2 border-transparent transition-all duration-200" style="color: var(--text-muted); background: transparent;">
                 گزارشات و CRM
             </button>
+            <button type="button" onclick="switchAdminTab('terms')" id="adminTabTerms" class="px-4 py-2 text-sm font-bold border-b-2 border-transparent transition-all duration-200" style="color: var(--text-muted); background: transparent;">
+                دیکشنری دروس
+            </button>
         </div>
         <div class="flex gap-2 border-b mb-6" style="border-color: var(--divider);">
 
@@ -1775,6 +1779,24 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                     </tbody>
                 </table>
             </div>
+        </div>
+
+        <!-- Shared course-name dictionary (DeepT-Core course_terms.py):
+             course names from translations and translators' own glossaries
+             wait here until approved (as is or edited) or rejected. -->
+        <div id="adminTermsPanel" class="workspace-panel p-6 mb-6 hidden">
+            <div class="flex items-center justify-between mb-2 gap-3 flex-wrap">
+                <h3 class="text-base font-black" style="color:var(--text-main);">پیشنهادهای در انتظار تأیید</h3>
+                <button type="button" onclick="loadAdminCourseTerms()" class="text-sm font-bold px-4 py-2 rounded-lg" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">بروزرسانی</button>
+            </div>
+            <p class="text-[11px] mb-4" style="color:var(--text-muted);line-height:1.9;">نام دروسی که در ترجمه‌ها یا واژه‌نامهٔ مترجمان دیده شده و هنوز در دیکشنری نیست. ترجمهٔ مناسب را تأیید (یا پیش از تأیید ویرایش) کنید تا برای همهٔ کاربران در همهٔ ریزنمرات اعمال شود.</p>
+            <div id="adminTermSuggestions" class="flex flex-col gap-3 mb-8"></div>
+
+            <div class="flex items-center justify-between mb-3 gap-3 flex-wrap">
+                <h3 class="text-base font-black" style="color:var(--text-main);">دیکشنری تأییدشده</h3>
+                <input type="text" id="adminTermSearch" oninput="renderAdminMasterTerms()" placeholder="جست‌وجو..." class="auth-input text-sm w-56 py-2">
+            </div>
+            <div id="adminTermMaster" class="flex flex-col gap-2"></div>
         </div>
 
         <div id="adminUserJobsPanel" class="workspace-panel p-6 hidden">
