@@ -2563,6 +2563,7 @@ async function renderDashboardActiveProjects() {
         processing: { text: 'در حال پردازش', color: '#fb923c' },
         completed:  { text: 'آماده',      color: '#4ade80' },
         support_translated: { text: 'ترجمه شده توسط پشتیبانی', color: '#4ade80' },
+        retrying:   { text: 'در حال ترجمه', color: '#60a5fa' },
         pending_support: { text: 'ارسال شده به پشتیبانی', color: '#60a5fa' },
         failed:     { text: 'ناموفق',     color: '#f87171' },
     };
@@ -7245,6 +7246,8 @@ function renderAdminFailedDocs(jobs) {
                 <a href="javascript:void(0)" onclick="downloadJobResult('${j.id}')" class="font-bold hover:underline" style="color:var(--accent);">دانلود</a>
                 <button type="button" id="sendToUser-${j.id}" onclick="sendSupportTranslationToUser('${j.id}')" class="font-bold px-3 py-1 rounded-lg" style="background:var(--accent);color:#000;border:none;cursor:pointer;">ارسال به کاربر</button>
             </div>`;
+        } else if (j.status === 'retrying') {
+            ops = `<span class="font-bold" style="color:var(--accent);">در حال ترجمه...</span>`;
         } else {
             ops = `<button type="button" id="retry-${j.id}" onclick="retryTranslation('${j.id}')" class="font-bold px-3 py-1 rounded-lg" style="background:var(--accent);color:#000;border:none;cursor:pointer;">ترجمه سند</button>`;
         }
@@ -7263,24 +7266,27 @@ function renderAdminFailedDocs(jobs) {
 async function retryTranslation(jobId) {
     const token = getToken();
     if (!token) return;
-    const btn = document.getElementById(`retry-${jobId}`);
-    if (btn) { btn.disabled = true; btn.textContent = 'در حال ترجمه...'; }
     try {
         const res = await fetch(`${BACKEND}/api/retranslate/${jobId}`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}` }
         });
-        if (res.ok) {
-            showToast('🔄 ترجمه مجدد سند آغاز شد.');
-            if (btn) { btn.textContent = 'در حال ترجمه...'; btn.disabled = true; }
-            setTimeout(loadAdminFailedDocs, 1500);
-        } else {
+        if (!res.ok) {
             showToast('❌ شروع ترجمه مجدد ناموفق بود. دوباره تلاش کنید.');
-            if (btn) { btn.disabled = false; btn.textContent = 'ترجمه سند'; }
+            return;
+        }
+        showToast('🔄 ترجمه مجدد سند آغاز شد.');
+        await loadAdminFailedDocs();
+        // Poll until the job leaves "retrying" (success -> support_translated,
+        // failure -> pending_support), then the list already shows the result.
+        for (let i = 0; i < 20; i++) {
+            await new Promise(r => setTimeout(r, 3000));
+            await loadAdminFailedDocs();
+            const job = adminFailedDocsCache.find(j => j.id === jobId);
+            if (!job || job.status !== 'retrying') break;
         }
     } catch (e) {
         showToast('❌ خطا در ارتباط با سرور.');
-        if (btn) { btn.disabled = false; btn.textContent = 'ترجمه سند'; }
     }
 }
 
@@ -7732,6 +7738,7 @@ function applyCrmFilters() {
         processing: 'در حال پردازش',
         completed: 'تکمیل شده',
         support_translated: 'ترجمه شده توسط پشتیبانی',
+        retrying: 'در حال ترجمه',
         pending_support: 'ارسال شده به پشتیبانی',
         failed: 'ناموفق'
     }[s] || s);
