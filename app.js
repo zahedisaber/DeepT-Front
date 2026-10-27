@@ -7266,7 +7266,7 @@ async function retryTranslation(jobId) {
     const btn = document.getElementById(`retry-${jobId}`);
     if (btn) { btn.disabled = true; btn.textContent = 'در حال ترجمه...'; }
     try {
-        const res = await fetch(`${BACKEND}/api/retry/${jobId}`, {
+        const res = await fetch(`${BACKEND}/api/retranslate/${jobId}`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${token}` }
         });
