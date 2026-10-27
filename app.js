@@ -7211,20 +7211,25 @@ function switchAdminTab(tab) {
 
 let adminFailedDocsCache = [];
 
-async function loadAdminFailedDocs() {
+async function loadAdminFailedDocs(silent = false) {
     const token = localStorage.getItem('deept_token');
     const tbody = document.getElementById('adminFailedDocsRowsBlock');
-    if (tbody) tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>`;
+    // Silent refresh (used while a retranslate is running) must not flash the
+    // loading placeholder or re-render unchanged rows -- same quiet behavior as
+    // the normal dashboard's periodic poll.
+    if (tbody && !silent) tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>`;
     try {
         const res = await fetch(`${CORE}/jobs/admin/failed`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!res.ok) throw new Error('failed_load');
-        adminFailedDocsCache = await res.json();
-        renderAdminFailedDocs(adminFailedDocsCache);
+        const fresh = await res.json();
+        const changed = JSON.stringify(fresh) !== JSON.stringify(adminFailedDocsCache);
+        adminFailedDocsCache = fresh;
+        if (!silent || changed) renderAdminFailedDocs(adminFailedDocsCache);
     } catch (e) {
-        if (tbody) tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در بارگذاری اسناد ناموفق.</td></tr>`;
-        showToast('خطا در بارگذاری اسناد ناموفق');
+        if (tbody && !silent) tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در بارگذاری اسناد ناموفق.</td></tr>`;
+        if (!silent) showToast('خطا در بارگذاری اسناد ناموفق');
     }
 }
 
@@ -7249,7 +7254,13 @@ function renderAdminFailedDocs(jobs) {
         } else if (j.status === 'retrying') {
             ops = `<span class="font-bold" style="color:var(--accent);">در حال ترجمه...</span>`;
         } else {
-            ops = `<button type="button" id="retry-${j.id}" onclick="retryTranslation('${j.id}')" class="font-bold px-3 py-1 rounded-lg" style="background:var(--accent);color:#000;border:none;cursor:pointer;">ترجمه سند</button>`;
+            const errNote = j.error_message
+                ? `<span class="text-[10px]" style="color:#f87171;" title="${escapeHtml(j.error_message)}">آخرین تلاش ناموفق بود</span>`
+                : '';
+            ops = `<div class="flex flex-col items-center gap-1">
+                <button type="button" id="retry-${j.id}" onclick="retryTranslation('${j.id}')" class="font-bold px-3 py-1 rounded-lg" style="background:var(--accent);color:#000;border:none;cursor:pointer;">ترجمه سند</button>
+                ${errNote}
+            </div>`;
         }
         return `<tr style="border-bottom:1px solid var(--divider);">
             <td class="py-2 px-3">
@@ -7276,14 +7287,15 @@ async function retryTranslation(jobId) {
             return;
         }
         showToast('🔄 ترجمه مجدد سند آغاز شد.');
-        await loadAdminFailedDocs();
-        // Poll until the job leaves "retrying" (success -> support_translated,
-        // failure -> pending_support), then the list already shows the result.
+        await loadAdminFailedDocs(true);
+        // Quietly poll until the job leaves "retrying" (success ->
+        // support_translated, failure -> pending_support). The silent refresh
+        // only re-renders when the data actually changes, so no flicker.
         for (let i = 0; i < 20; i++) {
             await new Promise(r => setTimeout(r, 3000));
-            await loadAdminFailedDocs();
+            await loadAdminFailedDocs(true);
             const job = adminFailedDocsCache.find(j => j.id === jobId);
-            if (!job || job.status !== 'retrying') break;
+            if (job && job.status !== 'retrying') break;
         }
     } catch (e) {
         showToast('❌ خطا در ارتباط با سرور.');
