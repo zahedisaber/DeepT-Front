@@ -7246,7 +7246,7 @@ function renderAdminFailedDocs(jobs) {
                 <button type="button" id="sendToUser-${j.id}" onclick="sendSupportTranslationToUser('${j.id}')" class="font-bold px-3 py-1 rounded-lg" style="background:var(--accent);color:#000;border:none;cursor:pointer;">ارسال به کاربر</button>
             </div>`;
         } else {
-            ops = `<button type="button" onclick="openSupportTranslation('${j.id}')" class="font-bold px-3 py-1 rounded-lg" style="background:var(--accent);color:#000;border:none;cursor:pointer;">ترجمه سند</button>`;
+            ops = `<button type="button" id="retry-${j.id}" onclick="retryTranslation('${j.id}')" class="font-bold px-3 py-1 rounded-lg" style="background:var(--accent);color:#000;border:none;cursor:pointer;">ترجمه سند</button>`;
         }
         return `<tr style="border-bottom:1px solid var(--divider);">
             <td class="py-2 px-3">
@@ -7260,101 +7260,28 @@ function renderAdminFailedDocs(jobs) {
     }).join('');
 }
 
-let pendingSupportTranslationJobId = null;
-
-function openSupportTranslation(jobId) {
-    pendingSupportTranslationJobId = jobId;
-    const job = adminFailedDocsCache.find(j => j.id === jobId);
-    if (!job) return;
-
-    const typeLabel = DOCUMENT_REGISTRY[job.document_type]?.label || escapeHtml(job.document_type);
-    const identities = Array.isArray(job.identity_info) ? job.identity_info : [];
-
-    let identityHtml;
-    if (!identities.length) {
-        identityHtml = `<p class="text-sm" style="color:var(--text-muted);">اطلاعات گذرنامه‌ای برای این سند ثبت نشده است.</p>`;
-    } else {
-        identityHtml = identities.map((id, idx) => {
-            const fields = [
-                ['نام', id.first_name],
-                ['نام خانوادگی', id.last_name],
-                ['نام پدر', id.father_name],
-                ['تاریخ تولد', id.date_of_birth],
-                ['کد ملی', id.national_id],
-                ['نام (فارسی)', id.first_name_fa],
-                ['نام خانوادگی (فارسی)', id.last_name_fa],
-            ];
-            const rows = fields.filter(([, v]) => v).map(([k, v]) =>
-                `<div class="flex justify-between gap-4 py-1" style="border-bottom:1px solid var(--divider);"><span class="text-xs font-bold" style="color:var(--text-muted);">${escapeHtml(k)}</span><span class="text-sm en" dir="ltr" style="color:var(--text-main);">${escapeHtml(v)}</span></div>`
-            ).join('');
-            return `<div class="p-3 rounded-lg mb-2" style="background:var(--bg-main);"><div class="text-xs font-black mb-1" style="color:var(--accent);">نفر ${idx + 1}</div>${rows}</div>`;
-        }).join('');
-    }
-
-    const body = document.getElementById('supportTranslationBody');
-    if (body) {
-        body.innerHTML = `
-            <div class="mb-3">
-                <div class="text-xs font-bold" style="color:var(--text-muted);">نوع سند</div>
-                <div class="text-sm font-black" style="color:var(--text-main);">${typeLabel}</div>
-            </div>
-            <div class="mb-1 text-xs font-bold" style="color:var(--text-muted);">اطلاعات گذرنامه / هویت</div>
-            ${identityHtml}
-        `;
-    }
-    const downloadBtn = document.getElementById('supportDownloadOriginalBtn');
-    if (downloadBtn) downloadBtn.onclick = () => downloadJobOriginal(jobId);
-    document.getElementById('supportTranslationModal').classList.remove('hidden');
-}
-
-function closeSupportTranslationModal() {
-    document.getElementById('supportTranslationModal').classList.add('hidden');
-}
-
-function promptSupportTranslation() {
-    if (!pendingSupportTranslationJobId) return;
-    const input = document.getElementById('supportTranslationFileInput');
-    if (input) input.click();
-}
-
-async function onSupportTranslationFileChosen(input) {
-    const file = input.files && input.files[0];
-    input.value = '';
-    if (!file || !pendingSupportTranslationJobId) return;
-    const jobId = pendingSupportTranslationJobId;
-    pendingSupportTranslationJobId = null;
+async function retryTranslation(jobId) {
     const token = getToken();
     if (!token) return;
+    const btn = document.getElementById(`retry-${jobId}`);
+    if (btn) { btn.disabled = true; btn.textContent = 'در حال ترجمه...'; }
     try {
-        const b64 = await readFileAsBase64(file);
-        const res = await fetch(`${CORE}/jobs/${jobId}/support-translation`, {
+        const res = await fetch(`${BACKEND}/api/retry/${jobId}`, {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ result_filename: file.name, result_file_b64: b64 })
+            headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
-            showToast('✅ ترجمه ثبت شد و برای کاربر قابل دانلود است.');
-            closeSupportTranslationModal();
-            loadAdminFailedDocs();
+            showToast('🔄 ترجمه مجدد سند آغاز شد.');
+            if (btn) { btn.textContent = 'در حال ترجمه...'; btn.disabled = true; }
+            setTimeout(loadAdminFailedDocs, 1500);
         } else {
-            showToast('❌ ثبت ترجمه ناموفق بود. دوباره تلاش کنید.');
+            showToast('❌ شروع ترجمه مجدد ناموفق بود. دوباره تلاش کنید.');
+            if (btn) { btn.disabled = false; btn.textContent = 'ترجمه سند'; }
         }
     } catch (e) {
-        showToast('❌ ثبت ترجمه ناموفق بود. اتصال خود را بررسی کنید.');
+        showToast('❌ خطا در ارتباط با سرور.');
+        if (btn) { btn.disabled = false; btn.textContent = 'ترجمه سند'; }
     }
-}
-
-function readFileAsBase64(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-            const result = reader.result || '';
-            const comma = result.indexOf(',');
-            resolve(comma >= 0 ? result.slice(comma + 1) : result);
-        };
-        reader.onerror = () => reject(reader.error);
-        reader.readAsDataURL(file);
-    });
 }
 
 async function sendSupportTranslationToUser(jobId) {
