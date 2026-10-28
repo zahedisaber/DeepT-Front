@@ -5331,7 +5331,7 @@ async function submitJobToSupport(jobId) {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
-            showToast('📩 سند برای ترجمه دستی به پشتیبانی ارسال شد.');
+            showToast('📩 سند برای ترجمه به پشتیبانی ارسال شد.');
             await renderDashboardActiveProjects();
         } else {
             showToast('❌ ارسال سند به پشتیبانی ناموفق بود. دوباره تلاش کنید.');
