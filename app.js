@@ -7244,14 +7244,19 @@ function renderAdminFailedDocs(jobs) {
     tbody.innerHTML = jobs.map(j => {
         const dateStr = j.created_at ? new Date(j.created_at).toLocaleDateString('fa-IR') : '—';
         const shortId = escapeHtml((j.id || '').slice(0, 8));
+        const deleteBtn = `<button type="button" onclick="deleteFailedJob('${j.id}')" class="font-bold px-2 py-1 rounded-lg" style="background:transparent;color:#f87171;border:1px solid #f87171;cursor:pointer;">حذف</button>`;
         let ops;
         if (j.status === 'support_translated') {
             ops = `<div class="flex items-center justify-center gap-2 flex-wrap">
                 <a href="javascript:void(0)" onclick="downloadJobResult('${j.id}')" class="font-bold hover:underline" style="color:var(--accent);" title="${escapeHtml(j.result_filename || 'دانلود فایل ترجمه')}">دانلود</a>
                 <button type="button" id="sendToUser-${j.id}" onclick="sendSupportTranslationToUser('${j.id}')" class="font-bold px-3 py-1 rounded-lg" style="background:var(--accent);color:#000;border:none;cursor:pointer;">ارسال به کاربر</button>
+                ${deleteBtn}
             </div>`;
         } else if (j.status === 'retrying') {
-            ops = `<span class="font-bold" style="color:var(--accent);">در حال ترجمه...</span>`;
+            ops = `<div class="flex items-center justify-center gap-2 flex-wrap">
+                <span class="font-bold" style="color:var(--accent);">در حال ترجمه...</span>
+                ${deleteBtn}
+            </div>`;
         } else {
             const errNote = j.error_message
                 ? `<span class="text-[10px]" style="color:#f87171;" title="${escapeHtml(j.error_message)}">آخرین تلاش ناموفق بود</span>`
@@ -7260,6 +7265,7 @@ function renderAdminFailedDocs(jobs) {
                 <div class="flex items-center gap-2 flex-wrap justify-center">
                     <button type="button" id="retry-${j.id}" onclick="retryTranslation('${j.id}')" class="font-bold px-3 py-1 rounded-lg" style="background:var(--accent);color:#000;border:none;cursor:pointer;">ترجمه سند</button>
                     <button type="button" onclick="promptUploadTranslation('${j.id}')" class="font-bold px-3 py-1 rounded-lg" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);cursor:pointer;">آپلود فایل ترجمه</button>
+                    ${deleteBtn}
                 </div>
                 ${errNote}
             </div>`;
@@ -7349,6 +7355,26 @@ async function onTranslationFileChosen(input) {
         }
     } catch (e) {
         showToast('❌ بارگذاری فایل ترجمه ناموفق بود. اتصال خود را بررسی کنید.');
+    }
+}
+
+async function deleteFailedJob(jobId) {
+    if (!confirm('آیا از حذف این سند اطمینان دارید؟')) return;
+    const token = getToken();
+    if (!token) return;
+    try {
+        const res = await fetch(`${CORE}/jobs/${jobId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+            showToast('🗑️ سند حذف شد.');
+            await loadAdminFailedDocs();
+        } else {
+            showToast('❌ حذف سند ناموفق بود.');
+        }
+    } catch (e) {
+        showToast('❌ حذف سند ناموفق بود. اتصال خود را بررسی کنید.');
     }
 }
 
