@@ -7245,19 +7245,14 @@ function renderAdminFailedDocs(jobs) {
     tbody.innerHTML = jobs.map(j => {
         const dateStr = j.created_at ? new Date(j.created_at).toLocaleDateString('fa-IR') : '—';
         const shortId = escapeHtml((j.id || '').slice(0, 8));
-        const deleteBtn = `<button type="button" onclick="deleteFailedJob('${j.id}')" class="font-bold px-2 py-1 rounded-lg" style="background:transparent;color:#f87171;border:1px solid #f87171;cursor:pointer;">حذف</button>`;
         let ops;
         if (j.status === 'support_translated') {
             ops = `<div class="flex items-center justify-center gap-2 flex-wrap">
                 <a href="javascript:void(0)" onclick="downloadJobResult('${j.id}')" class="font-bold hover:underline" style="color:var(--accent);" title="${escapeHtml(j.result_filename || 'دانلود فایل ترجمه')}">دانلود</a>
                 <button type="button" id="sendToUser-${j.id}" onclick="sendSupportTranslationToUser('${j.id}')" class="font-bold px-3 py-1 rounded-lg" style="background:var(--accent);color:#000;border:none;cursor:pointer;">ارسال به کاربر</button>
-                ${deleteBtn}
             </div>`;
         } else if (j.status === 'retrying') {
-            ops = `<div class="flex items-center justify-center gap-2 flex-wrap">
-                <span class="font-bold" style="color:var(--accent);">در حال ترجمه...</span>
-                ${deleteBtn}
-            </div>`;
+            ops = `<span class="font-bold" style="color:var(--accent);">در حال ترجمه...</span>`;
         } else {
             // Only a genuine retranslate failure gets the red note; a newly
             // sent document (pending_support) just shows the action buttons.
@@ -7268,14 +7263,16 @@ function renderAdminFailedDocs(jobs) {
                 <div class="flex items-center gap-2 flex-wrap justify-center">
                     <button type="button" id="retry-${j.id}" onclick="retryTranslation('${j.id}')" class="font-bold px-3 py-1 rounded-lg" style="background:var(--accent);color:#000;border:none;cursor:pointer;">ترجمه سند</button>
                     <button type="button" onclick="promptUploadTranslation('${j.id}')" class="font-bold px-3 py-1 rounded-lg" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);cursor:pointer;">آپلود فایل ترجمه</button>
-                    ${deleteBtn}
                 </div>
                 ${errNote}
             </div>`;
         }
         return `<tr style="border-bottom:1px solid var(--divider);">
             <td class="py-2 px-3">
-                <div class="font-black en" style="color:var(--text-main);">${shortId}</div>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="deleteFailedJob('${j.id}')" title="حذف سند" style="background:transparent;border:none;color:#ef4444;cursor:pointer;font-size:1.15rem;font-weight:900;line-height:1;padding:0;">−</button>
+                    <span class="font-black en" style="color:var(--text-main);">${shortId}</span>
+                </div>
             </td>
             <td class="py-2 px-3">
                 <a href="javascript:void(0)" onclick="downloadJobOriginal('${j.id}')" class="hover:underline" style="color:var(--accent);" title="دانلود فایل">${typeLabel(j.document_type)}</a>
