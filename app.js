@@ -39,6 +39,8 @@ const DOCUMENT_REGISTRY = {
     'vehicle-deed': {
         label:               'سند مالکیت خودرو (برگ سبز)',
         endpoint: `${BACKEND}/api/translate/vehicle-deed`,
+        // Re-enabled after the BackEnd rework (DeepT-Back-End #71: eboo OCR
+        // for the Number / postal code / national ID, Gemini for the rest).
         active:              true,
         usePassportSession:  true,
     },
@@ -47,6 +49,11 @@ const DOCUMENT_REGISTRY = {
         endpoint: `${BACKEND}/api/translate/notary-deed`,
         active:              true,
         usePassportSession:  true,
+        // Notary deed scans run large (multi-page, high-res) and were
+        // failing after all 3 direct-upload attempts with no fallback
+        // (DeepT-Back-End now accepts upload_id here too -- see
+        // notary_deed.py's handle_notary_translation).
+        chunkedUpload:       true,
     },
     'academic-transcript': {
         label:               'ریزنمرات علوم پزشکی',
@@ -85,6 +92,16 @@ const DOCUMENT_REGISTRY = {
         active:              true,
         usePassportSession:  true,
     },
+    'azad-provisional-transcript': {
+        label:               'ریزنمرات موقت دانشگاه آزاد اسلامی',
+        // Provisional transcript printout: semester blocks read from
+        // enlarged crops (see azad_provisional_transcript.py on
+        // DeepT-Back-End). Passport sessions are matched to the student.
+        endpoint: `${BACKEND}/api/translate/azad-provisional-transcript`,
+        active:              true,
+        usePassportSession:  true,
+        courseCodesToggle:   true,
+    },
     'general-transcript': {
         label:               'ریزنمرات سیستم گلستان',
         endpoint: `${BACKEND}/api/translate/general-transcript`,
@@ -104,7 +121,33 @@ const DOCUMENT_REGISTRY = {
         endpoint: `${BACKEND}/api/translate/consolidated-insurance-record`,
         active:              true,
         usePassportSession:  true,
-    },    'national-id-card': {
+    },
+    'insurance-list-receipt': {
+        label:               'رسید بیمه شدگان لیست اینترنتی-تامین اجتماعی',
+        // Employer's monthly list: page-1 summary + employee wage table
+        // (see insurance_list_receipt.py on DeepT-Back-End). No passport
+        // matching on the backend -- usePassportSession only keeps the
+        // usual client link (client_id) in the request.
+        endpoint: `${BACKEND}/api/translate/insurance-list-receipt`,
+        active:              true,
+        usePassportSession:  true,
+    },
+    'insurance-wage-record': {
+        label:               'سوابق پرداخت حق بیمه و ریز دستمزد - تامین اجتماعی',
+        // Days worked and wage per month for every workshop-year (see
+        // insurance_wage_record.py on DeepT-Back-End). The backend matches
+        // passport sessions to the insured person (name + date of birth).
+        endpoint: `${BACKEND}/api/translate/insurance-wage-record`,
+        active:              true,
+        usePassportSession:  true,
+    },
+    'building-permit': {
+        label:               'پروانه های ساختمانی',
+        endpoint: `${BACKEND}/api/translate/building-permit`,
+        active:              true,
+        usePassportSession:  true,
+    },
+    'national-id-card': {
         label:               'کارت ملی',
         // Text read by eboo OCR, not Gemini vision (see national_id_card.py
         // on DeepT-Back-End). One file: front only, or a PDF of both sides.
@@ -287,6 +330,45 @@ async function syncProfileFromServer() {
         }
         if (changed) syncUserSessionDOM();
     } catch (e) { /* offline or Core unreachable -- keep the cached value, try again next load */ }
+}
+
+// ═══════════════════════════════════════════════════════════
+// SYSTEM ANNOUNCEMENT BANNER (پنل مدیریت → publishSystemAnnouncement())
+// ═══════════════════════════════════════════════════════════
+// Shows an admin-published alert at the top of every logged-in user's
+// dashboard (see announcements.py). Keyed by the announcement's own
+// created_at, not a plain "seen it" flag -- so dismissing one doesn't
+// hide a newer one published later in the same browser.
+async function loadSystemAnnouncement() {
+    if (!currentUserSession || !currentUserSession.token) return;
+    const banner = document.getElementById('systemAnnouncementBanner');
+    if (!banner) return;
+    try {
+        const res = await fetch(`${CORE}/announcements/active`, {
+            headers: { 'Authorization': `Bearer ${currentUserSession.token}` }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data.active) { banner.classList.add('hidden'); return; }
+        if (localStorage.getItem('deept_dismissed_announcement') === data.created_at) {
+            banner.classList.add('hidden');
+            return;
+        }
+        document.getElementById('systemAnnouncementText').textContent = data.message;
+        banner.dataset.createdAt = data.created_at;
+        banner.classList.remove('hidden');
+        banner.classList.add('flex');
+    } catch (e) { /* offline or Core unreachable -- leave banner as it was */ }
+}
+
+function dismissSystemAnnouncement() {
+    const banner = document.getElementById('systemAnnouncementBanner');
+    if (!banner) return;
+    if (banner.dataset.createdAt) {
+        localStorage.setItem('deept_dismissed_announcement', banner.dataset.createdAt);
+    }
+    banner.classList.add('hidden');
+    banner.classList.remove('flex');
 }
 
 let currentUserSession = loadSession();
@@ -890,6 +972,14 @@ async function saveProfileConfiguration() {
     const contact = document.getElementById('profileContactInput').value;
     const office  = type === 'office' ? document.getElementById('officeNameInput').value : '';
 
+    // Mirrors auth.py's update_profile() requirement: an office account needs
+    // a real office name/license number and a way to reach them, so catch it
+    // here instead of making the user wait for the server's 400.
+    if (type === 'office' && (!office.trim() || !contact.trim())) {
+        showToast('❌ برای ثبت به عنوان دارالترجمه، وارد کردن نام/شماره پروانه دفتر و شماره تماس الزامی است.');
+        return;
+    }
+
     // Test/mock session (see initializeApp()'s ?test=1 handling) has no
     // real account behind it to PATCH -- keep the old localStorage-only
     // behavior for it.
@@ -924,7 +1014,18 @@ async function saveProfileConfiguration() {
         currentUserSession.office  = data.office_name || '';
         currentUserSession.contact = data.contact_info || '';
         syncUserSessionDOM();
-        showToast('✅ پروفایل بروزرسانی شد.');
+        // office_bonus_status is only ever present the ONE time account_type
+        // actually transitions to "office" (see auth.py's
+        // _maybe_grant_office_bonus) -- null on every other save, including
+        // a translator who's already an office account editing their name.
+        if (data.office_bonus_status === 'granted') {
+            showToast('✅ پروفایل بروزرسانی شد. ۲۰۰,۰۰۰ تومان اعتبار هدیه ثبت‌نام دارالترجمه به کیف پول شما اضافه شد!', 4000);
+            refreshWalletBalanceDisplay();
+        } else if (data.office_bonus_status === 'held_for_review') {
+            showToast('✅ پروفایل بروزرسانی شد. اعتبار هدیه ثبت‌نام دارالترجمه شما در حال بررسی توسط تیم دیپتی است.', 4000);
+        } else {
+            showToast('✅ پروفایل بروزرسانی شد.');
+        }
     } catch (e) {
         showToast('❌ خطا در ذخیره پروفایل: ' + e.message);
     } finally {
@@ -1043,7 +1144,7 @@ const DP_DOCS = [
         { key:"qr_caption", label:"زیرنویس کد QR", kind:"simple", def:"[Printed QR Code]" },
         { key:"postscript_label", label:"برچسب پی‌نوشت", kind:"simple", def:"Postscript:" },
         { key:"note_1", label:"پی‌نوشت ۱ — مادهٔ ۶۵۵", kind:"simple", def:"1. By the virtue of Article 655 of Criminal Procedure, the electronic copy of this certificate shall be valid and sufficient, and no seal is required." },
-        { key:"note_2", label:"پی‌نوشت ۲ — استعلام آنلاین", kind:"simple", def:"2. This certificate was issued electronically by inspecting the existing records in accordance with Note 2 of Article 10 of the mentioned By-law. Authenticity can be verified for two months at www.adliran.ir." },
+        { key:"note_2", label:"پی‌نوشت ۲ — استعلام آنلاین", kind:"simple", def:"2. This certificate was issued electronically by inspecting the existing records in accordance with Note 2 of Article 10 of the mentioned By-law and according to Article 25 of the Islamic Penal Code enacted in 2013. The certificate authenticity can be verified for two months since the issue date by visiting www.adliran.ir." },
         { key:"note_3", label:"پی‌نوشت ۳ — مبلغ پرداختی", kind:"complex",
           tokens:[{key:"amount",label:"مبلغ"},{key:"transaction_number",label:"شمارهٔ تراکنش"}],
           def:"3. A sum of {{amount}} Rials was received for electronic services through No. {{transaction_number}}." },
@@ -1169,6 +1270,16 @@ const DP_DOCS = [
           "دفاع مقدس": "Iran-Iraq War",
       } },
     },
+    { id:"azad_provisional_transcript", label:"ریزنمرات موقت دانشگاه آزاد", full:true, fields:[],
+      // Same course-name glossary as azad_transcript (the provisional
+      // transcript's prompt uses azad_transcript.py's
+      // DEFAULT_COURSE_NAME_GLOSSARY), saved separately as
+      // term_glossary["azad_provisional_transcript"].
+      glossary: { defaults: {
+          "روستا": "Rural Architecture",
+          "دفاع مقدس": "Iran-Iraq War",
+      } },
+    },
     { id:"property_deed_owner", label:"سند مالکیت ملک", full:true, fields:[
         { key:"hologram_seal_note", label:"تشریح هولوگرام اداره ثبت", kind:"simple", def:"Affixed Hologram Seal of Registration Organization for Deeds and Real Estate." },
         { key:"legal_basis_statement", label:"این سند مالکیت رسمی است و مطابق ثبت دفتر املاک الکترونیک، بر اساس ماده ۲۲ قانون ثبت و ماده ۴ قانون کاداستر جامع، صادر و در یک برگ تسلیم می‌شود.", kind:"simple", def:"This title deed is officially registered and is issued in one copy according to real estate registration, based on the article 22 of Registration Act and Article 4 of Comprehensive Cadastral Law." },
@@ -1219,7 +1330,9 @@ let dpGlossarySearch = '';  // current client-side filter text for the glossary 
    Per-document-type phrase catalog (PATCH /users/me/preferences merge,
    {{token}} chips are JS-rendered units, never raw braces). ============ */
 function dpEffectiveValue(docId, key, def){
-    if (dpDraft[docId] && dpDraft[docId][key] !== undefined) return dpDraft[docId][key];
+    // A '' draft means "clear the saved override" (sent as null on save),
+    // so the editor shows the default text it will fall back to.
+    if (dpDraft[docId] && dpDraft[docId][key] !== undefined) return dpDraft[docId][key] === '' ? def : dpDraft[docId][key];
     if (dpServerPhrases[docId] && dpServerPhrases[docId][key] !== undefined) return dpServerPhrases[docId][key];
     return def;
 }
@@ -1528,7 +1641,16 @@ document.addEventListener('click', (e) => {
     const resetBtn = e.target.closest('[data-dp-reset]');
     if (resetBtn){
         const doc = DP_DOCS.find(d => d.id === dpCurrentDoc);
-        if (dpDraft[doc.id]) delete dpDraft[doc.id][resetBtn.dataset.dpReset];
+        const key = resetBtn.dataset.dpReset;
+        if (dpServerPhrases[doc.id] && dpServerPhrases[doc.id][key] != null){
+            // A saved override exists -- dropping the draft alone would just
+            // bring that saved text back, never the default. Queue clearing it.
+            if (!dpDraft[doc.id]) dpDraft[doc.id] = {};
+            dpDraft[doc.id][key] = '';
+        } else if (dpDraft[doc.id]) {
+            delete dpDraft[doc.id][key];
+            if (Object.keys(dpDraft[doc.id]).length === 0) delete dpDraft[doc.id];
+        }
         renderDocumentPhrases();
         return;
     }
@@ -1597,7 +1719,7 @@ async function saveCurrentDocumentSettings(){
         // warning) so the translator can keep fixing it.
         for (const key in changes){
             const f = doc.fields.find(f => f.key === key);
-            if (f.kind === 'complex' && !dpCheckComplex(changes[key], f.tokens).valid){
+            if (f.kind === 'complex' && changes[key] !== '' && !dpCheckComplex(changes[key], f.tokens).valid){
                 blockedCount++;
                 continue;
             }
@@ -2249,12 +2371,100 @@ function printMyPriceList() {
 // ═══════════════════════════════════════════════════════════
 /* ============ SECTION: WALLET, PAYMENT & SUPPORT ============
    Shaparak gateway redirect + wallet balance refresh + support tickets. ============ */
-function triggerShaparakPayment() {
-    // Real payment isn't live yet -- during the trial, credit is added
-    // manually by the admin. No self-service top-up exists on the frontend
-    // at all right now; this replaces the old fake simulator, which showed
-    // a fabricated number disconnected from the real backend balance.
-    showToast('برای افزایش اعتبار با پشتیبانی تماس بگیرید.');
+const MIN_TOPUP_TOMAN = 25000;
+
+async function triggerShaparakPayment() {
+    if (!currentUserSession) { openAuthModal(); return; }
+    const amountEl = document.getElementById('paymentAmountInput');
+    if (!amountEl) {
+        // The home dashboard's quick "افزایش اعتبار" shortcut has no amount
+        // field of its own -- send the user to the workspace wallet panel,
+        // where paymentAmountInput lives next to the real "درگاه" button.
+        openWorkspaceDashboard();
+        return;
+    }
+    const amount = parseInt(amountEl.value, 10);
+    if (!amount || amount < MIN_TOPUP_TOMAN) {
+        showToast(`❌ حداقل مبلغ شارژ ${MIN_TOPUP_TOMAN.toLocaleString()} تومان است.`);
+        return;
+    }
+    const token = getToken();
+    if (!token) { openAuthModal(); return; }
+    try {
+        const res = await fetch(`${CORE}/wallet/topup/initiate`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ amount_toman: amount })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || 'خطای درگاه پرداخت');
+        window.location.href = data.payment_url;
+    } catch (e) {
+        showToast('❌ خطا در اتصال به درگاه پرداخت: ' + e.message);
+    }
+}
+
+// Card-to-card (Cartbecart, see DeepT-Core's cardtocard.py): the user
+// transfers an exact amount to the office's card from their own banking app;
+// the wallet is credited once the bank's SMS is matched. Same amount field
+// as the gateway; Cartbecart's own page shows the card and the exact amount.
+async function triggerCardToCardPayment() {
+    if (!currentUserSession) { openAuthModal(); return; }
+    const amountEl = document.getElementById('paymentAmountInput');
+    if (!amountEl) { openWorkspaceDashboard(); return; }
+    const amount = parseInt(amountEl.value, 10);
+    if (!amount || amount < MIN_TOPUP_TOMAN) {
+        showToast(`❌ حداقل مبلغ شارژ ${MIN_TOPUP_TOMAN.toLocaleString()} تومان است.`);
+        return;
+    }
+    const token = getToken();
+    if (!token) { openAuthModal(); return; }
+    try {
+        const res = await fetch(`${CORE}/wallet/topup/card/initiate`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ amount_toman: amount })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || 'خطای پرداخت کارت‌به‌کارت');
+        window.location.href = data.payment_url;
+    } catch (e) {
+        showToast('❌ ' + e.message);
+    }
+}
+
+// After card-to-card, the bank's SMS can take a while to be matched (and
+// a transfer that doesn't match exactly waits for the office to approve it
+// by hand) -- keep checking while the page is open, then tell the user.
+async function pollCardTopup(requestId, startedAt = Date.now()) {
+    const token = getToken();
+    if (!token) return;
+    try {
+        const res = await fetch(`${CORE}/wallet/topup/card/status/${encodeURIComponent(requestId)}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+            const data = await res.json();
+            if (data.status === 'paid') {
+                showToast(`✅ کیف پول شما به مبلغ ${Number(data.amount_toman).toLocaleString()} تومان شارژ شد.`, 5000);
+                refreshWalletBalanceDisplay();
+                return;
+            }
+            if (data.status === 'failed') {
+                showToast('❌ واریز کارت‌به‌کارت تأیید نشد یا مهلت آن تمام شد.', 5000);
+                return;
+            }
+            if (data.status === 'needs_review' && !pollCardTopup.reviewNoted) {
+                pollCardTopup.reviewNoted = true;
+                showToast('⏳ واریز شما دریافت شد و در حال بررسی است. پس از تأیید، کیف پول شارژ می‌شود.', 6000);
+            }
+        }
+    } catch (e) { /* transient network error -- just try again */ }
+    // Stop after 2 hours on this page; the server still credits the wallet
+    // whenever Cartbecart confirms, and the balance shows on the next visit.
+    if (Date.now() - startedAt < 2 * 60 * 60 * 1000) {
+        setTimeout(() => pollCardTopup(requestId, startedAt), 15000);
+    }
 }
 
 async function refreshWalletBalanceDisplay() {
@@ -6248,7 +6458,12 @@ async function executeTranslationPipeline() {
         } else {
             showToast('❌ خطا در پردازش سند. لطفاً دوباره تلاش کنید یا با پشتیبانی تماس بگیرید.');
         }
-    } finally {
+        // Only re-enable on failure. A successful submission leaves it
+        // disabled on purpose -- the job ticket is already created at this
+        // point, so a second click (or an accidental double-click) would
+        // re-translate and re-charge for the exact same document. The way
+        // back in is "سند مدرک بعدی" (resetForNextDocument), which clears
+        // docSelectedFile and only re-enables once a fresh file is chosen.
         submitBtn.disabled = false;
     }
 }
@@ -6324,6 +6539,7 @@ let pendingResetToken = null;
     // a saved profile edit shows up in a different tab/session. Self-heals
     // on every page load instead of requiring a re-login.
     syncProfileFromServer();
+    loadSystemAnnouncement();
 
     // GitHub Pages has no server routing: a refresh on /dashboard etc. lands
     // on 404.html, which stashes the intended path (+ query string, e.g. a
@@ -6388,6 +6604,24 @@ let pendingResetToken = null;
     } else if (emailChanged === 'error') {
         showToast('⚠️ لینک تغییر ایمیل نامعتبر یا منقضی شده است.');
         window.history.replaceState({}, document.title, window.location.pathname);
+    // Wallet top-up redirect (from DeepT-Core's GET /wallet/topup/callback,
+    // after Zibal confirms or denies the payment) -- same redirect-with-flag
+    // pattern as the activation/reset-token links above.
+    const topupStatus = params.get('topup');
+    if (topupStatus === 'success') {
+        const amt = parseInt(params.get('amount'), 10);
+        showToast(amt ? `✅ کیف پول شما به مبلغ ${amt.toLocaleString()} تومان شارژ شد.` : '✅ شارژ کیف پول با موفقیت انجام شد.', 4000);
+        refreshWalletBalanceDisplay();
+        window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (topupStatus === 'failed') {
+        showToast('❌ پرداخت ناموفق بود یا لغو شد.');
+        window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (topupStatus === 'pending') {
+        // Card-to-card: back from Cartbecart's page before the transfer was matched.
+        const requestId = params.get('id');
+        showToast('⏳ پرداخت کارت‌به‌کارت شما در انتظار تأیید است. پس از تأیید، کیف پول خودکار شارژ می‌شود.', 6000);
+        window.history.replaceState({}, document.title, window.location.pathname);
+        if (requestId) pollCardTopup(requestId);
     }
 })();
 
@@ -6443,6 +6677,7 @@ document.getElementById('loginSuccess').classList.add('show');
 
 currentUserSession = loadSession();
 syncUserSessionDOM();
+loadSystemAnnouncement();
 
 setTimeout(() => {
     closeModals();
@@ -6901,6 +7136,7 @@ function showAdminDashboard() {
     document.getElementById('adminDashboard').classList.remove('hidden');
     switchAdminTab('users');
     loadAdminUsers();
+    loadAdminAnnouncementStatus();
     // Without its own URL, a reload had nowhere to route back to and fell
     // through to the landing page instead -- navigateTo is a no-op if the
     // address bar already says /admin (e.g. when applyRouteForPath itself
@@ -6996,8 +7232,125 @@ async function loadAdminUsers() {
         const searchInput = document.getElementById('adminUserSearchInput');
         if (searchInput) searchInput.value = '';
         renderAdminUsersRows(adminUsersCache);
+        renderPendingBonusRequests(adminUsersCache);
     } catch (e) {
         tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در اتصال.</td></tr>`;
+    }
+}
+
+// ── Office-signup bonus review (پنل مدیریت) ─────────────────────────────────
+// Lists accounts _maybe_grant_office_bonus (auth.py) held instead of
+// auto-crediting -- their signup_ip or normalized email matched an
+// account that already got the OFFICE_SIGNUP_BONUS_TOMAN bonus. Never
+// auto-blocked server-side; this is where a human decides.
+function renderPendingBonusRequests(users) {
+    const panel = document.getElementById('adminPendingBonusPanel');
+    const rows = document.getElementById('adminPendingBonusRows');
+    const pending = users.filter(u => u.office_bonus_status === 'held_for_review');
+    if (!pending.length) { panel.classList.add('hidden'); return; }
+
+    panel.classList.remove('hidden');
+    rows.innerHTML = pending.map(u => `
+        <div class="flex items-center justify-between gap-3 flex-wrap text-sm py-2" style="border-bottom:1px solid var(--divider);">
+            <div class="min-w-0">
+                <span class="font-bold en" dir="ltr" style="color:var(--text-main);">${escapeHtml(u.email)}</span>
+                <span style="color:var(--text-muted);"> — ${escapeHtml(u.full_name || '')}</span>
+                <span class="text-xs en block" dir="ltr" style="color:var(--text-muted);">IP: ${escapeHtml(u.signup_ip || 'نامشخص')}</span>
+            </div>
+            <div class="flex gap-2 shrink-0">
+                <button type="button" onclick="approveOfficeBonus('${u.user_id}')" class="text-xs font-bold px-3 py-1.5 rounded-lg" style="background:var(--accent);color:var(--btn-text-on-accent);">تایید اعتبار</button>
+                <button type="button" onclick="denyOfficeBonus('${u.user_id}')" class="text-xs font-bold px-3 py-1.5 rounded-lg" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">رد</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function approveOfficeBonus(userId) {
+    const token = localStorage.getItem('deept_token');
+    try {
+        const res = await fetch(`${CORE}/auth/admin/office-bonus/${userId}/approve`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || 'خطای سرور'); }
+        showToast('✅ اعتبار دفتر تایید و به کیف پول کاربر اضافه شد.');
+        loadAdminUsers();
+    } catch (e) {
+        showToast(`❌ ${e.message || 'تایید اعتبار ناموفق بود.'}`);
+    }
+}
+
+async function denyOfficeBonus(userId) {
+    if (!confirm('درخواست اعتبار دفتر این کاربر رد شود؟')) return;
+    const token = localStorage.getItem('deept_token');
+    try {
+        const res = await fetch(`${CORE}/auth/admin/office-bonus/${userId}/deny`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || 'خطای سرور'); }
+        showToast('اعتبار دفتر رد شد.');
+        loadAdminUsers();
+    } catch (e) {
+        showToast(`❌ ${e.message || 'رد درخواست ناموفق بود.'}`);
+    }
+}
+
+// ── System announcement publisher (پنل مدیریت) ──────────────────────────────
+async function loadAdminAnnouncementStatus() {
+    const token = localStorage.getItem('deept_token');
+    const statusEl = document.getElementById('adminAnnouncementStatus');
+    try {
+        const res = await fetch(`${CORE}/announcements/active`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) { statusEl.textContent = 'خطا در دریافت وضعیت.'; return; }
+        const data = await res.json();
+        if (data.active) {
+            statusEl.textContent = `فعال: «${data.message}»`;
+            statusEl.style.color = 'var(--accent)';
+        } else {
+            statusEl.textContent = 'غیرفعال — اعلانی منتشر نشده است.';
+            statusEl.style.color = 'var(--text-muted)';
+        }
+    } catch (e) {
+        statusEl.textContent = 'خطا در اتصال.';
+    }
+}
+
+async function publishSystemAnnouncement() {
+    const token = localStorage.getItem('deept_token');
+    const input = document.getElementById('adminAnnouncementInput');
+    const message = input.value.trim();
+    if (!message) { showToast('متن اعلان نمی‌تواند خالی باشد.'); return; }
+    try {
+        const res = await fetch(`${CORE}/announcements`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message })
+        });
+        if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || 'خطای سرور'); }
+        input.value = '';
+        showToast('✅ اعلان منتشر شد.');
+        await loadAdminAnnouncementStatus();
+    } catch (e) {
+        showToast(`❌ ${e.message || 'انتشار اعلان ناموفق بود.'}`);
+    }
+}
+
+async function clearSystemAnnouncement() {
+    if (!confirm('اعلان فعال پاک شود؟')) return;
+    const token = localStorage.getItem('deept_token');
+    try {
+        const res = await fetch(`${CORE}/announcements/active`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error();
+        showToast('✅ اعلان پاک شد.');
+        await loadAdminAnnouncementStatus();
+    } catch (e) {
+        showToast('❌ پاک کردن اعلان ناموفق بود.');
     }
 }
 async function adminDeduct(userId) {

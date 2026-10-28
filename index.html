@@ -55,7 +55,8 @@
      page, and openWorkspaceDashboard()/showFullView()/showAdminDashboard()
      unhide it for authenticated views. Without this, the first paint before
      app.js runs shows the dashboard header above the landing header. -->
-<div class="header-bar hidden fixed top-0 left-0 right-0 z-50 px-4 py-3 flex items-center justify-between gap-2">
+<div class="header-bar hidden fixed top-0 left-0 right-0 z-50 px-4 py-3 flex flex-col">
+  <div class="flex items-center justify-between gap-2">
   <div class="flex items-center gap-1 flex-wrap">
     <button type="button" id="railHomeBtn" onclick="goToHomePage()" class="side-rail-btn hidden" title="صفحه نخست">
       <svg class="side-rail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5 12 4l8 7.5"/><path d="M6 10v9a1 1 0 0 0 1 1h4v-5h2v5h4a1 1 0 0 0 1-1v-9"/></svg>
@@ -144,6 +145,17 @@
         <button type="button" onclick="closeUserProfilePreview()" class="flex-1 font-bold px-3 py-2 rounded-xl text-xs" style="background:var(--bg-secondary);color:var(--text-main);border:1px solid var(--border-subtle);">بستن</button>
       </div>
     </div>
+  </div>
+  </div>
+
+  <!-- Admin-published platform-wide alert (see announcements.py /
+       loadSystemAnnouncement() in app.js) -- grows header-bar's own height,
+       which every openXPage()'s `headerEl.offsetHeight + 16` content
+       padding already measures live, so nothing else needs to account for
+       it appearing/disappearing. -->
+  <div id="systemAnnouncementBanner" class="hidden items-start justify-between gap-3 px-3 py-2 text-xs font-bold" style="color:var(--alert-text);background:var(--alert-bg);border:1px solid var(--alert-border);border-radius:.6rem;margin-top:.5rem;">
+    <span>⚠️ <span id="systemAnnouncementText"></span></span>
+    <button type="button" onclick="dismissSystemAnnouncement()" class="shrink-0 font-black px-2" style="color:var(--alert-text);opacity:.75;" title="بستن">✕</button>
   </div>
 </div>
 
@@ -1019,17 +1031,31 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
             </div>
 
             <div class="workspace-panel p-6 relative overflow-hidden">
-                <div class="absolute top-0 left-0 px-3 py-0.5 text-[9px] font-mono font-black uppercase rounded-br-lg" style="background:var(--accent);color:var(--btn-text-on-accent);">Shaparak</div>
-                <h4 class="text-xs font-bold uppercase tracking-wide mb-2 mt-2" style="color:var(--text-muted);">کیف پول (تومان)</h4>
+                <h4 class="text-xs font-bold uppercase tracking-wide mb-2" style="color:var(--text-muted);">کیف پول (تومان)</h4>
                 <div class="text-3xl font-black font-mono my-3 flex items-baseline gap-1" style="color:var(--text-main);">
                     <span id="walletBalanceDisplay">۰</span>
                     <span class="text-xs font-sans font-bold" style="color:var(--accent);">تومان</span>
                 </div>
                 <div class="space-y-2 mt-4 pt-4" style="border-top:1px solid var(--divider);">
                     <label for="paymentAmountInput" class="block text-[11px]" style="color:var(--text-muted);">مبلغ افزایش اعتبار (تومان):</label>
-                    <div class="flex gap-2">
-                        <input type="number" id="paymentAmountInput" value="500000" step="50000" min="100000" class="converter-input flex-1 text-left" dir="ltr" style="font-size:.85rem;">
-                        <button type="button" onclick="triggerShaparakPayment()" class="font-black text-xs px-4 rounded-lg transition shrink-0" style="background:var(--accent);color:var(--btn-text-on-accent);">درگاه</button>
+                    <input type="number" id="paymentAmountInput" value="500000" step="25000" min="25000" class="converter-input w-full text-left" dir="ltr" style="font-size:.85rem;">
+                    <p class="text-[11px] pt-2" style="color:var(--text-muted);">روش پرداخت را انتخاب کنید:</p>
+                    <!-- Two separate, equal ways to pay -- neither is a sub-option of the other. -->
+                    <div class="space-y-2">
+                        <button type="button" onclick="triggerShaparakPayment()" class="pay-method">
+                            <span class="pay-method-icon" aria-hidden="true">🏦</span>
+                            <span class="pay-method-text">
+                                <span class="pay-method-title">درگاه بانکی</span>
+                                <span class="pay-method-sub">پرداخت آنلاین با کارت بانکی (شتاب)</span>
+                            </span>
+                        </button>
+                        <button type="button" onclick="triggerCardToCardPayment()" class="pay-method">
+                            <span class="pay-method-icon" aria-hidden="true">💳</span>
+                            <span class="pay-method-text">
+                                <span class="pay-method-title">کارت‌به‌کارت</span>
+                                <span class="pay-method-sub">واریز از اپلیکیشن بانک؛ تأیید خودکار</span>
+                            </span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1666,6 +1692,22 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
             <button type="button" onclick="adminLogout()" class="text-sm font-bold px-4 py-2 rounded-lg" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">خروج</button>
         </div>
 
+        <!-- Platform-wide alert banner publisher (see announcements.py /
+             publishSystemAnnouncement() in app.js) -- shown at the top of
+             پنل مدیریت regardless of tab, since it isn't CRM- or
+             users-specific. -->
+        <div class="workspace-panel p-5 mb-6">
+            <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+                <h3 class="text-sm font-black" style="color:var(--text-main);">اعلان سراسری (نمایش در داشبورد همه کاربران)</h3>
+                <span id="adminAnnouncementStatus" class="text-xs font-bold" style="color:var(--text-muted);">در حال بارگذاری...</span>
+            </div>
+            <textarea id="adminAnnouncementInput" rows="2" placeholder="متن اعلان را اینجا بنویسید..." class="auth-input text-sm w-full mb-3" style="resize:vertical;"></textarea>
+            <div class="flex gap-2 flex-wrap">
+                <button type="button" onclick="publishSystemAnnouncement()" class="text-sm font-bold px-4 py-2 rounded-lg" style="background:var(--accent);color:var(--btn-text-on-accent);">انتشار اعلان</button>
+                <button type="button" onclick="clearSystemAnnouncement()" class="text-sm font-bold px-4 py-2 rounded-lg" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">پاک کردن اعلان فعال</button>
+            </div>
+        </div>
+
         <!-- Tabs for Admin Dashboard -->
         <div class="flex gap-2 border-b mb-6" style="border-color: var(--divider);">
             <button type="button" onclick="switchAdminTab('users')" id="adminTabUsers" class="px-4 py-2 text-sm font-black border-b-2 transition-all duration-200" style="color: var(--accent); border-color: var(--accent); background: transparent;">
@@ -1679,6 +1721,15 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
             </button>
         </div>
         <div class="flex gap-2 border-b mb-6" style="border-color: var(--divider);">
+
+        <!-- Office-signup bonus requests held for review (see auth.py's
+             _maybe_grant_office_bonus) -- a new office account whose
+             signup_ip or normalized email matches an account that already
+             got the bonus. Hidden whenever there's nothing pending. -->
+        <div id="adminPendingBonusPanel" class="workspace-panel p-5 mb-6 hidden">
+            <h3 class="text-sm font-black mb-3" style="color:var(--alert-text);">⚠️ درخواست‌های اعتبار دفتر در انتظار بررسی</h3>
+            <div id="adminPendingBonusRows" class="flex flex-col gap-2"></div>
+        </div>
 
         <div id="adminUsersPanel" class="workspace-panel p-6 mb-6">
             <div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
