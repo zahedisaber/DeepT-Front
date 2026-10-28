@@ -7247,9 +7247,8 @@ function renderAdminFailedDocs(jobs) {
         const fname = escapeHtml(j.original_filename || '—');
         let ops;
         if (j.status === 'support_translated') {
-            const resultName = escapeHtml(j.result_filename || 'دانلود فایل ترجمه');
             ops = `<div class="flex items-center justify-center gap-2 flex-wrap">
-                <a href="javascript:void(0)" onclick="downloadJobResult('${j.id}')" class="font-bold hover:underline" style="color:var(--accent);" title="دانلود فایل ترجمه">${resultName}</a>
+                <a href="javascript:void(0)" onclick="downloadJobResult('${j.id}')" class="font-bold hover:underline" style="color:var(--accent);" title="${escapeHtml(j.result_filename || 'دانلود فایل ترجمه')}">دانلود</a>
                 <button type="button" id="sendToUser-${j.id}" onclick="sendSupportTranslationToUser('${j.id}')" class="font-bold px-3 py-1 rounded-lg" style="background:var(--accent);color:#000;border:none;cursor:pointer;">ارسال به کاربر</button>
             </div>`;
         } else if (j.status === 'retrying') {
