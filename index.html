@@ -1695,6 +1695,7 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                             <th class="py-3 px-3 font-bold">ایمیل</th>
                             <th class="py-3 px-3 font-bold">نام</th>
                             <th class="py-3 px-3 font-bold">نوع حساب</th>
+                            <th class="py-3 px-3 font-bold">تاریخ عضویت</th>
                             <th class="py-3 px-3 font-bold">موجودی (تومان)</th>
                             <th class="py-3 px-3 font-bold">شارژ</th>
                             <th class="py-3 px-3 font-bold">کسر اعتبار</th>
@@ -1792,6 +1793,26 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                 </div>
             </div>
 
+            <!-- New Users (Signups) Table -->
+            <div class="p-6 rounded-xl border mb-6" style="background: var(--card-surface); border-color: var(--border-subtle); box-shadow: var(--shadow-accent);">
+                <h4 class="text-sm font-black mb-4" style="color:var(--text-main);">🆕 کاربران جدید در بازه انتخابی</h4>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs text-right">
+                        <thead>
+                            <tr style="border-bottom:1px solid var(--divider); color:var(--text-muted);">
+                                <th class="py-2 px-2 font-bold">ایمیل</th>
+                                <th class="py-2 px-2 font-bold">نام</th>
+                                <th class="py-2 px-2 font-bold">نوع حساب</th>
+                                <th class="py-2 px-2 font-bold text-center">تاریخ و ساعت عضویت</th>
+                            </tr>
+                        </thead>
+                        <tbody id="crmNewUsersTableBody">
+                            <tr><td colspan="4" class="text-center py-4" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             <!-- Filters section -->
             <div class="flex flex-wrap gap-3 items-center justify-between mb-4 p-4 rounded-xl border" style="background: var(--bg-main); border-color: var(--border-subtle);">
                 <div class="flex flex-wrap gap-2 items-center">
@@ -1805,6 +1826,7 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                         <option value="processing">در حال پردازش</option>
                         <option value="completed">تکمیل شده</option>
                         <option value="support_translated">ترجمه شده توسط پشتیبانی</option>
+                        <option value="pending_support">ارسال شده به پشتیبانی</option>
                         <option value="failed">ناموفق</option>
                     </select>
                     <select id="crmDateFilter" class="auth-input text-sm w-36 py-2" onchange="applyCrmFilters()" style="background: var(--input-bg); color: var(--text-main); border-color: var(--input-border); border-radius: 0.5rem; padding: 0.5rem;">
@@ -1862,8 +1884,8 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                     </tbody>
                 </table>
             </div>
-            <!-- Hidden file input used by the "ترجمه سند" button to upload the manual translation -->
-            <input type="file" id="supportTranslationFileInput" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="hidden" onchange="onSupportTranslationFileChosen(this)">
+            <!-- Hidden file input used by the "آپلود فایل ترجمه" fallback button -->
+            <input type="file" id="translationUploadInput" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="hidden" onchange="onTranslationFileChosen(this)">
         </div>
 
         <div id="adminUserJobsPanel" class="workspace-panel p-6 hidden">

@@ -496,6 +496,10 @@ function executeLogout() {
     closeChatInterface();
     syncUserSessionDOM();
     showLandingView();
+    // Leave the address bar on '/' -- otherwise it keeps showing the last
+    // authenticated route (e.g. /dashboard or /account-settings) even though
+    // a logged-out user shouldn't be able to land back on it.
+    window.history.replaceState({}, document.title, '/');
     showToast('👋 با موفقیت خارج شدید.');
 }
 document.getElementById('logoutOverlay').addEventListener('click', function(e) {
@@ -2396,6 +2400,8 @@ function showLandingView() {
     if (sp) sp.classList.add('hidden');
     const st = document.getElementById('settingsPage');
     if (st) st.classList.add('hidden');
+    const ast = document.getElementById('accountSettingsPage');
+    if (ast) ast.classList.add('hidden');
     const pl = document.getElementById('myPriceListPage');
     if (pl) pl.classList.add('hidden');
     const hp = document.getElementById('homePanelsPage');
@@ -2557,6 +2563,9 @@ async function renderDashboardActiveProjects() {
         processing: { text: 'در حال پردازش', color: '#fb923c' },
         completed:  { text: 'آماده',      color: '#4ade80' },
         support_translated: { text: 'ترجمه شده توسط پشتیبانی', color: '#4ade80' },
+        retrying:   { text: 'در حال ترجمه', color: '#60a5fa' },
+        pending_support: { text: 'ارسال شده به پشتیبانی', color: '#60a5fa' },
+        support_retry_failed: { text: 'در انتظار ترجمه توسط پشتیبانی', color: '#60a5fa' },
         failed:     { text: 'ناموفق',     color: '#f87171' },
     };
 
@@ -2568,8 +2577,10 @@ async function renderDashboardActiveProjects() {
         let actionsHtml;
         if (job.status === 'completed' || job.status === 'support_translated') {
             actionsHtml = `<button onclick="downloadJobResult('${job.id}')" class="font-bold hover:underline" style="color:var(--accent);">دانلود DOCX</button>`;
-        } else if (job.status === 'failed') {
+        } else if (job.status === 'pending_support' || job.status === 'support_retry_failed') {
                         actionsHtml = `<span style="color:var(--text-muted);font-size:11px;">در انتظار ترجمه توسط پشتیبانی</span>`;
+        } else if (job.status === 'failed') {
+                        actionsHtml = `<button onclick="submitJobToSupport('${job.id}')" class="font-bold hover:underline" style="color:var(--accent);background:none;border:none;cursor:pointer;">ارسال به پشتیبانی</button>`;
         } else {
             actionsHtml = `<span style="color:var(--text-muted);">در حال پردازش...</span>`;
         }
@@ -5100,6 +5111,25 @@ function purgeFile(idx) {
         showToast('🗑️ فایل حذف شد.');
     }
 }
+
+async function submitJobToSupport(jobId) {
+    const token = getToken();
+    if (!token) { openAuthModal(); return; }
+    try {
+        const res = await fetch(`${CORE}/jobs/${jobId}/send-to-support`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+            showToast('📩 سند برای ترجمه دستی به پشتیبانی ارسال شد.');
+            await renderDashboardActiveProjects();
+        } else {
+            showToast('❌ ارسال سند به پشتیبانی ناموفق بود. دوباره تلاش کنید.');
+        }
+    } catch (e) {
+        showToast('❌ ارسال سند به پشتیبانی ناموفق بود. اتصال خود را بررسی کنید.');
+    }
+}
 // Runs regardless of which view is open (not just while میز کار is
 // visible) so a job-complete notification can fire even when the user is
 // elsewhere in the app; renderDashboardActiveProjects() itself guards on
@@ -6901,7 +6931,7 @@ var adminUsersCache = [];
 function renderAdminUsersRows(users) {
     const tbody = document.getElementById('adminUsersRowsBlock');
     if (!users.length) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-sm" style="color:var(--text-muted);">کاربری یافت نشد.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-sm" style="color:var(--text-muted);">کاربری یافت نشد.</td></tr>`;
         return;
     }
     tbody.innerHTML = users.map(u => `
@@ -6909,6 +6939,7 @@ function renderAdminUsersRows(users) {
                         <td class="py-3 px-3 en" style="color:var(--text-main);">${escapeHtml(u.email)}</td>
             <td class="py-3 px-3" style="color:var(--text-main);">${escapeHtml(u.full_name)}</td>
             <td class="py-3 px-3" style="color:var(--text-muted);">${u.account_type === 'office' ? 'دارالترجمه' : 'حقیقی'}</td>
+            <td class="py-3 px-3 en" style="color:var(--text-muted);">${(u.created_at || '').slice(0, 10)} ${(u.created_at || '').slice(11, 16)}</td>
             <td class="py-3 px-3 font-mono font-bold text-base" style="color:var(--accent);">${u.balance_toman.toLocaleString()}</td>
             <td class="py-3 px-3">
                 <div class="flex items-center gap-1.5">
@@ -6958,7 +6989,7 @@ async function loadAdminUsers() {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!res.ok) {
-            tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در دریافت لیست کاربران.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در دریافت لیست کاربران.</td></tr>`;
             return;
         }
         adminUsersCache = await res.json();
@@ -6966,7 +6997,7 @@ async function loadAdminUsers() {
         if (searchInput) searchInput.value = '';
         renderAdminUsersRows(adminUsersCache);
     } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در اتصال.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در اتصال.</td></tr>`;
     }
 }
 async function adminDeduct(userId) {
@@ -7132,6 +7163,7 @@ async function adminViewUserClients(userId, email) {
 
 // ── CRM PANEL LOGIC ──
 var adminCrmJobsCache = [];
+var adminCrmUsersCache = [];
 
 /* ============ SECTION: ADMIN CRM REPORTS ============
    Time-frame selector, doc-type stats, filters, jobs table. ============ */
@@ -7178,20 +7210,27 @@ function switchAdminTab(tab) {
     }
 }
 
-async function loadAdminFailedDocs() {
+let adminFailedDocsCache = [];
+
+async function loadAdminFailedDocs(silent = false) {
     const token = localStorage.getItem('deept_token');
     const tbody = document.getElementById('adminFailedDocsRowsBlock');
-    if (tbody) tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>`;
+    // Silent refresh (used while a retranslate is running) must not flash the
+    // loading placeholder or re-render unchanged rows -- same quiet behavior as
+    // the normal dashboard's periodic poll.
+    if (tbody && !silent) tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>`;
     try {
         const res = await fetch(`${CORE}/jobs/admin/failed`, {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!res.ok) throw new Error('failed_load');
-        const jobs = await res.json();
-        renderAdminFailedDocs(jobs);
+        const fresh = await res.json();
+        const changed = JSON.stringify(fresh) !== JSON.stringify(adminFailedDocsCache);
+        adminFailedDocsCache = fresh;
+        if (!silent || changed) renderAdminFailedDocs(adminFailedDocsCache);
     } catch (e) {
-        if (tbody) tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در بارگذاری اسناد ناموفق.</td></tr>`;
-        showToast('خطا در بارگذاری اسناد ناموفق');
+        if (tbody && !silent) tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در بارگذاری اسناد ناموفق.</td></tr>`;
+        if (!silent) showToast('خطا در بارگذاری اسناد ناموفق');
     }
 }
 
@@ -7206,57 +7245,78 @@ function renderAdminFailedDocs(jobs) {
     tbody.innerHTML = jobs.map(j => {
         const dateStr = j.created_at ? new Date(j.created_at).toLocaleDateString('fa-IR') : '—';
         const shortId = escapeHtml((j.id || '').slice(0, 8));
-        const fname = escapeHtml(j.original_filename || '—');
         let ops;
         if (j.status === 'support_translated') {
-            ops = `<a href="javascript:void(0)" onclick="downloadJobResult('${j.id}')" class="font-bold hover:underline" style="color:var(--accent);">دانلود</a>`;
+            ops = `<div class="flex items-center justify-center gap-2 flex-wrap">
+                <a href="javascript:void(0)" onclick="downloadJobResult('${j.id}')" class="font-bold hover:underline" style="color:var(--accent);" title="${escapeHtml(j.result_filename || 'دانلود فایل ترجمه')}">دانلود</a>
+                <button type="button" id="sendToUser-${j.id}" onclick="sendSupportTranslationToUser('${j.id}')" class="font-bold px-3 py-1 rounded-lg" style="background:var(--accent);color:#000;border:none;cursor:pointer;">ارسال به کاربر</button>
+            </div>`;
+        } else if (j.status === 'retrying') {
+            ops = `<span class="font-bold" style="color:var(--accent);">در حال ترجمه...</span>`;
         } else {
-            ops = `<button type="button" onclick="promptSupportTranslation('${j.id}')" class="font-bold px-3 py-1 rounded-lg" style="background:var(--accent);color:#000;border:none;cursor:pointer;">ترجمه سند</button>`;
+            // Only a genuine retranslate failure gets the red note; a newly
+            // sent document (pending_support) just shows the action buttons.
+            const errNote = j.status === 'support_retry_failed'
+                ? `<span class="text-[10px]" style="color:#f87171;">آخرین تلاش ناموفق بود</span>`
+                : '';
+            ops = `<div class="flex flex-col items-center gap-1">
+                <div class="flex items-center gap-2 flex-wrap justify-center">
+                    <button type="button" id="retry-${j.id}" onclick="retryTranslation('${j.id}')" class="font-bold px-3 py-1 rounded-lg" style="background:var(--accent);color:#000;border:none;cursor:pointer;">ترجمه سند</button>
+                    <button type="button" onclick="promptUploadTranslation('${j.id}')" class="font-bold px-3 py-1 rounded-lg" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);cursor:pointer;">آپلود فایل ترجمه</button>
+                </div>
+                ${errNote}
+            </div>`;
         }
         return `<tr style="border-bottom:1px solid var(--divider);">
             <td class="py-2 px-3">
-                <div class="font-black en" style="color:var(--text-main);">${shortId}</div>
-                <a href="javascript:void(0)" onclick="downloadJobOriginal('${j.id}')" class="text-xs hover:underline" style="color:var(--accent);">${fname}</a>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="deleteFailedJob('${j.id}')" title="حذف سند" style="background:transparent;border:none;color:#ef4444;cursor:pointer;font-size:1.15rem;font-weight:900;line-height:1;padding:0;">−</button>
+                    <span class="font-black en" style="color:var(--text-main);">${shortId}</span>
+                </div>
             </td>
-            <td class="py-2 px-3" style="color:var(--text-main);">${typeLabel(j.document_type)}</td>
+            <td class="py-2 px-3">
+                <a href="javascript:void(0)" onclick="downloadJobOriginal('${j.id}')" class="hover:underline" style="color:var(--accent);" title="دانلود فایل">${typeLabel(j.document_type)}</a>
+            </td>
             <td class="py-2 px-3 text-center" style="color:var(--text-muted);">${dateStr}</td>
             <td class="py-2 px-3 text-center">${ops}</td>
         </tr>`;
     }).join('');
 }
 
-let pendingSupportTranslationJobId = null;
-
-function promptSupportTranslation(jobId) {
-    pendingSupportTranslationJobId = jobId;
-    const input = document.getElementById('supportTranslationFileInput');
-    if (input) input.click();
-}
-
-async function onSupportTranslationFileChosen(input) {
-    const file = input.files && input.files[0];
-    input.value = '';
-    if (!file || !pendingSupportTranslationJobId) return;
-    const jobId = pendingSupportTranslationJobId;
-    pendingSupportTranslationJobId = null;
+async function retryTranslation(jobId) {
     const token = getToken();
     if (!token) return;
     try {
-        const b64 = await readFileAsBase64(file);
-        const res = await fetch(`${CORE}/jobs/${jobId}/support-translation`, {
+        const res = await fetch(`${BACKEND}/api/retranslate/${jobId}`, {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ result_filename: file.name, result_file_b64: b64 })
+            headers: { 'Authorization': `Bearer ${token}` }
         });
-        if (res.ok) {
-            showToast('✅ ترجمه ثبت شد و برای کاربر قابل دانلود است.');
-            loadAdminFailedDocs();
-        } else {
-            showToast('❌ ثبت ترجمه ناموفق بود. دوباره تلاش کنید.');
+        if (!res.ok) {
+            showToast('❌ شروع ترجمه مجدد ناموفق بود. دوباره تلاش کنید.');
+            return;
+        }
+        showToast('🔄 ترجمه مجدد سند آغاز شد.');
+        await loadAdminFailedDocs(true);
+        // Quietly poll until the job leaves "retrying" (success ->
+        // support_translated, failure -> pending_support). The silent refresh
+        // only re-renders when the data actually changes, so no flicker.
+        for (let i = 0; i < 20; i++) {
+            await new Promise(r => setTimeout(r, 3000));
+            await loadAdminFailedDocs(true);
+            const job = adminFailedDocsCache.find(j => j.id === jobId);
+            if (job && job.status !== 'retrying') break;
         }
     } catch (e) {
-        showToast('❌ ثبت ترجمه ناموفق بود. اتصال خود را بررسی کنید.');
+        showToast('❌ خطا در ارتباط با سرور.');
     }
+}
+
+let pendingUploadJobId = null;
+
+function promptUploadTranslation(jobId) {
+    pendingUploadJobId = jobId;
+    const input = document.getElementById('translationUploadInput');
+    if (input) input.click();
 }
 
 function readFileAsBase64(file) {
@@ -7270,6 +7330,75 @@ function readFileAsBase64(file) {
         reader.onerror = () => reject(reader.error);
         reader.readAsDataURL(file);
     });
+}
+
+async function onTranslationFileChosen(input) {
+    const file = input.files && input.files[0];
+    input.value = '';
+    if (!file || !pendingUploadJobId) return;
+    const jobId = pendingUploadJobId;
+    pendingUploadJobId = null;
+    const token = getToken();
+    if (!token) return;
+    try {
+        const b64 = await readFileAsBase64(file);
+        const res = await fetch(`${CORE}/jobs/${jobId}/support-translation`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ result_filename: file.name, result_file_b64: b64 })
+        });
+        if (res.ok) {
+            showToast('✅ فایل ترجمه بارگذاری شد.');
+            await loadAdminFailedDocs();
+        } else {
+            showToast('❌ بارگذاری فایل ترجمه ناموفق بود.');
+        }
+    } catch (e) {
+        showToast('❌ بارگذاری فایل ترجمه ناموفق بود. اتصال خود را بررسی کنید.');
+    }
+}
+
+async function deleteFailedJob(jobId) {
+    if (!confirm('آیا از حذف این سند اطمینان دارید؟')) return;
+    const token = getToken();
+    if (!token) return;
+    try {
+        const res = await fetch(`${CORE}/jobs/${jobId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+            showToast('🗑️ سند حذف شد.');
+            await loadAdminFailedDocs();
+        } else {
+            showToast('❌ حذف سند ناموفق بود.');
+        }
+    } catch (e) {
+        showToast('❌ حذف سند ناموفق بود. اتصال خود را بررسی کنید.');
+    }
+}
+
+async function sendSupportTranslationToUser(jobId) {
+    const token = getToken();
+    if (!token) return;
+    const btn = document.getElementById(`sendToUser-${jobId}`);
+    if (btn) { btn.disabled = true; btn.textContent = 'در حال ارسال...'; }
+    try {
+        const res = await fetch(`${CORE}/jobs/${jobId}/send-to-user`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+            showToast('📩 ترجمه برای کاربر ارسال شد.');
+            if (btn) { btn.textContent = 'ارسال شد ✓'; btn.disabled = true; }
+        } else {
+            showToast('❌ ارسال به کاربر ناموفق بود. دوباره تلاش کنید.');
+            if (btn) { btn.disabled = false; btn.textContent = 'ارسال به کاربر'; }
+        }
+    } catch (e) {
+        showToast('❌ ارسال به کاربر ناموفق بود. اتصال خود را بررسی کنید.');
+        if (btn) { btn.disabled = false; btn.textContent = 'ارسال به کاربر'; }
+    }
 }
 
 async function downloadJobOriginal(jobId) {
@@ -7314,15 +7443,23 @@ async function loadAdminCrmData() {
         if (tf.year) qs.set('year', tf.year);
         if (tf.year && tf.month) qs.set('month', tf.month);
         const url = `${CORE}/jobs/admin/all${qs.toString() ? '?' + qs.toString() : ''}`;
-        const res = await fetch(url, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (!res.ok) {
-            if (tableBody) tableBody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در بارگذاری داده‌های CRM.</td></tr>`;
+        // Users (with created_at) are fetched alongside the jobs -- the CRM
+        // stats grid and the new-users table both need to count signups in
+        // the selected time-frame, and /wallet/admin/users is already the
+        // one admin-authenticated source of that list.
+        const [jobsRes, usersRes] = await Promise.all([
+            fetch(url, { headers: { 'Authorization': `Bearer ${token}` } }),
+            fetch(`${CORE}/wallet/admin/users`, { headers: { 'Authorization': `Bearer ${token}` } })
+        ]);
+        if (!jobsRes.ok) {
+            if (tableBody) tableBody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در بارگذاری داده‌های CRM.</td></tr>`;
             showToast('خطا در بارگذاری داده‌های CRM');
             return;
         }
-        adminCrmJobsCache = await res.json();
+        adminCrmJobsCache = await jobsRes.json();
+        if (usersRes.ok) {
+            adminCrmUsersCache = await usersRes.json();
+        }
         
         populateCrmDocTypeFilter();
         populateCrmTimeFrameSelects();
@@ -7506,7 +7643,40 @@ function updateCrmDashboard() {
     document.getElementById('crmStatWorkCount').textContent = totalMonthly.toLocaleString();
     document.getElementById('crmStatWorkDetails').textContent = `موفق: ${completedMonthly.length.toLocaleString()} | ناموفق: ${failedMonthly.length.toLocaleString()}`;
     document.getElementById('crmStatFailureRate').textContent = `${failureRateMonthly}%`;
-    document.getElementById('crmStatApiCost').textContent = `$${apiCostMonthly.toFixed(2)}`;
+
+    // ── New user signups in the SELECTED time-frame ──────────────
+    const usersInFrame = range ? adminCrmUsersCache.filter(u => {
+        const d = new Date(u.created_at);
+        return !isNaN(d) && d >= range.start && d < range.end;
+    }) : [...adminCrmUsersCache];
+    const totalUsers = adminCrmUsersCache.length;
+
+    const newUsersLabelEl = document.getElementById('crmStatNewUsersLabel');
+    const newUsersSubEl = document.getElementById('crmStatNewUsersSub');
+    if (newUsersLabelEl) newUsersLabelEl.textContent = label === 'همهٔ زمان‌ها' ? 'کاربران جدید (کل)' : `کاربران جدید ${label}`;
+    if (newUsersSubEl) newUsersSubEl.textContent = label === 'همهٔ زمان‌ها' ? `مجموع کل کاربران: ${totalUsers.toLocaleString()}` : `از مجموع ${totalUsers.toLocaleString()} کاربر`;
+    document.getElementById('crmStatNewUsers').textContent = usersInFrame.length.toLocaleString();
+
+    // ── New Users Table (email / name / type / exact signup date-time) ──
+    const signupsTbody = document.getElementById('crmNewUsersTableBody');
+    if (signupsTbody) {
+        if (usersInFrame.length === 0) {
+            signupsTbody.innerHTML = `<tr><td colspan="4" class="text-center py-4" style="color:var(--text-muted);">کاربر جدیدی در این بازه ثبت‌نام نکرده است.</td></tr>`;
+        } else {
+            const sortedSignups = [...usersInFrame].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+            signupsTbody.innerHTML = sortedSignups.map(u => {
+                const dt = (u.created_at || '').slice(0, 10) + ' ' + (u.created_at || '').slice(11, 16);
+                return `
+                    <tr style="border-bottom:1px solid var(--divider);">
+                        <td class="py-2 px-2 en text-right" style="color:var(--text-main); font-size:0.8rem;" dir="ltr">${escapeHtml(u.email)}</td>
+                        <td class="py-2 px-2" style="color:var(--text-main);">${escapeHtml(u.full_name)}</td>
+                        <td class="py-2 px-2" style="color:var(--text-muted);">${u.account_type === 'office' ? 'دارالترجمه' : 'حقیقی'}</td>
+                        <td class="py-2 px-2 text-center en" style="color:var(--text-muted); font-size:0.8rem;">${dt}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+    }
     
     // Build per-document-type aggregation for the SELECTED time-frame (global)
     const docTypeStats = {};
@@ -7656,11 +7826,15 @@ function applyCrmFilters() {
         processing: 'در حال پردازش',
         completed: 'تکمیل شده',
         support_translated: 'ترجمه شده توسط پشتیبانی',
+        retrying: 'در حال ترجمه',
+        pending_support: 'ارسال شده به پشتیبانی',
+        support_retry_failed: 'در انتظار پشتیبانی',
         failed: 'ناموفق'
     }[s] || s);
     
     const statusBadgeStyle = (s) => {
         if (s === 'completed' || s === 'support_translated') return 'background:#4ade80; color:#000; font-weight:bold;';
+        if (s === 'pending_support' || s === 'support_retry_failed') return 'background:#60a5fa; color:#000; font-weight:bold;';
         if (s === 'failed') return 'background:#f87171; color:#fff; font-weight:bold;';
         if (s === 'processing') return 'background:#60a5fa; color:#000; font-weight:bold;';
         return 'background:#9ca3af; color:#000;';
