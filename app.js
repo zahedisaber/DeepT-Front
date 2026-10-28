@@ -17,8 +17,8 @@
 // const CORE    = 'http://127.0.0.1:8001';
 // const BACKEND = 'http://127.0.0.1:8000';
 
-const CORE    = 'https://core.deept.ir';
-const BACKEND = 'https://backend.deept.ir';
+const CORE    = 'https://core-ir.deept.ir';
+const BACKEND = 'https://backend-ir.deept.ir';
 
 // ═══════════════════════════════════════════════════════════
 // DOCUMENT REGISTRY
@@ -477,6 +477,7 @@ function syncUserSessionDOM() {
     toggle('railScheduleBtn',    !loggedIn);
     toggle('railPriceListBtn',   !loggedIn);
     toggle('railSettingsBtn',    !loggedIn);
+    toggle('railAccountSettingsBtn', !loggedIn);
     toggle('railAdminPanelBtn',  !loggedIn || localStorage.getItem('deept_is_admin') !== '1');
     toggle('railHrClockBtn',    !isOffice);
     // صفحه نخست panel grid -- same admin/office gating as the rail buttons above.
@@ -577,6 +578,10 @@ function executeLogout() {
     closeChatInterface();
     syncUserSessionDOM();
     showLandingView();
+    // Leave the address bar on '/' -- otherwise it keeps showing the last
+    // authenticated route (e.g. /dashboard or /account-settings) even though
+    // a logged-out user shouldn't be able to land back on it.
+    window.history.replaceState({}, document.title, '/');
     showToast('👋 با موفقیت خارج شدید.');
 }
 document.getElementById('logoutOverlay').addEventListener('click', function(e) {
@@ -2526,6 +2531,7 @@ async function openWorkspaceDashboard(pushHistory = true) {
     document.getElementById('clientProfilePage').classList.add('hidden');
     document.getElementById('workSchedulePage').classList.add('hidden');
     document.getElementById('settingsPage').classList.add('hidden');
+    document.getElementById('accountSettingsPage').classList.add('hidden');
     document.getElementById('myPriceListPage').classList.add('hidden');
     document.getElementById('homePanelsPage').classList.add('hidden');
     document.getElementById('dateConverterPage').classList.add('hidden');
@@ -2564,6 +2570,7 @@ async function openClientsWorkspace(pushHistory = true) {
     document.getElementById('clientProfilePage').classList.add('hidden');
     document.getElementById('workSchedulePage').classList.add('hidden');
     document.getElementById('settingsPage').classList.add('hidden');
+    document.getElementById('accountSettingsPage').classList.add('hidden');
     document.getElementById('myPriceListPage').classList.add('hidden');
     document.getElementById('homePanelsPage').classList.add('hidden');
     document.getElementById('dateConverterPage').classList.add('hidden');
@@ -2603,6 +2610,8 @@ function showLandingView() {
     if (sp) sp.classList.add('hidden');
     const st = document.getElementById('settingsPage');
     if (st) st.classList.add('hidden');
+    const ast = document.getElementById('accountSettingsPage');
+    if (ast) ast.classList.add('hidden');
     const pl = document.getElementById('myPriceListPage');
     if (pl) pl.classList.add('hidden');
     const hp = document.getElementById('homePanelsPage');
@@ -2742,11 +2751,16 @@ async function renderDashboardActiveProjects() {
         if (res.ok) jobs = await res.json();
     } catch (e) { /* keep whatever was last rendered on a transient failure */ }
 
-    const newlyCompleted = jobs.filter(j => j.status === 'completed' && lastKnownJobStatuses[j.id] && lastKnownJobStatuses[j.id] !== 'completed');
+    const isDone = (s) => s === 'completed' || s === 'support_translated';
+    const newlyCompleted = jobs.filter(j => isDone(j.status) && lastKnownJobStatuses[j.id] && !isDone(lastKnownJobStatuses[j.id]));
     jobs.forEach(j => { lastKnownJobStatuses[j.id] = j.status; });
     newlyCompleted.forEach(notifyJobCompleted);
 
-    allJobsTerminal = jobs.length > 0 && jobs.every(j => j.status === 'completed' || j.status === 'failed');
+    // Keep polling while any job is still in flight (queued/processing) OR
+    // failed -- a failed job can later become support_translated once the
+    // admin uploads a manual translation, and the dashboard should pick that
+    // up (and notify) without a manual refresh.
+    allJobsTerminal = jobs.length > 0 && jobs.every(j => isDone(j.status));
 
     tbody.innerHTML = '';
     if (!jobs.length) {
@@ -2758,6 +2772,10 @@ async function renderDashboardActiveProjects() {
         queued:     { text: 'در صف',      color: '#94a3b8' },
         processing: { text: 'در حال پردازش', color: '#fb923c' },
         completed:  { text: 'آماده',      color: '#4ade80' },
+        support_translated: { text: 'ترجمه شده توسط پشتیبانی', color: '#4ade80' },
+        retrying:   { text: 'در حال ترجمه', color: '#60a5fa' },
+        pending_support: { text: 'ارسال شده به پشتیبانی', color: '#60a5fa' },
+        support_retry_failed: { text: 'در انتظار ترجمه توسط پشتیبانی', color: '#60a5fa' },
         failed:     { text: 'ناموفق',     color: '#f87171' },
     };
 
@@ -2767,10 +2785,12 @@ async function renderDashboardActiveProjects() {
         const st = STATUS_LABELS[job.status] || { text: escapeHtml(job.status), color: 'var(--text-muted)' };
 
         let actionsHtml;
-        if (job.status === 'completed') {
+        if (job.status === 'completed' || job.status === 'support_translated') {
             actionsHtml = `<button onclick="downloadJobResult('${job.id}')" class="font-bold hover:underline" style="color:var(--accent);">دانلود DOCX</button>`;
+        } else if (job.status === 'pending_support' || job.status === 'support_retry_failed') {
+                        actionsHtml = `<span style="color:var(--text-muted);font-size:11px;">در انتظار ترجمه توسط پشتیبانی</span>`;
         } else if (job.status === 'failed') {
-                        actionsHtml = `<span style="color:#f87171;font-size:11px;">${escapeHtml(job.error_message) || 'خطا رخ داد'}</span>`;
+                        actionsHtml = `<button onclick="submitJobToSupport('${job.id}')" class="font-bold hover:underline" style="color:var(--accent);background:none;border:none;cursor:pointer;">ارسال به پشتیبانی</button>`;
         } else {
             actionsHtml = `<span style="color:var(--text-muted);">در حال پردازش...</span>`;
         }
@@ -4216,7 +4236,7 @@ function hideWorkspaceViews() {
     const lp = document.getElementById('landingPage');
     if (lp) lp.style.display = 'none';
     ['workspaceDashboard', 'clientsWorkspace', 'adminDashboard',
-     'clientProfilePage', 'workSchedulePage', 'settingsPage', 'myPriceListPage', 'hrPage', 'homePanelsPage', 'dateConverterPage'].forEach(id => {
+     'clientProfilePage', 'workSchedulePage', 'settingsPage', 'accountSettingsPage', 'myPriceListPage', 'hrPage', 'homePanelsPage', 'dateConverterPage'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.add('hidden');
     });
@@ -4463,6 +4483,94 @@ function closeSettingsPage() {
     document.getElementById('settingsPage').classList.add('hidden');
     document.body.style.overflow = 'auto';
     openWorkspaceDashboard(false);
+}
+
+// تنظیمات حساب -- its own top-level page (see the header's "حساب" button +
+// صفحه نخست card), for the operations that touch the account itself rather
+// than a translation: changing the password and the login email. See
+// index.html's #accountSettingsPage and DeepT-Core's auth.py.
+function openAccountSettingsPage(pushHistory = true) {
+    if (!currentUserSession) { openAuthModal(); return; }
+    showFullView('accountSettingsPage');
+    if (pushHistory) navigateTo('/account-settings');
+    const emailEl = document.getElementById('acct-current-email');
+    if (emailEl) emailEl.textContent = currentUserSession.email || '—';
+    ['acct-cur-pass', 'acct-new-pass', 'acct-new-pass2', 'acct-new-email', 'acct-email-pass'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    ['acct-pass-status', 'acct-email-status'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+    });
+}
+
+function closeAccountSettingsPage() {
+    document.getElementById('accountSettingsPage').classList.add('hidden');
+    document.body.style.overflow = 'auto';
+    openWorkspaceDashboard(false);
+}
+
+function showAccountStatus(id, msg, ok) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = msg;
+    el.style.color = ok ? '#34d399' : '#f87171';
+    el.classList.remove('hidden');
+}
+
+async function changeAccountPassword() {
+    const cur = document.getElementById('acct-cur-pass').value;
+    const nw  = document.getElementById('acct-new-pass').value;
+    const nw2 = document.getElementById('acct-new-pass2').value;
+    const btn = document.getElementById('acct-pass-btn');
+    if (!cur || !nw || !nw2) { showAccountStatus('acct-pass-status', 'لطفاً همه فیلدها را پر کنید.', false); return; }
+    if (nw.length < 8)       { showAccountStatus('acct-pass-status', 'رمز عبور جدید باید حداقل ۸ کاراکتر باشد.', false); return; }
+    if (nw !== nw2)          { showAccountStatus('acct-pass-status', 'رمز عبور جدید و تکرار آن یکسان نیستند.', false); return; }
+
+    const originalLabel = btn.textContent;
+    btn.disabled = true; btn.textContent = 'در حال ثبت...';
+    try {
+        const res = await fetch(`${CORE}/auth/change-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
+            body: JSON.stringify({ current_password: cur, new_password: nw })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || 'خطای سرور');
+        showAccountStatus('acct-pass-status', '✅ ' + (data.message || 'رمز عبور با موفقیت تغییر کرد.'), true);
+        ['acct-cur-pass', 'acct-new-pass', 'acct-new-pass2'].forEach(id => { document.getElementById(id).value = ''; });
+    } catch (e) {
+        showAccountStatus('acct-pass-status', '❌ ' + e.message, false);
+    } finally {
+        btn.disabled = false; btn.textContent = originalLabel;
+    }
+}
+
+async function changeAccountEmail() {
+    const newEmail = document.getElementById('acct-new-email').value.trim();
+    const pass     = document.getElementById('acct-email-pass').value;
+    const btn      = document.getElementById('acct-email-btn');
+    if (!newEmail || !pass)        { showAccountStatus('acct-email-status', 'لطفاً همه فیلدها را پر کنید.', false); return; }
+    if (!newEmail.includes('@'))   { showAccountStatus('acct-email-status', 'یک ایمیل معتبر وارد کنید.', false); return; }
+
+    const originalLabel = btn.textContent;
+    btn.disabled = true; btn.textContent = 'در حال ارسال...';
+    try {
+        const res = await fetch(`${CORE}/auth/change-email`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
+            body: JSON.stringify({ new_email: newEmail, password: pass })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || 'خطای سرور');
+        showAccountStatus('acct-email-status', '✅ ' + (data.message || 'لینک تایید ارسال شد.'), true);
+        ['acct-new-email', 'acct-email-pass'].forEach(id => { document.getElementById(id).value = ''; });
+    } catch (e) {
+        showAccountStatus('acct-email-status', '❌ ' + e.message, false);
+    } finally {
+        btn.disabled = false; btn.textContent = originalLabel;
+    }
 }
 
 // حضور غیاب پرسنل -- its own top-level page (see the header's "🕐 حضور
@@ -5213,6 +5321,25 @@ function purgeFile(idx) {
         showToast('🗑️ فایل حذف شد.');
     }
 }
+
+async function submitJobToSupport(jobId) {
+    const token = getToken();
+    if (!token) { openAuthModal(); return; }
+    try {
+        const res = await fetch(`${CORE}/jobs/${jobId}/send-to-support`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+            showToast('📩 سند برای ترجمه دستی به پشتیبانی ارسال شد.');
+            await renderDashboardActiveProjects();
+        } else {
+            showToast('❌ ارسال سند به پشتیبانی ناموفق بود. دوباره تلاش کنید.');
+        }
+    } catch (e) {
+        showToast('❌ ارسال سند به پشتیبانی ناموفق بود. اتصال خود را بررسی کنید.');
+    }
+}
 // Runs regardless of which view is open (not just while میز کار is
 // visible) so a job-complete notification can fire even when the user is
 // elsewhere in the app; renderDashboardActiveProjects() itself guards on
@@ -5289,6 +5416,17 @@ function applyRouteForPath(path) {
 
         if (currentUserSession) {
             openSettingsPage(false);
+        } else {
+            navigateTo('/', false);
+            showLandingView();
+            openLogin();
+            showToast('برای دسترسی به این بخش، ابتدا وارد شوید.');
+        }
+
+    } else if (path === '/account-settings') {
+
+        if (currentUserSession) {
+            openAccountSettingsPage(false);
         } else {
             navigateTo('/', false);
             showLandingView();
@@ -6450,6 +6588,22 @@ let pendingResetToken = null;
         openResetPassword(resetToken);
         window.history.replaceState({}, document.title, window.location.pathname);
     }
+    // Email-change confirmation redirect (from DeepT-Core's
+    // /auth/confirm-email-change, after clicking the link mailed to the NEW
+    // address) -- the account's login email has now moved, so the user must
+    // re-enter it: log out any stale session and open the login modal.
+    const emailChanged = params.get('email_changed');
+    if (emailChanged === 'success') {
+        // Log out any still-open session first (its cached email is now
+        // stale and its token still points at the old address), then show
+        // the message after executeLogout()'s own toast so it isn't overwritten.
+        if (currentUserSession) executeLogout();
+        openLogin();
+        showToast('✅ ایمیل حساب با موفقیت تغییر کرد. لطفاً با ایمیل جدید وارد شوید.');
+        window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (emailChanged === 'error') {
+        showToast('⚠️ لینک تغییر ایمیل نامعتبر یا منقضی شده است.');
+        window.history.replaceState({}, document.title, window.location.pathname);
     // Wallet top-up redirect (from DeepT-Core's GET /wallet/topup/callback,
     // after Zibal confirms or denies the payment) -- same redirect-with-flag
     // pattern as the activation/reset-token links above.
@@ -6974,6 +7128,7 @@ function showAdminDashboard() {
     document.getElementById('clientProfilePage').classList.add('hidden');
     document.getElementById('workSchedulePage').classList.add('hidden');
     document.getElementById('settingsPage').classList.add('hidden');
+    document.getElementById('accountSettingsPage').classList.add('hidden');
     document.getElementById('myPriceListPage').classList.add('hidden');
     document.getElementById('homePanelsPage').classList.add('hidden');
     document.getElementById('dateConverterPage').classList.add('hidden');
@@ -7012,7 +7167,7 @@ var adminUsersCache = [];
 function renderAdminUsersRows(users) {
     const tbody = document.getElementById('adminUsersRowsBlock');
     if (!users.length) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-sm" style="color:var(--text-muted);">کاربری یافت نشد.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-sm" style="color:var(--text-muted);">کاربری یافت نشد.</td></tr>`;
         return;
     }
     tbody.innerHTML = users.map(u => `
@@ -7020,6 +7175,7 @@ function renderAdminUsersRows(users) {
                         <td class="py-3 px-3 en" style="color:var(--text-main);">${escapeHtml(u.email)}</td>
             <td class="py-3 px-3" style="color:var(--text-main);">${escapeHtml(u.full_name)}</td>
             <td class="py-3 px-3" style="color:var(--text-muted);">${u.account_type === 'office' ? 'دارالترجمه' : 'حقیقی'}</td>
+            <td class="py-3 px-3 en" style="color:var(--text-muted);">${(u.created_at || '').slice(0, 10)} ${(u.created_at || '').slice(11, 16)}</td>
             <td class="py-3 px-3 font-mono font-bold text-base" style="color:var(--accent);">${u.balance_toman.toLocaleString()}</td>
             <td class="py-3 px-3">
                 <div class="flex items-center gap-1.5">
@@ -7069,7 +7225,7 @@ async function loadAdminUsers() {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!res.ok) {
-            tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در دریافت لیست کاربران.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در دریافت لیست کاربران.</td></tr>`;
             return;
         }
         adminUsersCache = await res.json();
@@ -7078,7 +7234,7 @@ async function loadAdminUsers() {
         renderAdminUsersRows(adminUsersCache);
         renderPendingBonusRequests(adminUsersCache);
     } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در اتصال.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در اتصال.</td></tr>`;
     }
 }
 
@@ -7360,52 +7516,266 @@ async function adminViewUserClients(userId, email) {
 
 // ── CRM PANEL LOGIC ──
 var adminCrmJobsCache = [];
+var adminCrmUsersCache = [];
 
 /* ============ SECTION: ADMIN CRM REPORTS ============
    Time-frame selector, doc-type stats, filters, jobs table. ============ */
 function switchAdminTab(tab) {
     const usersPanel = document.getElementById('adminUsersPanel');
     const crmPanel = document.getElementById('adminCrmPanel');
+    const failedPanel = document.getElementById('adminFailedDocsPanel');
     const tabUsersBtn = document.getElementById('adminTabUsers');
     const tabCrmBtn = document.getElementById('adminTabCrm');
-    
+    const tabFailedBtn = document.getElementById('adminTabFailed');
+
     const jobsPanel = document.getElementById('adminUserJobsPanel');
     if (jobsPanel) jobsPanel.classList.add('hidden');
     const clientsPanel = document.getElementById('adminUserClientsPanel');
     if (clientsPanel) clientsPanel.classList.add('hidden');
 
-    if (tab === 'users') {
-        if (usersPanel) usersPanel.classList.remove('hidden');
-        if (crmPanel) crmPanel.classList.add('hidden');
-        
-        if (tabUsersBtn) {
-            tabUsersBtn.classList.add('border-b-2');
-            tabUsersBtn.style.borderColor = 'var(--accent)';
-            tabUsersBtn.style.color = 'var(--accent)';
-            tabUsersBtn.classList.remove('border-transparent');
+    const tabs = [
+        ['users', usersPanel, tabUsersBtn],
+        ['crm', crmPanel, tabCrmBtn],
+        ['failed', failedPanel, tabFailedBtn],
+    ];
+
+    for (const [key, panel, btn] of tabs) {
+        const active = (tab === key);
+        if (panel) panel.classList.toggle('hidden', !active);
+        if (btn) {
+            if (active) {
+                btn.classList.add('border-b-2');
+                btn.style.borderColor = 'var(--accent)';
+                btn.style.color = 'var(--accent)';
+                btn.classList.remove('border-transparent');
+            } else {
+                btn.classList.remove('border-b-2');
+                btn.style.borderColor = 'transparent';
+                btn.style.color = 'var(--text-muted)';
+            }
         }
-        if (tabCrmBtn) {
-            tabCrmBtn.classList.remove('border-b-2');
-            tabCrmBtn.style.borderColor = 'transparent';
-            tabCrmBtn.style.color = 'var(--text-muted)';
-        }
-    } else if (tab === 'crm') {
-        if (usersPanel) usersPanel.classList.add('hidden');
-        if (crmPanel) crmPanel.classList.remove('hidden');
-        
-        if (tabCrmBtn) {
-            tabCrmBtn.classList.add('border-b-2');
-            tabCrmBtn.style.borderColor = 'var(--accent)';
-            tabCrmBtn.style.color = 'var(--accent)';
-            tabCrmBtn.classList.remove('border-transparent');
-        }
-        if (tabUsersBtn) {
-            tabUsersBtn.classList.remove('border-b-2');
-            tabUsersBtn.style.borderColor = 'transparent';
-            tabUsersBtn.style.color = 'var(--text-muted)';
-        }
-        
+    }
+
+    if (tab === 'crm') {
         loadAdminCrmData();
+    } else if (tab === 'failed') {
+        loadAdminFailedDocs();
+    }
+}
+
+let adminFailedDocsCache = [];
+
+async function loadAdminFailedDocs(silent = false) {
+    const token = localStorage.getItem('deept_token');
+    const tbody = document.getElementById('adminFailedDocsRowsBlock');
+    // Silent refresh (used while a retranslate is running) must not flash the
+    // loading placeholder or re-render unchanged rows -- same quiet behavior as
+    // the normal dashboard's periodic poll.
+    if (tbody && !silent) tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>`;
+    try {
+        const res = await fetch(`${CORE}/jobs/admin/failed`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error('failed_load');
+        const fresh = await res.json();
+        const changed = JSON.stringify(fresh) !== JSON.stringify(adminFailedDocsCache);
+        adminFailedDocsCache = fresh;
+        if (!silent || changed) renderAdminFailedDocs(adminFailedDocsCache);
+    } catch (e) {
+        if (tbody && !silent) tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در بارگذاری اسناد ناموفق.</td></tr>`;
+        if (!silent) showToast('خطا در بارگذاری اسناد ناموفق');
+    }
+}
+
+function renderAdminFailedDocs(jobs) {
+    const tbody = document.getElementById('adminFailedDocsRowsBlock');
+    if (!tbody) return;
+    if (!jobs.length) {
+        tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-sm" style="color:var(--text-muted);">سند ناموفقی وجود ندارد.</td></tr>`;
+        return;
+    }
+    const typeLabel = (t) => DOCUMENT_REGISTRY[t]?.label || escapeHtml(t);
+    tbody.innerHTML = jobs.map(j => {
+        const dateStr = j.created_at ? new Date(j.created_at).toLocaleDateString('fa-IR') : '—';
+        const shortId = escapeHtml((j.id || '').slice(0, 8));
+        let ops;
+        if (j.status === 'support_translated') {
+            ops = `<div class="flex items-center justify-center gap-2 flex-wrap">
+                <a href="javascript:void(0)" onclick="downloadJobResult('${j.id}')" class="font-bold hover:underline" style="color:var(--accent);" title="${escapeHtml(j.result_filename || 'دانلود فایل ترجمه')}">دانلود</a>
+                <button type="button" id="sendToUser-${j.id}" onclick="sendSupportTranslationToUser('${j.id}')" class="font-bold px-3 py-1 rounded-lg" style="background:var(--accent);color:#000;border:none;cursor:pointer;">ارسال به کاربر</button>
+            </div>`;
+        } else if (j.status === 'retrying') {
+            ops = `<span class="font-bold" style="color:var(--accent);">در حال ترجمه...</span>`;
+        } else {
+            // Only a genuine retranslate failure gets the red note; a newly
+            // sent document (pending_support) just shows the action buttons.
+            const errNote = j.status === 'support_retry_failed'
+                ? `<span class="text-[10px]" style="color:#f87171;">آخرین تلاش ناموفق بود</span>`
+                : '';
+            ops = `<div class="flex flex-col items-center gap-1">
+                <div class="flex items-center gap-2 flex-wrap justify-center">
+                    <button type="button" id="retry-${j.id}" onclick="retryTranslation('${j.id}')" class="font-bold px-3 py-1 rounded-lg" style="background:var(--accent);color:#000;border:none;cursor:pointer;">ترجمه سند</button>
+                    <button type="button" onclick="promptUploadTranslation('${j.id}')" class="font-bold px-3 py-1 rounded-lg" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);cursor:pointer;">آپلود فایل ترجمه</button>
+                </div>
+                ${errNote}
+            </div>`;
+        }
+        return `<tr style="border-bottom:1px solid var(--divider);">
+            <td class="py-2 px-3">
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="deleteFailedJob('${j.id}')" title="حذف سند" style="background:transparent;border:none;color:#ef4444;cursor:pointer;font-size:1.15rem;font-weight:900;line-height:1;padding:0;">−</button>
+                    <span class="font-black en" style="color:var(--text-main);">${shortId}</span>
+                </div>
+            </td>
+            <td class="py-2 px-3">
+                <a href="javascript:void(0)" onclick="downloadJobOriginal('${j.id}')" class="hover:underline" style="color:var(--accent);" title="دانلود فایل">${typeLabel(j.document_type)}</a>
+            </td>
+            <td class="py-2 px-3 text-center" style="color:var(--text-muted);">${dateStr}</td>
+            <td class="py-2 px-3 text-center">${ops}</td>
+        </tr>`;
+    }).join('');
+}
+
+async function retryTranslation(jobId) {
+    const token = getToken();
+    if (!token) return;
+    try {
+        const res = await fetch(`${BACKEND}/api/retranslate/${jobId}`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) {
+            showToast('❌ شروع ترجمه مجدد ناموفق بود. دوباره تلاش کنید.');
+            return;
+        }
+        showToast('🔄 ترجمه مجدد سند آغاز شد.');
+        await loadAdminFailedDocs(true);
+        // Quietly poll until the job leaves "retrying" (success ->
+        // support_translated, failure -> pending_support). The silent refresh
+        // only re-renders when the data actually changes, so no flicker.
+        for (let i = 0; i < 20; i++) {
+            await new Promise(r => setTimeout(r, 3000));
+            await loadAdminFailedDocs(true);
+            const job = adminFailedDocsCache.find(j => j.id === jobId);
+            if (job && job.status !== 'retrying') break;
+        }
+    } catch (e) {
+        showToast('❌ خطا در ارتباط با سرور.');
+    }
+}
+
+let pendingUploadJobId = null;
+
+function promptUploadTranslation(jobId) {
+    pendingUploadJobId = jobId;
+    const input = document.getElementById('translationUploadInput');
+    if (input) input.click();
+}
+
+function readFileAsBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const result = reader.result || '';
+            const comma = result.indexOf(',');
+            resolve(comma >= 0 ? result.slice(comma + 1) : result);
+        };
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(file);
+    });
+}
+
+async function onTranslationFileChosen(input) {
+    const file = input.files && input.files[0];
+    input.value = '';
+    if (!file || !pendingUploadJobId) return;
+    const jobId = pendingUploadJobId;
+    pendingUploadJobId = null;
+    const token = getToken();
+    if (!token) return;
+    try {
+        const b64 = await readFileAsBase64(file);
+        const res = await fetch(`${CORE}/jobs/${jobId}/support-translation`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ result_filename: file.name, result_file_b64: b64 })
+        });
+        if (res.ok) {
+            showToast('✅ فایل ترجمه بارگذاری شد.');
+            await loadAdminFailedDocs();
+        } else {
+            showToast('❌ بارگذاری فایل ترجمه ناموفق بود.');
+        }
+    } catch (e) {
+        showToast('❌ بارگذاری فایل ترجمه ناموفق بود. اتصال خود را بررسی کنید.');
+    }
+}
+
+async function deleteFailedJob(jobId) {
+    if (!confirm('آیا از حذف این سند اطمینان دارید؟')) return;
+    const token = getToken();
+    if (!token) return;
+    try {
+        const res = await fetch(`${CORE}/jobs/${jobId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+            showToast('🗑️ سند حذف شد.');
+            await loadAdminFailedDocs();
+        } else {
+            showToast('❌ حذف سند ناموفق بود.');
+        }
+    } catch (e) {
+        showToast('❌ حذف سند ناموفق بود. اتصال خود را بررسی کنید.');
+    }
+}
+
+async function sendSupportTranslationToUser(jobId) {
+    const token = getToken();
+    if (!token) return;
+    const btn = document.getElementById(`sendToUser-${jobId}`);
+    if (btn) { btn.disabled = true; btn.textContent = 'در حال ارسال...'; }
+    try {
+        const res = await fetch(`${CORE}/jobs/${jobId}/send-to-user`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+            showToast('📩 ترجمه برای کاربر ارسال شد.');
+            if (btn) { btn.textContent = 'ارسال شد ✓'; btn.disabled = true; }
+        } else {
+            showToast('❌ ارسال به کاربر ناموفق بود. دوباره تلاش کنید.');
+            if (btn) { btn.disabled = false; btn.textContent = 'ارسال به کاربر'; }
+        }
+    } catch (e) {
+        showToast('❌ ارسال به کاربر ناموفق بود. اتصال خود را بررسی کنید.');
+        if (btn) { btn.disabled = false; btn.textContent = 'ارسال به کاربر'; }
+    }
+}
+
+async function downloadJobOriginal(jobId) {
+    const token = localStorage.getItem('deept_token');
+    try {
+        const res = await fetch(`${CORE}/jobs/${jobId}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) { showToast('خطا در دریافت فایل.'); return; }
+        const job = await res.json();
+        if (!job.original_file_b64) { showToast('فایل اصلی موجود نیست یا منقضی شده است.'); return; }
+        const byteChars = atob(job.original_file_b64);
+        const byteNumbers = new Array(byteChars.length);
+        for (let i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
+        const blob = new Blob([new Uint8Array(byteNumbers)]);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = job.original_filename || 'document';
+        document.body.appendChild(a); a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    } catch (e) {
+        showToast('خطا در دانلود فایل.');
     }
 }
 
@@ -7426,15 +7796,23 @@ async function loadAdminCrmData() {
         if (tf.year) qs.set('year', tf.year);
         if (tf.year && tf.month) qs.set('month', tf.month);
         const url = `${CORE}/jobs/admin/all${qs.toString() ? '?' + qs.toString() : ''}`;
-        const res = await fetch(url, {
-            headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (!res.ok) {
-            if (tableBody) tableBody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در بارگذاری داده‌های CRM.</td></tr>`;
+        // Users (with created_at) are fetched alongside the jobs -- the CRM
+        // stats grid and the new-users table both need to count signups in
+        // the selected time-frame, and /wallet/admin/users is already the
+        // one admin-authenticated source of that list.
+        const [jobsRes, usersRes] = await Promise.all([
+            fetch(url, { headers: { 'Authorization': `Bearer ${token}` } }),
+            fetch(`${CORE}/wallet/admin/users`, { headers: { 'Authorization': `Bearer ${token}` } })
+        ]);
+        if (!jobsRes.ok) {
+            if (tableBody) tableBody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در بارگذاری داده‌های CRM.</td></tr>`;
             showToast('خطا در بارگذاری داده‌های CRM');
             return;
         }
-        adminCrmJobsCache = await res.json();
+        adminCrmJobsCache = await jobsRes.json();
+        if (usersRes.ok) {
+            adminCrmUsersCache = await usersRes.json();
+        }
         
         populateCrmDocTypeFilter();
         populateCrmTimeFrameSelects();
@@ -7618,7 +7996,40 @@ function updateCrmDashboard() {
     document.getElementById('crmStatWorkCount').textContent = totalMonthly.toLocaleString();
     document.getElementById('crmStatWorkDetails').textContent = `موفق: ${completedMonthly.length.toLocaleString()} | ناموفق: ${failedMonthly.length.toLocaleString()}`;
     document.getElementById('crmStatFailureRate').textContent = `${failureRateMonthly}%`;
-    document.getElementById('crmStatApiCost').textContent = `$${apiCostMonthly.toFixed(2)}`;
+
+    // ── New user signups in the SELECTED time-frame ──────────────
+    const usersInFrame = range ? adminCrmUsersCache.filter(u => {
+        const d = new Date(u.created_at);
+        return !isNaN(d) && d >= range.start && d < range.end;
+    }) : [...adminCrmUsersCache];
+    const totalUsers = adminCrmUsersCache.length;
+
+    const newUsersLabelEl = document.getElementById('crmStatNewUsersLabel');
+    const newUsersSubEl = document.getElementById('crmStatNewUsersSub');
+    if (newUsersLabelEl) newUsersLabelEl.textContent = label === 'همهٔ زمان‌ها' ? 'کاربران جدید (کل)' : `کاربران جدید ${label}`;
+    if (newUsersSubEl) newUsersSubEl.textContent = label === 'همهٔ زمان‌ها' ? `مجموع کل کاربران: ${totalUsers.toLocaleString()}` : `از مجموع ${totalUsers.toLocaleString()} کاربر`;
+    document.getElementById('crmStatNewUsers').textContent = usersInFrame.length.toLocaleString();
+
+    // ── New Users Table (email / name / type / exact signup date-time) ──
+    const signupsTbody = document.getElementById('crmNewUsersTableBody');
+    if (signupsTbody) {
+        if (usersInFrame.length === 0) {
+            signupsTbody.innerHTML = `<tr><td colspan="4" class="text-center py-4" style="color:var(--text-muted);">کاربر جدیدی در این بازه ثبت‌نام نکرده است.</td></tr>`;
+        } else {
+            const sortedSignups = [...usersInFrame].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
+            signupsTbody.innerHTML = sortedSignups.map(u => {
+                const dt = (u.created_at || '').slice(0, 10) + ' ' + (u.created_at || '').slice(11, 16);
+                return `
+                    <tr style="border-bottom:1px solid var(--divider);">
+                        <td class="py-2 px-2 en text-right" style="color:var(--text-main); font-size:0.8rem;" dir="ltr">${escapeHtml(u.email)}</td>
+                        <td class="py-2 px-2" style="color:var(--text-main);">${escapeHtml(u.full_name)}</td>
+                        <td class="py-2 px-2" style="color:var(--text-muted);">${u.account_type === 'office' ? 'دارالترجمه' : 'حقیقی'}</td>
+                        <td class="py-2 px-2 text-center en" style="color:var(--text-muted); font-size:0.8rem;">${dt}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+    }
     
     // Build per-document-type aggregation for the SELECTED time-frame (global)
     const docTypeStats = {};
@@ -7767,11 +8178,16 @@ function applyCrmFilters() {
         queued: 'در صف',
         processing: 'در حال پردازش',
         completed: 'تکمیل شده',
+        support_translated: 'ترجمه شده توسط پشتیبانی',
+        retrying: 'در حال ترجمه',
+        pending_support: 'ارسال شده به پشتیبانی',
+        support_retry_failed: 'در انتظار پشتیبانی',
         failed: 'ناموفق'
     }[s] || s);
     
     const statusBadgeStyle = (s) => {
-        if (s === 'completed') return 'background:#4ade80; color:#000; font-weight:bold;';
+        if (s === 'completed' || s === 'support_translated') return 'background:#4ade80; color:#000; font-weight:bold;';
+        if (s === 'pending_support' || s === 'support_retry_failed') return 'background:#60a5fa; color:#000; font-weight:bold;';
         if (s === 'failed') return 'background:#f87171; color:#fff; font-weight:bold;';
         if (s === 'processing') return 'background:#60a5fa; color:#000; font-weight:bold;';
         return 'background:#9ca3af; color:#000;';
