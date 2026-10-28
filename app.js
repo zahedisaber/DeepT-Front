@@ -17,8 +17,8 @@
 // const CORE    = 'http://127.0.0.1:8001';
 // const BACKEND = 'http://127.0.0.1:8000';
 
-const CORE    = 'https://core-ir.deept.ir';
-const BACKEND = 'https://backend-ir.deept.ir';
+const CORE    = 'https://core.deept.ir';
+const BACKEND = 'https://backend.deept.ir';
 
 // ═══════════════════════════════════════════════════════════
 // DOCUMENT REGISTRY
@@ -6604,6 +6604,7 @@ let pendingResetToken = null;
     } else if (emailChanged === 'error') {
         showToast('⚠️ لینک تغییر ایمیل نامعتبر یا منقضی شده است.');
         window.history.replaceState({}, document.title, window.location.pathname);
+    }
     // Wallet top-up redirect (from DeepT-Core's GET /wallet/topup/callback,
     // after Zibal confirms or denies the payment) -- same redirect-with-flag
     // pattern as the activation/reset-token links above.
@@ -8291,4 +8292,4 @@ function toggleTheme() { toggleGlobalTheme(); }
 
     // CRM time-frame selects — init early so they are ready when admin opens CRM
     try { populateCrmTimeFrameSelects(); } catch(e) {}
-})();
+})()
