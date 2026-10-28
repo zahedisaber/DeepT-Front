@@ -2565,6 +2565,7 @@ async function renderDashboardActiveProjects() {
         support_translated: { text: 'ترجمه شده توسط پشتیبانی', color: '#4ade80' },
         retrying:   { text: 'در حال ترجمه', color: '#60a5fa' },
         pending_support: { text: 'ارسال شده به پشتیبانی', color: '#60a5fa' },
+        support_retry_failed: { text: 'در انتظار ترجمه توسط پشتیبانی', color: '#60a5fa' },
         failed:     { text: 'ناموفق',     color: '#f87171' },
     };
 
@@ -2576,7 +2577,7 @@ async function renderDashboardActiveProjects() {
         let actionsHtml;
         if (job.status === 'completed' || job.status === 'support_translated') {
             actionsHtml = `<button onclick="downloadJobResult('${job.id}')" class="font-bold hover:underline" style="color:var(--accent);">دانلود DOCX</button>`;
-        } else if (job.status === 'pending_support') {
+        } else if (job.status === 'pending_support' || job.status === 'support_retry_failed') {
                         actionsHtml = `<span style="color:var(--text-muted);font-size:11px;">در انتظار ترجمه توسط پشتیبانی</span>`;
         } else if (job.status === 'failed') {
                         actionsHtml = `<button onclick="submitJobToSupport('${job.id}')" class="font-bold hover:underline" style="color:var(--accent);background:none;border:none;cursor:pointer;">ارسال به پشتیبانی</button>`;
@@ -7258,8 +7259,10 @@ function renderAdminFailedDocs(jobs) {
                 ${deleteBtn}
             </div>`;
         } else {
-            const errNote = j.error_message
-                ? `<span class="text-[10px]" style="color:#f87171;" title="${escapeHtml(j.error_message)}">آخرین تلاش ناموفق بود</span>`
+            // Only a genuine retranslate failure gets the red note; a newly
+            // sent document (pending_support) just shows the action buttons.
+            const errNote = j.status === 'support_retry_failed'
+                ? `<span class="text-[10px]" style="color:#f87171;">آخرین تلاش ناموفق بود</span>`
                 : '';
             ops = `<div class="flex flex-col items-center gap-1">
                 <div class="flex items-center gap-2 flex-wrap justify-center">
@@ -7828,12 +7831,13 @@ function applyCrmFilters() {
         support_translated: 'ترجمه شده توسط پشتیبانی',
         retrying: 'در حال ترجمه',
         pending_support: 'ارسال شده به پشتیبانی',
+        support_retry_failed: 'در انتظار پشتیبانی',
         failed: 'ناموفق'
     }[s] || s);
     
     const statusBadgeStyle = (s) => {
         if (s === 'completed' || s === 'support_translated') return 'background:#4ade80; color:#000; font-weight:bold;';
-        if (s === 'pending_support') return 'background:#60a5fa; color:#000; font-weight:bold;';
+        if (s === 'pending_support' || s === 'support_retry_failed') return 'background:#60a5fa; color:#000; font-weight:bold;';
         if (s === 'failed') return 'background:#f87171; color:#fff; font-weight:bold;';
         if (s === 'processing') return 'background:#60a5fa; color:#000; font-weight:bold;';
         return 'background:#9ca3af; color:#000;';
