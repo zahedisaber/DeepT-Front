@@ -7247,8 +7247,9 @@ function renderAdminFailedDocs(jobs) {
         const fname = escapeHtml(j.original_filename || '—');
         let ops;
         if (j.status === 'support_translated') {
-            ops = `<div class="flex items-center justify-center gap-2">
-                <a href="javascript:void(0)" onclick="downloadJobResult('${j.id}')" class="font-bold hover:underline" style="color:var(--accent);">دانلود</a>
+            const resultName = escapeHtml(j.result_filename || 'دانلود فایل ترجمه');
+            ops = `<div class="flex items-center justify-center gap-2 flex-wrap">
+                <a href="javascript:void(0)" onclick="downloadJobResult('${j.id}')" class="font-bold hover:underline" style="color:var(--accent);" title="دانلود فایل ترجمه">${resultName}</a>
                 <button type="button" id="sendToUser-${j.id}" onclick="sendSupportTranslationToUser('${j.id}')" class="font-bold px-3 py-1 rounded-lg" style="background:var(--accent);color:#000;border:none;cursor:pointer;">ارسال به کاربر</button>
             </div>`;
         } else if (j.status === 'retrying') {
@@ -7258,7 +7259,10 @@ function renderAdminFailedDocs(jobs) {
                 ? `<span class="text-[10px]" style="color:#f87171;" title="${escapeHtml(j.error_message)}">آخرین تلاش ناموفق بود</span>`
                 : '';
             ops = `<div class="flex flex-col items-center gap-1">
-                <button type="button" id="retry-${j.id}" onclick="retryTranslation('${j.id}')" class="font-bold px-3 py-1 rounded-lg" style="background:var(--accent);color:#000;border:none;cursor:pointer;">ترجمه سند</button>
+                <div class="flex items-center gap-2 flex-wrap justify-center">
+                    <button type="button" id="retry-${j.id}" onclick="retryTranslation('${j.id}')" class="font-bold px-3 py-1 rounded-lg" style="background:var(--accent);color:#000;border:none;cursor:pointer;">ترجمه سند</button>
+                    <button type="button" onclick="promptUploadTranslation('${j.id}')" class="font-bold px-3 py-1 rounded-lg" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);cursor:pointer;">آپلود فایل ترجمه</button>
+                </div>
                 ${errNote}
             </div>`;
         }
@@ -7299,6 +7303,53 @@ async function retryTranslation(jobId) {
         }
     } catch (e) {
         showToast('❌ خطا در ارتباط با سرور.');
+    }
+}
+
+let pendingUploadJobId = null;
+
+function promptUploadTranslation(jobId) {
+    pendingUploadJobId = jobId;
+    const input = document.getElementById('translationUploadInput');
+    if (input) input.click();
+}
+
+function readFileAsBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const result = reader.result || '';
+            const comma = result.indexOf(',');
+            resolve(comma >= 0 ? result.slice(comma + 1) : result);
+        };
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(file);
+    });
+}
+
+async function onTranslationFileChosen(input) {
+    const file = input.files && input.files[0];
+    input.value = '';
+    if (!file || !pendingUploadJobId) return;
+    const jobId = pendingUploadJobId;
+    pendingUploadJobId = null;
+    const token = getToken();
+    if (!token) return;
+    try {
+        const b64 = await readFileAsBase64(file);
+        const res = await fetch(`${CORE}/jobs/${jobId}/support-translation`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ result_filename: file.name, result_file_b64: b64 })
+        });
+        if (res.ok) {
+            showToast('✅ فایل ترجمه بارگذاری شد.');
+            await loadAdminFailedDocs();
+        } else {
+            showToast('❌ بارگذاری فایل ترجمه ناموفق بود.');
+        }
+    } catch (e) {
+        showToast('❌ بارگذاری فایل ترجمه ناموفق بود. اتصال خود را بررسی کنید.');
     }
 }
 
