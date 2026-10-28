@@ -7244,7 +7244,6 @@ function renderAdminFailedDocs(jobs) {
     tbody.innerHTML = jobs.map(j => {
         const dateStr = j.created_at ? new Date(j.created_at).toLocaleDateString('fa-IR') : '—';
         const shortId = escapeHtml((j.id || '').slice(0, 8));
-        const fname = escapeHtml(j.original_filename || '—');
         let ops;
         if (j.status === 'support_translated') {
             ops = `<div class="flex items-center justify-center gap-2 flex-wrap">
@@ -7268,9 +7267,10 @@ function renderAdminFailedDocs(jobs) {
         return `<tr style="border-bottom:1px solid var(--divider);">
             <td class="py-2 px-3">
                 <div class="font-black en" style="color:var(--text-main);">${shortId}</div>
-                <a href="javascript:void(0)" onclick="downloadJobOriginal('${j.id}')" class="text-xs hover:underline" style="color:var(--accent);">${fname}</a>
             </td>
-            <td class="py-2 px-3" style="color:var(--text-main);">${typeLabel(j.document_type)}</td>
+            <td class="py-2 px-3">
+                <a href="javascript:void(0)" onclick="downloadJobOriginal('${j.id}')" class="hover:underline" style="color:var(--accent);" title="دانلود فایل">${typeLabel(j.document_type)}</a>
+            </td>
             <td class="py-2 px-3 text-center" style="color:var(--text-muted);">${dateStr}</td>
             <td class="py-2 px-3 text-center">${ops}</td>
         </tr>`;
