@@ -7878,7 +7878,9 @@ async function sendSupportTranslationToUser(jobId) {
         });
         if (res.ok) {
             showToast('📩 ترجمه برای کاربر ارسال شد.');
-            if (btn) { btn.textContent = 'ارسال شد ✓'; btn.disabled = true; }
+            const cached = adminFailedDocsCache.find(x => x.id === jobId);
+            if (cached) cached.completion_email_status = 'sent';
+            if (btn) btn.outerHTML = `<span class="font-bold" style="color:#4ade80;">ارسال شد ✓</span>`;
         } else {
             showToast('❌ ارسال به کاربر ناموفق بود. دوباره تلاش کنید.');
             if (btn) { btn.disabled = false; btn.textContent = 'ارسال به کاربر'; }
