@@ -1963,7 +1963,9 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
         <div id="adminFailedDocsPanel" class="workspace-panel p-6 mb-6 hidden">
             <div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
                 <h3 class="text-base font-black" style="color:var(--text-main);">اسناد ناموفق — نیازمند ترجمه توسط پشتیبانی</h3>
-                <button type="button" onclick="loadAdminFailedDocs()" class="text-sm font-bold px-4 py-2 rounded-lg" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">بروزرسانی</button>
+                <button type="button" onclick="loadAdminFailedDocs()" title="بروزرسانی" aria-label="بروزرسانی" class="text-sm font-bold px-3 py-2 rounded-lg" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);display:inline-flex;align-items:center;justify-content:center;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                </button>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-sm text-right">
@@ -1973,15 +1975,16 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                             <th class="py-3 px-3 font-bold">نوع سند</th>
                             <th class="py-3 px-3 font-bold text-center">تاریخ</th>
                             <th class="py-3 px-3 font-bold text-center">عملیات</th>
+                            <th class="py-3 px-3 font-bold text-center">دانلود</th>
                         </tr>
                     </thead>
                     <tbody id="adminFailedDocsRowsBlock">
-                        <tr><td colspan="4" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>
+                        <tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>
                     </tbody>
                 </table>
             </div>
             <!-- Hidden file input used by the "آپلود فایل ترجمه" fallback button -->
-            <input type="file" id="translationUploadInput" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="hidden" onchange="onTranslationFileChosen(this)">
+            <input type="file" id="translationUploadInput" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="hidden" onchange="onTranslationFileChosen(this)" oncancel="onTranslationUploadCancelled()">
         </div>
 
         <div id="adminUserJobsPanel" class="workspace-panel p-6 hidden">

@@ -7671,7 +7671,7 @@ async function loadAdminFailedDocs(silent = false) {
     // Silent refresh (used while a retranslate is running) must not flash the
     // loading placeholder or re-render unchanged rows -- same quiet behavior as
     // the normal dashboard's periodic poll.
-    if (tbody && !silent) tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>`;
+    if (tbody && !silent) tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>`;
     try {
         const res = await fetch(`${CORE}/jobs/admin/failed`, {
             headers: { 'Authorization': `Bearer ${token}` }
@@ -7682,16 +7682,22 @@ async function loadAdminFailedDocs(silent = false) {
         adminFailedDocsCache = fresh;
         if (!silent || changed) renderAdminFailedDocs(adminFailedDocsCache);
     } catch (e) {
-        if (tbody && !silent) tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در بارگذاری اسناد ناموفق.</td></tr>`;
+        if (tbody && !silent) tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در بارگذاری اسناد ناموفق.</td></tr>`;
         if (!silent) showToast('خطا در بارگذاری اسناد ناموفق');
     }
 }
+
+// Upload-file icon (default) and a spinning version used while the picker is
+// open / the file is uploading.
+const _UPLOAD_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="M7 8l5-5 5 5"/><path d="M4 15v3a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-3"/></svg>`;
+const _UPLOAD_SPINNER = `<svg class="animate-spin" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" stroke-opacity="0.25"/><path d="M21 12a9 9 0 0 0-9-9"/></svg>`;
+const _DOWNLOAD_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>`;
 
 function renderAdminFailedDocs(jobs) {
     const tbody = document.getElementById('adminFailedDocsRowsBlock');
     if (!tbody) return;
     if (!jobs.length) {
-        tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-sm" style="color:var(--text-muted);">سند ناموفقی وجود ندارد.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">سند ناموفقی وجود ندارد.</td></tr>`;
         return;
     }
     const typeLabel = (t) => DOCUMENT_REGISTRY[t]?.label || escapeHtml(t);
@@ -7700,9 +7706,12 @@ function renderAdminFailedDocs(jobs) {
         const shortId = escapeHtml((j.id || '').slice(0, 8));
         let ops;
         if (j.status === 'support_translated') {
-            ops = `<div class="flex items-center justify-center gap-2 flex-wrap">
-                <a href="javascript:void(0)" onclick="downloadJobResult('${j.id}')" class="font-bold hover:underline" style="color:var(--accent);" title="${escapeHtml(j.result_filename || 'دانلود فایل ترجمه')}">دانلود</a>
-                <button type="button" id="sendToUser-${j.id}" onclick="sendSupportTranslationToUser('${j.id}')" class="font-bold px-3 py-1 rounded-lg" style="background:var(--accent);color:#000;border:none;cursor:pointer;">ارسال به کاربر</button>
+            const sendEl = j.completion_email_status === 'sent'
+                ? `<span class="font-bold" style="color:#4ade80;">ارسال شد ✓</span>`
+                : `<button type="button" id="sendToUser-${j.id}" onclick="sendSupportTranslationToUser('${j.id}')" class="font-bold px-3 py-1 rounded-lg" style="background:var(--accent);color:#000;border:none;cursor:pointer;">ارسال به کاربر</button>`;
+            ops = `<div class="flex items-center justify-start gap-2 flex-wrap">
+                ${sendEl}
+                <a href="javascript:void(0)" id="upload-${j.id}" onclick="promptUploadTranslation('${j.id}')" class="font-bold hover:underline" style="color:var(--accent);" title="آپلود فایل ترجمه">${_UPLOAD_ICON}</a>
             </div>`;
         } else if (j.status === 'retrying') {
             ops = `<span class="font-bold" style="color:var(--accent);">در حال ترجمه...</span>`;
@@ -7712,14 +7721,17 @@ function renderAdminFailedDocs(jobs) {
             const errNote = j.status === 'support_retry_failed'
                 ? `<span class="text-[10px]" style="color:#f87171;">آخرین تلاش ناموفق بود</span>`
                 : '';
-            ops = `<div class="flex flex-col items-center gap-1">
-                <div class="flex items-center gap-2 flex-wrap justify-center">
+            ops = `<div class="flex flex-col gap-1">
+                <div class="flex items-center gap-2 flex-wrap justify-start">
                     <button type="button" id="retry-${j.id}" onclick="retryTranslation('${j.id}')" class="font-bold px-3 py-1 rounded-lg" style="background:var(--accent);color:#000;border:none;cursor:pointer;">ترجمه سند</button>
-                    <button type="button" onclick="promptUploadTranslation('${j.id}')" class="font-bold px-3 py-1 rounded-lg" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);cursor:pointer;">آپلود فایل ترجمه</button>
+                    <a href="javascript:void(0)" id="upload-${j.id}" onclick="promptUploadTranslation('${j.id}')" class="font-bold hover:underline" style="color:var(--accent);" title="آپلود فایل ترجمه">${_UPLOAD_ICON}</a>
                 </div>
                 ${errNote}
             </div>`;
         }
+        const downloadCell = j.status === 'support_translated'
+            ? `<a href="javascript:void(0)" onclick="downloadJobResult('${j.id}')" title="${escapeHtml(j.result_filename || 'دانلود فایل ترجمه')}" style="color:var(--accent);display:inline-flex;align-items:center;">${_DOWNLOAD_ICON}</a>`
+            : `<span style="color:var(--text-muted);">—</span>`;
         return `<tr style="border-bottom:1px solid var(--divider);">
             <td class="py-2 px-3">
                 <div class="flex items-center gap-2">
@@ -7732,6 +7744,7 @@ function renderAdminFailedDocs(jobs) {
             </td>
             <td class="py-2 px-3 text-center" style="color:var(--text-muted);">${dateStr}</td>
             <td class="py-2 px-3 text-center">${ops}</td>
+            <td class="py-2 px-3 text-center">${downloadCell}</td>
         </tr>`;
     }).join('');
 }
@@ -7766,10 +7779,26 @@ async function retryTranslation(jobId) {
 
 let pendingUploadJobId = null;
 
+function _setUploadState(jobId, state, busy) {
+    const el = document.getElementById(`upload-${jobId}`);
+    if (!el) return;
+    el.innerHTML = state === 'busy' ? _UPLOAD_SPINNER : _UPLOAD_ICON;
+    el.title = state === 'busy' ? 'در حال آپلود...' : 'آپلود فایل ترجمه';
+    el.style.pointerEvents = busy ? 'none' : '';
+    el.style.opacity = busy ? '.6' : '';
+}
+
 function promptUploadTranslation(jobId) {
     pendingUploadJobId = jobId;
+    _setUploadState(jobId, 'busy', true);
     const input = document.getElementById('translationUploadInput');
     if (input) input.click();
+}
+
+function onTranslationUploadCancelled() {
+    if (!pendingUploadJobId) return;
+    _setUploadState(pendingUploadJobId, 'upload', false);
+    pendingUploadJobId = null;
 }
 
 function readFileAsBase64(file) {
@@ -7788,11 +7817,15 @@ function readFileAsBase64(file) {
 async function onTranslationFileChosen(input) {
     const file = input.files && input.files[0];
     input.value = '';
-    if (!file || !pendingUploadJobId) return;
     const jobId = pendingUploadJobId;
     pendingUploadJobId = null;
+    if (!file || !jobId) {
+        if (jobId) _setUploadState(jobId, 'upload', false);
+        return;
+    }
     const token = getToken();
-    if (!token) return;
+    if (!token) { _setUploadState(jobId, 'upload', false); return; }
+    _setUploadState(jobId, 'busy', true);
     try {
         const b64 = await readFileAsBase64(file);
         const res = await fetch(`${CORE}/jobs/${jobId}/support-translation`, {
@@ -7805,9 +7838,11 @@ async function onTranslationFileChosen(input) {
             await loadAdminFailedDocs();
         } else {
             showToast('❌ بارگذاری فایل ترجمه ناموفق بود.');
+            _setUploadState(jobId, 'upload', false);
         }
     } catch (e) {
         showToast('❌ بارگذاری فایل ترجمه ناموفق بود. اتصال خود را بررسی کنید.');
+        _setUploadState(jobId, 'upload', false);
     }
 }
 
