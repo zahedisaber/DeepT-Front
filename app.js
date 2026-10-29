@@ -4535,7 +4535,7 @@ const DOC_SAMPLE_IMAGES = {
     'general-transcript':            ['general-transcript.jpg'],
     'insurance-record':              ['insurance-record.jpg'],
     'consolidated-insurance-record': ['consolidated-insurance-record.jpg'],
-    'insurance-list-receipt':        ['insurance-list-receipt.jpg'],
+    'insurance-list-receipt':        ['insurance-list-receipt-p1.jpg', 'insurance-list-receipt-p2.jpg'],
     'insurance-wage-record':         ['insurance-wage-record.jpg'],
     'building-permit':               ['building-permit.jpg'],
     'national-id-card':              ['national-id-card-front.jpg', 'national-id-card-back.jpg'],
