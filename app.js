@@ -7709,7 +7709,7 @@ function renderAdminFailedDocs(jobs) {
             const sendEl = j.completion_email_status === 'sent'
                 ? `<span class="font-bold" style="color:#4ade80;">ارسال شد ✓</span>`
                 : `<button type="button" id="sendToUser-${j.id}" onclick="sendSupportTranslationToUser('${j.id}')" class="font-bold px-3 py-1 rounded-lg" style="background:var(--accent);color:#000;border:none;cursor:pointer;">ارسال به کاربر</button>`;
-            ops = `<div class="flex items-center justify-start gap-2 flex-wrap">
+            ops = `<div class="flex items-center justify-between gap-2 flex-wrap">
                 ${sendEl}
                 <a href="javascript:void(0)" id="upload-${j.id}" onclick="promptUploadTranslation('${j.id}')" class="font-bold hover:underline" style="color:var(--accent);" title="آپلود فایل ترجمه">${_UPLOAD_ICON}</a>
             </div>`;
@@ -7722,7 +7722,7 @@ function renderAdminFailedDocs(jobs) {
                 ? `<span class="text-[10px]" style="color:#f87171;">آخرین تلاش ناموفق بود</span>`
                 : '';
             ops = `<div class="flex flex-col gap-1">
-                <div class="flex items-center gap-2 flex-wrap justify-start">
+                <div class="flex items-center gap-2 flex-wrap justify-between">
                     <button type="button" id="retry-${j.id}" onclick="retryTranslation('${j.id}')" class="font-bold px-3 py-1 rounded-lg" style="background:var(--accent);color:#000;border:none;cursor:pointer;">ترجمه سند</button>
                     <a href="javascript:void(0)" id="upload-${j.id}" onclick="promptUploadTranslation('${j.id}')" class="font-bold hover:underline" style="color:var(--accent);" title="آپلود فایل ترجمه">${_UPLOAD_ICON}</a>
                 </div>
@@ -7835,7 +7835,7 @@ async function onTranslationFileChosen(input) {
         });
         if (res.ok) {
             showToast('✅ فایل ترجمه بارگذاری شد.');
-            await loadAdminFailedDocs();
+            await loadAdminFailedDocs(true);
         } else {
             showToast('❌ بارگذاری فایل ترجمه ناموفق بود.');
             _setUploadState(jobId, 'upload', false);
@@ -7857,7 +7857,7 @@ async function deleteFailedJob(jobId) {
         });
         if (res.ok) {
             showToast('🗑️ سند حذف شد.');
-            await loadAdminFailedDocs();
+            await loadAdminFailedDocs(true);
         } else {
             showToast('❌ حذف سند ناموفق بود.');
         }
