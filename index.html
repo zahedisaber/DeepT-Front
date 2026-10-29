@@ -707,7 +707,6 @@
         <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0" style="background:var(--accent);color:var(--btn-text-on-accent);">۱</span>
         <span class="font-black text-sm" style="color:var(--text-main);">مرحله ۱: انتخاب نوع سند</span>
         <span title="لطفا نوع سند مورد نظر خود را برای ترجمه انتخاب کنید" style="cursor:help;color:var(--text-muted);font-size:.85rem;">ⓘ</span>
-        <button type="button" onclick="openDocSamplesPage()" class="text-[11px] font-bold mr-auto" style="color:var(--accent);background:none;border:none;cursor:pointer;">🗂️ نمونه مدارک را ببینید</button>
       </div>
       <div id="docTypeStageBody" class="mb-4">
         <div class="relative">
@@ -715,6 +714,10 @@
           <div id="docTemplateOptions" class="hidden z-50 rounded-lg" style="background:var(--card-surface); border:1px solid var(--border-color);"></div>
           <select id="docTemplate" style="display:none;" onchange="handleDocTypeSelected()"></select>
         </div>
+        <button type="button" onclick="openDocSamplesPage()" class="w-full flex items-center justify-between gap-2 mt-2.5 p-2.5 rounded-lg text-xs font-bold transition" style="background:var(--accent-hover);border:1px solid var(--accent);color:var(--accent);">
+          <span>🗂️ مطمئن نیستید چه مدرکی دارید؟ نمونه هر مدرک را اینجا ببینید</span>
+          <span>←</span>
+        </button>
       </div>
       <div id="docTypeStageSummary" class="hidden flex items-center justify-between mb-4 p-2.5 rounded-lg text-xs" style="background:var(--panel-bg);border:1px solid var(--border-color);">
         <span style="color:var(--text-main);">
