@@ -86,6 +86,10 @@
       <svg class="side-rail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/><circle cx="12" cy="15.5" r="1.2"/></svg>
       <span class="side-rail-label">حساب</span>
     </button>
+    <button type="button" id="railDocSamplesBtn" onclick="openDocSamplesPage()" class="side-rail-btn hidden" title="نمونه مدارک">
+      <svg class="side-rail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="13" height="18" rx="1.5"/><path d="M8 8h5M8 12h5M8 16h3"/><path d="M17 7h3v14h-10v-2"/></svg>
+      <span class="side-rail-label">نمونه مدارک</span>
+    </button>
     <button type="button" id="railAdminPanelBtn" onclick="showAdminDashboard()" class="side-rail-btn hidden" title="پنل مدیریت">
       <svg class="side-rail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 19 6v6c0 4.5-3 7.5-7 8.5-4-1-7-4-7-8.5V6l7-2.5Z"/><path d="m9.2 12 1.9 1.9 3.7-3.9"/></svg>
       <span class="side-rail-label">مدیریت</span>
@@ -703,6 +707,7 @@
         <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0" style="background:var(--accent);color:var(--btn-text-on-accent);">۱</span>
         <span class="font-black text-sm" style="color:var(--text-main);">مرحله ۱: انتخاب نوع سند</span>
         <span title="لطفا نوع سند مورد نظر خود را برای ترجمه انتخاب کنید" style="cursor:help;color:var(--text-muted);font-size:.85rem;">ⓘ</span>
+        <button type="button" onclick="openDocSamplesPage()" class="text-[11px] font-bold mr-auto" style="color:var(--accent);background:none;border:none;cursor:pointer;">🗂️ نمونه مدارک را ببینید</button>
       </div>
       <div id="docTypeStageBody" class="mb-4">
         <div class="relative">
@@ -906,6 +911,11 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
         <svg class="home-panel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/><circle cx="12" cy="15.5" r="1.2"/></svg>
         <span class="home-panel-title">تنظیمات حساب</span>
         <span class="home-panel-desc">رمز عبور و ایمیل</span>
+      </button>
+      <button type="button" onclick="openDocSamplesPage()" class="workspace-panel home-panel-card p-5">
+        <svg class="home-panel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="13" height="18" rx="1.5"/><path d="M8 8h5M8 12h5M8 16h3"/><path d="M17 7h3v14h-10v-2"/></svg>
+        <span class="home-panel-title">نمونه مدارک</span>
+        <span class="home-panel-desc">قبل از آپلود، شکل مدرک را ببینید</span>
       </button>
       <button type="button" id="homePanelAdmin" onclick="showAdminDashboard()" class="workspace-panel home-panel-card p-5 hidden">
         <svg class="home-panel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 19 6v6c0 4.5-3 7.5-7 8.5-4-1-7-4-7-8.5V6l7-2.5Z"/><path d="m9.2 12 1.9 1.9 3.7-3.9"/></svg>
@@ -1408,6 +1418,41 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
         </div>
     </div>
 </section>
+
+<!-- ── VIEW · نمونه مدارک (Document Sample Guide) ── its own top-level page
+     (see the header's own "نمونه مدارک" button + صفحه نخست card + the inline
+     "؟" link next to مرحله ۱ in the upload flow): a redacted real-world
+     sample of every active document type in DOCUMENT_REGISTRY, so a user can
+     visually compare "does what I have look like this" before uploading.
+     Every face, name, national/document ID number, signature and seal in
+     these samples is blurred -- see app.js's buildDocSamplesGallery(). ─── -->
+<section id="docSamplesPage" class="fixed inset-0 z-40 hidden overflow-y-auto p-4 pt-24 md:p-8 md:pt-24" style="background: var(--bg-secondary);">
+    <div class="max-w-6xl mx-auto space-y-5">
+        <div class="flex items-center justify-between gap-3 flex-wrap">
+            <h2 class="text-xl font-black flex items-center gap-2" style="color:var(--text-main);">
+                🗂️ نمونه مدارک
+            </h2>
+            <button type="button" onclick="closeDocSamplesPage()" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">میز کار ترجمه ←</button>
+        </div>
+        <p class="text-xs" style="color:var(--text-muted);">برای هر نوع مدرک، یک نمونه واقعی (با حذف نام، شماره ملی، عکس، امضا و مهر افراد) نمایش داده شده تا مطمئن شوید مدرک درستی را آپلود می‌کنید. روی هر نمونه کلیک کنید تا بزرگ‌تر دیده شود.</p>
+
+        <div class="relative">
+            <input type="text" id="docSamplesSearch" class="auth-input" style="font-family:'Vazirmatn',sans-serif;" placeholder="جستجوی نوع مدرک..." autocomplete="off" oninput="renderDocSamplesGallery(this.value)">
+        </div>
+
+        <div id="docSamplesGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    </div>
+</section>
+
+<!-- Lightbox: full-size view of a document sample (one or two pages, e.g.
+     national-id-card's front/back), opened from docSamplesGrid cards. -->
+<div id="docSampleLightbox" class="hidden fixed inset-0 z-50 items-center justify-center p-4" style="background:rgba(0,0,0,0.85);" onclick="if(event.target===this) closeDocSampleLightbox()">
+    <div class="relative max-w-4xl w-full max-h-full overflow-y-auto rounded-xl p-4" style="background:var(--card-surface);">
+        <button type="button" onclick="closeDocSampleLightbox()" class="absolute top-3 left-3 w-8 h-8 rounded-full flex items-center justify-center text-sm font-black z-10" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">✕</button>
+        <h3 id="docSampleLightboxTitle" class="text-sm font-black mb-3 pl-10" style="color:var(--text-main);"></h3>
+        <div id="docSampleLightboxImages" class="grid gap-3"></div>
+    </div>
+</div>
 
 <!-- ── VIEW · حضور غیاب پرسنل (Staff Attendance) ── its own top-level page
      (not a settings card) for office accounts (see hr.py): defining staff

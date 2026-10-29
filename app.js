@@ -478,6 +478,7 @@ function syncUserSessionDOM() {
     toggle('railPriceListBtn',   !loggedIn);
     toggle('railSettingsBtn',    !loggedIn);
     toggle('railAccountSettingsBtn', !loggedIn);
+    toggle('railDocSamplesBtn',  !loggedIn);
     toggle('railAdminPanelBtn',  !loggedIn || localStorage.getItem('deept_is_admin') !== '1');
     toggle('railHrClockBtn',    !isOffice);
     // صفحه نخست panel grid -- same admin/office gating as the rail buttons above.
@@ -2532,6 +2533,7 @@ async function openWorkspaceDashboard(pushHistory = true) {
     document.getElementById('workSchedulePage').classList.add('hidden');
     document.getElementById('settingsPage').classList.add('hidden');
     document.getElementById('accountSettingsPage').classList.add('hidden');
+    document.getElementById('docSamplesPage').classList.add('hidden');
     document.getElementById('myPriceListPage').classList.add('hidden');
     document.getElementById('homePanelsPage').classList.add('hidden');
     document.getElementById('dateConverterPage').classList.add('hidden');
@@ -2571,6 +2573,7 @@ async function openClientsWorkspace(pushHistory = true) {
     document.getElementById('workSchedulePage').classList.add('hidden');
     document.getElementById('settingsPage').classList.add('hidden');
     document.getElementById('accountSettingsPage').classList.add('hidden');
+    document.getElementById('docSamplesPage').classList.add('hidden');
     document.getElementById('myPriceListPage').classList.add('hidden');
     document.getElementById('homePanelsPage').classList.add('hidden');
     document.getElementById('dateConverterPage').classList.add('hidden');
@@ -2612,6 +2615,8 @@ function showLandingView() {
     if (st) st.classList.add('hidden');
     const ast = document.getElementById('accountSettingsPage');
     if (ast) ast.classList.add('hidden');
+    const dsp = document.getElementById('docSamplesPage');
+    if (dsp) dsp.classList.add('hidden');
     const pl = document.getElementById('myPriceListPage');
     if (pl) pl.classList.add('hidden');
     const hp = document.getElementById('homePanelsPage');
@@ -4236,7 +4241,7 @@ function hideWorkspaceViews() {
     const lp = document.getElementById('landingPage');
     if (lp) lp.style.display = 'none';
     ['workspaceDashboard', 'clientsWorkspace', 'adminDashboard',
-     'clientProfilePage', 'workSchedulePage', 'settingsPage', 'accountSettingsPage', 'myPriceListPage', 'hrPage', 'homePanelsPage', 'dateConverterPage'].forEach(id => {
+     'clientProfilePage', 'workSchedulePage', 'settingsPage', 'accountSettingsPage', 'docSamplesPage', 'myPriceListPage', 'hrPage', 'homePanelsPage', 'dateConverterPage'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.add('hidden');
     });
@@ -4507,8 +4512,90 @@ function openAccountSettingsPage(pushHistory = true) {
 
 function closeAccountSettingsPage() {
     document.getElementById('accountSettingsPage').classList.add('hidden');
+    document.getElementById('docSamplesPage').classList.add('hidden');
     document.body.style.overflow = 'auto';
     openWorkspaceDashboard(false);
+}
+
+// نمونه مدارک -- redacted real-world sample of every active document type in
+// DOCUMENT_REGISTRY (images in assets/doc-samples/), so a user can compare
+// "does what I have look like this" before uploading. One image per type,
+// except national-id-card which shows front+back since both sides matter.
+// New document types just need an entry here (and the matching image file)
+// -- nothing else changes, same philosophy as DOCUMENT_REGISTRY itself.
+const DOC_SAMPLE_IMAGES = {
+    'police-certificate':            ['police-certificate.jpg'],
+    'vehicle-deed':                  ['vehicle-deed.jpg'],
+    'notary-deed':                   ['notary-deed.jpg'],
+    'academic-transcript':           ['academic-transcript.jpg'],
+    'gazette-notice':                ['gazette-notice.jpg'],
+    'high-school-transcript':        ['high-school-transcript.jpg'],
+    'ownership-deed':                ['ownership-deed.jpg'],
+    'azad-transcript':               ['azad-transcript.jpg'],
+    'general-transcript':            ['general-transcript.jpg'],
+    'insurance-record':              ['insurance-record.jpg'],
+    'consolidated-insurance-record': ['consolidated-insurance-record.jpg'],
+    'insurance-list-receipt':        ['insurance-list-receipt-p1.jpg', 'insurance-list-receipt-p2.jpg'],
+    'insurance-wage-record':         ['insurance-wage-record.jpg'],
+    'building-permit':               ['building-permit.jpg'],
+    'national-id-card':              ['national-id-card-front.jpg', 'national-id-card-back.jpg'],
+};
+
+function openDocSamplesPage(pushHistory = true) {
+    if (!currentUserSession) { openAuthModal(); return; }
+    showFullView('docSamplesPage');
+    if (pushHistory) navigateTo('/doc-samples');
+    document.getElementById('docSamplesSearch').value = '';
+    renderDocSamplesGallery('');
+}
+
+function closeDocSamplesPage() {
+    document.getElementById('docSamplesPage').classList.add('hidden');
+    document.body.style.overflow = 'auto';
+    openWorkspaceDashboard(false);
+}
+
+function renderDocSamplesGallery(query) {
+    const grid = document.getElementById('docSamplesGrid');
+    if (!grid) return;
+    const q = (query || '').trim().toLowerCase();
+
+    const entries = Object.entries(DOCUMENT_REGISTRY).filter(([key, doc]) => {
+        if (!DOC_SAMPLE_IMAGES[key]) return false; // no sample image yet -- skip rather than show a broken card
+        if (!q) return true;
+        return doc.label.toLowerCase().includes(q);
+    });
+
+    if (!entries.length) {
+        grid.innerHTML = `<p class="col-span-full text-center py-8 text-sm" style="color:var(--text-muted);">موردی یافت نشد</p>`;
+        return;
+    }
+
+    grid.innerHTML = entries.map(([key, doc]) => `
+        <button type="button" onclick="openDocSampleLightbox('${key}')" class="workspace-panel p-3 text-right transition hover:opacity-90">
+            <div class="rounded-lg overflow-hidden mb-2" style="border:1px solid var(--border-subtle);">
+                <img src="assets/doc-samples/${DOC_SAMPLE_IMAGES[key][0]}" alt="${escapeHtml(doc.label)}" class="w-full h-40 object-cover object-top">
+            </div>
+            <span class="block text-xs font-bold" style="color:var(--text-main);">${escapeHtml(doc.label)}</span>
+        </button>
+    `).join('');
+}
+
+function openDocSampleLightbox(key) {
+    const doc = DOCUMENT_REGISTRY[key];
+    const images = DOC_SAMPLE_IMAGES[key];
+    if (!doc || !images) return;
+    document.getElementById('docSampleLightboxTitle').textContent = doc.label;
+    document.getElementById('docSampleLightboxImages').innerHTML = images.map(f =>
+        `<img src="assets/doc-samples/${f}" alt="${escapeHtml(doc.label)}" class="w-full rounded-lg" style="border:1px solid var(--border-subtle);">`
+    ).join('');
+    document.getElementById('docSampleLightbox').classList.remove('hidden');
+    document.getElementById('docSampleLightbox').classList.add('flex');
+}
+
+function closeDocSampleLightbox() {
+    document.getElementById('docSampleLightbox').classList.add('hidden');
+    document.getElementById('docSampleLightbox').classList.remove('flex');
 }
 
 function showAccountStatus(id, msg, ok) {
@@ -5427,6 +5514,17 @@ function applyRouteForPath(path) {
 
         if (currentUserSession) {
             openAccountSettingsPage(false);
+        } else {
+            navigateTo('/', false);
+            showLandingView();
+            openLogin();
+            showToast('برای دسترسی به این بخش، ابتدا وارد شوید.');
+        }
+
+    } else if (path === '/doc-samples') {
+
+        if (currentUserSession) {
+            openDocSamplesPage(false);
         } else {
             navigateTo('/', false);
             showLandingView();
@@ -7130,6 +7228,7 @@ function showAdminDashboard() {
     document.getElementById('workSchedulePage').classList.add('hidden');
     document.getElementById('settingsPage').classList.add('hidden');
     document.getElementById('accountSettingsPage').classList.add('hidden');
+    document.getElementById('docSamplesPage').classList.add('hidden');
     document.getElementById('myPriceListPage').classList.add('hidden');
     document.getElementById('homePanelsPage').classList.add('hidden');
     document.getElementById('dateConverterPage').classList.add('hidden');
