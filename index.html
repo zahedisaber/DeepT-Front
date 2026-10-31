@@ -253,6 +253,24 @@
   </div>
 </div>
 
+<!-- ── اشتراک صفحات ── plan purchase, paid from the existing wallet balance
+     (no separate payment gateway integration -- see subscriptions.py's
+     own "Iranian style" note: Zibal/Cartbecart don't support real
+     auto-recurring billing, so a "subscription" is just a one-time,
+     wallet-funded 30-day page bucket the user renews manually). ── -->
+<div role="dialog" aria-modal="true" id="subscriptionModal" class="modal-overlay fixed inset-0 z-[70] hidden flex items-center justify-center p-4">
+  <div class="w-full max-w-md p-6" style="background:var(--card-surface);border:1px solid var(--border-color);border-radius:1rem;">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-base font-black" style="color:var(--text-main);">📄 اشتراک صفحات</h3>
+      <button type="button" onclick="closeSubscriptionModal()" style="color:var(--text-muted);background:none;border:none;cursor:pointer;font-size:1.1rem;">✕</button>
+    </div>
+    <p class="text-xs mb-4" style="color:var(--text-muted);">هزینه از موجودی کیف پول شما کسر می‌شود. خرید مجدد پیش از پایان اشتراک فعلی، صفحات باقیمانده را به اشتراک جدید اضافه می‌کند.</p>
+    <div id="subscriptionPlansList" class="space-y-3">
+      <!-- plan cards injected by renderSubscriptionPlans() in app.js -->
+    </div>
+  </div>
+</div>
+
 <!-- ── VIEW 03-B · reprice an invoice draft row from نرخنامه ── a Sanam-
      imported row (and a manually-typed one) carries whatever price it
      came in with -- Sanam's own, possibly out of date -- with no link to
@@ -1068,6 +1086,28 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                         </button>
                     </div>
                 </div>
+            </div>
+            <div class="workspace-panel p-6 relative overflow-hidden">
+                <h4 class="text-xs font-bold uppercase tracking-wide mb-2" style="color:var(--text-muted);">اشتراک صفحات</h4>
+                <div class="flex items-center gap-4 my-3">
+                    <div class="relative w-20 h-20 shrink-0">
+                        <svg viewBox="0 0 80 80" class="w-20 h-20" style="transform:rotate(-90deg);">
+                            <circle cx="40" cy="40" r="34" fill="none" stroke="var(--border-subtle)" stroke-width="8"></circle>
+                            <circle cx="40" cy="40" r="34" fill="none" stroke="var(--accent)" stroke-width="8"
+                                    stroke-linecap="round" id="subRingProgress"
+                                    stroke-dasharray="213.63" stroke-dashoffset="213.63"
+                                    style="transition: stroke-dashoffset .4s ease;"></circle>
+                        </svg>
+                        <div class="absolute inset-0 flex items-center justify-center">
+                            <span class="text-sm font-black font-mono" id="subRemainingPages" style="color:var(--text-main);">۰</span>
+                        </div>
+                    </div>
+                    <div class="text-[11px] flex-1" style="color:var(--text-muted);">
+                        <p>باقیمانده از <span id="subTotalPages" class="font-bold" style="color:var(--text-main);">۰</span> صفحه</p>
+                        <p class="mt-1" id="subExpiryLine">اشتراکی فعال نیست</p>
+                    </div>
+                </div>
+                <button type="button" onclick="openSubscriptionModal()" class="w-full font-black py-1.5 rounded-lg mt-2 transition text-xs" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">خرید / تمدید اشتراک</button>
             </div>
             <div class="workspace-panel p-4 text-xs space-y-2">
                 <h4 class="font-bold" style="color:var(--text-main);">📌 پشتیبانی</h4>

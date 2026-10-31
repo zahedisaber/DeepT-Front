@@ -2487,7 +2487,95 @@ async function refreshWalletBalanceDisplay() {
             });
         }
     } catch (e) { /* leave last-known display value on transient network failure */ }
+    refreshSubscriptionDisplay();
 }
+
+const SUBSCRIPTION_RING_CIRCUMFERENCE = 213.63; // 2 * PI * r(34), matches the SVG in index.html
+
+async function refreshSubscriptionDisplay() {
+    if (!currentUserSession) return;
+    const token = getToken();
+    if (!token) return;
+    const ringEl = document.getElementById('subRingProgress');
+    const remainingEl = document.getElementById('subRemainingPages');
+    const totalEl = document.getElementById('subTotalPages');
+    const expiryEl = document.getElementById('subExpiryLine');
+    if (!ringEl) return; // panel not in the current view
+    try {
+        const res = await fetch(`${CORE}/subscriptions/me`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data.active || !data.total_pages) {
+            ringEl.style.strokeDashoffset = SUBSCRIPTION_RING_CIRCUMFERENCE;
+            remainingEl.textContent = '۰';
+            totalEl.textContent = '۰';
+            expiryEl.textContent = 'اشتراکی فعال نیست';
+            return;
+        }
+        const ratio = Math.max(0, Math.min(1, data.remaining_pages / data.total_pages));
+        ringEl.style.strokeDashoffset = String(SUBSCRIPTION_RING_CIRCUMFERENCE * (1 - ratio));
+        remainingEl.textContent = data.remaining_pages.toLocaleString();
+        totalEl.textContent = data.total_pages.toLocaleString();
+        if (data.expires_at) {
+            const d = new Date(data.expires_at);
+            expiryEl.textContent = `اعتبار تا ${d.toLocaleDateString('fa-IR')}`;
+        }
+    } catch (e) { /* leave last-known ring state on transient network failure */ }
+}
+
+async function openSubscriptionModal() {
+    const token = getToken();
+    if (!token) { openAuthModal(); return; }
+    const modal = document.getElementById('subscriptionModal');
+    const list = document.getElementById('subscriptionPlansList');
+    modal.classList.remove('hidden');
+    list.innerHTML = '<p class="text-xs text-center py-4" style="color:var(--text-muted);">در حال بارگذاری...</p>';
+    try {
+        const res = await fetch(`${CORE}/subscriptions/plans`);
+        if (!res.ok) throw new Error('plans fetch failed');
+        const plans = await res.json();
+        list.innerHTML = plans.map(p => `
+            <button type="button" onclick="purchaseSubscription('${p.plan}')" class="pay-method w-full text-right">
+                <span class="pay-method-icon" aria-hidden="true">📄</span>
+                <span class="pay-method-text">
+                    <span class="pay-method-title">${p.pages.toLocaleString()} صفحه در ماه</span>
+                    <span class="pay-method-sub">${p.price_toman.toLocaleString()} تومان</span>
+                </span>
+            </button>
+        `).join('');
+    } catch (e) {
+        list.innerHTML = '<p class="text-xs text-center py-4" style="color:#f87171;">خطا در دریافت پلن‌ها. دوباره تلاش کنید.</p>';
+    }
+}
+
+function closeSubscriptionModal() {
+    document.getElementById('subscriptionModal').classList.add('hidden');
+}
+
+async function purchaseSubscription(plan) {
+    const token = getToken();
+    if (!token) { openAuthModal(); return; }
+    try {
+        const res = await fetch(`${CORE}/subscriptions/purchase`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ plan })
+        });
+        const data = await res.json();
+        if (res.ok) {
+            showToast(`✅ اشتراک ${data.total_pages.toLocaleString()} صفحه‌ای فعال شد.`, 4000);
+            closeSubscriptionModal();
+            refreshWalletBalanceDisplay();
+        } else {
+            showToast(`❌ ${data.detail || 'خرید اشتراک ناموفق بود.'}`, 5000);
+        }
+    } catch (e) {
+        showToast('❌ خطا در ارتباط با سرور.', 4000);
+    }
+}
+
 async function submitSupportTicket() {
     const textEl = document.getElementById('supportTicketMsg');
     const text = textEl.value.trim();
