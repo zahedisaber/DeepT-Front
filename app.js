@@ -2374,17 +2374,19 @@ function printMyPriceList() {
    Shaparak gateway redirect + wallet balance refresh + support tickets. ============ */
 const MIN_TOPUP_TOMAN = 25000;
 
-async function triggerShaparakPayment() {
+async function triggerShaparakPayment(amountOverride) {
     if (!currentUserSession) { openAuthModal(); return; }
-    const amountEl = document.getElementById('paymentAmountInput');
-    if (!amountEl) {
-        // The home dashboard's quick "افزایش اعتبار" shortcut has no amount
-        // field of its own -- send the user to the workspace wallet panel,
-        // where paymentAmountInput lives next to the real "درگاه" button.
-        openWorkspaceDashboard();
-        return;
+    let amount = amountOverride;
+    if (!Number.isFinite(amount)) {
+        // Called with no override (e.g. the workspace wallet panel's own
+        // button) -- read its paymentAmountInput directly. The home
+        // dashboard's shortcut always passes its own homePaymentAmountInput
+        // value as amountOverride instead, since both inputs can exist in
+        // the DOM at once and share no id.
+        const amountEl = document.getElementById('paymentAmountInput');
+        if (!amountEl) { openWorkspaceDashboard(); return; }
+        amount = parseInt(amountEl.value, 10);
     }
-    const amount = parseInt(amountEl.value, 10);
     if (!amount || amount < MIN_TOPUP_TOMAN) {
         showToast(`❌ حداقل مبلغ شارژ ${MIN_TOPUP_TOMAN.toLocaleString()} تومان است.`);
         return;
@@ -2409,11 +2411,14 @@ async function triggerShaparakPayment() {
 // transfers an exact amount to the office's card from their own banking app;
 // the wallet is credited once the bank's SMS is matched. Same amount field
 // as the gateway; Cartbecart's own page shows the card and the exact amount.
-async function triggerCardToCardPayment() {
+async function triggerCardToCardPayment(amountOverride) {
     if (!currentUserSession) { openAuthModal(); return; }
-    const amountEl = document.getElementById('paymentAmountInput');
-    if (!amountEl) { openWorkspaceDashboard(); return; }
-    const amount = parseInt(amountEl.value, 10);
+    let amount = amountOverride;
+    if (!Number.isFinite(amount)) {
+        const amountEl = document.getElementById('paymentAmountInput');
+        if (!amountEl) { openWorkspaceDashboard(); return; }
+        amount = parseInt(amountEl.value, 10);
+    }
     if (!amount || amount < MIN_TOPUP_TOMAN) {
         showToast(`❌ حداقل مبلغ شارژ ${MIN_TOPUP_TOMAN.toLocaleString()} تومان است.`);
         return;
