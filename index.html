@@ -1309,6 +1309,24 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
 
                 <div id="dp-field-list" class="flex flex-col gap-3 mb-1"></div>
 
+                <!-- ═══ Custom template upload (pilot: police_certificate only) ═══
+                     Lets a translator upload their own .docx instead of DeepT's
+                     built-in wording/layout -- Back-End fills in each case's
+                     variable data via an extra Gemini call, keeping everything
+                     else exactly as written. See fill_custom_template() on
+                     DeepT-Back-End. Shown/hidden per doc type by
+                     updateCustomTemplateSection(), called from renderDocumentPhrases(). ─── -->
+                <div id="dp-custom-template-section" class="hidden pt-3 mt-1 mb-3" style="border-top:1px solid var(--divider);">
+                    <h4 class="text-xs font-bold mb-1" style="color:var(--text-main);">قالب اختصاصی (Word)</h4>
+                    <p class="text-[11px] mb-2" style="color:var(--text-muted);">به‌جای قالب پیش‌فرض دیپتی، فایل Word خودتان را آپلود کنید؛ هوش مصنوعی فقط اطلاعات متغیر هر پرونده (نام، تاریخ، شماره و...) را در همان قالب جایگزین می‌کند و بقیهٔ متن دقیقاً همان‌طور که نوشته‌اید باقی می‌ماند.</p>
+                    <p id="dp-template-status" class="text-[11px] mb-2 font-bold" style="color:var(--text-muted);">در حال بررسی...</p>
+                    <div class="flex items-center gap-2">
+                        <input type="file" id="dp-template-file-input" accept=".docx" class="auth-input text-[11px]" style="padding:.4rem;">
+                        <button type="button" onclick="uploadCustomTemplate()" class="text-[11px] font-bold px-3 py-2 rounded-md shrink-0" style="background:var(--accent);color:var(--btn-text-on-accent);">آپلود</button>
+                    </div>
+                    <button type="button" onclick="deleteCustomTemplate()" id="dp-template-remove-btn" class="text-[11px] font-bold px-3 py-1.5 rounded-md mt-2 hidden" style="background:var(--card-surface);color:#f87171;border:1px solid var(--border-subtle);">حذف قالب اختصاصی</button>
+                </div>
+
                 <!-- ═══ Term glossary (open-ended Persian-term -> English
                      table, e.g. academic_transcript's course-name terms) --
                      shown instead of dp-field-list for a document type

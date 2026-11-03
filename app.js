@@ -1471,6 +1471,7 @@ function renderDocumentPhrases(){
     const list = document.getElementById('dp-field-list');
     list.innerHTML = '';
     document.getElementById('dp-save-status').classList.add('hidden');
+    updateCustomTemplateSection();
 
     // A document type can have a fixed-field phrase list, a term glossary,
     // both (e.g. azad_transcript), or -- until wired up -- neither, in
@@ -1693,6 +1694,94 @@ async function loadDocumentPhrasesCatalog(){
     dpDraft = {};
     dpGlossaryDraft = {};
     renderDocumentPhrases();
+}
+
+// ═══ Custom template upload (pilot: police_certificate only) ═══════════════
+// DP_DOCS ids use underscores (police_certificate); the actual API routes
+// and job document_type use hyphens (police-certificate) -- same split that
+// already exists elsewhere in this codebase (DOC_TYPE vs. the /api/translate
+// route), not something new introduced here.
+const CUSTOM_TEMPLATE_DOC_TYPES = new Set(['police_certificate']);
+function dpApiDocType(id) { return id.replace(/_/g, '-'); }
+
+function updateCustomTemplateSection() {
+    const section = document.getElementById('dp-custom-template-section');
+    if (!section) return;
+    if (!CUSTOM_TEMPLATE_DOC_TYPES.has(dpCurrentDoc) || !currentUserSession) {
+        section.classList.add('hidden');
+        return;
+    }
+    section.classList.remove('hidden');
+    loadCustomTemplateStatus();
+}
+
+async function loadCustomTemplateStatus() {
+    const statusEl = document.getElementById('dp-template-status');
+    const removeBtn = document.getElementById('dp-template-remove-btn');
+    const apiDocType = dpApiDocType(dpCurrentDoc);
+    statusEl.textContent = 'در حال بررسی...';
+    removeBtn.classList.add('hidden');
+    const token = getToken();
+    try {
+        const res = await fetch(`${CORE}/users/me/custom-template/${apiDocType}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        if (data.has_template) {
+            statusEl.textContent = `✅ قالب فعلی: ${data.filename || 'template.docx'}`;
+            statusEl.style.color = '#4ade80';
+            removeBtn.classList.remove('hidden');
+        } else {
+            statusEl.textContent = 'هنوز قالب اختصاصی آپلود نشده -- قالب پیش‌فرض دیپتی استفاده می‌شود.';
+            statusEl.style.color = 'var(--text-muted)';
+        }
+    } catch (e) {
+        statusEl.textContent = 'خطا در دریافت وضعیت قالب.';
+        statusEl.style.color = '#f87171';
+    }
+}
+
+async function uploadCustomTemplate() {
+    const input = document.getElementById('dp-template-file-input');
+    const file = input.files && input.files[0];
+    if (!file) { showToast('ابتدا یک فایل Word انتخاب کنید.'); return; }
+    if (!file.name.toLowerCase().endsWith('.docx')) { showToast('فقط فایل Word (.docx.) پذیرفته می‌شود.'); return; }
+
+    const statusEl = document.getElementById('dp-template-status');
+    statusEl.textContent = 'در حال آپلود...';
+    statusEl.style.color = 'var(--text-muted);';
+    const token = getToken();
+    try {
+        const file_b64 = await readFileAsBase64(file);
+        const res = await fetch(`${CORE}/users/me/custom-template/${dpApiDocType(dpCurrentDoc)}`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename: file.name, file_b64 })
+        });
+        if (!res.ok) throw new Error();
+        input.value = '';
+        showToast('✅ قالب اختصاصی ذخیره شد.');
+        loadCustomTemplateStatus();
+    } catch (e) {
+        showToast('❌ آپلود قالب ناموفق بود.');
+        loadCustomTemplateStatus();
+    }
+}
+
+async function deleteCustomTemplate() {
+    const token = getToken();
+    try {
+        const res = await fetch(`${CORE}/users/me/custom-template/${dpApiDocType(dpCurrentDoc)}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error();
+        showToast('قالب اختصاصی حذف شد.');
+        loadCustomTemplateStatus();
+    } catch (e) {
+        showToast('❌ حذف قالب ناموفق بود.');
+    }
 }
 
 // Sends whichever of the two settings kinds this document type has pending
