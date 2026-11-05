@@ -324,7 +324,7 @@
      both: editCustomPriceItemId holds which item (if any) is being
      edited, null for a brand-new one. ── -->
 <div role="dialog" aria-modal="true" id="customPriceItemModal" class="modal-overlay fixed inset-0 z-[75] hidden flex items-center justify-center p-4">
-  <div class="w-full max-w-sm p-6" style="background:var(--card-surface);border:1px solid var(--border-color);border-radius:1rem;">
+  <div class="w-full max-w-sm p-6" style="background:var(--card-surface);border:1px solid var(--border-color);border-radius:1rem;max-height:85vh;overflow-y:auto;">
     <div class="flex items-center justify-between mb-3">
       <h3 class="text-base font-black" id="cpi-modal-title" style="color:var(--text-main);">+ مورد شخصی جدید</h3>
       <button type="button" onclick="closeCustomPriceItemModal()" style="color:var(--text-muted);background:none;border:none;cursor:pointer;font-size:1.1rem;">✕</button>
@@ -346,15 +346,14 @@
         </div>
       </div>
       <p class="text-[10px]" style="color:var(--text-muted);">واحد را فقط زمانی پر کنید که قیمت پایه به‌ازای هر واحد (مثلاً هر صفحه) باشد، نه یک‌جا برای کل مورد.</p>
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label for="cpi-extra" class="auth-label">افزودهٔ اختیاری (تومان)</label>
-          <input type="number" id="cpi-extra" class="auth-input en" dir="ltr" min="0" placeholder="خالی = بدون افزوده">
-        </div>
-        <div>
-          <label for="cpi-extra-unit" class="auth-label">واحد افزوده</label>
-          <input type="text" id="cpi-extra-unit" class="auth-input" placeholder="مثلاً هر سطر">
-        </div>
+      <div>
+        <label class="auth-label">افزوده‌های اختیاری</label>
+        <!-- Rows injected by renderCustomPriceItemExtraRows()/
+             addCustomPriceItemExtraRow() in app.js -- any number, each its
+             own price+unit, all summed into the item's total on an
+             invoice row (see myplEffectiveExtras()/myplRecomputeRowPrice()). ── -->
+        <div id="cpi-extras-list" class="space-y-2"></div>
+        <button type="button" onclick="addCustomPriceItemExtraRow()" class="text-[11px] font-bold mt-2" style="color:var(--accent);background:none;border:none;cursor:pointer;">+ افزودن افزودهٔ دیگر</button>
       </div>
     </div>
     <p id="cpi-error" class="text-[11px] mt-2 hidden" style="color:#f87171;"></p>

@@ -2001,7 +2001,7 @@ let myPriceListDraft  = {};  // {item_id: {base?, extra?}} -- unsaved edits
 // with an official row id (plain numbers, or "N-1" sub-items) or a pinned
 // id ("224"+, see price-catalog.js) -- both now and as either list grows.
 const CUSTOM_PRICE_ITEM_ID_PREFIX = 'custom-';
-let myPriceListCustomItems = [];  // [{id, label, base, base_unit, extra, unit}]
+let myPriceListCustomItems = [];  // [{id, label, base, base_unit, extras: [{price, unit}]}]
 let editCustomPriceItemId = null;  // id being edited in the modal, null = adding new
 
 // Injects this account's custom items into the SAME shared lookup
@@ -2023,8 +2023,10 @@ function injectCustomPriceItemsIntoCatalog() {
         PRICE_CATALOG_BY_ID[item.id] = {
             id: item.id, label: item.label, base: item.base,
             baseUnit: item.base_unit || null,
-            extra: item.extra === undefined ? null : item.extra,
-            unit: item.unit || null,
+            extra: null, unit: null,  // superseded by extras (see myplEffectiveExtras) -- kept null so any
+                                       // code still checking the old singular fields sees "no extra" rather
+                                       // than stale/wrong data.
+            extras: item.extras || [],
         };
         PINNED_ITEM_IDS.add(item.id);
     });
@@ -2053,15 +2055,21 @@ function myplEffective(itemId, component) {
     return PRICE_CATALOG_BY_ID[itemId][component];
 }
 
-// Both components at once -- what an invoice row actually needs to
-// compute its price. `extra` is null when the item has no such component
-// at all (not just "not overridden").
-function myplEffectiveComponents(itemId) {
+// Every افزوده an item has right now, as a flat [{price, unit}] list --
+// zero, one, or (for a custom item only) several. A custom item's extras
+// ARE its live data (no separate override system -- editing one means
+// re-saving the whole item, see saveCustomPriceItem()), so they're
+// returned as-is. An official catalog item has at most one, stored the
+// original singular way (item.extra/item.unit) specifically so it keeps
+// going through the existing per-component draft/server override system
+// (myplEffective) -- unlike a custom item's live values, an official
+// item's extra price CAN be overridden, and that override must still
+// apply here.
+function myplEffectiveExtras(itemId) {
     const item = PRICE_CATALOG_BY_ID[itemId];
-    return {
-        base: myplEffective(itemId, 'base'),
-        extra: item.extra !== null ? myplEffective(itemId, 'extra') : null,
-    };
+    if (item.extras) return item.extras;
+    if (item.extra === null) return [];
+    return [{ price: myplEffective(itemId, 'extra'), unit: item.unit }];
 }
 
 // "مهر برابر با اصل" (certified-true-copy stamp) is priced per page by its
@@ -2073,30 +2081,43 @@ function myplEffectiveComponents(itemId) {
 // quantity, on top of whatever base/extra components the item itself has.
 const MOHR_BARABAR_ASL_ITEM_ID = '227';
 
-// Maps an updateDraftRow()/updateInvoiceEditRow() field name to the row
-// property it actually mutates -- shared so both functions handle all
-// three نرخنامه quantities identically rather than repeating the
-// three-way branch.
-const MYPL_QTY_FIELD_MAP = {
-    myplBaseQty:  '_mypl_base_qty',
-    myplExtraQty: '_mypl_extra_qty',
-    myplMohrQty:  '_mypl_mohr_qty',
-};
+// Applies one updateDraftRow()/updateInvoiceEditRow() quantity-field edit
+// to the row, returning true if it did (false means `field` wasn't a
+// نرخنامه quantity field at all -- the caller falls back to its own plain
+// description/number handling). myplBaseQty/myplMohrQty are single
+// fields as before; myplExtraQty_N addresses the Nth entry in the item's
+// own extras list (see myplEffectiveExtras) -- a custom item can have
+// several, each gets its own index via myplRowQtyControlsHtml below.
+function myplApplyQtyFieldEdit(row, field, value) {
+    const qty = Math.max(0, parseInt(value, 10) || 0);
+    if (field === 'myplBaseQty') { row._mypl_base_qty = qty; return true; }
+    if (field === 'myplMohrQty') { row._mypl_mohr_qty = qty; return true; }
+    const m = /^myplExtraQty_(\d+)$/.exec(field);
+    if (m) {
+        if (!row._mypl_extra_qtys) row._mypl_extra_qtys = [];
+        row._mypl_extra_qtys[parseInt(m[1], 10)] = qty;
+        return true;
+    }
+    return false;
+}
 
 // Recomputes a نرخنامه-linked invoice row's unit_price_toman from its own
-// live base/extra/مهر quantities and each component's current effective
+// live base/extras/مهر quantities and each component's current effective
 // price -- e.g. ریزنمرات دانشگاه (id "58") at 2 ترم + 10 درس + 3 صفحه مهر
-// becomes base×2 + extra×10 + مهر×3. No-op for a plain manually-typed row
-// (no _mypl_item_id). Called on every quantity edit, and re-derives from
+// becomes base×2 + extra×10 + مهر×3; a custom item with two extras sums
+// both the same way. No-op for a plain manually-typed row (no
+// _mypl_item_id). Called on every quantity edit, and re-derives from
 // نرخنامه's *current* prices each time rather than freezing them at
 // add-time -- if the translator tweaks نرخنامه mid-session, a
 // not-yet-submitted row picks that up too.
 function myplRecomputeRowPrice(row) {
     if (!row._mypl_item_id) return;
-    const c = myplEffectiveComponents(row._mypl_item_id);
     const baseQty = row._mypl_base_qty || 0;
-    const extraQty = row._mypl_extra_qty || 0;
-    let total = baseQty * c.base + (c.extra !== null ? extraQty * c.extra : 0);
+    let total = baseQty * myplEffective(row._mypl_item_id, 'base');
+    const extraQtys = row._mypl_extra_qtys || [];
+    myplEffectiveExtras(row._mypl_item_id).forEach((ex, i) => {
+        total += (extraQtys[i] || 0) * ex.price;
+    });
     if (!PINNED_ITEM_IDS.has(row._mypl_item_id)) {
         const mohrQty = row._mypl_mohr_qty || 0;
         total += mohrQty * myplEffective(MOHR_BARABAR_ASL_ITEM_ID, 'base');
@@ -2114,19 +2135,21 @@ function myplRecomputeRowPrice(row) {
 function myplRowQtyControlsHtml(row, idx, updateFn) {
     if (!row._mypl_item_id) return '';
     const item = PRICE_CATALOG_BY_ID[row._mypl_item_id];
+    const extras = myplEffectiveExtras(row._mypl_item_id);
     const showMohr = !PINNED_ITEM_IDS.has(row._mypl_item_id);
-    if (!item.baseUnit && item.extra === null && !showMohr) return '';
+    if (!item.baseUnit && !extras.length && !showMohr) return '';
     let html = '<div class="flex items-center gap-3 flex-wrap w-full mt-1" style="padding-inline-start:1.75rem;">';
     if (item.baseUnit) {
         html += `<label class="text-[10px] flex items-center gap-1" style="color:var(--text-muted);">تعداد ${escapeHtml(item.baseUnit)}
             <input type="number" min="0" value="${row._mypl_base_qty}" oninput="${updateFn}(${idx},'myplBaseQty',this.value)" class="auth-input en" dir="ltr" style="width:52px;padding:.25rem .35rem;font-size:.72rem;text-align:center;">
         </label>`;
     }
-    if (item.extra !== null) {
-        html += `<label class="text-[10px] flex items-center gap-1" style="color:var(--text-muted);">تعداد (${escapeHtml(item.unit)})
-            <input type="number" min="0" value="${row._mypl_extra_qty}" oninput="${updateFn}(${idx},'myplExtraQty',this.value)" class="auth-input en" dir="ltr" style="width:52px;padding:.25rem .35rem;font-size:.72rem;text-align:center;">
+    extras.forEach((ex, exIdx) => {
+        const qty = (row._mypl_extra_qtys && row._mypl_extra_qtys[exIdx]) || 0;
+        html += `<label class="text-[10px] flex items-center gap-1" style="color:var(--text-muted);">تعداد (${escapeHtml(ex.unit || '')})
+            <input type="number" min="0" value="${qty}" oninput="${updateFn}(${idx},'myplExtraQty_${exIdx}',this.value)" class="auth-input en" dir="ltr" style="width:52px;padding:.25rem .35rem;font-size:.72rem;text-align:center;">
         </label>`;
-    }
+    });
     if (showMohr) {
         html += `<label class="text-[10px] flex items-center gap-1" style="color:var(--text-muted);">تعداد صفحه (مهر برابر با اصل)
             <input type="number" min="0" value="${row._mypl_mohr_qty || 0}" oninput="${updateFn}(${idx},'myplMohrQty',this.value)" class="auth-input en" dir="ltr" style="width:52px;padding:.25rem .35rem;font-size:.72rem;text-align:center;">
@@ -2156,7 +2179,7 @@ async function loadMyPriceListCatalog() {
         if (!res.ok) throw new Error();
         const p = await res.json();
         myPriceListServer = p.price_list || {};
-        myPriceListCustomItems = p.custom_price_items || [];
+        myPriceListCustomItems = (p.custom_price_items || []).map(normalizeCustomPriceItemExtras);
     } catch (e) {
         myPriceListServer = {};
         myPriceListCustomItems = [];
@@ -2164,6 +2187,19 @@ async function loadMyPriceListCatalog() {
     myPriceListDraft = {};
     injectCustomPriceItemsIntoCatalog();
     renderMyPriceList();
+}
+
+// A custom item saved before extras became a list (see CustomPriceItem on
+// DeepT-Core) still has the original single extra/unit pair instead of
+// extras -- normalize it into a one-entry (or empty) extras list right
+// after loading, so every other function here only ever has to deal with
+// the new shape, and so the next save of this item (saveCustomPriceItem()
+// always sends the WHOLE list back) writes it in the new shape too.
+function normalizeCustomPriceItemExtras(item) {
+    if (Array.isArray(item.extras)) return item;
+    const extras = (item.extra !== undefined && item.extra !== null) ? [{ price: item.extra, unit: item.unit || null }] : [];
+    const { extra, unit, ...rest } = item;
+    return { ...rest, extras };
 }
 
 // One labeled number input for a single component ("base" or "extra") of
@@ -2232,12 +2268,12 @@ function renderMyPriceList() {
                 // read-only here with edit/delete instead of live inputs
                 // + reset.
                 row.style.cssText = 'background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.35);';
-                const priceTxt = item.baseUnit
-                    ? `${item.base.toLocaleString()} تومان (هر ${escapeHtml(item.baseUnit)})`
+                const priceTxt = item.base_unit
+                    ? `${item.base.toLocaleString()} تومان (هر ${escapeHtml(item.base_unit)})`
                     : `${item.base.toLocaleString()} تومان`;
-                const extraTxt = item.extra !== null
-                    ? ` + ${item.extra.toLocaleString()} تومان (${escapeHtml(item.unit || '')})`
-                    : '';
+                const extraTxt = (item.extras || [])
+                    .map(ex => ` + ${ex.price.toLocaleString()} تومان (${escapeHtml(ex.unit || '')})`)
+                    .join('');
                 const info = document.createElement('div');
                 info.className = 'flex-1 min-w-0';
                 info.style.minWidth = '160px';
@@ -2347,8 +2383,7 @@ function openAddCustomPriceItemModal() {
     document.getElementById('cpi-label').value = '';
     document.getElementById('cpi-base').value = '';
     document.getElementById('cpi-base-unit').value = '';
-    document.getElementById('cpi-extra').value = '';
-    document.getElementById('cpi-extra-unit').value = '';
+    renderCustomPriceItemExtraRows([]);
     document.getElementById('cpi-error').classList.add('hidden');
     document.getElementById('customPriceItemModal').classList.remove('hidden');
 }
@@ -2361,8 +2396,7 @@ function openEditCustomPriceItemModal(itemId) {
     document.getElementById('cpi-label').value = item.label;
     document.getElementById('cpi-base').value = item.base;
     document.getElementById('cpi-base-unit').value = item.base_unit || '';
-    document.getElementById('cpi-extra').value = item.extra === null || item.extra === undefined ? '' : item.extra;
-    document.getElementById('cpi-extra-unit').value = item.unit || '';
+    renderCustomPriceItemExtraRows(item.extras || []);
     document.getElementById('cpi-error').classList.add('hidden');
     document.getElementById('customPriceItemModal').classList.remove('hidden');
 }
@@ -2372,6 +2406,55 @@ function closeCustomPriceItemModal() {
     editCustomPriceItemId = null;
 }
 
+// One افزوده row's markup -- price + unit + a remove button that just
+// deletes its own row element directly, no index bookkeeping needed
+// (readCustomPriceItemExtraRows() below reads whatever rows are actually
+// still in the DOM at save time, in order).
+function cpiExtraRowHtml(price, unit) {
+    const priceVal = (price === '' || price === null || price === undefined) ? '' : price;
+    return `<div class="cpi-extra-row flex items-center gap-2">
+        <input type="number" class="auth-input en cpi-extra-price" dir="ltr" min="0" placeholder="قیمت (تومان)" value="${escapeHtml(String(priceVal))}" style="flex:1;">
+        <input type="text" class="auth-input cpi-extra-unit" placeholder="واحد (مثلاً هر صفحه)" value="${escapeHtml(unit || '')}" style="flex:1;">
+        <button type="button" onclick="this.closest('.cpi-extra-row').remove()" class="shrink-0 font-black px-2" style="color:#f87171;background:none;border:none;cursor:pointer;" title="حذف این افزوده">✕</button>
+    </div>`;
+}
+
+function addCustomPriceItemExtraRow(price = '', unit = '') {
+    document.getElementById('cpi-extras-list').insertAdjacentHTML('beforeend', cpiExtraRowHtml(price, unit));
+}
+
+// Seeds the list from an existing item's extras -- always at least one
+// (empty) row so there's somewhere to type immediately, matching how the
+// base-price fields are always visible rather than needing a "+" first.
+function renderCustomPriceItemExtraRows(extras) {
+    const list = document.getElementById('cpi-extras-list');
+    list.innerHTML = '';
+    const seed = (extras && extras.length) ? extras : [{ price: '', unit: '' }];
+    seed.forEach(ex => addCustomPriceItemExtraRow(ex.price, ex.unit));
+}
+
+// Reads whatever افزوده rows are currently in the modal into
+// [{price, unit}], skipping any row left completely blank (same
+// "optional, empty means none" convention the single-افزوده version
+// had). Returns {extras: null, error: '...'} on the first row with a
+// price that doesn't parse, so saveCustomPriceItem() can show one clear
+// message instead of silently dropping a mistyped row.
+function readCustomPriceItemExtraRows() {
+    const rows = document.querySelectorAll('#cpi-extras-list .cpi-extra-row');
+    const extras = [];
+    for (const row of rows) {
+        const priceRaw = row.querySelector('.cpi-extra-price').value.trim();
+        const unitRaw = row.querySelector('.cpi-extra-unit').value.trim();
+        if (!priceRaw && !unitRaw) continue;
+        const price = parseInt(priceRaw, 10);
+        if (!Number.isFinite(price) || price < 0) {
+            return { extras: null, error: 'قیمت هر افزوده را به‌صورت عدد معتبر وارد کنید، یا کل ردیف را با ✕ حذف کنید.' };
+        }
+        extras.push({ price, unit: unitRaw || null });
+    }
+    return { extras, error: null };
+}
+
 async function saveCustomPriceItem() {
     const errorEl = document.getElementById('cpi-error');
     errorEl.classList.add('hidden');
@@ -2379,23 +2462,18 @@ async function saveCustomPriceItem() {
     const label = document.getElementById('cpi-label').value.trim();
     const base = parseInt(document.getElementById('cpi-base').value, 10);
     const baseUnit = document.getElementById('cpi-base-unit').value.trim();
-    const extraRaw = document.getElementById('cpi-extra').value.trim();
-    const extraUnit = document.getElementById('cpi-extra-unit').value.trim();
 
     if (!label) { errorEl.textContent = 'عنوان مورد را وارد کنید.'; errorEl.classList.remove('hidden'); return; }
     if (!Number.isFinite(base) || base < 0) { errorEl.textContent = 'قیمت پایه را به‌صورت عدد معتبر وارد کنید.'; errorEl.classList.remove('hidden'); return; }
-    let extra = null;
-    if (extraRaw !== '') {
-        extra = parseInt(extraRaw, 10);
-        if (!Number.isFinite(extra) || extra < 0) { errorEl.textContent = 'افزوده را به‌صورت عدد معتبر وارد کنید یا خالی بگذارید.'; errorEl.classList.remove('hidden'); return; }
-    }
+
+    const { extras, error } = readCustomPriceItemExtraRows();
+    if (error) { errorEl.textContent = error; errorEl.classList.remove('hidden'); return; }
 
     const item = {
         id: editCustomPriceItemId || (CUSTOM_PRICE_ITEM_ID_PREFIX + Date.now().toString(36) + Math.random().toString(36).slice(2, 8)),
         label, base,
         base_unit: baseUnit || null,
-        extra,
-        unit: extra !== null ? (extraUnit || null) : null,
+        extras,
     };
 
     const nextItems = editCustomPriceItemId
@@ -2527,12 +2605,17 @@ function printMyPriceList() {
     const todayFa = new Date().toLocaleDateString('fa-IR');
 
     const priceCell = (item) => {
+        // Official items use baseUnit (price-catalog.js's own authored
+        // shape); custom items use base_unit (CustomPriceItem's shape,
+        // matched to what DeepT-Core stores) -- this renders both kinds
+        // from the same combined list (see priceCatalogWithCustom()).
         const base = myplEffective(item.id, 'base').toLocaleString();
-        const baseUnitTxt = item.baseUnit ? ` (هر ${escapeHtml(item.baseUnit)})` : '';
+        const baseUnit = item.baseUnit || item.base_unit;
+        const baseUnitTxt = baseUnit ? ` (هر ${escapeHtml(baseUnit)})` : '';
         let txt = `${base}${baseUnitTxt}`;
-        if (item.extra !== null) {
-            txt += ` + ${myplEffective(item.id, 'extra').toLocaleString()} ${escapeHtml(item.unit || '')}`;
-        }
+        myplEffectiveExtras(item.id).forEach(ex => {
+            txt += ` + ${ex.price.toLocaleString()} ${escapeHtml(ex.unit || '')}`;
+        });
         return txt;
     };
 
@@ -3761,7 +3844,7 @@ function applyMyPriceListReprice(itemId) {
     row.description = item.label;
     row._mypl_item_id = itemId;
     row._mypl_base_qty = 1;
-    row._mypl_extra_qty = 0;
+    row._mypl_extra_qtys = new Array(myplEffectiveExtras(itemId).length).fill(0);
     row._mypl_mohr_qty = 0;
     myplRecomputeRowPrice(row);
 
@@ -3780,7 +3863,9 @@ function selectMyPriceListItem(instance, itemId) {
     const item = PRICE_CATALOG_BY_ID[itemId];
     const row = {
         description: item.label, quantity: 1, unit_price_toman: 0,
-        _mypl_item_id: itemId, _mypl_base_qty: 1, _mypl_extra_qty: 0, _mypl_mohr_qty: 0,
+        _mypl_item_id: itemId, _mypl_base_qty: 1,
+        _mypl_extra_qtys: new Array(myplEffectiveExtras(itemId).length).fill(0),
+        _mypl_mohr_qty: 0,
     };
     myplRecomputeRowPrice(row);
 
@@ -3813,9 +3898,7 @@ function selectMyPriceListItem(instance, itemId) {
 function updateDraftRow(idx, field, value) {
     const row = invoiceDraft[idx];
     if (!row) return;
-    if (MYPL_QTY_FIELD_MAP[field]) {
-        const qty = Math.max(0, parseInt(value, 10) || 0);
-        row[MYPL_QTY_FIELD_MAP[field]] = qty;
+    if (myplApplyQtyFieldEdit(row, field, value)) {
         myplRecomputeRowPrice(row);
     } else if (field === 'description') {
         row.description = value;
@@ -5393,9 +5476,7 @@ function renderInvoiceEditRows() {
 function updateInvoiceEditRow(idx, field, value) {
     if (!invoiceEditState || !invoiceEditState.items[idx]) return;
     const row = invoiceEditState.items[idx];
-    if (MYPL_QTY_FIELD_MAP[field]) {
-        const qty = Math.max(0, parseInt(value, 10) || 0);
-        row[MYPL_QTY_FIELD_MAP[field]] = qty;
+    if (myplApplyQtyFieldEdit(row, field, value)) {
         myplRecomputeRowPrice(row);
     } else if (field === 'description') row.description = value;
     else if (field === 'quantity') row.quantity = parseInt(value, 10) || 1;
