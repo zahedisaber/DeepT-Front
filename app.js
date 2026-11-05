@@ -358,7 +358,16 @@ async function loadSystemAnnouncement() {
         banner.dataset.createdAt = data.created_at;
         banner.classList.remove('hidden');
         banner.classList.add('flex');
-    } catch (e) { /* offline or Core unreachable -- leave banner as it was */ }
+    } catch (e) { /* offline or Core unreachable -- leave banner as it was */
+    } finally {
+        // Whatever the banner ended up doing (appearing, staying hidden,
+        // or resolving after a view was already open) -- make sure
+        // whichever view is open right now reserves the right amount of
+        // top space for the header's ACTUAL current height. See
+        // reflowOpenViewHeaderPadding()'s own comment for why this can't
+        // just be done once, synchronously, at view-open time.
+        reflowOpenViewHeaderPadding();
+    }
 }
 
 function dismissSystemAnnouncement() {
@@ -369,6 +378,35 @@ function dismissSystemAnnouncement() {
     }
     banner.classList.add('hidden');
     banner.classList.remove('flex');
+    reflowOpenViewHeaderPadding();
+}
+
+// showFullView() measures .header-bar's live height once, when a view
+// first opens, and reserves that much top padding so the view's own
+// content never renders under the fixed header -- including
+// systemAnnouncementBanner, since it's part of .header-bar's own box (see
+// its HTML comment). But loadSystemAnnouncement() fetches and toggles
+// that banner ASYNCHRONOUSLY, after the page's own startup routing may
+// have already opened a view (most visibly on a direct URL load/refresh
+// of a route like /price-list, where showFullView() runs before that
+// fetch resolves) -- so the reserved padding can be a stale, too-short
+// snapshot from before the banner appeared, leaving the header's real
+// (now taller) box overlapping the top of the page. Re-measuring and
+// re-applying padding here, right after the banner's visibility is
+// actually known (shown or dismissed), fixes that regardless of why the
+// original measurement was stale.
+function reflowOpenViewHeaderPadding() {
+    const headerEl = document.querySelector('.header-bar');
+    if (!headerEl || headerEl.classList.contains('hidden')) return;
+    const openViewId = ['workspaceDashboard', 'clientsWorkspace', 'adminDashboard',
+        'clientProfilePage', 'workSchedulePage', 'settingsPage', 'accountSettingsPage',
+        'docSamplesPage', 'myPriceListPage', 'hrPage', 'homePanelsPage', 'dateConverterPage']
+        .find(id => {
+            const el = document.getElementById(id);
+            return el && !el.classList.contains('hidden');
+        });
+    if (!openViewId) return;
+    document.getElementById(openViewId).style.paddingTop = (headerEl.offsetHeight + 16) + 'px';
 }
 
 let currentUserSession = loadSession();
