@@ -1953,6 +1953,57 @@ document.addEventListener('click', (e) => {
 let myPriceListServer = {};  // {item_id: {base?, extra?}} -- last known saved overrides, from GET
 let myPriceListDraft  = {};  // {item_id: {base?, extra?}} -- unsaved edits
 
+// A translator's own invented نرخنامه items -- not an override of an
+// official tariff row (that's myPriceListServer/Draft above), a genuinely
+// new row that doesn't exist in PRICE_CATALOG at all. Saved immediately
+// on add/edit/delete (its own PATCH, full-replace -- see
+// saveCustomPriceItem()), not part of the draft/"ذخیرهٔ نرخنامه" batch
+// flow above, since there's no "official default" to diff against or
+// reset to. ids always start with this prefix so they can never collide
+// with an official row id (plain numbers, or "N-1" sub-items) or a pinned
+// id ("224"+, see price-catalog.js) -- both now and as either list grows.
+const CUSTOM_PRICE_ITEM_ID_PREFIX = 'custom-';
+let myPriceListCustomItems = [];  // [{id, label, base, base_unit, extra, unit}]
+let editCustomPriceItemId = null;  // id being edited in the modal, null = adding new
+
+// Injects this account's custom items into the SAME shared lookup
+// structures price-catalog.js builds for the official catalog
+// (PRICE_CATALOG_BY_ID, PINNED_ITEM_IDS) -- every existing consumer
+// (myplEffective, the invoice item-picker, selectMyPriceListItem,
+// applyMyPriceListReprice, quantity controls, print handout) already
+// looks items up through those two structures, so a custom item becomes
+// usable everywhere a catalog item is, with no further changes needed
+// anywhere else. Re-running this (e.g. after an edit) just overwrites the
+// same ids; a REMOVED custom item is deliberately left in place here even
+// though it's gone from myPriceListCustomItems -- an invoice row created
+// from it earlier should keep showing its last-known label/price, not
+// break. PINNED_ITEM_IDS membership mirrors official pinned items: a
+// custom fee has no page-count concept either, so it skips the "مهر
+// برابر با اصل" quantity control the same way.
+function injectCustomPriceItemsIntoCatalog() {
+    myPriceListCustomItems.forEach(item => {
+        PRICE_CATALOG_BY_ID[item.id] = {
+            id: item.id, label: item.label, base: item.base,
+            baseUnit: item.base_unit || null,
+            extra: item.extra === undefined ? null : item.extra,
+            unit: item.unit || null,
+        };
+        PINNED_ITEM_IDS.add(item.id);
+    });
+}
+
+// PRICE_CATALOG plus one synthetic leading category for this account's
+// own custom items -- every renderer/search that used to iterate
+// PRICE_CATALOG directly now iterates this instead, so custom items show
+// up everywhere a catalog item does (نرخنامه من, the invoice item-picker,
+// the reprice modal, the print handout). An empty custom list renders as
+// an empty category, which every one of those call sites already skips
+// (same "no matches in this group" guard they use for a filtered-out
+// official category).
+function priceCatalogWithCustom() {
+    return [{ category: 'موارد شخصی من', custom: true, items: myPriceListCustomItems }, ...PRICE_CATALOG];
+}
+
 // The price actually shown/used for one component ("base" or "extra") of
 // an item right now: an unsaved edit wins over a saved override, which
 // wins over the catalog's own default for that component.
@@ -2067,10 +2118,13 @@ async function loadMyPriceListCatalog() {
         if (!res.ok) throw new Error();
         const p = await res.json();
         myPriceListServer = p.price_list || {};
+        myPriceListCustomItems = p.custom_price_items || [];
     } catch (e) {
         myPriceListServer = {};
+        myPriceListCustomItems = [];
     }
     myPriceListDraft = {};
+    injectCustomPriceItemsIntoCatalog();
     renderMyPriceList();
 }
 
@@ -2107,33 +2161,78 @@ function renderMyPriceList() {
     const query = (document.getElementById('mypl-search').value || '').trim();
     list.innerHTML = '';
 
-    PRICE_CATALOG.forEach(group => {
+    priceCatalogWithCustom().forEach(group => {
         const matches = group.items.filter(item => !query || item.label.includes(query));
         if (!matches.length) return;
 
-        // پinned (e.g. "هزینه‌های رایج") isn't part of the official tariff --
-        // a translator's own everyday fees (courier, scanning, stamps...),
-        // shown first (guaranteed by array order -- see price-catalog.js)
-        // in a visibly different amber box so they read as "yours to set",
-        // not one more row of the government sheet below them.
+        // Custom items (yours to add) and پinned items (e.g. "هزینه‌های
+        // رایج") aren't part of the official tariff -- shown first
+        // (custom always leads, guaranteed by priceCatalogWithCustom()'s
+        // own order; pinned next, guaranteed by array order -- see
+        // price-catalog.js) in a visibly different amber box so they read
+        // as "yours", not one more row of the government sheet below them.
         const header = document.createElement('div');
         header.className = 'text-[11px] font-black px-1 pt-2 pb-1 sticky top-0 flex items-center gap-1.5';
-        header.style.cssText = group.pinned
+        header.style.cssText = (group.pinned || group.custom)
             ? 'color:#fbbf24;background:var(--panel-bg);'
             : 'color:var(--accent);background:var(--panel-bg);';
-        header.innerHTML = group.pinned
+        header.innerHTML = (group.pinned || group.custom)
             ? `⭐ ${escapeHtml(group.category)}`
             : escapeHtml(group.category);
         list.appendChild(header);
 
         matches.forEach(item => {
-            const dirty = !!myPriceListDraft[item.id];
             const row = document.createElement('div');
             row.className = 'flex items-center gap-2 p-2 rounded-lg flex-wrap';
+            row.dataset.myplItem = item.id;
+
+            if (group.custom) {
+                // A custom item has no "official default" to diff against
+                // or reset to -- it's saved live (its own immediate PATCH,
+                // see saveCustomPriceItem()), not part of the
+                // draft/"ذخیرهٔ نرخنامه" flow the rows below use. Shown
+                // read-only here with edit/delete instead of live inputs
+                // + reset.
+                row.style.cssText = 'background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.35);';
+                const priceTxt = item.baseUnit
+                    ? `${item.base.toLocaleString()} تومان (هر ${escapeHtml(item.baseUnit)})`
+                    : `${item.base.toLocaleString()} تومان`;
+                const extraTxt = item.extra !== null
+                    ? ` + ${item.extra.toLocaleString()} تومان (${escapeHtml(item.unit || '')})`
+                    : '';
+                const info = document.createElement('div');
+                info.className = 'flex-1 min-w-0';
+                info.style.minWidth = '160px';
+                info.innerHTML = `<div class="text-xs font-bold truncate" style="color:var(--text-main);" title="${escapeHtml(item.label)}">${escapeHtml(item.label)}</div>
+                    <div class="text-[10px] mt-0.5" style="color:var(--text-muted);">${priceTxt}${extraTxt}</div>`;
+                row.appendChild(info);
+
+                const editBtn = document.createElement('button');
+                editBtn.type = 'button';
+                editBtn.title = 'ویرایش';
+                editBtn.className = 'text-xs font-bold px-2 py-2 rounded-lg shrink-0 transition';
+                editBtn.style.cssText = 'background:var(--panel-bg);color:var(--text-muted);border:1px solid var(--border-subtle);';
+                editBtn.textContent = '✎';
+                editBtn.addEventListener('click', () => openEditCustomPriceItemModal(item.id));
+                row.appendChild(editBtn);
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.type = 'button';
+                deleteBtn.title = 'حذف';
+                deleteBtn.className = 'text-xs font-bold px-2 py-2 rounded-lg shrink-0 transition';
+                deleteBtn.style.cssText = 'background:var(--panel-bg);color:#f87171;border:1px solid var(--border-subtle);';
+                deleteBtn.textContent = '🗑';
+                deleteBtn.addEventListener('click', () => deleteCustomPriceItem(item.id));
+                row.appendChild(deleteBtn);
+
+                list.appendChild(row);
+                return;
+            }
+
+            const dirty = !!myPriceListDraft[item.id];
             row.style.cssText = group.pinned
                 ? `background:rgba(251,191,36,.08);border:1px solid ${dirty ? 'var(--accent)' : 'rgba(251,191,36,.35)'};`
                 : `background:var(--bg-main);border:1px solid ${dirty ? 'var(--accent)' : 'var(--border-subtle)'};`;
-            row.dataset.myplItem = item.id;
 
             const info = document.createElement('div');
             info.className = 'flex-1 min-w-0';
@@ -2198,6 +2297,102 @@ function resetAllMyPriceListDrafts() {
     renderMyPriceList();
 }
 
+// ── مورد شخصی (custom نرخنامه item) ──────────────────────────────────────
+// Add/edit/delete, each saved immediately (own PATCH, full replace) rather
+// than batched into the official-catalog draft/"ذخیرهٔ نرخنامه" flow above
+// -- see the var/function comments near CUSTOM_PRICE_ITEM_ID_PREFIX.
+
+function openAddCustomPriceItemModal() {
+    if (!currentUserSession) { openAuthModal(); return; }
+    editCustomPriceItemId = null;
+    document.getElementById('cpi-modal-title').textContent = '+ مورد شخصی جدید';
+    document.getElementById('cpi-label').value = '';
+    document.getElementById('cpi-base').value = '';
+    document.getElementById('cpi-base-unit').value = '';
+    document.getElementById('cpi-extra').value = '';
+    document.getElementById('cpi-extra-unit').value = '';
+    document.getElementById('cpi-error').classList.add('hidden');
+    document.getElementById('customPriceItemModal').classList.remove('hidden');
+}
+
+function openEditCustomPriceItemModal(itemId) {
+    const item = myPriceListCustomItems.find(i => i.id === itemId);
+    if (!item) return;
+    editCustomPriceItemId = itemId;
+    document.getElementById('cpi-modal-title').textContent = '✎ ویرایش مورد شخصی';
+    document.getElementById('cpi-label').value = item.label;
+    document.getElementById('cpi-base').value = item.base;
+    document.getElementById('cpi-base-unit').value = item.base_unit || '';
+    document.getElementById('cpi-extra').value = item.extra === null || item.extra === undefined ? '' : item.extra;
+    document.getElementById('cpi-extra-unit').value = item.unit || '';
+    document.getElementById('cpi-error').classList.add('hidden');
+    document.getElementById('customPriceItemModal').classList.remove('hidden');
+}
+
+function closeCustomPriceItemModal() {
+    document.getElementById('customPriceItemModal').classList.add('hidden');
+    editCustomPriceItemId = null;
+}
+
+async function saveCustomPriceItem() {
+    const errorEl = document.getElementById('cpi-error');
+    errorEl.classList.add('hidden');
+
+    const label = document.getElementById('cpi-label').value.trim();
+    const base = parseInt(document.getElementById('cpi-base').value, 10);
+    const baseUnit = document.getElementById('cpi-base-unit').value.trim();
+    const extraRaw = document.getElementById('cpi-extra').value.trim();
+    const extraUnit = document.getElementById('cpi-extra-unit').value.trim();
+
+    if (!label) { errorEl.textContent = 'عنوان مورد را وارد کنید.'; errorEl.classList.remove('hidden'); return; }
+    if (!Number.isFinite(base) || base < 0) { errorEl.textContent = 'قیمت پایه را به‌صورت عدد معتبر وارد کنید.'; errorEl.classList.remove('hidden'); return; }
+    let extra = null;
+    if (extraRaw !== '') {
+        extra = parseInt(extraRaw, 10);
+        if (!Number.isFinite(extra) || extra < 0) { errorEl.textContent = 'افزوده را به‌صورت عدد معتبر وارد کنید یا خالی بگذارید.'; errorEl.classList.remove('hidden'); return; }
+    }
+
+    const item = {
+        id: editCustomPriceItemId || (CUSTOM_PRICE_ITEM_ID_PREFIX + Date.now().toString(36) + Math.random().toString(36).slice(2, 8)),
+        label, base,
+        base_unit: baseUnit || null,
+        extra,
+        unit: extra !== null ? (extraUnit || null) : null,
+    };
+
+    const nextItems = editCustomPriceItemId
+        ? myPriceListCustomItems.map(i => i.id === editCustomPriceItemId ? item : i)
+        : [...myPriceListCustomItems, item];
+
+    await persistCustomPriceItems(nextItems, '✅ مورد شخصی ذخیره شد.');
+    closeCustomPriceItemModal();
+}
+
+async function deleteCustomPriceItem(itemId) {
+    if (!confirm('این مورد شخصی حذف شود؟ ردیف‌های فاکتوری که قبلاً از آن استفاده شده‌اند بدون تغییر می‌مانند.')) return;
+    const nextItems = myPriceListCustomItems.filter(i => i.id !== itemId);
+    await persistCustomPriceItems(nextItems, 'مورد شخصی حذف شد.');
+}
+
+async function persistCustomPriceItems(nextItems, successMessage) {
+    const token = getToken();
+    try {
+        const res = await fetch(`${CORE}/users/me/preferences`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ custom_price_items: nextItems })
+        });
+        const p = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(p.detail || 'خطای سرور');
+        myPriceListCustomItems = p.custom_price_items || [];
+        injectCustomPriceItemsIntoCatalog();
+        renderMyPriceList();
+        showToast(successMessage);
+    } catch (e) {
+        showToast(`❌ ذخیره ناموفق بود: ${e.message || 'خطای نامشخص'}`);
+    }
+}
+
 // Bulk inflation adjustment: bump every catalog item's *current* effective
 // price (whether that's still the official default or an already-saved
 // override) by a percentage, all at once. Reuses myplCommit() per
@@ -2221,6 +2416,11 @@ function applyMyplBulkIncrease() {
         return;
     }
     const factor = 1 + pct / 100;
+    // Official catalog only, deliberately -- myplCommit() works in terms
+    // of a draft override against an official default, which custom items
+    // don't have (see saveCustomPriceItem(), which edits a custom item's
+    // own live base/extra directly instead). Bulk-increasing custom items
+    // too would need its own, different code path; left for later.
     PRICE_CATALOG.forEach(group => {
         group.items.forEach(item => {
             const newBase = Math.max(0, Math.round(myplEffective(item.id, 'base') * factor));
@@ -2309,16 +2509,17 @@ function printMyPriceList() {
     // lets the browser's column/page breaking flow row-by-row instead,
     // packing tightly the way the original tariff sheet itself does
     // (a category routinely continues right across a column boundary).
-    const rowsHtml = PRICE_CATALOG.map(group => {
-        // Pinned items (هزینه‌های رایج) aren't real rows of the official
-        // tariff sheet -- their ids (224+) are just internal bookkeeping,
-        // continuing past the sheet's own last row ("223") so they never
-        // collide with a real one (see price-catalog.js's header comment).
-        // Printing them would misleadingly suggest they're official
-        // numbered items, so this column stays blank for this category only.
+    const rowsHtml = priceCatalogWithCustom().map(group => {
+        // Pinned items (هزینه‌های رایج) and custom items (یک translator's
+        // own additions) aren't real rows of the official tariff sheet --
+        // their ids are just internal bookkeeping (pinned: 224+, continuing
+        // past the sheet's own last row "223"; custom: the
+        // CUSTOM_PRICE_ITEM_ID_PREFIX-prefixed id). Printing them would
+        // misleadingly suggest they're official numbered items, so this
+        // column stays blank for both categories.
         const itemRows = group.items.map(item => `
             <tr>
-                <td class="col-id">${group.pinned ? '' : escapeHtml(item.id)}</td>
+                <td class="col-id">${(group.pinned || group.custom) ? '' : escapeHtml(item.id)}</td>
                 <td class="col-label">${escapeHtml(item.label)}</td>
                 <td class="col-price en" dir="ltr">${priceCell(item)}</td>
             </tr>`).join('');
@@ -3401,7 +3602,7 @@ function renderMyPriceListMatches(list, query, onSelect) {
 
     const q = (query || '').trim();
     const matches = [];
-    PRICE_CATALOG.forEach(group => {
+    priceCatalogWithCustom().forEach(group => {
         group.items.forEach(item => {
             if (!q || item.label.includes(q)) matches.push(item);
         });

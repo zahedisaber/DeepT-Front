@@ -317,6 +317,54 @@
   </div>
 </div>
 
+<!-- ── "مورد شخصی" -- a translator's own نرخنامه line item that isn't
+     part of the official tariff sheet at all (e.g. a one-off service the
+     client wants billed separately) -- see CUSTOM_PRICE_ITEM_ID_PREFIX
+     and the custom-item functions in app.js. Same add/edit dialog for
+     both: editCustomPriceItemId holds which item (if any) is being
+     edited, null for a brand-new one. ── -->
+<div role="dialog" aria-modal="true" id="customPriceItemModal" class="modal-overlay fixed inset-0 z-[75] hidden flex items-center justify-center p-4">
+  <div class="w-full max-w-sm p-6" style="background:var(--card-surface);border:1px solid var(--border-color);border-radius:1rem;">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-base font-black" id="cpi-modal-title" style="color:var(--text-main);">+ مورد شخصی جدید</h3>
+      <button type="button" onclick="closeCustomPriceItemModal()" style="color:var(--text-muted);background:none;border:none;cursor:pointer;font-size:1.1rem;">✕</button>
+    </div>
+    <p class="text-[11px] mb-3" style="color:var(--text-muted);">یک ردیف کاملاً دلخواه، خارج از فهرست رسمی تعرفه، برای استفاده در نرخنامه و فاکتورهای خودتان.</p>
+    <div class="space-y-3">
+      <div>
+        <label for="cpi-label" class="auth-label">عنوان مورد <span style="color:#f87171;">*</span></label>
+        <input type="text" id="cpi-label" class="auth-input" placeholder="مثلاً مشاوره حقوقی">
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label for="cpi-base" class="auth-label">قیمت پایه (تومان) <span style="color:#f87171;">*</span></label>
+          <input type="number" id="cpi-base" class="auth-input en" dir="ltr" min="0" placeholder="150000">
+        </div>
+        <div>
+          <label for="cpi-base-unit" class="auth-label">واحد قیمت پایه (اختیاری)</label>
+          <input type="text" id="cpi-base-unit" class="auth-input" placeholder="مثلاً صفحه">
+        </div>
+      </div>
+      <p class="text-[10px]" style="color:var(--text-muted);">واحد را فقط زمانی پر کنید که قیمت پایه به‌ازای هر واحد (مثلاً هر صفحه) باشد، نه یک‌جا برای کل مورد.</p>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label for="cpi-extra" class="auth-label">افزودهٔ اختیاری (تومان)</label>
+          <input type="number" id="cpi-extra" class="auth-input en" dir="ltr" min="0" placeholder="خالی = بدون افزوده">
+        </div>
+        <div>
+          <label for="cpi-extra-unit" class="auth-label">واحد افزوده</label>
+          <input type="text" id="cpi-extra-unit" class="auth-input" placeholder="مثلاً هر سطر">
+        </div>
+      </div>
+    </div>
+    <p id="cpi-error" class="text-[11px] mt-2 hidden" style="color:#f87171;"></p>
+    <div class="flex items-center gap-2 mt-4">
+      <button type="button" onclick="saveCustomPriceItem()" class="flex-1 font-black py-2 rounded-lg text-xs transition" style="background:var(--accent);color:var(--btn-text-on-accent);">ذخیره</button>
+      <button type="button" onclick="closeCustomPriceItemModal()" class="text-xs font-bold px-3 py-2 rounded-lg transition shrink-0" style="background:var(--bg-main);color:var(--text-muted);border:1px solid var(--border-subtle);">انصراف</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── VIEW 04 · add/edit client dialog (standalone; no passport/job) ── -->
 <div role="dialog" aria-modal="true" id="addClientModal" class="modal-overlay fixed inset-0 z-[70] hidden flex items-center justify-center p-4">
   <div class="w-full max-w-md p-6" style="background:var(--card-surface);border:1px solid var(--border-color);border-radius:1rem;max-height:88vh;overflow-y:auto;">
@@ -1530,6 +1578,7 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
             </h2>
             <div class="flex items-center gap-2">
                 <button type="button" onclick="printMyPriceList()" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">🖨️ چاپ / PDF</button>
+                <button type="button" onclick="openAddCustomPriceItemModal()" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">+ مورد شخصی جدید</button>
                 <button type="button" onclick="openMyplBulkIncreaseModal()" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">📈 افزایش نرخ‌ها</button>
                 <button type="button" onclick="closeMyPriceListPage()" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">میز کار ترجمه ←</button>
             </div>
