@@ -4637,15 +4637,6 @@ async function openClientProfile(clientId) {
         document.getElementById('cp-phone').textContent = c.phone || '—';
         document.getElementById('cp-email').textContent = c.email || '—';
         document.getElementById('cp-notes').value = c.notes || '';
-        // target_language: null/undefined or anything other than the three
-        // named languages falls back to the empty option, which means
-        // English -- matches how DeepT-Core/Back-End treat a missing or
-        // unrecognized value.
-        const targetLangSel = document.getElementById('cp-target-lang');
-        if (targetLangSel) {
-            const validLangs = ['French', 'Italian', 'Spanish'];
-            targetLangSel.value = validLangs.includes(c.target_language) ? c.target_language : '';
-        }
         // cp-job-count's header was replaced by the combined activity
         // list's own count (cp-activity-count, set in renderClientActivityList).
 
@@ -5600,29 +5591,6 @@ async function saveClientNotes() {
         showToast('✅ یادداشت ذخیره شد.');
     } catch (e) {
         showToast('خطا در ذخیره یادداشت.');
-    }
-}
-
-// Per-client "translate into this language instead of English" setting
-// (DeepT-Core's `target_language` field on the client record, read by
-// DeepT-Back-End when it runs a translation). Saved immediately on change,
-// same as other single-field edits on this page -- no separate save button
-// needed for a dropdown.
-async function saveClientTargetLanguage() {
-    if (!currentClientDetailId) return;
-    const sel = document.getElementById('cp-target-lang');
-    if (!sel) return;
-    const token = localStorage.getItem('deept_token');
-    try {
-        const res = await fetch(`${CORE}/clients/${currentClientDetailId}`, {
-            method: 'PATCH',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ target_language: sel.value || null })
-        });
-        if (!res.ok) throw new Error();
-        showToast('✅ زبان مقصد ترجمه ذخیره شد.');
-    } catch (e) {
-        showToast('خطا در ذخیره زبان مقصد ترجمه.');
     }
 }
 
