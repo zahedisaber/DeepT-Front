@@ -441,15 +441,17 @@
         <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:50%;background:#38bdf8;display:inline-block;"></span>وارد شده از سنام</span>
         <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:50%;background:#fbbf24;display:inline-block;"></span>ردیف دستی (پیش‌نویس فاکتور)</span>
     </div>
-    <p class="text-[11px] mb-2" style="color:var(--text-muted);">برای افزودن هر مورد به پیش‌نویس فاکتور پایین، تیک آن را بزنید.</p>
+    <p class="text-[11px] mb-2" style="color:var(--text-muted);">تیک هر مورد را بزنید، سپس «ثبت پیش‌نویس فاکتور» را بزنید تا به پیش‌نویس فاکتور پایین اضافه شود و در آنجا قابل ویرایش باشد.</p>
     <div id="cd-activity-bulk-bar" class="hidden flex items-center gap-2 flex-wrap p-2 rounded-lg mb-2" style="background:var(--bg-main);border:1px solid var(--accent);">
         <span id="cd-activity-bulk-count" class="text-[11px] font-bold" style="color:var(--text-main);"></span>
         <span class="flex-1"></span>
-        <button type="button" onclick="submitDraftInvoice('invoice')" class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition" style="background:var(--accent);color:var(--btn-text-on-accent);border:1px solid transparent;">🧾 ایجاد فاکتور</button>
+        <button type="button" onclick="commitCheckedActivityToDraft()" class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition" style="background:var(--accent);color:var(--btn-text-on-accent);border:1px solid transparent;">📝 ثبت پیش‌نویس فاکتور</button>
         <button type="button" id="cd-activity-bulk-edit" onclick="openEditWorkRecordModalForSelection()" class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">✏️ ویرایش فیلدها</button>
         <button type="button" id="cd-activity-bulk-delete" onclick="bulkDeleteCheckedActivityRows()" class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition" style="background:var(--card-surface);color:#f87171;border:1px solid var(--border-subtle);">🗑 حذف</button>
     </div>
-    <div id="cd-activity-list" class="space-y-1.5 mb-5"></div>
+    <input type="text" id="cd-activity-search" class="auth-input mb-2 w-full" style="font-size:.78rem;" placeholder="🔍 جستجو بر اساس نام سند..." oninput="filterActivityList('cd')">
+    <div id="cd-activity-list" class="space-y-1.5 mb-2"></div>
+    <div id="cd-activity-pagination" class="flex items-center justify-center gap-2 mb-5"></div>
 
     <div class="p-3.5 rounded-xl mb-5" style="background:var(--bg-main);border:1px solid var(--border-color);">
       <h4 class="text-sm font-black flex items-center gap-1.5 mb-2.5" style="color:var(--text-main);">🧮 پیش‌نویس فاکتور</h4>
@@ -1693,14 +1695,15 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                         <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:50%;background:#38bdf8;display:inline-block;"></span>وارد شده از سنام</span>
                         <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:50%;background:#fbbf24;display:inline-block;"></span>ردیف دستی (پیش‌نویس فاکتور)</span>
                     </div>
-                    <p class="text-[11px] mb-2" style="color:var(--text-muted);">برای افزودن هر مورد به پیش‌نویس فاکتور، تیک آن را بزنید.</p>
+                    <p class="text-[11px] mb-2" style="color:var(--text-muted);">تیک هر مورد را بزنید، سپس «ثبت پیش‌نویس فاکتور» را بزنید تا به پیش‌نویس فاکتور اضافه شود و در آنجا قابل ویرایش باشد.</p>
                     <div id="cp-activity-bulk-bar" class="hidden flex items-center gap-2 flex-wrap p-2 rounded-lg mb-2" style="background:var(--bg-main);border:1px solid var(--accent);">
                         <span id="cp-activity-bulk-count" class="text-[11px] font-bold" style="color:var(--text-main);"></span>
                         <span class="flex-1"></span>
-                        <button type="button" onclick="submitDraftInvoice('invoice')" class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition" style="background:var(--accent);color:var(--btn-text-on-accent);border:1px solid transparent;">🧾 ایجاد فاکتور</button>
+                        <button type="button" onclick="commitCheckedActivityToDraft()" class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition" style="background:var(--accent);color:var(--btn-text-on-accent);border:1px solid transparent;">📝 ثبت پیش‌نویس فاکتور</button>
                         <button type="button" id="cp-activity-bulk-edit" onclick="openEditWorkRecordModalForSelection()" class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">✏️ ویرایش فیلدها</button>
                         <button type="button" id="cp-activity-bulk-delete" onclick="bulkDeleteCheckedActivityRows()" class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition" style="background:var(--card-surface);color:#f87171;border:1px solid var(--border-subtle);">🗑 حذف</button>
                     </div>
+                    <input type="text" id="cp-activity-search" class="auth-input mb-2 w-full" style="font-size:.78rem;" placeholder="🔍 جستجو بر اساس نام سند..." oninput="filterActivityList('cp')">
                     <!-- Capped height + its own scrollbar: a long history must
                          not push فاکتورها all the way down the page. Horizontal
                          scroll (with nowrap cells) keeps rows on one tidy line
@@ -1724,6 +1727,7 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                             <tbody id="cp-activity-list"></tbody>
                         </table>
                     </div>
+                    <div id="cp-activity-pagination" class="flex items-center justify-center gap-2 mt-2"></div>
                 </div>
             </div>
 

@@ -3326,44 +3326,82 @@ const ACTIVITY_CATEGORY_COLORS = { job: '#4ade80', sanam: '#38bdf8', manual: '#f
 
 function activityRowKey(type, id) { return `${type}:${id}`; }
 
-// A row is "checked" whenever it's currently sitting in invoiceDraft --
-// the checkbox IS the draft-membership toggle, no separate selection
-// state to keep in sync.
+// Checking a box only marks a row PENDING -- it does NOT touch
+// invoiceDraft (and so doesn't show up in the editable پیش‌نویس فاکتور
+// panel) until the bulk bar's "ثبت پیش‌نویس فاکتور" button actually
+// commits the pending selection (see commitCheckedActivityToDraft()).
+// Keeping this as its own Set, rather than deriving "checked" purely
+// from invoiceDraft membership the way this used to work, is what makes
+// that two-step possible.
+let checkedActivityKeys = new Set();
+
+// True once a row has actually been committed into invoiceDraft (as
+// opposed to merely pending in checkedActivityKeys) -- a checkbox shows
+// checked for either state (see the checkbox markup in
+// renderClientActivity()), but only a committed row has a corresponding
+// draft row to remove on uncheck.
 function isActivityInDraft(key) {
     return invoiceDraft.some(row => row._source_key === key);
 }
 
-function toggleActivityInDraft(type, id, description, priceToman, checked) {
+function toggleActivitySelection(type, id, checked) {
     const key = activityRowKey(type, id);
     if (checked) {
-        if (isActivityInDraft(key)) return;
+        checkedActivityKeys.add(key);
+    } else {
+        checkedActivityKeys.delete(key);
+        // Already committed to the draft (the user had clicked "ثبت
+        // پیش‌نویس فاکتور" earlier, then came back and unchecked this one
+        // row) -- unchecking still removes it from the editable panel,
+        // same convenience the old single-step toggle had.
+        if (isActivityInDraft(key)) {
+            invoiceDraft = invoiceDraft.filter(row => row._source_key !== key);
+            renderDraftRows();
+        }
+    }
+    updateActivityBulkBar();
+}
+
+// The bulk bar's "📝 ثبت پیش‌نویس فاکتور" button -- moves every currently
+// PENDING (checked, not yet committed) row into invoiceDraft in one go,
+// then clears the pending set (they're committed now, not pending
+// anymore) so the bulk bar hides and attention shifts to the editable
+// پیش‌نویس فاکتور panel below, where the translator can add نرخنامه rows,
+// تمبر, etc. before the panel's own, unchanged "ثبت فاکتور" actually
+// submits (see submitDraftInvoice()).
+function commitCheckedActivityToDraft() {
+    let committedAny = false;
+    checkedActivityKeys.forEach(key => {
+        if (isActivityInDraft(key)) return;  // already committed from an earlier click
+        const row = lastActivityRows.find(r => activityRowKey(r.type, r.id) === key);
+        if (!row) return;
         // job_id links back to a completed DeepT job; sanam_document_id
         // links back to an imported-but-unbilled Sanam work item (see
         // clients.py's _get_sanam_documents) -- the backend marks it billed
         // (invoice_id) once the invoice is actually created, so it won't be
         // offered again for a second invoice.
         invoiceDraft.push({
-            description, quantity: 1, unit_price_toman: priceToman,
-            job_id: type === 'job' ? id : null,
-            sanam_document_id: type === 'sanam' ? id : null,
+            description: row.title, quantity: 1, unit_price_toman: row.price || 0,
+            job_id: row.type === 'job' ? row.id : null,
+            sanam_document_id: row.type === 'sanam' ? row.id : null,
             _source_key: key,
         });
-    } else {
-        invoiceDraft = invoiceDraft.filter(row => row._source_key !== key);
-    }
-    renderDraftRows();
+        committedAny = true;
+    });
+    checkedActivityKeys.clear();
+    if (committedAny) renderDraftRows();
+    updateActivityBulkBar();
 }
 
 // ── Bulk action bar: create invoice / delete / edit fields ──────────────
 // Appears above the activity list the moment any row is checked, acting
-// on whichever activity-list rows are currently checked (i.e. present in
-// invoiceDraft with a _source_key -- a manually-typed draft row has none,
-// so it's never counted here). "Create invoice" just reuses the existing
-// submitDraftInvoice() flow; delete/edit act on the underlying job/sanam
-// record itself, not just its draft copy.
+// on whichever activity-list rows are currently PENDING (checked, not
+// yet committed to invoiceDraft -- see checkedActivityKeys). "ثبت
+// پیش‌نویس فاکتور" moves them into the editable پیش‌نویس فاکتور panel
+// (commitCheckedActivityToDraft()); delete/edit act on the underlying
+// job/sanam record itself, not a draft copy.
 function checkedActivityRows() {
-    const checkedKeys = new Set(invoiceDraft.map(r => r._source_key).filter(Boolean));
-    return lastActivityRows.filter(r => checkedKeys.has(activityRowKey(r.type, r.id)));
+    return lastActivityRows.filter(r => checkedActivityKeys.has(activityRowKey(r.type, r.id)));
 }
 
 function updateActivityBulkBar() {
@@ -3535,6 +3573,10 @@ async function submitEditWorkRecord() {
 // the width for real columns); the older, narrower client-detail modal
 // (cd-) keeps the original compact card-row layout, which is what it has
 // room for. Both read from the same computed `rows` array below.
+const ACTIVITY_PAGE_SIZE = 25;
+let activityListQuery = '';
+let activityListPage = 1;
+
 function renderClientActivityList(jobs, sanamDocs) {
     const prefix = isProfilePageOpen() ? 'cp' : 'cd';
     const box = document.getElementById(prefix + '-activity-list');
@@ -3562,22 +3604,54 @@ function renderClientActivityList(jobs, sanamDocs) {
     });
     rows.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     lastActivityRows = rows;
+    // A fresh fetch (new client opened, or a refresh after edit/delete) --
+    // start back on page 1. The search box itself is left as the
+    // translator typed it, so a refresh mid-search doesn't lose their
+    // filter.
+    activityListPage = 1;
 
     if (countEl) countEl.textContent = rows.length;
     if (prefix === 'cp') renderClientStats(rows);
 
-    if (!rows.length) {
-        const emptyMsg = '// بدون سابقه پروژه یا سند';
+    renderActivityListPage();
+}
+
+// The part of renderClientActivityList() that actually touches the DOM --
+// split out so the search box and pagination controls can re-render just
+// this, against the already-fetched lastActivityRows, without re-hitting
+// the server. ACTIVITY_PAGE_SIZE caps one page at 25 rows; activityListQuery
+// filters by title (document name / manual description) first, THEN pages
+// the filtered result -- so searching always starts back on a full page 1
+// of matches (see filterActivityList()).
+function renderActivityListPage() {
+    const prefix = isProfilePageOpen() ? 'cp' : 'cd';
+    const box = document.getElementById(prefix + '-activity-list');
+    if (!box) return;
+
+    const query = activityListQuery.trim();
+    const filtered = query
+        ? lastActivityRows.filter(r => (r.title || '').toLowerCase().includes(query.toLowerCase()))
+        : lastActivityRows;
+
+    if (!filtered.length) {
+        const emptyMsg = query ? '// موردی با این نام یافت نشد' : '// بدون سابقه پروژه یا سند';
         box.innerHTML = prefix === 'cp'
             ? `<tr><td colspan="6" class="text-xs text-center py-4" style="color:var(--text-muted);">${emptyMsg}</td></tr>`
             : `<div class="text-xs text-center py-4" style="color:var(--text-muted);">${emptyMsg}</div>`;
+        renderActivityListPagination(prefix, 0, 0);
         updateActivityBulkBar();
         return;
     }
 
-    box.innerHTML = rows.map(r => {
+    const totalPages = Math.max(1, Math.ceil(filtered.length / ACTIVITY_PAGE_SIZE));
+    activityListPage = Math.min(Math.max(1, activityListPage), totalPages);
+    const start = (activityListPage - 1) * ACTIVITY_PAGE_SIZE;
+    const pageRows = filtered.slice(start, start + ACTIVITY_PAGE_SIZE);
+
+    box.innerHTML = pageRows.map(r => {
         const color = ACTIVITY_CATEGORY_COLORS[r.type];
-        const checked = isActivityInDraft(activityRowKey(r.type, r.id));
+        const rowKey = activityRowKey(r.type, r.id);
+        const checked = checkedActivityKeys.has(rowKey) || isActivityInDraft(rowKey);
         const st = r.type === 'job' ? (ACTIVITY_STATUS_LABELS[r.status] || { text: escapeHtml(r.status), color: 'var(--text-muted)' })
             : (r.billed ? { text: 'فاکتور شده', color: '#4ade80' } : null);
         const idBadge = r.type === 'job'
@@ -3586,8 +3660,8 @@ function renderClientActivityList(jobs, sanamDocs) {
         const dateStr = r.date ? escapeHtml(String(r.date).slice(0, 10)) : '—';
         const dotTitle = r.type === 'job' ? 'ترجمه ماشینی' : (r.type === 'sanam' ? 'وارد شده از سنام' : 'ردیف دستی');
         const checkbox = `<input type="checkbox" ${checked ? 'checked' : ''} ${r.checkable ? '' : 'disabled'}
-            data-activity-key="${escapeHtml(activityRowKey(r.type, r.id))}"
-            onchange='toggleActivityInDraft(${JSON.stringify(r.type)}, ${JSON.stringify(r.id)}, ${JSON.stringify(r.title)}, ${r.price}, this.checked)'
+            data-activity-key="${escapeHtml(rowKey)}"
+            onchange='toggleActivitySelection(${JSON.stringify(r.type)}, ${JSON.stringify(r.id)}, this.checked)'
             style="width:15px;height:15px;accent-color:${color};flex-shrink:0;cursor:${r.checkable ? 'pointer' : 'not-allowed'};">`;
 
         if (prefix === 'cp') {
@@ -3610,7 +3684,30 @@ function renderClientActivityList(jobs, sanamDocs) {
             ${st ? `<span class="status-pill" style="color:${st.color};background:${st.color}1f;">${st.text}</span>` : ''}
         </div>`;
     }).join('');
+    renderActivityListPagination(prefix, activityListPage, totalPages);
     updateActivityBulkBar();
+}
+
+function renderActivityListPagination(prefix, page, totalPages) {
+    const el = document.getElementById(prefix + '-activity-pagination');
+    if (!el) return;
+    if (totalPages <= 1) { el.innerHTML = ''; return; }
+    el.innerHTML = `
+        <button type="button" onclick="goToActivityPage(${page - 1})" ${page <= 1 ? 'disabled' : ''} class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);opacity:${page <= 1 ? '.45' : '1'};">→ قبلی</button>
+        <span class="text-[11px]" style="color:var(--text-muted);">صفحهٔ ${page.toLocaleString('fa-IR')} از ${totalPages.toLocaleString('fa-IR')}</span>
+        <button type="button" onclick="goToActivityPage(${page + 1})" ${page >= totalPages ? 'disabled' : ''} class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);opacity:${page >= totalPages ? '.45' : '1'};">بعدی ←</button>`;
+}
+
+function goToActivityPage(page) {
+    activityListPage = page;
+    renderActivityListPage();
+}
+
+function filterActivityList(prefix) {
+    const input = document.getElementById(prefix + '-activity-search');
+    activityListQuery = input ? input.value : '';
+    activityListPage = 1;
+    renderActivityListPage();
 }
 
 // Quick-glance numbers above the profile's activity table -- a failed job
