@@ -3662,7 +3662,8 @@ async function renderClientInvoices(clientId) {
             const sentBadge = inv.finalized_at
                 ? `<span class="text-[10px] shrink-0" style="color:var(--text-muted);" title="قبلاً چاپ یا ایمیل شده">✓ ارسال‌شده</span>`
                 : '';
-            const actions = `<button onclick="event.stopPropagation();openInvoiceView('${inv.id}', true)" class="text-[10px] font-bold px-2 py-1 rounded-md shrink-0" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">✏️ ویرایش</button>`;
+            const actions = `<button onclick="event.stopPropagation();openInvoiceView('${inv.id}', true)" class="text-[10px] font-bold px-2 py-1 rounded-md shrink-0" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">✏️ ویرایش</button>
+                <button onclick="event.stopPropagation();deleteInvoice('${inv.id}','${clientId}')" class="text-[10px] font-bold px-2 py-1 rounded-md shrink-0" style="background:var(--card-surface);color:#f87171;border:1px solid var(--border-color);">🗑 حذف</button>`;
             return `
             <div onclick="openInvoiceView('${inv.id}')" class="p-2.5 rounded-lg text-xs cursor-pointer transition hover:opacity-80" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
                 <div class="flex items-center justify-between gap-2">
@@ -3680,6 +3681,26 @@ async function renderClientInvoices(clientId) {
         }).join('');
     } catch (e) {
         box.innerHTML = `<div class="text-xs text-center py-3" style="color:#f87171;">خطا در دریافت فاکتورها.</div>`;
+    }
+}
+
+async function deleteInvoice(invoiceId, clientId) {
+    if (!confirm('این فاکتور برای همیشه حذف شود؟ این کار قابل بازگشت نیست.')) return;
+    const token = localStorage.getItem('deept_token');
+    try {
+        const res = await fetch(`${CORE}/invoices/${invoiceId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error();
+        showToast('✅ فاکتور حذف شد.');
+        renderClientInvoices(clientId);
+        // Any Sanam work item this invoice had billed is now unlinked and
+        // billable again -- refresh the activity list so it shows up as
+        // checkable instead of still marked "فاکتور شده".
+        _refetchClientActivity(clientId);
+    } catch (e) {
+        showToast('❌ حذف فاکتور ناموفق بود.');
     }
 }
 
