@@ -5293,11 +5293,13 @@ function renderScheduleOrderList(orders, emptyMessage) {
     list.innerHTML = orders.map(o => {
         const t = WORK_ORDER_TYPE_FA[o.order_type] || { text: o.order_type, color: 'var(--accent)' };
         const s = WORK_ORDER_STATUS_FA[o.status] || { text: o.status, color: 'var(--text-muted)' };
+        const done = o.status === 'DONE';
         return `
           <div onclick="openScheduleOrderDetail('${o.id}')" class="flex items-center justify-between gap-3 p-2.5 rounded-lg text-xs cursor-pointer transition hover:opacity-85" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
             <div class="flex items-center gap-2 min-w-0">
+              ${scheduleDoneCheckboxHtml(o.id, done)}
               <span class="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style="background:${t.color};"></span>
-              <span class="font-bold en truncate" style="color:var(--text-main);">${o.client_name ? escapeHtml(o.client_name) + (o.title ? ' — ' + escapeHtml(o.title) : '') : escapeHtml(o.title || '—')}</span>
+              <span class="font-bold en truncate" style="color:${done ? 'var(--text-muted)' : 'var(--text-main)'};${done ? 'text-decoration:line-through;' : ''}">${o.client_name ? escapeHtml(o.client_name) + (o.title ? ' — ' + escapeHtml(o.title) : '') : escapeHtml(o.title || '—')}</span>
             </div>
             <div class="flex items-center gap-3 shrink-0">
               <span class="en font-bold" style="color:${o.due_date ? 'var(--accent)' : 'var(--text-muted)'};">${o.due_date || 'بدون ددلاین'}</span>
@@ -5364,7 +5366,10 @@ async function renderScheduleWeekView() {
                 const done = o.status === 'DONE';
                 return `
                   <div onclick="openScheduleOrderDetail('${o.id}')" title="نمایش جزئیات" class="p-1.5 rounded-md text-[10px] cursor-pointer mb-1 hover:opacity-85" style="background:${(t.color) + '33'};border:1px solid ${t.color}55;border-left:3px solid ${t.color};">
-                    <div class="font-bold truncate" style="color:${done ? 'var(--text-muted)' : 'var(--text-main)'};${done ? 'text-decoration:line-through;' : ''}">${o.client_name ? escapeHtml(o.client_name) + (o.title ? ' · ' + escapeHtml(o.title) : '') : escapeHtml(o.title || '—')}</div>
+                    <div class="flex items-center gap-1.5 min-w-0">
+                      ${scheduleDoneCheckboxHtml(o.id, done)}
+                      <span class="font-bold truncate" style="color:${done ? 'var(--text-muted)' : 'var(--text-main)'};${done ? 'text-decoration:line-through;' : ''}">${o.client_name ? escapeHtml(o.client_name) + (o.title ? ' · ' + escapeHtml(o.title) : '') : escapeHtml(o.title || '—')}</span>
+                    </div>
                     <div class="flex items-center justify-between mt-0.5" style="color:var(--text-muted);">
                       <span style="color:${t.color};">${t.text}</span>
                       <span class="en" style="color:${s.color};">${s.text}</span>
@@ -5463,7 +5468,10 @@ async function renderScheduleMonth() {
             const t = WORK_ORDER_TYPE_FA[o.order_type] || { text: o.order_type, color: 'var(--accent)' };
             const done = o.status === 'DONE';
             return `
-              <div onclick="openScheduleOrderDetail('${o.id}')" title="نمایش جزئیات" class="px-1 rounded text-[9px] font-bold cursor-pointer mb-0.5 truncate hover:opacity-85" style="background:${(t.color) + '33'};border-inline-start:2px solid ${t.color};color:${done ? 'var(--text-muted)' : 'var(--text-main)'};${done ? 'text-decoration:line-through;' : ''}">${escapeHtml(o.client_name || o.title || '')}</div>`;
+              <div onclick="openScheduleOrderDetail('${o.id}')" title="نمایش جزئیات" class="flex items-center gap-1 px-1 rounded text-[9px] font-bold cursor-pointer mb-0.5 hover:opacity-85" style="background:${(t.color) + '33'};border-inline-start:2px solid ${t.color};color:${done ? 'var(--text-muted)' : 'var(--text-main)'};${done ? 'text-decoration:line-through;' : ''}">
+                ${scheduleDoneCheckboxHtml(o.id, done, true)}
+                <span class="truncate">${escapeHtml(o.client_name || o.title || '')}</span>
+              </div>`;
         }).join('');
 
         return `
@@ -5610,6 +5618,31 @@ async function submitDayTask() {
         showToast('❌ ' + (e.message || 'خطا در افزودن به تقویم.'));
     } finally {
         btn.disabled = false; btn.textContent = originalLabel;
+    }
+}
+
+// ── Quick "mark as done" checkmark on a schedule item, usable straight from
+// the calendar (day cell or list row) without opening the detail popup.
+// Shared across all three render spots (month cell, week cell, flat list) so
+// the markup and toggle logic stay in one place. `tiny` shrinks it further
+// for the month view's single-line chip, which has almost no room to spare.
+function scheduleDoneCheckboxHtml(orderId, done, tiny) {
+    const size = tiny ? '10px' : '13px';
+    return `<button type="button" onclick="toggleScheduleOrderDone(event, '${orderId}', ${done})" title="${done ? 'علامت‌گذاری به عنوان انجام‌نشده' : 'علامت‌گذاری به عنوان انجام‌شده'}" class="shrink-0 flex items-center justify-center rounded-full transition" style="width:${size};height:${size};border:1.5px solid ${done ? '#4ade80' : 'var(--text-muted)'};background:${done ? '#4ade80' : 'transparent'};color:#06281a;font-size:${tiny ? '7px' : '9px'};line-height:1;">${done ? '✓' : ''}</button>`;
+}
+
+async function toggleScheduleOrderDone(event, orderId, done) {
+    event.stopPropagation();
+    try {
+        const res = await fetch(`${CORE}/work-orders/${orderId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
+            body: JSON.stringify({ status: done ? 'PENDING' : 'DONE' }),
+        });
+        if (!res.ok) throw new Error();
+        await renderSchedule();
+    } catch (e) {
+        showToast('خطا در به‌روزرسانی وضعیت.');
     }
 }
 
