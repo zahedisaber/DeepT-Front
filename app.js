@@ -4337,7 +4337,7 @@ document.addEventListener('click', (e) => {
 const WORK_ORDER_TYPE_FA = {
     TAYIDI:        { text: 'تاییدی',     color: '#38bdf8' },
     MEHR_MOTARJEM: { text: 'مهر مترجم',  color: '#c084fc' },
-    TASK:          { text: 'یادداشت',    color: '#94a3b8' },
+    TASK:          { text: 'یادداشت',    color: '#2dd4bf' },
 };
 const WORK_ORDER_STATUS_FA = {
     PENDING:   { text: 'در انتظار',  color: '#fbbf24' },
@@ -4601,7 +4601,7 @@ async function renderWorkWeek() {
                 const s = WORK_ORDER_STATUS_FA[o.status] || { text: o.status, color: 'var(--text-muted)' };
                 const done = o.status === 'DONE';
                 return `
-                  <div onclick="openWorkOrderEdit('${o.id}')" class="p-1.5 rounded-md text-[10px] cursor-pointer mb-1 hover:opacity-85" style="background:${(t.color) + '1a'};border:1px solid ${t.color}55;border-left:3px solid ${t.color};">
+                  <div onclick="openWorkOrderEdit('${o.id}')" class="p-1.5 rounded-md text-[10px] cursor-pointer mb-1 hover:opacity-85" style="background:${(t.color) + '33'};border:1px solid ${t.color}55;border-left:3px solid ${t.color};">
                     <div class="flex items-center justify-between gap-1">
                       <span class="font-bold truncate" style="color:${done ? 'var(--text-muted)' : 'var(--text-main)'};${done ? 'text-decoration:line-through;' : ''}">${escapeHtml(o.title || t.text)}</span>
                     </div>
@@ -5363,7 +5363,7 @@ async function renderScheduleWeekView() {
                 const s = WORK_ORDER_STATUS_FA[o.status] || { text: o.status, color: 'var(--text-muted)' };
                 const done = o.status === 'DONE';
                 return `
-                  <div onclick="openScheduleOrderDetail('${o.id}')" title="نمایش جزئیات" class="p-1.5 rounded-md text-[10px] cursor-pointer mb-1 hover:opacity-85" style="background:${(t.color) + '1a'};border:1px solid ${t.color}55;border-left:3px solid ${t.color};">
+                  <div onclick="openScheduleOrderDetail('${o.id}')" title="نمایش جزئیات" class="p-1.5 rounded-md text-[10px] cursor-pointer mb-1 hover:opacity-85" style="background:${(t.color) + '33'};border:1px solid ${t.color}55;border-left:3px solid ${t.color};">
                     <div class="font-bold truncate" style="color:${done ? 'var(--text-muted)' : 'var(--text-main)'};${done ? 'text-decoration:line-through;' : ''}">${o.client_name ? escapeHtml(o.client_name) + (o.title ? ' · ' + escapeHtml(o.title) : '') : escapeHtml(o.title || '—')}</div>
                     <div class="flex items-center justify-between mt-0.5" style="color:var(--text-muted);">
                       <span style="color:${t.color};">${t.text}</span>
@@ -5463,7 +5463,7 @@ async function renderScheduleMonth() {
             const t = WORK_ORDER_TYPE_FA[o.order_type] || { text: o.order_type, color: 'var(--accent)' };
             const done = o.status === 'DONE';
             return `
-              <div onclick="openScheduleOrderDetail('${o.id}')" title="نمایش جزئیات" class="px-1 rounded text-[9px] cursor-pointer mb-0.5 truncate hover:opacity-85" style="background:${(t.color) + '1a'};border-inline-start:2px solid ${t.color};color:${done ? 'var(--text-muted)' : 'var(--text-main)'};${done ? 'text-decoration:line-through;' : ''}">${escapeHtml(o.client_name || o.title || '')}</div>`;
+              <div onclick="openScheduleOrderDetail('${o.id}')" title="نمایش جزئیات" class="px-1 rounded text-[9px] font-bold cursor-pointer mb-0.5 truncate hover:opacity-85" style="background:${(t.color) + '33'};border-inline-start:2px solid ${t.color};color:${done ? 'var(--text-muted)' : 'var(--text-main)'};${done ? 'text-decoration:line-through;' : ''}">${escapeHtml(o.client_name || o.title || '')}</div>`;
         }).join('');
 
         return `
