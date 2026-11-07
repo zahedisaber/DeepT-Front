@@ -4346,6 +4346,88 @@ const WORK_ORDER_STATUS_FA = {
 };
 const WEEKDAY_FA = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه'];
 
+// ── Iranian official holidays, for highlighting on the office-wide schedule.
+// Two kinds, since they behave completely differently:
+//  - Solar-Hijri (Jalali) holidays fall on the same {month, day} every year
+//    forever -- Nowruz and the other nationally-fixed dates below. No
+//    maintenance needed, ever.
+//  - Lunar-Hijri (Islamic) holidays -- Eid Fitr, Eid Ghorban, Ashura, etc. --
+//    drift ~10-11 days earlier each Jalali year since the Hijri calendar is
+//    ~354 days long, so there is no fixed {month, day}. These are hardcoded
+//    per Jalali year below, cross-checked against multiple published 1405/
+//    1406 calendars (bahesab.ir, emrooz.app, vacglobal.com, surfiran.com) as
+//    of 2026-11. A handful of entries (marked below) came from only one of
+//    those sources, and Imam Reza's martyrdom (شهادت امام رضا) could not be
+//    confirmed for 1406 at all, so it's omitted rather than guessed -- treat
+//    this whole lunar table as "best effort," not an official government
+//    publication, and verify against Iran's own calendar before relying on
+//    it for anything binding. ADD 1407 HERE before Nowruz 1407 (~March
+//    2027), or the calendar silently stops highlighting lunar holidays.
+const IRAN_SOLAR_HOLIDAYS = [
+    { m: 1,  d: 1,  name: 'نوروز' },
+    { m: 1,  d: 2,  name: 'نوروز' },
+    { m: 1,  d: 3,  name: 'نوروز' },
+    { m: 1,  d: 4,  name: 'نوروز' },
+    { m: 1,  d: 12, name: 'روز جمهوری اسلامی' },
+    { m: 1,  d: 13, name: 'سیزده بدر' },
+    { m: 3,  d: 14, name: 'رحلت امام خمینی (ره)' },
+    { m: 3,  d: 15, name: 'قیام ۱۵ خرداد' },
+    { m: 11, d: 22, name: 'پیروزی انقلاب اسلامی' },
+    { m: 12, d: 29, name: 'ملی شدن صنعت نفت' },
+];
+const IRAN_LUNAR_HOLIDAYS_BY_YEAR = {
+    1405: [
+        { m: 1,  d: 25, name: 'شهادت امام جعفر صادق (ع)' },
+        { m: 3,  d: 6,  name: 'عید سعید قربان' },
+        { m: 3,  d: 14, name: 'عید سعید غدیر خم' },
+        { m: 4,  d: 3,  name: 'تاسوعای حسینی' },
+        { m: 4,  d: 4,  name: 'عاشورای حسینی' },
+        { m: 5,  d: 13, name: 'اربعین حسینی' },
+        { m: 5,  d: 21, name: 'رحلت رسول اکرم (ص) و شهادت امام حسن مجتبی (ع)' },
+        { m: 5,  d: 22, name: 'شهادت امام رضا (ع)' },
+        { m: 5,  d: 30, name: 'شهادت امام حسن عسکری (ع)' },
+        { m: 6,  d: 8,  name: 'میلاد پیامبر اکرم (ص) و امام جعفر صادق (ع)' },
+        { m: 8,  d: 22, name: 'شهادت حضرت فاطمه زهرا (س)' }, // single-source
+        { m: 10, d: 1,  name: 'میلاد امام علی (ع)' },         // single-source
+        { m: 10, d: 15, name: 'مبعث حضرت رسول اکرم (ص)' },
+        { m: 11, d: 3,  name: 'میلاد امام مهدی (عج)' },       // single-source
+        { m: 12, d: 9,  name: 'شهادت امام علی (ع)' },
+        { m: 12, d: 19, name: 'عید سعید فطر' },
+        { m: 12, d: 20, name: 'تعطیل عید فطر' },
+    ],
+    1406: [
+        { m: 1,  d: 14, name: 'شهادت امام جعفر صادق (ع)' },
+        { m: 2,  d: 27, name: 'عید سعید قربان' },
+        { m: 3,  d: 4,  name: 'عید سعید غدیر خم' },
+        { m: 3,  d: 24, name: 'تاسوعای حسینی' },
+        { m: 3,  d: 25, name: 'عاشورای حسینی' },
+        { m: 5,  d: 3,  name: 'اربعین حسینی' },
+        { m: 5,  d: 11, name: 'رحلت رسول اکرم (ص) و شهادت امام حسن مجتبی (ع)' },
+        { m: 5,  d: 20, name: 'شهادت امام حسن عسکری (ع)' },
+        { m: 5,  d: 29, name: 'میلاد پیامبر اکرم (ص) و امام جعفر صادق (ع)' },
+        { m: 8,  d: 11, name: 'شهادت حضرت فاطمه زهرا (س)' }, // single-source
+        { m: 9,  d: 21, name: 'میلاد امام علی (ع)' },         // single-source
+        { m: 10, d: 5,  name: 'مبعث حضرت رسول اکرم (ص)' },
+        { m: 10, d: 22, name: 'میلاد امام مهدی (عج)' },       // single-source
+        { m: 11, d: 28, name: 'شهادت امام علی (ع)' },
+        { m: 12, d: 8,  name: 'عید سعید فطر' },
+        { m: 12, d: 9,  name: 'تعطیل عید فطر' },
+        // شهادت امام رضا (ع) not included -- couldn't confirm its 1406 date.
+    ],
+};
+
+// Returns the holiday name for a Jalali {y,m,d}, or '' if it's an ordinary
+// day. A solar hit is checked first since those never conflict with a
+// lunar one in practice; if more than one fell on the same day they'd just
+// show as one combined label.
+function getIranHolidayName(jy, jm, jd) {
+    const solar = IRAN_SOLAR_HOLIDAYS.find(h => h.m === jm && h.d === jd);
+    const lunarYear = IRAN_LUNAR_HOLIDAYS_BY_YEAR[jy] || [];
+    const lunar = lunarYear.find(h => h.m === jm && h.d === jd);
+    if (solar && lunar) return `${solar.name} · ${lunar.name}`;
+    return (solar || lunar)?.name || '';
+}
+
 let workWeekStart = null;      // JS Date (Monday-based offset for Persian week)
 let workOrderTypeFilter = null; // 'TAYIDI' | 'MEHR_MOTARJEM' | null = all
 let workWeekOrders = [];       // orders for the visible week window
@@ -5263,6 +5345,9 @@ async function renderScheduleWeekView() {
     grid.innerHTML = days.map((d, idx) => {
         const iso = fmtWeekISO(d);
         const isToday = todayISO === iso;
+        const dJalali = gregorianToJalali(d);
+        const isFriday = d.getDay() === 5;
+        const holidayName = getIranHolidayName(dJalali.y, dJalali.m, dJalali.d);
         const dayOrders = byDay[iso] || [];
         const pendingCount = dayOrders.filter(o => o.status === 'PENDING').length;
         const overdue = dayOrders.some(o => o.status === 'PENDING' && o.due_date && o.due_date < todayISO);
@@ -5284,14 +5369,15 @@ async function renderScheduleWeekView() {
             : `<div class="text-[10px] text-center py-2" style="color:var(--text-muted);">—</div>`;
 
         return `
-          <div class="p-1.5 rounded-lg" style="background:${isToday ? 'var(--accent-hover)' : 'var(--bg-main)'};border:1px solid ${isToday ? 'var(--border-color)' : 'var(--border-subtle)'};${overdue ? 'box-shadow:0 0 0 1px rgba(248,113,113,0.4);' : ''}">
+          <div class="p-1.5 rounded-lg" title="${escapeHtml(holidayName)}" style="background:${isToday ? 'var(--accent-hover)' : 'var(--bg-main)'};border:1px solid ${holidayName ? 'rgba(248,113,113,0.5)' : (isToday ? 'var(--border-color)' : 'var(--border-subtle)')};${overdue ? 'box-shadow:0 0 0 1px rgba(248,113,113,0.4);' : ''}">
             <div class="flex items-center justify-between mb-1.5" style="padding-bottom:4px;border-bottom:1px solid var(--divider);">
-                <span class="text-[11px] font-black" style="color:${isToday ? 'var(--accent)' : 'var(--text-main)'};">${WEEKDAY_FA[idx]}</span>
+                <span class="text-[11px] font-black" style="color:${holidayName || isFriday ? '#f87171' : (isToday ? 'var(--accent)' : 'var(--text-main)')};">${WEEKDAY_FA[idx]}</span>
                 <span class="flex items-center gap-1.5">
-                  <span class="text-[10px] en font-bold" style="color:${isToday ? 'var(--accent)' : 'var(--text-muted)'};">${gregorianToJalali(d).d}</span>
+                  <span class="text-[10px] en font-bold" style="color:${holidayName || isFriday ? '#f87171' : (isToday ? 'var(--accent)' : 'var(--text-muted)')};">${dJalali.d}</span>
                   <button type="button" onclick="openDayTaskModal('${iso}')" title="افزودن به این روز" class="flex items-center justify-center text-[10px] font-black rounded leading-none" style="width:14px;height:14px;background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">+</button>
                 </span>
             </div>
+            ${holidayName ? `<div class="text-[9px] font-bold mb-1 truncate" style="color:#f87171;">🔴 ${escapeHtml(holidayName)}</div>` : ''}
             ${pendingCount ? `<div class="text-[9px] font-bold mb-1" style="color:var(--accent);"><span class="en">${pendingCount}</span> در انتظار</div>` : ''}
             ${overdue ? `<div class="text-[9px] font-bold mb-1" style="color:#f87171;">⚠ ددلاین گذشته</div>` : ''}
             ${itemsHtml}
@@ -5355,13 +5441,15 @@ async function renderScheduleMonth() {
     const byDay = {};
     for (const o of orders) byDay[o.due_date || ''] = (byDay[o.due_date || ''] || []).concat(o);
 
-    const headerHtml = WEEKDAY_FA.map(w => `<div class="text-[10px] font-black text-center py-1" style="color:var(--text-muted);">${w}</div>`).join('');
+    const headerHtml = WEEKDAY_FA.map((w, idx) => `<div class="text-[10px] font-black text-center py-1" style="color:${idx === 6 ? '#f87171' : 'var(--text-muted)'};">${w}</div>`).join('');
 
     const cellsHtml = days.map(d => {
         const iso = fmtWeekISO(d);
         const isToday = todayISO === iso;
         const dJalali = gregorianToJalali(d);
         const inMonth = dJalali.y === jy && dJalali.m === jm;
+        const isFriday = d.getDay() === 5;
+        const holidayName = getIranHolidayName(dJalali.y, dJalali.m, dJalali.d);
         const dayOrders = byDay[iso] || [];
         const pendingCount = dayOrders.filter(o => o.status === 'PENDING').length;
         const overdue = dayOrders.some(o => o.status === 'PENDING' && o.due_date && o.due_date < todayISO);
@@ -5374,14 +5462,15 @@ async function renderScheduleMonth() {
         }).join('');
 
         return `
-          <div class="p-1 rounded-lg" style="min-height:64px;background:${isToday ? 'var(--accent-hover)' : 'var(--bg-main)'};border:1px solid ${isToday ? 'var(--border-color)' : 'var(--border-subtle)'};opacity:${inMonth ? '1' : '.45'};${overdue ? 'box-shadow:0 0 0 1px rgba(248,113,113,0.4);' : ''}">
+          <div class="p-1 rounded-lg" title="${escapeHtml(holidayName)}" style="min-height:64px;background:${isToday ? 'var(--accent-hover)' : 'var(--bg-main)'};border:1px solid ${holidayName ? 'rgba(248,113,113,0.5)' : (isToday ? 'var(--border-color)' : 'var(--border-subtle)')};opacity:${inMonth ? '1' : '.45'};${overdue ? 'box-shadow:0 0 0 1px rgba(248,113,113,0.4);' : ''}">
             <div class="flex items-center justify-between mb-1">
-              <span class="text-[10px] en font-bold" style="color:${isToday ? 'var(--accent)' : (inMonth ? 'var(--text-main)' : 'var(--text-muted)')};">${dJalali.d}</span>
+              <span class="text-[10px] en font-bold" style="color:${holidayName || isFriday ? '#f87171' : (isToday ? 'var(--accent)' : (inMonth ? 'var(--text-main)' : 'var(--text-muted)'))};">${dJalali.d}</span>
               <span class="flex items-center gap-1">
                 ${pendingCount ? `<span class="text-[8px] font-bold en" style="color:var(--accent);">${pendingCount}</span>` : ''}
                 <button type="button" onclick="openDayTaskModal('${iso}')" title="افزودن به این روز" class="flex items-center justify-center text-[10px] font-black rounded leading-none" style="width:14px;height:14px;background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">+</button>
               </span>
             </div>
+            ${holidayName ? `<div class="text-[8px] font-bold mb-0.5 truncate" style="color:#f87171;">🔴 ${escapeHtml(holidayName)}</div>` : ''}
             ${itemsHtml}
           </div>`;
     }).join('');
