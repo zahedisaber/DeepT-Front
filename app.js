@@ -3266,6 +3266,9 @@ let editWorkRecordTarget = null;   // { type, id } while editWorkRecordModal is 
 async function openClientDetail(clientId) {
     currentClientDetailId = clientId;
     invoiceDraft = [];
+    draftWholeInvoiceUrgencyChecked = false;
+    draftWholeInvoiceUrgencyPercent = 0;
+    syncDraftWholeInvoiceUrgencyUI();
     document.getElementById('clientDetailModal').classList.remove('hidden');
     const token = localStorage.getItem('deept_token');
     try {
@@ -4041,6 +4044,60 @@ function selectMyPriceListItem(instance, itemId) {
 // just the two numbers that can change -- the row's displayed price (for
 // a نرخنامه-linked row, where price is computed rather than typed) and
 // its line total -- directly in the existing DOM.
+// فوریت (urgency): a per-row surcharge percentage, applied only at the
+// line-total stage -- the unit price itself (manual or نرخنامه-computed)
+// is left alone, so "what's the base price" and "what did urgency add"
+// both stay visible rather than getting baked irreversibly into one
+// number. A whole-invoice surcharge (see draftWholeInvoiceUrgency*) is the
+// same idea one level up, applied once to the sum of all line totals.
+function rowLineTotal(row) {
+    const base = (row.quantity || 0) * (row.unit_price_toman || 0);
+    const pct = (row._urgency_checked && row._urgency_percent > 0) ? row._urgency_percent : 0;
+    return pct > 0 ? Math.round(base * (1 + pct / 100)) : base;
+}
+
+let draftWholeInvoiceUrgencyChecked = false;
+let draftWholeInvoiceUrgencyPercent = 0;
+
+function draftLineSubtotal() {
+    return invoiceDraft.reduce((s, row) => s + rowLineTotal(row), 0);
+}
+
+function draftGrandTotal() {
+    const subtotal = draftLineSubtotal();
+    if (draftWholeInvoiceUrgencyChecked && draftWholeInvoiceUrgencyPercent > 0) {
+        return Math.round(subtotal * (1 + draftWholeInvoiceUrgencyPercent / 100));
+    }
+    return subtotal;
+}
+
+// Keeps the whole-invoice فوریت checkbox/percent inputs (static markup in
+// index.html, both cd/cp instances) in sync with the state above -- needed
+// whenever that state changes from code rather than from the user directly
+// typing into one of them (opening a new client, resetting after submit).
+function syncDraftWholeInvoiceUrgencyUI() {
+    ['cd', 'cp'].forEach(prefix => {
+        const cb = document.getElementById(prefix + '-draft-urgency-checked');
+        const pct = document.getElementById(prefix + '-draft-urgency-pct');
+        if (cb) cb.checked = draftWholeInvoiceUrgencyChecked;
+        if (pct) {
+            pct.disabled = !draftWholeInvoiceUrgencyChecked;
+            pct.value = draftWholeInvoiceUrgencyPercent || '';
+        }
+    });
+}
+
+function toggleDraftWholeInvoiceUrgency(checked) {
+    draftWholeInvoiceUrgencyChecked = !!checked;
+    syncDraftWholeInvoiceUrgencyUI();
+    updateDraftTotal();
+}
+
+function setDraftWholeInvoiceUrgencyPercent(value) {
+    draftWholeInvoiceUrgencyPercent = Math.max(0, parseInt(value, 10) || 0);
+    updateDraftTotal();
+}
+
 function updateDraftRow(idx, field, value) {
     const row = invoiceDraft[idx];
     if (!row) return;
@@ -4048,6 +4105,10 @@ function updateDraftRow(idx, field, value) {
         myplRecomputeRowPrice(row);
     } else if (field === 'description') {
         row.description = value;
+    } else if (field === 'urgencyChecked') {
+        row._urgency_checked = !!value;
+    } else if (field === 'urgencyPercent') {
+        row._urgency_percent = Math.max(0, parseInt(value, 10) || 0);
     } else {
         row[field] = parseInt(value, 10) || 0;
     }
@@ -4055,10 +4116,15 @@ function updateDraftRow(idx, field, value) {
     const prefix = isProfilePageOpen() ? 'cp' : 'cd';
     const rowEl = document.getElementById(prefix + '-draft-rows').children[idx];
     if (rowEl) {
-        const priceEl = rowEl.querySelector('.mypl-computed-price');
-        if (priceEl) priceEl.textContent = row.unit_price_toman.toLocaleString();
+        // A نرخنامه-linked row's price can change indirectly (mypl quantity
+        // edit recomputes unit_price_toman) even when `field` itself isn't
+        // the price input -- keep that field's own displayed value in sync.
+        const priceInput = rowEl.querySelector('.draft-unit-price');
+        if (priceInput && document.activeElement !== priceInput) priceInput.value = row.unit_price_toman;
         const totalEl = rowEl.querySelector('.draft-line-total');
-        if (totalEl) totalEl.textContent = ((row.quantity || 0) * (row.unit_price_toman || 0)).toLocaleString();
+        if (totalEl) totalEl.textContent = rowLineTotal(row).toLocaleString();
+        const pctInput = rowEl.querySelector('.urgency-pct-input');
+        if (pctInput) pctInput.disabled = !row._urgency_checked;
     }
     updateDraftTotal();
 }
@@ -4081,10 +4147,18 @@ function isProfilePageOpen() {
 }
 
 function updateDraftTotal() {
-    const total = invoiceDraft.reduce((s, row) => s + (row.quantity || 0) * (row.unit_price_toman || 0), 0);
-    const id = isProfilePageOpen() ? 'cp-draft-total' : 'cd-draft-total';
-    const el = document.getElementById(id);
-    if (el) el.textContent = total.toLocaleString();
+    const prefix = isProfilePageOpen() ? 'cp' : 'cd';
+    const subtotal = draftLineSubtotal();
+    const grandTotal = draftGrandTotal();
+    const el = document.getElementById(prefix + '-draft-total');
+    if (el) el.textContent = grandTotal.toLocaleString();
+    const subEl = document.getElementById(prefix + '-draft-subtotal');
+    if (subEl) subEl.textContent = subtotal.toLocaleString();
+    // Only worth showing "جمع ردیف‌ها: X · جمع کل: Y" as two numbers when
+    // whole-invoice فوریت actually makes them differ -- otherwise it's the
+    // same number twice.
+    const subWrap = document.getElementById(prefix + '-draft-subtotal-wrap');
+    if (subWrap) subWrap.classList.toggle('hidden', subtotal === grandTotal);
 }
 
 function renderDraftRows() {
@@ -4095,16 +4169,24 @@ function renderDraftRows() {
     if (!box || !empty) return;
     empty.classList.toggle('hidden', invoiceDraft.length > 0);
     box.innerHTML = invoiceDraft.map((row, idx) => {
-        const lineTotal = (row.quantity || 0) * (row.unit_price_toman || 0);
+        const lineTotal = rowLineTotal(row);
         // Same color as the source it came from in the activity list above
         // (amber for a row typed fresh, with no _source_key at all) -- so
         // the draft keeps showing the same category coding end to end.
         const dotColor = ACTIVITY_CATEGORY_COLORS[(row._source_key || '').split(':')[0]] || ACTIVITY_CATEGORY_COLORS.manual;
-        // A نرخنامه-linked row's price is computed from its own quantity
-        // inputs below (see myplRowQtyControlsHtml) -- shown, not typed.
-        const priceField = row._mypl_item_id
-            ? `<span class="mypl-computed-price auth-input en" dir="ltr" title="محاسبه‌شده از تعداد زیر" style="width:100px;padding:.4rem .6rem;font-size:.78rem;display:inline-flex;align-items:center;opacity:.75;">${row.unit_price_toman.toLocaleString()}</span>`
-            : `<input type="number" value="${row.unit_price_toman}" title="قیمت واحد (تومان)" oninput="updateDraftRow(${idx},'unit_price_toman',this.value)" class="auth-input en" dir="ltr" style="width:100px;padding:.4rem .6rem;font-size:.78rem;">`;
+        // A نرخنامه-linked row's price starts out computed from its own
+        // quantity inputs below (see myplRowQtyControlsHtml), but stays a
+        // normal editable field -- a translator negotiating a one-off price
+        // for this invoice shouldn't have to go change نرخنامه itself to
+        // do it. Editing it directly just overwrites unit_price_toman; the
+        // next quantity edit recomputes from نرخنامه and overwrites it back.
+        const priceField = `<input type="number" value="${row.unit_price_toman}" title="قیمت واحد (تومان)" oninput="updateDraftRow(${idx},'unit_price_toman',this.value)" class="auth-input draft-unit-price en" dir="ltr" style="width:100px;padding:.4rem .6rem;font-size:.78rem;">`;
+        const urgencyField = `
+            <label class="flex items-center gap-1 text-[10px] shrink-0" style="color:var(--text-muted);" title="فوریت: درصد افزایش قیمت این ردیف">
+              <input type="checkbox" ${row._urgency_checked ? 'checked' : ''} onchange="updateDraftRow(${idx},'urgencyChecked',this.checked)" style="width:12px;height:12px;">
+              فوریت
+              <input type="number" min="0" max="500" value="${row._urgency_percent || ''}" placeholder="٪" oninput="updateDraftRow(${idx},'urgencyPercent',this.value)" class="auth-input urgency-pct-input en" dir="ltr" style="width:42px;padding:.2rem .3rem;font-size:.7rem;text-align:center;" ${row._urgency_checked ? '' : 'disabled'}>
+            </label>`;
         return `
         <div class="flex flex-wrap items-center gap-1.5 p-2 rounded-lg" style="background:var(--card-surface);border:1px solid var(--border-subtle);border-inline-start:3px solid ${dotColor};">
             <span style="width:8px;height:8px;border-radius:50%;background:${dotColor};display:inline-block;flex-shrink:0;"></span>
@@ -4115,6 +4197,7 @@ function renderDraftRows() {
             <span class="draft-line-total text-[11px] font-bold en shrink-0" style="width:95px;text-align:left;color:var(--accent);">${lineTotal.toLocaleString()}</span>
             ${myplRepriceButtonHtml('draft', idx, row)}
             <button onclick="removeDraftRow(${idx})" style="color:#f87171;background:none;border:none;cursor:pointer;font-weight:700;padding:0 .25rem;">✕</button>
+            ${urgencyField}
             ${myplRowQtyControlsHtml(row, idx, 'updateDraftRow')}
         </div>`;
     }).join('');
@@ -4127,13 +4210,36 @@ async function submitDraftInvoice(invoiceType) {
     if (!invoiceDraft.length) { showToast('⚠️ حداقل یک ردیف به فاکتور اضافه کنید.'); return; }
     if (invoiceDraft.some(row => !row.description.trim())) { showToast('⚠️ شرح همه ردیف‌ها باید تکمیل شود.'); return; }
 
-    const items = invoiceDraft.map(row => ({
-        description: row.description,
-        quantity: row.quantity || 1,
-        line_total_toman: (row.quantity || 0) * (row.unit_price_toman || 0),
-        job_id: row.job_id,
-        sanam_document_id: row.sanam_document_id,
-    }));
+    // Per-row فوریت is baked into each line's own total (with a note added
+    // to its description so the surcharge stays visible on the printed
+    // invoice, not just a silently higher price); whole-invoice فوریت
+    // becomes one extra synthetic line for the same reason -- invoice_items
+    // has no surcharge concept of its own, so this is the one place that
+    // transparency can live without a backend change.
+    const items = invoiceDraft.map(row => {
+        const urgencyPct = (row._urgency_checked && row._urgency_percent > 0) ? row._urgency_percent : 0;
+        return {
+            description: urgencyPct > 0 ? `${row.description} (فوریت ٪${urgencyPct})` : row.description,
+            quantity: row.quantity || 1,
+            line_total_toman: rowLineTotal(row),
+            job_id: row.job_id,
+            sanam_document_id: row.sanam_document_id,
+        };
+    });
+
+    if (draftWholeInvoiceUrgencyChecked && draftWholeInvoiceUrgencyPercent > 0) {
+        const subtotal = draftLineSubtotal();
+        const surcharge = draftGrandTotal() - subtotal;
+        if (surcharge > 0) {
+            items.push({
+                description: `فوریت فاکتور (٪${draftWholeInvoiceUrgencyPercent})`,
+                quantity: 1,
+                line_total_toman: surcharge,
+                job_id: null,
+                sanam_document_id: null,
+            });
+        }
+    }
 
     const token = localStorage.getItem('deept_token');
     try {
@@ -4146,6 +4252,9 @@ async function submitDraftInvoice(invoiceType) {
         const label = invoiceType === 'proforma' ? 'پیش‌فاکتور' : 'فاکتور';
         showToast(`✅ ${label}ی با ${items.length} ردیف ثبت شد.`);
         invoiceDraft = [];
+        draftWholeInvoiceUrgencyChecked = false;
+        draftWholeInvoiceUrgencyPercent = 0;
+        syncDraftWholeInvoiceUrgencyUI();
         renderDraftRows();
         // Uncheck every activity-list checkbox now that the draft they
         // fed is gone -- no cached jobs/sanam data to re-render the list
@@ -4793,6 +4902,9 @@ async function openClientProfile(clientId) {
     if (!currentUserSession) { openAuthModal(); return; }
     currentClientDetailId = clientId;
     invoiceDraft = [];
+    draftWholeInvoiceUrgencyChecked = false;
+    draftWholeInvoiceUrgencyPercent = 0;
+    syncDraftWholeInvoiceUrgencyUI();
     showFullView('clientProfilePage');
     navigateTo('/clients/' + clientId);
     switchClientProfileTab('overview');
@@ -5900,11 +6012,10 @@ function renderInvoiceEditRows() {
     box.innerHTML = invoiceEditState.items.map((row, idx) => {
         const lineTotal = (row.quantity || 1) * (row.unit_price_toman || 0);
         row.line_total_toman = lineTotal;
-        // A نرخنامه-linked row's price is computed from its own quantity
-        // inputs below (see myplRowQtyControlsHtml) -- shown, not typed.
-        const priceField = row._mypl_item_id
-            ? `<span class="mypl-computed-price auth-input en" dir="ltr" title="محاسبه‌شده از تعداد زیر" style="width:100px;padding:.4rem .6rem;font-size:.78rem;display:inline-flex;align-items:center;opacity:.75;">${row.unit_price_toman.toLocaleString()}</span>`
-            : `<input type="number" value="${row.unit_price_toman}" oninput="updateInvoiceEditRow(${idx},'unit_price_toman',this.value)" class="auth-input en" dir="ltr" style="width:100px;padding:.4rem .6rem;font-size:.78rem;">`;
+        // A نرخنامه-linked row's price starts out computed from its own
+        // quantity inputs below (see myplRowQtyControlsHtml), but stays a
+        // normal editable field -- see renderDraftRows()'s identical note.
+        const priceField = `<input type="number" value="${row.unit_price_toman}" oninput="updateInvoiceEditRow(${idx},'unit_price_toman',this.value)" class="auth-input ive-unit-price en" dir="ltr" style="width:100px;padding:.4rem .6rem;font-size:.78rem;">`;
         return `
         <div class="flex flex-wrap items-center gap-1.5 p-2 rounded-lg" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
             <input type="text" value="${row.description.replace(/"/g,'&quot;')}" oninput="updateInvoiceEditRow(${idx},'description',this.value)" class="auth-input flex-1" style="padding:.4rem .6rem;font-size:.78rem;">
@@ -5934,8 +6045,8 @@ function updateInvoiceEditRow(idx, field, value) {
 
     row.line_total_toman = (row.quantity || 1) * (row.unit_price_toman || 0);
     const rowEl = document.getElementById('ive-rows').children[idx];
-    const priceEl = rowEl.querySelector('.mypl-computed-price');
-    if (priceEl) priceEl.textContent = row.unit_price_toman.toLocaleString();
+    const priceInput = rowEl.querySelector('.ive-unit-price');
+    if (priceInput && document.activeElement !== priceInput) priceInput.value = row.unit_price_toman;
     rowEl.querySelector('.ive-line-total').textContent = row.line_total_toman.toLocaleString();
     updateInvoiceEditTotal();
 }
