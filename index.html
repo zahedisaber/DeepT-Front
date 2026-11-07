@@ -217,8 +217,12 @@
       <h3 class="text-base font-black" style="color:var(--text-main);">🕐 ثبت ورود / خروج</h3>
       <button type="button" onclick="closeHrClockWidget()" style="color:var(--text-muted);background:none;border:none;cursor:pointer;font-size:1.1rem;">✕</button>
     </div>
-    <p class="text-[11px] mb-4" style="color:var(--text-muted);">پین خود را وارد کنید. با ورود یک پین، اگر در حال حاضر حاضر نیستید ورود و در غیر این صورت خروج شما ثبت می‌شود. مرورگر موقعیت مکانی شما را می‌پرسد — این ثبت فقط در محل دفتر انجام می‌شود.</p>
+    <p class="text-[11px] mb-4" style="color:var(--text-muted);">پین خود را وارد کنید. با ورود یک پین، اگر در حال حاضر حاضر نیستید ورود و در غیر این صورت خروج شما ثبت می‌شود. مرورگر موقعیت مکانی شما را می‌پرسد — این ثبت فقط در محل دفتر انجام می‌شود، مگر اینکه دورکاری را انتخاب کنید.</p>
     <input type="text" id="hr-clock-pin" inputmode="numeric" maxlength="6" class="auth-input en text-center mb-3" dir="ltr" style="font-size:1.3rem;letter-spacing:.3rem;" placeholder="••••">
+    <label class="flex items-center justify-center gap-2 text-[12px] font-bold mb-3" style="color:var(--text-main);">
+      <input type="checkbox" id="hr-clock-remote" style="width:15px;height:15px;">
+      🏠 این شیفت دورکاری است (بدون نیاز به حضور در دفتر)
+    </label>
     <button type="button" onclick="submitHrClock()" id="hr-clock-submit-btn" class="w-full font-black py-2.5 rounded-xl text-sm transition" style="background:var(--accent);color:var(--btn-text-on-accent);">ثبت</button>
     <p id="hr-clock-status" class="text-[12px] mt-3 hidden"></p>
   </div>
