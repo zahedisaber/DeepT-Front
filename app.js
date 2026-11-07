@@ -4731,7 +4731,11 @@ async function renderWorkWeek() {
     document.getElementById('workWeekLabel').textContent = `${startFmt} — ${endFmt}`;
 
     const grid = document.getElementById('workWeekGrid');
-    grid.innerHTML = `<div class="text-xs text-center py-6" style="color:var(--text-muted);grid-column:1/-1;">در حال بارگذاری تقویم...</div>`;
+    // See renderScheduleWeekView()'s identical check -- only the very
+    // first render should blank the grid to a loading placeholder.
+    if (!grid.children.length) {
+        grid.innerHTML = `<div class="text-xs text-center py-6" style="color:var(--text-muted);grid-column:1/-1;">در حال بارگذاری تقویم...</div>`;
+    }
 
     try {
         const url = new URL(`${CORE}/work-orders`);
@@ -5556,7 +5560,15 @@ async function renderScheduleWeekView() {
     document.getElementById('scheduleWeekLabel').textContent = `${startFmt} — ${endFmt}`;
     document.getElementById('scheduleListHeading').textContent = '📋 سفارش‌های این هفته';
 
-    grid.innerHTML = `<div class="text-xs text-center py-6" style="color:var(--text-muted);grid-column:1/-1;">در حال بارگذاری تقویم...</div>`;
+    // Only blank the grid out on the very first render (nothing in it yet)
+    // -- every later call here is a refresh after some quick action (drag-
+    // drop a day, tick the done checkmark, page to another week), and
+    // flashing the whole grid to a loading placeholder each time looks
+    // broken for something that fast. Keep the current grid showing
+    // instead; it gets replaced in one shot once the new data is in.
+    if (!grid.children.length) {
+        grid.innerHTML = `<div class="text-xs text-center py-6" style="color:var(--text-muted);grid-column:1/-1;">در حال بارگذاری تقویم...</div>`;
+    }
 
     let orders = [];
     try {
@@ -5658,7 +5670,11 @@ async function renderScheduleMonth() {
         monthFirstDay.toLocaleDateString('fa-IR', { month: 'long', year: 'numeric' });
     document.getElementById('scheduleListHeading').textContent = '📋 سفارش‌های این ماه';
 
-    grid.innerHTML = `<div class="text-xs text-center py-6" style="color:var(--text-muted);grid-column:1/-1;">در حال بارگذاری تقویم...</div>`;
+    // See renderScheduleWeekView()'s identical check -- only the very
+    // first render should blank the grid to a loading placeholder.
+    if (!grid.children.length) {
+        grid.innerHTML = `<div class="text-xs text-center py-6" style="color:var(--text-muted);grid-column:1/-1;">در حال بارگذاری تقویم...</div>`;
+    }
 
     let orders = [];
     try {
