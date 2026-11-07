@@ -470,8 +470,18 @@
       <p class="text-[11px] mb-2" style="color:var(--text-muted);">از سابقه پروژه‌ها «+ افزودن» بزنید، یا ردیف دلخواه اضافه کنید. تعداد و قیمت واحد هر ردیف قابل ویرایش است.</p>
       <div id="cd-draft-rows" class="space-y-1.5"></div>
       <div id="cd-draft-empty" class="text-xs text-center py-4" style="color:var(--text-muted);">// هنوز ردیفی اضافه نشده</div>
-      <div class="flex items-center justify-between mt-3 pt-3" style="border-top:1px solid var(--divider);">
-        <span class="text-xs font-bold" style="color:var(--text-muted);">جمع کل: <span class="en" id="cd-draft-total" style="color:var(--text-main);">۰</span> تومان</span>
+      <div class="flex items-center gap-2 mt-3 pt-3" style="border-top:1px solid var(--divider);">
+        <label class="flex items-center gap-1.5 text-[11px] font-bold" style="color:var(--text-muted);" title="درصد افزایش یکباره روی جمع کل فاکتور">
+          <input type="checkbox" id="cd-draft-urgency-checked" onchange="toggleDraftWholeInvoiceUrgency(this.checked)" style="width:13px;height:13px;">
+          فوریت کل فاکتور
+        </label>
+        <input type="number" id="cd-draft-urgency-pct" min="0" max="500" placeholder="٪" disabled oninput="setDraftWholeInvoiceUrgencyPercent(this.value)" class="auth-input en" dir="ltr" style="width:52px;padding:.3rem .4rem;font-size:.75rem;text-align:center;">
+      </div>
+      <div class="flex items-center justify-between mt-2">
+        <span class="text-xs" style="color:var(--text-muted);">
+          <span id="cd-draft-subtotal-wrap">جمع ردیف‌ها: <span class="en" id="cd-draft-subtotal" style="color:var(--text-main);">۰</span> تومان · </span>
+          جمع کل: <span class="en font-bold" id="cd-draft-total" style="color:var(--text-main);">۰</span> تومان
+        </span>
         <span class="flex items-center gap-2">
           <button type="button" onclick="submitDraftInvoice('proforma')" class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition" style="background:var(--card-surface);color:var(--text-muted);border:1px solid var(--border-subtle);">ثبت پیش‌فاکتور</button>
           <button type="button" onclick="submitDraftInvoice('invoice')" class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition" style="background:var(--accent);color:var(--btn-text-on-accent);border:1px solid transparent;">ثبت فاکتور</button>
@@ -1839,8 +1849,18 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                         </div>
                         <div id="cp-draft-rows" class="space-y-1.5"></div>
                         <div id="cp-draft-empty" class="text-xs text-center py-3" style="color:var(--text-muted);">// هنوز ردیفی اضافه نشده</div>
-                        <div class="flex items-center justify-between mt-3 pt-3" style="border-top:1px solid var(--divider);">
-                            <span class="text-xs font-bold" style="color:var(--text-muted);">جمع: <span class="en" id="cp-draft-total" style="color:var(--text-main);">۰</span> تومان</span>
+                        <div class="flex items-center gap-2 mt-3 pt-3" style="border-top:1px solid var(--divider);">
+                            <label class="flex items-center gap-1.5 text-[11px] font-bold" style="color:var(--text-muted);" title="درصد افزایش یکباره روی جمع کل فاکتور">
+                                <input type="checkbox" id="cp-draft-urgency-checked" onchange="toggleDraftWholeInvoiceUrgency(this.checked)" style="width:13px;height:13px;">
+                                فوریت کل فاکتور
+                            </label>
+                            <input type="number" id="cp-draft-urgency-pct" min="0" max="500" placeholder="٪" disabled oninput="setDraftWholeInvoiceUrgencyPercent(this.value)" class="auth-input en" dir="ltr" style="width:52px;padding:.3rem .4rem;font-size:.75rem;text-align:center;">
+                        </div>
+                        <div class="flex items-center justify-between mt-2">
+                            <span class="text-xs" style="color:var(--text-muted);">
+                                <span id="cp-draft-subtotal-wrap">جمع ردیف‌ها: <span class="en" id="cp-draft-subtotal" style="color:var(--text-main);">۰</span> تومان · </span>
+                                جمع: <span class="en font-bold" id="cp-draft-total" style="color:var(--text-main);">۰</span> تومان
+                            </span>
                             <span class="flex items-center gap-2">
                                 <button type="button" onclick="submitDraftInvoice('proforma')" class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition" style="background:var(--card-surface);color:var(--text-muted);border:1px solid var(--border-subtle);">پیش‌فاکتور</button>
                                 <button type="button" onclick="submitDraftInvoice('invoice')" class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition" style="background:var(--accent);color:var(--btn-text-on-accent);border:1px solid transparent;">ثبت فاکتور</button>
