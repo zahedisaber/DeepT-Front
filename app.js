@@ -666,6 +666,7 @@ function _getGeoPosition() {
 
 function openHrClockWidget() {
     document.getElementById('hr-clock-pin').value = '';
+    document.getElementById('hr-clock-remote').checked = false;
     document.getElementById('hr-clock-status').classList.add('hidden');
     document.getElementById('hrClockOverlay').classList.remove('hidden');
     document.getElementById('hr-clock-pin').focus();
@@ -691,24 +692,35 @@ async function submitHrClock() {
         return;
     }
     btn.disabled = true;
-    status.style.color = 'var(--text-muted)';
-    status.textContent = 'در حال دریافت موقعیت مکانی...';
+    const remote = document.getElementById('hr-clock-remote').checked;
     try {
-        const { lat, lng } = await _getGeoPosition();
+        // A remote punch needs no GPS at all -- that's the whole point --
+        // so only ask the browser for one when it might actually be used.
+        // (A remote clock-OUT sends no lat/lng either; Core reads the
+        // shift's remote-ness from the already-open record either way, see
+        // hr.py's clock(), so this can't wrongly re-demand the geofence.)
+        let lat = null, lng = null;
+        if (!remote) {
+            status.style.color = 'var(--text-muted)';
+            status.textContent = 'در حال دریافت موقعیت مکانی...';
+            ({ lat, lng } = await _getGeoPosition());
+        }
+        status.style.color = 'var(--text-muted)';
         status.textContent = 'در حال ثبت...';
         const res = await fetch(`${CORE}/hr/clock`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ pin, lat, lng })
+            body: JSON.stringify({ pin, lat, lng, remote })
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.detail || 'خطای سرور');
         const time = new Date(data.record.clock_in && data.action === 'clock_in' ? data.record.clock_in : data.record.clock_out)
             .toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
         status.style.color = 'var(--accent)';
+        const remoteTag = data.record.is_remote ? ' 🏠 (دورکاری)' : '';
         status.textContent = data.action === 'clock_in'
-            ? `✅ ورود ${data.record.staff_name} ساعت ${time} ثبت شد.`
-            : `✅ خروج ${data.record.staff_name} ساعت ${time} ثبت شد.`;
+            ? `✅ ورود ${data.record.staff_name} ساعت ${time} ثبت شد.${remoteTag}`
+            : `✅ خروج ${data.record.staff_name} ساعت ${time} ثبت شد.${remoteTag}`;
         document.getElementById('hr-clock-pin').value = '';
         // The clock widget is only ever opened from within حضور غیاب
         // پرسنل now (see index.html) -- refresh its "present now" list so
@@ -964,7 +976,7 @@ function renderHrPresentNow(rows) {
         row.className = 'flex items-center justify-between gap-2 flex-wrap p-2.5 rounded-lg text-[11px]';
         row.style.cssText = 'background:rgba(52,199,89,.08);border:1px solid rgba(52,199,89,.25);';
         row.innerHTML = `
-          <span class="font-bold flex items-center gap-1.5" style="color:var(--text-main);"><span style="color:#34c759;">●</span> ${r.staff_name || '؟'}</span>
+          <span class="font-bold flex items-center gap-1.5" style="color:var(--text-main);"><span style="color:#34c759;">●</span> ${r.staff_name || '؟'}${r.is_remote ? ' <span style="color:var(--accent);font-weight:700;">🏠 دورکاری</span>' : ''}</span>
           <span style="color:var(--text-muted);">از ساعت ${inTime}</span>
         `;
         list.appendChild(row);
@@ -990,7 +1002,7 @@ function renderHrAttendanceList(rows) {
         row.style.cssText = 'background:var(--bg-main);border:1px solid var(--border-subtle);';
         row.innerHTML = `
           <div class="flex items-center justify-between gap-2 flex-wrap">
-            <span class="font-bold" style="color:var(--text-main);">${r.staff_name || '؟'}</span>
+            <span class="font-bold" style="color:var(--text-main);">${r.staff_name || '؟'}${r.is_remote ? ' <span style="color:var(--accent);font-weight:700;">🏠 دورکاری</span>' : ''}</span>
             <span style="color:var(--text-muted);">ورود: ${inTime} — خروج: ${outTime}</span>
           </div>
           ${r.note ? `<div style="color:var(--text-muted);margin-top:2px;">یادداشت: ${r.note}</div>` : ''}
