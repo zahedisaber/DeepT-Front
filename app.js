@@ -3772,7 +3772,7 @@ async function renderClientInvoices(clientId) {
         const visibleInvoices = invoiceListExpanded ? invoices : invoices.slice(0, INVOICE_LIST_COLLAPSED_COUNT);
         box.innerHTML = visibleInvoices.map(inv => {
             const t = TYPE_LABELS[inv.invoice_type] || TYPE_LABELS.invoice;
-            const dateStr = (inv.issue_date || inv.created_at || '').slice(0, 10);
+            const dateStr = formatIsoAsJalaliDisplay((inv.issue_date || inv.created_at || '').slice(0, 10));
             // finalized_at (set once printed/emailed) is purely informational
             // now -- editing is always allowed, never locked by it.
             const sentBadge = inv.finalized_at
