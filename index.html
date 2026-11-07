@@ -1337,6 +1337,24 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                     <button type="button" onclick="setScheduleTypeFilter('TAYIDI')" id="sf-TAYIDI" class="text-[11px] font-bold px-3 py-1 rounded-lg transition" style="background:var(--bg-main);border:1px solid #38bdf8;color:#38bdf8;">تاییدی</button>
                     <button type="button" onclick="setScheduleTypeFilter('MEHR_MOTARJEM')" id="sf-MEHR_MOTARJEM" class="text-[11px] font-bold px-3 py-1 rounded-lg transition" style="background:var(--bg-main);border:1px solid #c084fc;color:#c084fc;">مهر مترجم</button>
                     <button type="button" onclick="setScheduleTypeFilter('TASK')" id="sf-TASK" class="text-[11px] font-bold px-3 py-1 rounded-lg transition" style="background:var(--bg-main);border:1px solid #2dd4bf;color:#2dd4bf;">یادداشت</button>
+                    <span style="width:1px;height:20px;background:var(--border-subtle);"></span>
+                    <div class="relative">
+                        <button type="button" onclick="toggleScheduleColorPicker()" title="تغییر رنگ انواع" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">🎨</button>
+                        <div id="scheduleColorPickerPopover" class="hidden" style="position:absolute;top:calc(100% + 4px);left:0;z-index:30;width:180px;background:var(--card-surface);border:1px solid var(--border-color);border-radius:.75rem;padding:.75rem;box-shadow:0 8px 24px rgba(0,0,0,.3);">
+                            <div class="space-y-2">
+                                <label class="flex items-center justify-between text-[11px] font-bold" style="color:var(--text-main);">تاییدی
+                                    <input type="color" id="schedule-color-TAYIDI" value="#38bdf8" oninput="setScheduleTypeColor('TAYIDI', this.value)" style="width:28px;height:22px;padding:0;border:none;background:none;cursor:pointer;">
+                                </label>
+                                <label class="flex items-center justify-between text-[11px] font-bold" style="color:var(--text-main);">مهر مترجم
+                                    <input type="color" id="schedule-color-MEHR_MOTARJEM" value="#c084fc" oninput="setScheduleTypeColor('MEHR_MOTARJEM', this.value)" style="width:28px;height:22px;padding:0;border:none;background:none;cursor:pointer;">
+                                </label>
+                                <label class="flex items-center justify-between text-[11px] font-bold" style="color:var(--text-main);">یادداشت
+                                    <input type="color" id="schedule-color-TASK" value="#2dd4bf" oninput="setScheduleTypeColor('TASK', this.value)" style="width:28px;height:22px;padding:0;border:none;background:none;cursor:pointer;">
+                                </label>
+                            </div>
+                            <button type="button" onclick="resetScheduleTypeColors()" class="w-full mt-2.5 pt-2 text-[10px] font-bold" style="border-top:1px solid var(--divider);color:var(--text-muted);background:none;border-left:none;border-right:none;border-bottom:none;cursor:pointer;">بازنشانی به پیش‌فرض</button>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div id="scheduleWeekGrid" style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;overflow-x:auto;"></div>
