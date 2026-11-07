@@ -531,6 +531,48 @@
   </div>
 </div>
 
+<!-- ── Office-wide schedule: "+" on a day cell -> add anything to that day,
+     optionally linked to an existing client (a translation project) or left
+     as a plain note. See openDayTaskModal()/submitDayTask() in app.js. ── -->
+<div role="dialog" aria-modal="true" id="dayTaskModal" class="modal-overlay fixed inset-0 z-[75] hidden flex items-center justify-center p-4">
+  <div class="w-full max-w-sm p-6" style="background:var(--card-surface);border:1px solid var(--border-color);border-radius:1rem;">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-base font-black" style="color:var(--text-main);">➕ افزودن به <span class="en" id="dt-date-label" style="color:var(--accent);">—</span></h3>
+      <button type="button" onclick="closeDayTaskModal()" style="color:var(--text-muted);background:none;border:none;cursor:pointer;font-size:1.1rem;">✕</button>
+    </div>
+    <div class="space-y-3">
+      <div>
+        <label class="auth-label">نوع</label>
+        <div class="grid grid-cols-3 gap-2">
+          <button type="button" onclick="selectDayTaskType('TASK')" id="dt-type-TASK" class="text-[11px] font-bold px-2 py-2.5 rounded-xl transition" style="background:var(--bg-main);border:1px solid #94a3b8;color:#94a3b8;">یادداشت</button>
+          <button type="button" onclick="selectDayTaskType('TAYIDI')" id="dt-type-TAYIDI" class="text-[11px] font-bold px-2 py-2.5 rounded-xl transition" style="background:var(--bg-main);border:1px solid #38bdf8;color:#38bdf8;">تاییدی</button>
+          <button type="button" onclick="selectDayTaskType('MEHR_MOTARJEM')" id="dt-type-MEHR_MOTARJEM" class="text-[11px] font-bold px-2 py-2.5 rounded-xl transition" style="background:var(--bg-main);border:1px solid #c084fc;color:#c084fc;">مهر مترجم</button>
+        </div>
+      </div>
+      <div>
+        <label class="auth-label" for="dt-title">عنوان</label>
+        <input type="text" id="dt-title" class="auth-input" placeholder="مثلاً یادآوری تماس با مشتری">
+      </div>
+      <div>
+        <label class="auth-label">مشتری (اختیاری — برای یک پروژه ترجمه)</label>
+        <div id="dt-client-chip" class="hidden flex items-center justify-between p-2 rounded-lg text-xs mb-1.5" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
+          <span class="font-bold en" id="dt-client-chip-name" style="color:var(--text-main);">—</span>
+          <button type="button" onclick="dtClearClient()" style="color:#f87171;background:none;border:none;cursor:pointer;font-weight:700;">حذف ✕</button>
+        </div>
+        <input type="text" id="dt-client-search" class="auth-input" placeholder="جستجوی نام یا کد ملی..." oninput="dtSearchClients(this.value)">
+        <div id="dt-client-results" class="space-y-1 mt-1.5" style="max-height:120px;overflow-y:auto;"></div>
+      </div>
+      <div>
+        <label class="auth-label" for="dt-notes">یادداشت</label>
+        <textarea id="dt-notes" rows="2" class="auth-input resize-none" placeholder="یادداشت اختیاری..."></textarea>
+      </div>
+    </div>
+    <div class="flex gap-2 mt-5">
+      <button type="button" onclick="submitDayTask()" id="dt-submit-btn" class="flex-1 py-2.5 rounded-xl text-sm font-black transition" style="background:var(--accent);color:var(--btn-text-on-accent);">افزودن به تقویم</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── VIEW 07 · invoice dialog (preview / print-to-PDF / email / edit) ── -->
 <div role="dialog" aria-modal="true" id="invoiceViewModal" class="modal-overlay fixed inset-0 z-[80] hidden flex items-center justify-center p-4">
   <div class="w-full max-w-lg p-6" style="background:var(--card-surface);border:1px solid var(--border-color);border-radius:1rem;max-height:90vh;overflow-y:auto;">
@@ -1230,6 +1272,7 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                     <button type="button" onclick="setScheduleTypeFilter(null)" id="sf-all" class="text-[11px] font-bold px-3 py-1 rounded-lg transition" style="background:var(--accent);color:var(--btn-text-on-accent);border:1px solid transparent;">همه</button>
                     <button type="button" onclick="setScheduleTypeFilter('TAYIDI')" id="sf-TAYIDI" class="text-[11px] font-bold px-3 py-1 rounded-lg transition" style="background:var(--bg-main);border:1px solid #38bdf8;color:#38bdf8;">تاییدی</button>
                     <button type="button" onclick="setScheduleTypeFilter('MEHR_MOTARJEM')" id="sf-MEHR_MOTARJEM" class="text-[11px] font-bold px-3 py-1 rounded-lg transition" style="background:var(--bg-main);border:1px solid #c084fc;color:#c084fc;">مهر مترجم</button>
+                    <button type="button" onclick="setScheduleTypeFilter('TASK')" id="sf-TASK" class="text-[11px] font-bold px-3 py-1 rounded-lg transition" style="background:var(--bg-main);border:1px solid #94a3b8;color:#94a3b8;">یادداشت</button>
                 </div>
             </div>
             <div id="scheduleWeekGrid" style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;overflow-x:auto;"></div>

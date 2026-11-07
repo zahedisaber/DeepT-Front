@@ -4387,6 +4387,7 @@ document.addEventListener('click', (e) => {
 const WORK_ORDER_TYPE_FA = {
     TAYIDI:        { text: 'تاییدی',     color: '#38bdf8' },
     MEHR_MOTARJEM: { text: 'مهر مترجم',  color: '#c084fc' },
+    TASK:          { text: 'یادداشت',    color: '#94a3b8' },
 };
 const WORK_ORDER_STATUS_FA = {
     PENDING:   { text: 'در انتظار',  color: '#fbbf24' },
@@ -5208,7 +5209,7 @@ function setScheduleViewMode(mode) {
 
 function setScheduleTypeFilter(type) {
     scheduleTypeFilter = type;
-    ['all', 'TAYIDI', 'MEHR_MOTARJEM'].forEach(t => {
+    ['all', 'TAYIDI', 'MEHR_MOTARJEM', 'TASK'].forEach(t => {
         const el = document.getElementById('sf-' + t);
         if (!el) return;
         const active = (type === null && t === 'all') || type === t;
@@ -5259,7 +5260,7 @@ function renderScheduleOrderList(orders, emptyMessage) {
           <div class="flex items-center justify-between gap-3 p-2.5 rounded-lg text-xs" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
             <div class="flex items-center gap-2 min-w-0">
               <span class="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style="background:${t.color};"></span>
-              <span class="font-bold en truncate" style="color:var(--text-main);">${escapeHtml(o.client_name || '')}${o.title ? ' — ' + escapeHtml(o.title) : ''}</span>
+              <span class="font-bold en truncate" style="color:var(--text-main);">${o.client_name ? escapeHtml(o.client_name) + (o.title ? ' — ' + escapeHtml(o.title) : '') : escapeHtml(o.title || '—')}</span>
             </div>
             <div class="flex items-center gap-3 shrink-0">
               <span class="en font-bold" style="color:${o.due_date ? 'var(--accent)' : 'var(--text-muted)'};">${o.due_date || 'بدون ددلاین'}</span>
@@ -5326,7 +5327,7 @@ async function renderScheduleWeekView() {
                     : '';
                 return `
                   <div ${clickTarget} class="p-1.5 rounded-md text-[10px] cursor-pointer mb-1 hover:opacity-85" style="background:${(t.color) + '1a'};border:1px solid ${t.color}55;border-left:3px solid ${t.color};">
-                    <div class="font-bold truncate" style="color:${done ? 'var(--text-muted)' : 'var(--text-main)'};${done ? 'text-decoration:line-through;' : ''}">${escapeHtml(o.client_name || '')}${o.title ? ' · ' + escapeHtml(o.title) : ''}</div>
+                    <div class="font-bold truncate" style="color:${done ? 'var(--text-muted)' : 'var(--text-main)'};${done ? 'text-decoration:line-through;' : ''}">${o.client_name ? escapeHtml(o.client_name) + (o.title ? ' · ' + escapeHtml(o.title) : '') : escapeHtml(o.title || '—')}</div>
                     <div class="flex items-center justify-between mt-0.5" style="color:var(--text-muted);">
                       <span style="color:${t.color};">${t.text}</span>
                       <span class="en" style="color:${s.color};">${s.text}</span>
@@ -5339,7 +5340,10 @@ async function renderScheduleWeekView() {
           <div class="p-1.5 rounded-lg" style="background:${isToday ? 'var(--accent-hover)' : 'var(--bg-main)'};border:1px solid ${isToday ? 'var(--border-color)' : 'var(--border-subtle)'};${overdue ? 'box-shadow:0 0 0 1px rgba(248,113,113,0.4);' : ''}">
             <div class="flex items-center justify-between mb-1.5" style="padding-bottom:4px;border-bottom:1px solid var(--divider);">
                 <span class="text-[11px] font-black" style="color:${isToday ? 'var(--accent)' : 'var(--text-main)'};">${WEEKDAY_FA[idx]}</span>
-                <span class="text-[10px] en font-bold" style="color:${isToday ? 'var(--accent)' : 'var(--text-muted)'};">${gregorianToJalali(d).d}</span>
+                <span class="flex items-center gap-1.5">
+                  <span class="text-[10px] en font-bold" style="color:${isToday ? 'var(--accent)' : 'var(--text-muted)'};">${gregorianToJalali(d).d}</span>
+                  <button type="button" onclick="openDayTaskModal('${iso}')" title="افزودن به این روز" class="flex items-center justify-center text-[10px] font-black rounded leading-none" style="width:14px;height:14px;background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">+</button>
+                </span>
             </div>
             ${pendingCount ? `<div class="text-[9px] font-bold mb-1" style="color:var(--accent);"><span class="en">${pendingCount}</span> در انتظار</div>` : ''}
             ${overdue ? `<div class="text-[9px] font-bold mb-1" style="color:#f87171;">⚠ ددلاین گذشته</div>` : ''}
@@ -5429,7 +5433,10 @@ async function renderScheduleMonth() {
           <div class="p-1 rounded-lg" style="min-height:64px;background:${isToday ? 'var(--accent-hover)' : 'var(--bg-main)'};border:1px solid ${isToday ? 'var(--border-color)' : 'var(--border-subtle)'};opacity:${inMonth ? '1' : '.45'};${overdue ? 'box-shadow:0 0 0 1px rgba(248,113,113,0.4);' : ''}">
             <div class="flex items-center justify-between mb-1">
               <span class="text-[10px] en font-bold" style="color:${isToday ? 'var(--accent)' : (inMonth ? 'var(--text-main)' : 'var(--text-muted)')};">${dJalali.d}</span>
-              ${pendingCount ? `<span class="text-[8px] font-bold en" style="color:var(--accent);">${pendingCount}</span>` : ''}
+              <span class="flex items-center gap-1">
+                ${pendingCount ? `<span class="text-[8px] font-bold en" style="color:var(--accent);">${pendingCount}</span>` : ''}
+                <button type="button" onclick="openDayTaskModal('${iso}')" title="افزودن به این روز" class="flex items-center justify-center text-[10px] font-black rounded leading-none" style="width:14px;height:14px;background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">+</button>
+              </span>
             </div>
             ${itemsHtml}
           </div>`;
@@ -5440,7 +5447,132 @@ async function renderScheduleMonth() {
     renderScheduleOrderList(orders, '// در این ماه سفارشی ثبت نشده');
 }
 
-// 
+// ── "+" on a day cell (office-wide schedule, month or week view): quick-add
+// anything to that day -- a freeform note (order_type "TASK", no client
+// required) or, if a client is picked, an actual TAYIDI/MEHR_MOTARJEM work
+// order. Reuses /work-orders (which now accepts an optional client_id)
+// rather than a separate table, so these entries show up on the calendar
+// exactly like any other order.
+let dayTaskDraftType = 'TASK';
+let dayTaskDraftDate = null;      // ISO date of the clicked cell
+let dayTaskSelectedClient = null; // { id, name } | null
+let dayTaskClientSearchDebounce = null;
+
+function openDayTaskModal(iso) {
+    if (!currentUserSession) { openAuthModal(); return; }
+    dayTaskDraftType = 'TASK';
+    dayTaskDraftDate = iso;
+    dayTaskSelectedClient = null;
+    document.getElementById('dt-date-label').textContent = formatIsoAsJalaliDisplay(iso);
+    document.getElementById('dt-title').value = '';
+    document.getElementById('dt-notes').value = '';
+    document.getElementById('dt-client-search').value = '';
+    document.getElementById('dt-client-results').innerHTML = '';
+    document.getElementById('dt-client-chip').classList.add('hidden');
+    refreshDayTaskTypeBtns();
+    document.getElementById('dayTaskModal').classList.remove('hidden');
+}
+
+function closeDayTaskModal() {
+    document.getElementById('dayTaskModal').classList.add('hidden');
+}
+
+function selectDayTaskType(type) {
+    dayTaskDraftType = type;
+    refreshDayTaskTypeBtns();
+}
+
+function refreshDayTaskTypeBtns() {
+    ['TASK', 'TAYIDI', 'MEHR_MOTARJEM'].forEach(t => {
+        const el = document.getElementById('dt-type-' + t);
+        if (!el) return;
+        const active = dayTaskDraftType === t;
+        const color = WORK_ORDER_TYPE_FA[t].color;
+        el.style.background = active ? color : 'var(--bg-main)';
+        el.style.color = active ? '#000' : color;
+        el.style.borderColor = color;
+        el.style.fontWeight = active ? '900' : '700';
+    });
+}
+
+function dtSearchClients(q) {
+    clearTimeout(dayTaskClientSearchDebounce);
+    dayTaskClientSearchDebounce = setTimeout(() => dtFetchClients(q.trim()), 250);
+}
+
+async function dtFetchClients(q) {
+    const box = document.getElementById('dt-client-results');
+    if (!q) { box.innerHTML = ''; return; }
+    box.innerHTML = `<div class="text-[11px] text-center py-2" style="color:var(--text-muted);">در حال جستجو...</div>`;
+    try {
+        const url = new URL(`${CORE}/clients`);
+        url.searchParams.set('q', q);
+        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${getToken()}` } });
+        if (!res.ok) throw new Error();
+        const clients = await res.json();
+        if (!clients.length) {
+            box.innerHTML = `<div class="text-[11px] text-center py-2" style="color:var(--text-muted);">موردی یافت نشد.</div>`;
+            return;
+        }
+        box.innerHTML = clients.slice(0, 8).map(c => {
+            const name = `${c.first_name || ''} ${c.last_name || ''}`.trim();
+            return `<button type="button" onclick="dtSelectClient('${c.id}','${name.replace(/'/g, "")}')" class="w-full flex items-center justify-between p-2 rounded-lg text-right text-xs transition" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
+                <span class="font-bold en" style="color:var(--text-main);">${escapeHtml(name)}</span>
+                <span style="color:var(--accent);font-size:.65rem;font-weight:700;">انتخاب ←</span>
+            </button>`;
+        }).join('');
+    } catch (e) {
+        box.innerHTML = `<div class="text-[11px] text-center py-2" style="color:#f87171;">خطا در جستجوی مشتری.</div>`;
+    }
+}
+
+function dtSelectClient(id, name) {
+    dayTaskSelectedClient = { id, name };
+    document.getElementById('dt-client-chip-name').textContent = name;
+    document.getElementById('dt-client-chip').classList.remove('hidden');
+    document.getElementById('dt-client-search').value = '';
+    document.getElementById('dt-client-results').innerHTML = '';
+}
+
+function dtClearClient() {
+    dayTaskSelectedClient = null;
+    document.getElementById('dt-client-chip').classList.add('hidden');
+}
+
+async function submitDayTask() {
+    const title = document.getElementById('dt-title').value.trim();
+    const notes = document.getElementById('dt-notes').value.trim();
+    if (!title && !notes) { showToast('عنوان یا یادداشتی وارد کنید.'); return; }
+
+    const payload = {
+        title,
+        order_type: dayTaskDraftType,
+        due_date: dayTaskDraftDate,
+        notes: notes || null,
+    };
+    if (dayTaskSelectedClient) payload.client_id = dayTaskSelectedClient.id;
+
+    const btn = document.getElementById('dt-submit-btn');
+    const originalLabel = btn.textContent;
+    btn.disabled = true; btn.textContent = 'در حال ثبت...';
+    try {
+        const res = await fetch(`${CORE}/work-orders`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
+            body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error();
+        closeDayTaskModal();
+        showToast('به تقویم اضافه شد.');
+        await renderSchedule();
+    } catch (e) {
+        showToast('خطا در افزودن به تقویم.');
+    } finally {
+        btn.disabled = false; btn.textContent = originalLabel;
+    }
+}
+
+//
 // ── Invoice view / print / email — a translator needs a signed paper copy
 // for the client's file and often needs to email a copy too, not just see
 // a row in a list. The browser's own print dialog doubles as the "PDF
