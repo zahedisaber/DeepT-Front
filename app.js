@@ -5511,12 +5511,15 @@ async function submitDayTask() {
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
             body: JSON.stringify(payload),
         });
-        if (!res.ok) throw new Error();
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.detail || `خطای سرور (${res.status})`);
+        }
         closeDayTaskModal();
         showToast('به تقویم اضافه شد.');
         await renderSchedule();
     } catch (e) {
-        showToast('خطا در افزودن به تقویم.');
+        showToast('❌ ' + (e.message || 'خطا در افزودن به تقویم.'));
     } finally {
         btn.disabled = false; btn.textContent = originalLabel;
     }
