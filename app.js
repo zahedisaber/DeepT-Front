@@ -4356,8 +4356,13 @@ const WEEKDAY_FA = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه
 //    ~354 days long, so there is no fixed {month, day}. These are hardcoded
 //    per Jalali year below, cross-checked against multiple published 1405/
 //    1406 calendars (bahesab.ir, emrooz.app, vacglobal.com, surfiran.com) as
-//    of 2026-11. A handful of entries (marked below) came from only one of
-//    those sources, and Imam Reza's martyrdom (شهادت امام رضا) could not be
+//    of 2026-11. The first pass of this table had three entries off by one
+//    day (میلاد امام علی, مبعث, میلاد امام مهدی -- all in the same Rajab/
+//    Sha'ban stretch, likely one shared bug in the source site) caught by
+//    comparing against time.ir; two of the three are now time.ir-confirmed
+//    for 1405, the third (مبعث) and all three 1406 equivalents are only
+//    extrapolated from that same +1-day correction, not independently
+//    re-verified. Imam Reza's martyrdom (شهادت امام رضا) could not be
 //    confirmed for 1406 at all, so it's omitted rather than guessed -- treat
 //    this whole lunar table as "best effort," not an official government
 //    publication, and verify against Iran's own calendar before relying on
@@ -4387,10 +4392,10 @@ const IRAN_LUNAR_HOLIDAYS_BY_YEAR = {
         { m: 5,  d: 22, name: 'شهادت امام رضا (ع)' },
         { m: 5,  d: 30, name: 'شهادت امام حسن عسکری (ع)' },
         { m: 6,  d: 8,  name: 'میلاد پیامبر اکرم (ص) و امام جعفر صادق (ع)' },
-        { m: 8,  d: 22, name: 'شهادت حضرت فاطمه زهرا (س)' }, // single-source
-        { m: 10, d: 1,  name: 'میلاد امام علی (ع)' },         // single-source
-        { m: 10, d: 15, name: 'مبعث حضرت رسول اکرم (ص)' },
-        { m: 11, d: 3,  name: 'میلاد امام مهدی (عج)' },       // single-source
+        { m: 8,  d: 22, name: 'شهادت حضرت فاطمه زهرا (س)' }, // single-source, user-confirmed correct
+        { m: 10, d: 2,  name: 'میلاد امام علی (ع)' },         // corrected +1 day against time.ir (was 10,1)
+        { m: 10, d: 16, name: 'مبعث حضرت رسول اکرم (ص)' },    // +1 day, same Rajab/Sha'ban source error as above -- not independently confirmed
+        { m: 11, d: 4,  name: 'میلاد امام مهدی (عج)' },       // corrected +1 day against time.ir (was 11,3)
         { m: 12, d: 9,  name: 'شهادت امام علی (ع)' },
         { m: 12, d: 19, name: 'عید سعید فطر' },
         { m: 12, d: 20, name: 'تعطیل عید فطر' },
@@ -4406,9 +4411,9 @@ const IRAN_LUNAR_HOLIDAYS_BY_YEAR = {
         { m: 5,  d: 20, name: 'شهادت امام حسن عسکری (ع)' },
         { m: 5,  d: 29, name: 'میلاد پیامبر اکرم (ص) و امام جعفر صادق (ع)' },
         { m: 8,  d: 11, name: 'شهادت حضرت فاطمه زهرا (س)' }, // single-source
-        { m: 9,  d: 21, name: 'میلاد امام علی (ع)' },         // single-source
-        { m: 10, d: 5,  name: 'مبعث حضرت رسول اکرم (ص)' },
-        { m: 10, d: 22, name: 'میلاد امام مهدی (عج)' },       // single-source
+        { m: 9,  d: 22, name: 'میلاد امام علی (ع)' },         // +1 day vs. original source, same correction as 1405 -- not independently confirmed for 1406
+        { m: 10, d: 6,  name: 'مبعث حضرت رسول اکرم (ص)' },    // +1 day, same correction as 1405 -- not independently confirmed
+        { m: 10, d: 23, name: 'میلاد امام مهدی (عج)' },       // +1 day vs. original source, same correction as 1405 -- not independently confirmed for 1406
         { m: 11, d: 28, name: 'شهادت امام علی (ع)' },
         { m: 12, d: 8,  name: 'عید سعید فطر' },
         { m: 12, d: 9,  name: 'تعطیل عید فطر' },
