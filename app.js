@@ -3731,7 +3731,23 @@ function renderClientStats(rows) {
     lastEl.textContent = last || '—';
 }
 
+// Past invoices are purely historical records -- the پیش‌نویس فاکتور panel
+// (addCustomInvoiceRow() and friends, below) is the only thing meant to feel
+// like an active workbench. Collapsing this list to the 3 most recent by
+// default, with a toggle for the rest, keeps a client with many invoices
+// from burying the draft panel under a long pile of old ones. Collapses
+// again whenever a DIFFERENT client is opened (lastInvoiceListClientId),
+// but stays as the translator left it across same-client refreshes (e.g.
+// after deleting one invoice).
+const INVOICE_LIST_COLLAPSED_COUNT = 3;
+let invoiceListExpanded = false;
+let lastInvoiceListClientId = null;
+
 async function renderClientInvoices(clientId) {
+    if (clientId !== lastInvoiceListClientId) {
+        invoiceListExpanded = false;
+        lastInvoiceListClientId = clientId;
+    }
     const profileOpen = isProfilePageOpen();
     const prefix = profileOpen ? 'cp' : 'cd';
     const box = document.getElementById(prefix + '-invoices-list');
@@ -3742,6 +3758,7 @@ async function renderClientInvoices(clientId) {
         const res = await fetch(`${CORE}/invoices?client_id=${clientId}`, { headers: { 'Authorization': `Bearer ${token}` } });
         if (!res.ok) throw new Error();
         const invoices = await res.json();
+        invoices.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
         if (countEl) countEl.textContent = invoices.length;
         if (!invoices.length) {
             box.innerHTML = `<div class="text-xs text-center py-4" style="color:var(--text-muted);">// بدون فاکتور ثبت‌شده</div>`;
@@ -3752,8 +3769,10 @@ async function renderClientInvoices(clientId) {
             invoice:  { text: 'فاکتور',     color: '#4ade80' },
             proforma: { text: 'پیش‌فاکتور', color: '#fb923c' },
         };
-        box.innerHTML = invoices.map(inv => {
+        const visibleInvoices = invoiceListExpanded ? invoices : invoices.slice(0, INVOICE_LIST_COLLAPSED_COUNT);
+        box.innerHTML = visibleInvoices.map(inv => {
             const t = TYPE_LABELS[inv.invoice_type] || TYPE_LABELS.invoice;
+            const dateStr = (inv.issue_date || inv.created_at || '').slice(0, 10);
             // finalized_at (set once printed/emailed) is purely informational
             // now -- editing is always allowed, never locked by it.
             const sentBadge = inv.finalized_at
@@ -3766,7 +3785,7 @@ async function renderClientInvoices(clientId) {
                 <div class="flex items-center justify-between gap-2">
                     <span class="flex items-center gap-1.5" style="color:var(--text-main);">
                         🧾 <span class="status-pill" style="color:${t.color};background:${t.color}1f;">${t.text}</span>
-                        ${SOURCE_LABELS[inv.source] || inv.source}${inv.tracking_code ? ' · کد پیگیری ' + escapeHtml(inv.tracking_code) : ''}
+                        ${SOURCE_LABELS[inv.source] || inv.source}${dateStr ? ' · ' + escapeHtml(dateStr) : ''}${inv.tracking_code ? ' · کد پیگیری ' + escapeHtml(inv.tracking_code) : ''}
                     </span>
                     <span class="flex items-center gap-2">
                         <span class="font-bold en" style="color:var(--accent);">${(inv.total_toman || 0).toLocaleString()} تومان</span>
@@ -3775,10 +3794,19 @@ async function renderClientInvoices(clientId) {
                     </span>
                 </div>
             </div>`;
-        }).join('');
+        }).join('') + (invoices.length > INVOICE_LIST_COLLAPSED_COUNT
+            ? `<button type="button" onclick="toggleInvoiceListVisibility('${clientId}')" class="w-full text-center text-[11px] font-bold py-2 rounded-lg transition" style="background:var(--card-surface);color:var(--accent);border:1px dashed var(--border-color);">${
+                invoiceListExpanded ? '▲ نمایش کمتر' : `▼ نمایش ${(invoices.length - INVOICE_LIST_COLLAPSED_COUNT).toLocaleString('fa-IR')} فاکتور قدیمی‌تر`
+              }</button>`
+            : '');
     } catch (e) {
         box.innerHTML = `<div class="text-xs text-center py-3" style="color:#f87171;">خطا در دریافت فاکتورها.</div>`;
     }
+}
+
+function toggleInvoiceListVisibility(clientId) {
+    invoiceListExpanded = !invoiceListExpanded;
+    renderClientInvoices(clientId);
 }
 
 async function deleteInvoice(invoiceId, clientId) {
