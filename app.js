@@ -4182,70 +4182,22 @@ function toPersianDigits(input) {
     return String(input).replace(/[0-9]/g, d => fa[+d]);
 }
 
-// Civil-calendar conversion algorithm (the same one used by most Jalali
-// date libraries) -- round-trips exactly for every date, leap years
-// included, verified against known Nowruz dates (1403-1405).
-function gregorianToJalali(gy, gm, gd) {
-    const g_d_m = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
-    const gy2 = (gm > 2) ? (gy + 1) : gy;
-    let days = 355666 + (365 * gy) + Math.floor((gy2 + 3) / 4) - Math.floor((gy2 + 99) / 100)
-        + Math.floor((gy2 + 399) / 400) + gd + g_d_m[gm - 1];
-    let jy = -1595 + (33 * Math.floor(days / 12053));
-    days %= 12053;
-    jy += 4 * Math.floor(days / 1461);
-    days %= 1461;
-    if (days > 365) {
-        jy += Math.floor((days - 1) / 365);
-        days = (days - 1) % 365;
-    }
-    let jm, jd;
-    if (days < 186) {
-        jm = 1 + Math.floor(days / 31);
-        jd = 1 + (days % 31);
-    } else {
-        jm = 7 + Math.floor((days - 186) / 30);
-        jd = 1 + ((days - 186) % 30);
-    }
-    return [jy, jm, jd];
-}
-
-function jalaliToGregorian(jy, jm, jd) {
-    jy += 1595;
-    let days = -355668 + (365 * jy) + (Math.floor(jy / 33) * 8) + Math.floor(((jy % 33) + 3) / 4)
-        + jd + ((jm < 7) ? (jm - 1) * 31 : ((jm - 7) * 30) + 186);
-    let gy = 400 * Math.floor(days / 146097);
-    days %= 146097;
-    if (days > 36524) {
-        gy += 100 * Math.floor(--days / 36524);
-        days %= 36524;
-        if (days >= 365) days++;
-    }
-    gy += 4 * Math.floor(days / 1461);
-    days %= 1461;
-    if (days > 365) {
-        gy += Math.floor((days - 1) / 365);
-        days = (days - 1) % 365;
-    }
-    const gd0 = days + 1;
-    const sal_a = [0, 31, ((gy % 4 === 0 && gy % 100 !== 0) || (gy % 400 === 0)) ? 29 : 28,
-        31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-    let gm = 0, gd = gd0;
-    for (; gm < 13; gm++) {
-        const v = sal_a[gm];
-        if (gd <= v) break;
-        gd -= v;
-    }
-    return [gy, gm, gd];
-}
+// Gregorian<->Jalali conversion itself (gregorianToJalali(date) -> {y,m,d},
+// jalaliToGregorian(jy,jm,jd) -> Date) is defined once, further down this
+// file, and shared with the office-wide schedule calendar -- this block
+// used to carry its own second, incompatible copy of both (an array-based
+// civil-calendar algorithm) which silently won the "last function
+// declaration wins" conflict against the shared one for a while, breaking
+// every caller below. Don't re-add a second definition here.
 
 // Month 1-6 are always 31 days, 7-11 always 30 -- only month 12 (28/29
 // days, esfand) varies by leap year. Rather than re-deriving the 33-year
 // leap-year rule (easy to get subtly wrong), just measure this Jalali
 // year's real length via the already-verified conversion above.
 function jalaliYearLength(jy) {
-    const [gy1, gm1, gd1] = jalaliToGregorian(jy, 1, 1);
-    const [gy2, gm2, gd2] = jalaliToGregorian(jy + 1, 1, 1);
-    return Math.round((Date.UTC(gy2, gm2 - 1, gd2) - Date.UTC(gy1, gm1 - 1, gd1)) / 86400000);
+    const d1 = jalaliToGregorian(jy, 1, 1);
+    const d2 = jalaliToGregorian(jy + 1, 1, 1);
+    return Math.round((d2 - d1) / 86400000);
 }
 
 function jalaliMonthLength(jy, jm) {
@@ -4257,7 +4209,7 @@ function jalaliMonthLength(jy, jm) {
 function formatIsoAsJalaliDisplay(iso) {
     if (!iso) return '';
     const [gy, gm, gd] = iso.split('-').map(Number);
-    const [jy, jm, jd] = gregorianToJalali(gy, gm, gd);
+    const { y: jy, m: jm, d: jd } = gregorianToJalali(new Date(gy, gm - 1, gd));
     return `${toPersianDigits(jd)} ${PERSIAN_MONTHS_FA[jm - 1]} ${toPersianDigits(jy)}`;
 }
 
@@ -4272,14 +4224,15 @@ function toggleJalaliCalendar(baseId) {
     if (!popup || !hidden) return;
 
     jalaliCalendarOpenFor = baseId;
-    const today = new Date();
+    let j;
     if (hidden.value) {
         const [gy, gm, gd] = hidden.value.split('-').map(Number);
-        [jalaliCalendarViewYear, jalaliCalendarViewMonth] = gregorianToJalali(gy, gm, gd);
+        j = gregorianToJalali(new Date(gy, gm - 1, gd));
     } else {
-        [jalaliCalendarViewYear, jalaliCalendarViewMonth] =
-            gregorianToJalali(today.getFullYear(), today.getMonth() + 1, today.getDate());
+        j = gregorianToJalali(new Date());
     }
+    jalaliCalendarViewYear = j.y;
+    jalaliCalendarViewMonth = j.m;
     renderJalaliCalendar();
     popup.classList.remove('hidden');
 }
@@ -4308,21 +4261,20 @@ function renderJalaliCalendar() {
     let selJ = null;
     if (hidden.value) {
         const [gy, gm, gd] = hidden.value.split('-').map(Number);
-        selJ = gregorianToJalali(gy, gm, gd);
+        selJ = gregorianToJalali(new Date(gy, gm - 1, gd));
     }
-    const today = new Date();
-    const [ty, tm, td] = gregorianToJalali(today.getFullYear(), today.getMonth() + 1, today.getDate());
+    const t = gregorianToJalali(new Date());
 
-    const [gy1, gm1, gd1] = jalaliToGregorian(jy, jm, 1);
-    const jsWeekday = new Date(gy1, gm1 - 1, gd1).getDay(); // JS: 0=Sun..6=Sat
+    const gDate1 = jalaliToGregorian(jy, jm, 1);
+    const jsWeekday = gDate1.getDay(); // JS: 0=Sun..6=Sat
     const startOffset = (jsWeekday + 1) % 7;                // shift so 0=Sat (شنبه)
     const monthLen = jalaliMonthLength(jy, jm);
 
     let cells = '';
     for (let i = 0; i < startOffset; i++) cells += `<div></div>`;
     for (let d = 1; d <= monthLen; d++) {
-        const isSel = !!(selJ && selJ[0] === jy && selJ[1] === jm && selJ[2] === d);
-        const isToday = ty === jy && tm === jm && td === d;
+        const isSel = !!(selJ && selJ.y === jy && selJ.m === jm && selJ.d === d);
+        const isToday = t.y === jy && t.m === jm && t.d === d;
         cells += `<button type="button" onclick="selectJalaliDate('${baseId}',${jy},${jm},${d})"
             class="text-[11px] rounded-md py-1.5 en" style="
                 background:${isSel ? 'var(--accent)' : 'transparent'};
@@ -4349,8 +4301,7 @@ function renderJalaliCalendar() {
 }
 
 function selectJalaliDate(baseId, jy, jm, jd) {
-    const [gy, gm, gd] = jalaliToGregorian(jy, jm, jd);
-    const iso = `${gy}-${String(gm).padStart(2, '0')}-${String(gd).padStart(2, '0')}`;
+    const iso = fmtWeekISO(jalaliToGregorian(jy, jm, jd));
     const hidden = document.getElementById(baseId);
     const display = document.getElementById(baseId + '-display');
     if (hidden) hidden.value = iso;
@@ -4367,9 +4318,8 @@ function clearJalaliDate(baseId) {
 }
 
 function jalaliCalendarGoToday(baseId) {
-    const today = new Date();
-    const [jy, jm, jd] = gregorianToJalali(today.getFullYear(), today.getMonth() + 1, today.getDate());
-    selectJalaliDate(baseId, jy, jm, jd);
+    const j = gregorianToJalali(new Date());
+    selectJalaliDate(baseId, j.y, j.m, j.d);
 }
 
 document.addEventListener('click', (e) => {
