@@ -5207,7 +5207,7 @@ function renderScheduleOrderList(orders, emptyMessage) {
         const t = WORK_ORDER_TYPE_FA[o.order_type] || { text: o.order_type, color: 'var(--accent)' };
         const s = WORK_ORDER_STATUS_FA[o.status] || { text: o.status, color: 'var(--text-muted)' };
         return `
-          <div class="flex items-center justify-between gap-3 p-2.5 rounded-lg text-xs" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
+          <div onclick="openScheduleOrderDetail('${o.id}')" class="flex items-center justify-between gap-3 p-2.5 rounded-lg text-xs cursor-pointer transition hover:opacity-85" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
             <div class="flex items-center gap-2 min-w-0">
               <span class="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style="background:${t.color};"></span>
               <span class="font-bold en truncate" style="color:var(--text-main);">${o.client_name ? escapeHtml(o.client_name) + (o.title ? ' — ' + escapeHtml(o.title) : '') : escapeHtml(o.title || '—')}</span>
@@ -5216,7 +5216,7 @@ function renderScheduleOrderList(orders, emptyMessage) {
               <span class="en font-bold" style="color:${o.due_date ? 'var(--accent)' : 'var(--text-muted)'};">${o.due_date || 'بدون ددلاین'}</span>
               <span style="color:${t.color};">${t.text}</span>
               <span class="en" style="color:${s.color};">${s.text}</span>
-              ${o.client_id ? `<button onclick="openClientProfile('${o.client_id}')" class="text-[11px] font-bold px-2 py-1 rounded-md" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">مشتری</button>` : ''}
+              ${o.client_id ? `<button onclick="event.stopPropagation();openClientProfile('${o.client_id}')" class="text-[11px] font-bold px-2 py-1 rounded-md" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">مشتری</button>` : ''}
             </div>
           </div>`;
     }).join('');
@@ -5272,11 +5272,8 @@ async function renderScheduleWeekView() {
                 const t = WORK_ORDER_TYPE_FA[o.order_type] || { text: o.order_type, color: 'var(--accent)' };
                 const s = WORK_ORDER_STATUS_FA[o.status] || { text: o.status, color: 'var(--text-muted)' };
                 const done = o.status === 'DONE';
-                const clickTarget = o.client_id
-                    ? `onclick="openClientProfile('${o.client_id}')" title="باز کردن پروفایل مشتری"`
-                    : '';
                 return `
-                  <div ${clickTarget} class="p-1.5 rounded-md text-[10px] cursor-pointer mb-1 hover:opacity-85" style="background:${(t.color) + '1a'};border:1px solid ${t.color}55;border-left:3px solid ${t.color};">
+                  <div onclick="openScheduleOrderDetail('${o.id}')" title="نمایش جزئیات" class="p-1.5 rounded-md text-[10px] cursor-pointer mb-1 hover:opacity-85" style="background:${(t.color) + '1a'};border:1px solid ${t.color}55;border-left:3px solid ${t.color};">
                     <div class="font-bold truncate" style="color:${done ? 'var(--text-muted)' : 'var(--text-main)'};${done ? 'text-decoration:line-through;' : ''}">${o.client_name ? escapeHtml(o.client_name) + (o.title ? ' · ' + escapeHtml(o.title) : '') : escapeHtml(o.title || '—')}</div>
                     <div class="flex items-center justify-between mt-0.5" style="color:var(--text-muted);">
                       <span style="color:${t.color};">${t.text}</span>
@@ -5372,11 +5369,8 @@ async function renderScheduleMonth() {
         const itemsHtml = dayOrders.map(o => {
             const t = WORK_ORDER_TYPE_FA[o.order_type] || { text: o.order_type, color: 'var(--accent)' };
             const done = o.status === 'DONE';
-            const clickTarget = o.client_id
-                ? `onclick="openClientProfile('${o.client_id}')" title="باز کردن پروفایل مشتری"`
-                : '';
             return `
-              <div ${clickTarget} class="px-1 rounded text-[9px] cursor-pointer mb-0.5 truncate hover:opacity-85" style="background:${(t.color) + '1a'};border-inline-start:2px solid ${t.color};color:${done ? 'var(--text-muted)' : 'var(--text-main)'};${done ? 'text-decoration:line-through;' : ''}">${escapeHtml(o.client_name || o.title || '')}</div>`;
+              <div onclick="openScheduleOrderDetail('${o.id}')" title="نمایش جزئیات" class="px-1 rounded text-[9px] cursor-pointer mb-0.5 truncate hover:opacity-85" style="background:${(t.color) + '1a'};border-inline-start:2px solid ${t.color};color:${done ? 'var(--text-muted)' : 'var(--text-main)'};${done ? 'text-decoration:line-through;' : ''}">${escapeHtml(o.client_name || o.title || '')}</div>`;
         }).join('');
 
         return `
@@ -5522,6 +5516,113 @@ async function submitDayTask() {
         showToast('❌ ' + (e.message || 'خطا در افزودن به تقویم.'));
     } finally {
         btn.disabled = false; btn.textContent = originalLabel;
+    }
+}
+
+// ── Clicking an item on the office-wide schedule (a day cell or the list
+// below) opens this instead of jumping straight to the client's profile --
+// a freeform note has no client to jump to anyway, and even a client-linked
+// item usually just needs a quick look/edit, not a full page navigation.
+// "باز کردن پروفایل" inside it still gets you to the client when there is one.
+let scheduleOrderDetailId = null;
+let scheduleOrderDetailType = 'TASK';
+
+function openScheduleOrderDetail(orderId) {
+    const o = (scheduleWeekOrders || []).find(x => x.id === orderId);
+    if (!o) return;
+    scheduleOrderDetailId = orderId;
+    scheduleOrderDetailType = o.order_type;
+    document.getElementById('sod-title').value = o.title || '';
+    document.getElementById('sod-due').value = o.due_date || '';
+    document.getElementById('sod-due-display').value = formatIsoAsJalaliDisplay(o.due_date || '');
+    document.getElementById('sod-notes').value = o.notes || '';
+    document.getElementById('sod-status').value = o.status || 'PENDING';
+
+    const clientInfo = document.getElementById('sod-client-info');
+    if (o.client_id) {
+        clientInfo.dataset.clientId = o.client_id;
+        document.getElementById('sod-client-name').textContent = o.client_name || '—';
+        clientInfo.classList.remove('hidden');
+    } else {
+        clientInfo.classList.add('hidden');
+    }
+
+    refreshScheduleOrderTypeBtns();
+    document.getElementById('scheduleOrderDetailModal').classList.remove('hidden');
+}
+
+function closeScheduleOrderDetail() {
+    document.getElementById('scheduleOrderDetailModal').classList.add('hidden');
+    scheduleOrderDetailId = null;
+    closeJalaliCalendar();
+}
+
+function selectScheduleOrderType(type) {
+    scheduleOrderDetailType = type;
+    refreshScheduleOrderTypeBtns();
+}
+
+function refreshScheduleOrderTypeBtns() {
+    ['TASK', 'TAYIDI', 'MEHR_MOTARJEM'].forEach(t => {
+        const el = document.getElementById('sod-type-' + t);
+        if (!el) return;
+        const active = scheduleOrderDetailType === t;
+        const color = WORK_ORDER_TYPE_FA[t].color;
+        el.style.background = active ? color : 'var(--bg-main)';
+        el.style.color = active ? '#000' : color;
+        el.style.borderColor = color;
+        el.style.fontWeight = active ? '900' : '700';
+    });
+}
+
+function openClientProfileFromScheduleDetail() {
+    const clientId = document.getElementById('sod-client-info').dataset.clientId;
+    if (!clientId) return;
+    closeScheduleOrderDetail();
+    openClientProfile(clientId);
+}
+
+async function submitScheduleOrderEdit() {
+    if (!scheduleOrderDetailId) return;
+    const payload = {
+        title: document.getElementById('sod-title').value.trim(),
+        order_type: scheduleOrderDetailType,
+        due_date: document.getElementById('sod-due').value || null,
+        notes: document.getElementById('sod-notes').value.trim() || null,
+        status: document.getElementById('sod-status').value,
+    };
+    try {
+        const res = await fetch(`${CORE}/work-orders/${scheduleOrderDetailId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
+            body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.detail || `خطای سرور (${res.status})`);
+        }
+        closeScheduleOrderDetail();
+        showToast('ذخیره شد.');
+        await renderSchedule();
+    } catch (e) {
+        showToast('❌ ' + (e.message || 'خطا در ذخیره تغییرات.'));
+    }
+}
+
+async function deleteScheduleOrder() {
+    if (!scheduleOrderDetailId) return;
+    if (!confirm('این مورد حذف شود؟')) return;
+    try {
+        const res = await fetch(`${CORE}/work-orders/${scheduleOrderDetailId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${getToken()}` },
+        });
+        if (!res.ok) throw new Error();
+        closeScheduleOrderDetail();
+        showToast('حذف شد.');
+        await renderSchedule();
+    } catch (e) {
+        showToast('خطا در حذف.');
     }
 }
 

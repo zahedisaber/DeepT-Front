@@ -573,6 +573,60 @@
   </div>
 </div>
 
+<!-- ── Office-wide schedule: click an item (day cell or the list below) to
+     see/edit its details, including a freeform note that has no client.
+     See openScheduleOrderDetail()/submitScheduleOrderEdit() in app.js. ── -->
+<div role="dialog" aria-modal="true" id="scheduleOrderDetailModal" class="modal-overlay fixed inset-0 z-[75] hidden flex items-center justify-center p-4">
+  <div class="w-full max-w-sm p-6" style="background:var(--card-surface);border:1px solid var(--border-color);border-radius:1rem;">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-base font-black" style="color:var(--text-main);">جزئیات</h3>
+      <button type="button" onclick="closeScheduleOrderDetail()" style="color:var(--text-muted);background:none;border:none;cursor:pointer;font-size:1.1rem;">✕</button>
+    </div>
+    <div id="sod-client-info" class="hidden flex items-center justify-between p-2.5 rounded-lg text-xs mb-3" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
+      <span style="color:var(--text-muted);">مشتری: <span class="font-bold en" id="sod-client-name" style="color:var(--text-main);">—</span></span>
+      <button type="button" onclick="openClientProfileFromScheduleDetail()" class="text-[11px] font-bold px-2 py-1 rounded-md" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">باز کردن پروفایل ←</button>
+    </div>
+    <div class="space-y-3">
+      <div>
+        <label class="auth-label">نوع</label>
+        <div class="grid grid-cols-3 gap-2">
+          <button type="button" onclick="selectScheduleOrderType('TASK')" id="sod-type-TASK" class="text-[11px] font-bold px-2 py-2.5 rounded-xl transition" style="background:var(--bg-main);border:1px solid #94a3b8;color:#94a3b8;">یادداشت</button>
+          <button type="button" onclick="selectScheduleOrderType('TAYIDI')" id="sod-type-TAYIDI" class="text-[11px] font-bold px-2 py-2.5 rounded-xl transition" style="background:var(--bg-main);border:1px solid #38bdf8;color:#38bdf8;">تاییدی</button>
+          <button type="button" onclick="selectScheduleOrderType('MEHR_MOTARJEM')" id="sod-type-MEHR_MOTARJEM" class="text-[11px] font-bold px-2 py-2.5 rounded-xl transition" style="background:var(--bg-main);border:1px solid #c084fc;color:#c084fc;">مهر مترجم</button>
+        </div>
+      </div>
+      <div>
+        <label class="auth-label" for="sod-title">عنوان</label>
+        <input type="text" id="sod-title" class="auth-input">
+      </div>
+      <div>
+        <label class="auth-label" for="sod-due-display">مهلت (ددلاین)</label>
+        <div class="relative">
+          <input type="text" id="sod-due-display" class="auth-input" readonly placeholder="انتخاب تاریخ از تقویم..." onclick="toggleJalaliCalendar('sod-due')" style="cursor:pointer;">
+          <input type="hidden" id="sod-due">
+          <div id="sod-due-calendar" class="hidden" style="position:absolute;top:calc(100% + 4px);right:0;z-index:20;width:264px;background:var(--card-surface);border:1px solid var(--border-color);border-radius:.75rem;padding:.6rem;box-shadow:0 8px 24px rgba(0,0,0,.3);"></div>
+        </div>
+      </div>
+      <div>
+        <label class="auth-label" for="sod-status">وضعیت</label>
+        <select id="sod-status" class="auth-input" style="background:var(--input-bg);color:var(--text-main);">
+          <option value="PENDING">در انتظار</option>
+          <option value="DONE">انجام‌شده</option>
+          <option value="CANCELLED">لغو شده</option>
+        </select>
+      </div>
+      <div>
+        <label class="auth-label" for="sod-notes">یادداشت</label>
+        <textarea id="sod-notes" rows="2" class="auth-input resize-none"></textarea>
+      </div>
+    </div>
+    <div class="flex gap-2 mt-5">
+      <button type="button" onclick="deleteScheduleOrder()" class="px-4 py-2.5 rounded-xl text-sm font-black transition" style="background:var(--bg-main);color:#f87171;border:1px solid rgba(248,113,113,0.4);">حذف</button>
+      <button type="button" onclick="submitScheduleOrderEdit()" class="flex-1 py-2.5 rounded-xl text-sm font-black transition" style="background:var(--accent);color:var(--btn-text-on-accent);">ذخیره تغییرات</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── VIEW 07 · invoice dialog (preview / print-to-PDF / email / edit) ── -->
 <div role="dialog" aria-modal="true" id="invoiceViewModal" class="modal-overlay fixed inset-0 z-[80] hidden flex items-center justify-center p-4">
   <div class="w-full max-w-lg p-6" style="background:var(--card-surface);border:1px solid var(--border-color);border-radius:1rem;max-height:90vh;overflow-y:auto;">
