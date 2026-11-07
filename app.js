@@ -3498,17 +3498,29 @@ function openEditWorkRecordModalForSelection() {
     openEditWorkRecordModal(checked[0].type, checked[0].id);
 }
 
-function openEditWorkRecordModal(type, id) {
+async function openEditWorkRecordModal(type, id) {
     const row = lastActivityRows.find(r => r.type === type && String(r.id) === String(id));
     if (!row) return;
     editWorkRecordTarget = { type, id };
 
     const fieldsBox = document.getElementById('edit-work-record-fields');
     if (type === 'job') {
+        // Staff roster is lazy-loaded (only otherwise fetched by the HR
+        // settings panel) -- fetch it here too so the picker below has
+        // something to show the first time a translator edits a job.
+        if (!hrStaffList.length) await loadHrStaff();
+        const staffOptions = hrStaffList.map(s =>
+            `<option value="${s.id}" ${String(row.staffId) === String(s.id) ? 'selected' : ''}>${s.full_name}${s.is_active ? '' : ' (غیرفعال)'}</option>`
+        ).join('');
         fieldsBox.innerHTML = `
             <label class="text-xs font-bold block mb-1" style="color:var(--text-main);">قیمت (تومان)</label>
             <input type="number" id="ewr-price" class="auth-input en w-full" dir="ltr" value="${row.price || 0}">
-            <p class="text-[11px] mt-2" style="color:var(--text-muted);">فقط قیمت این سفارش قابل ویرایش است -- نوع سند تغییر نمی‌کند.</p>`;
+            <label class="text-xs font-bold block mb-1 mt-2.5" style="color:var(--text-main);">کارمند انجام‌دهنده</label>
+            <select id="ewr-staff" class="auth-input w-full">
+                <option value="">بدون تخصیص</option>
+                ${staffOptions}
+            </select>
+            <p class="text-[11px] mt-2" style="color:var(--text-muted);">فقط قیمت و کارمند انجام‌دهنده این سفارش قابل ویرایش است -- نوع سند تغییر نمی‌کند.</p>`;
     } else {
         fieldsBox.innerHTML = `
             <label class="text-xs font-bold block mb-1" style="color:var(--text-main);">شرح</label>
@@ -3536,7 +3548,10 @@ async function submitEditWorkRecord() {
     let url, body;
     if (type === 'job') {
         url = `${CORE}/jobs/${id}/fields`;
-        body = { price_toman: parseInt(document.getElementById('ewr-price').value, 10) || 0 };
+        body = {
+            price_toman: parseInt(document.getElementById('ewr-price').value, 10) || 0,
+            staff_id: document.getElementById('ewr-staff').value || '',
+        };
     } else {
         url = `${CORE}/invoices/sanam-documents/${id}`;
         body = {
@@ -3591,7 +3606,7 @@ function renderClientActivityList(jobs, sanamDocs) {
         rows.push({
             type: 'job', id: j.id, date: j.created_at,
             title: DOCUMENT_REGISTRY[j.document_type]?.label || j.document_type,
-            price: j.price_toman || 0, status: j.status,
+            price: j.price_toman || 0, status: j.status, staffId: j.staff_id || null,
             // Only a completed job has a settled price worth invoicing.
             checkable: j.status === 'completed',
         });
@@ -3617,6 +3632,14 @@ function renderClientActivityList(jobs, sanamDocs) {
     if (prefix === 'cp') renderClientStats(rows);
 
     renderActivityListPage();
+
+    // The staff roster is otherwise only fetched by the HR settings panel
+    // or the edit-work-record modal -- if a job here is already tagged,
+    // fetch it now too so renderActivityListPage can resolve the name
+    // instead of showing a raw id, then re-render once it lands.
+    if (!hrStaffList.length && rows.some(r => r.staffId)) {
+        loadHrStaff().then(() => renderActivityListPage());
+    }
 }
 
 // The part of renderClientActivityList() that actually touches the DOM --
@@ -3662,6 +3685,8 @@ function renderActivityListPage() {
             : (r.trackingCode ? `<span class="en" style="color:var(--text-muted);font-size:.65rem;">کد پیگیری ${escapeHtml(r.trackingCode)}</span>` : '');
         const dateStr = r.date ? escapeHtml(String(r.date).slice(0, 10)) : '—';
         const dotTitle = r.type === 'job' ? 'ترجمه ماشینی' : (r.type === 'sanam' ? 'وارد شده از سنام' : 'ردیف دستی');
+        const staffName = r.staffId ? (hrStaffList.find(s => String(s.id) === String(r.staffId)) || {}).full_name : null;
+        const staffBadge = staffName ? `<span class="text-[10px]" style="color:var(--text-muted);" title="کارمند انجام‌دهنده">👤 ${escapeHtml(staffName)}</span>` : '';
         const checkbox = `<input type="checkbox" ${checked ? 'checked' : ''} ${r.checkable ? '' : 'disabled'}
             data-activity-key="${escapeHtml(rowKey)}"
             onchange='toggleActivitySelection(${JSON.stringify(r.type)}, ${JSON.stringify(r.id)}, this.checked)'
@@ -3670,7 +3695,7 @@ function renderActivityListPage() {
         if (prefix === 'cp') {
             return `<tr>
                 <td style="padding:.6rem;"><span title="${dotTitle}" style="width:9px;height:9px;border-radius:50%;background:${color};display:inline-block;"></span></td>
-                <td style="padding:.6rem;color:var(--text-main);font-weight:700;">${escapeHtml(r.title)}</td>
+                <td style="padding:.6rem;color:var(--text-main);font-weight:700;">${escapeHtml(r.title)}${staffBadge ? `<br>${staffBadge}` : ''}</td>
                 <td class="en" style="padding:.6rem;color:var(--text-muted);">${idBadge || '—'}</td>
                 <td class="en" style="padding:.6rem;color:var(--text-muted);">${dateStr}</td>
                 <td class="en font-bold" style="padding:.6rem;color:var(--accent);">${r.price ? r.price.toLocaleString() + ' ت' : '—'}</td>
@@ -3680,7 +3705,7 @@ function renderActivityListPage() {
         return `<div class="flex items-center gap-2.5 p-2.5 rounded-lg text-xs" style="background:var(--bg-main);border:1px solid var(--border-subtle);border-inline-start:3px solid ${color};">
             <span title="${dotTitle}" style="width:9px;height:9px;border-radius:50%;background:${color};display:inline-block;flex-shrink:0;"></span>
             ${checkbox}
-            <span class="flex-1" style="color:var(--text-main);">${escapeHtml(r.title)}</span>
+            <span class="flex-1" style="color:var(--text-main);">${escapeHtml(r.title)}${staffBadge ? ` · ${staffBadge}` : ''}</span>
             ${idBadge}
             <span class="en shrink-0" style="color:var(--text-muted);">${dateStr}</span>
             <span class="en font-bold shrink-0" style="color:var(--accent);width:80px;text-align:left;">${r.price ? r.price.toLocaleString() + ' ت' : '—'}</span>
