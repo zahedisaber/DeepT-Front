@@ -4448,6 +4448,72 @@ const WORK_ORDER_TYPE_FA = {
     MEHR_MOTARJEM: { text: 'مهر مترجم',  color: '#c084fc' },
     TASK:          { text: 'یادداشت',    color: '#2dd4bf' },
 };
+// A translator's own color choice for each type, kept client-side only
+// (localStorage, per browser) -- these are a display preference, not data,
+// so there's no reason to round-trip them through Core. Every place that
+// colors a type badge/pill/chip already reads WORK_ORDER_TYPE_FA[t].color
+// live at render time (see setScheduleTypeFilter, refreshDayTaskTypeBtns,
+// refreshScheduleOrderTypeBtns, and the schedule render functions below),
+// so overwriting the color here and re-running those is enough to repaint
+// everything -- no separate "custom color" plumbing needed anywhere else.
+const WORK_ORDER_TYPE_DEFAULT_COLORS = { TAYIDI: '#38bdf8', MEHR_MOTARJEM: '#c084fc', TASK: '#2dd4bf' };
+const SCHEDULE_TYPE_COLORS_STORAGE_KEY = 'deept_schedule_type_colors';
+
+function loadScheduleTypeColorOverrides() {
+    try {
+        const saved = JSON.parse(localStorage.getItem(SCHEDULE_TYPE_COLORS_STORAGE_KEY) || '{}');
+        Object.keys(saved).forEach(type => {
+            if (WORK_ORDER_TYPE_FA[type] && /^#[0-9a-fA-F]{6}$/.test(saved[type])) {
+                WORK_ORDER_TYPE_FA[type].color = saved[type];
+            }
+        });
+    } catch (e) { /* corrupt/blocked storage -- just keep the defaults */ }
+}
+loadScheduleTypeColorOverrides();
+
+function refreshAllScheduleTypeColorUI() {
+    setScheduleTypeFilter(scheduleTypeFilter);
+    refreshDayTaskTypeBtns();
+    refreshScheduleOrderTypeBtns();
+}
+
+function setScheduleTypeColor(type, color) {
+    if (!WORK_ORDER_TYPE_FA[type]) return;
+    WORK_ORDER_TYPE_FA[type].color = color;
+    let saved = {};
+    try { saved = JSON.parse(localStorage.getItem(SCHEDULE_TYPE_COLORS_STORAGE_KEY) || '{}'); } catch (e) { /* start fresh */ }
+    saved[type] = color;
+    try { localStorage.setItem(SCHEDULE_TYPE_COLORS_STORAGE_KEY, JSON.stringify(saved)); } catch (e) { /* private window etc -- color still applies this session */ }
+    refreshAllScheduleTypeColorUI();
+}
+
+function resetScheduleTypeColors() {
+    Object.keys(WORK_ORDER_TYPE_DEFAULT_COLORS).forEach(type => {
+        WORK_ORDER_TYPE_FA[type].color = WORK_ORDER_TYPE_DEFAULT_COLORS[type];
+        const input = document.getElementById('schedule-color-' + type);
+        if (input) input.value = WORK_ORDER_TYPE_DEFAULT_COLORS[type];
+    });
+    try { localStorage.removeItem(SCHEDULE_TYPE_COLORS_STORAGE_KEY); } catch (e) { /* ignore */ }
+    refreshAllScheduleTypeColorUI();
+}
+
+function toggleScheduleColorPicker() {
+    const popover = document.getElementById('scheduleColorPickerPopover');
+    if (!popover) return;
+    const opening = popover.classList.contains('hidden');
+    if (opening) {
+        Object.keys(WORK_ORDER_TYPE_FA).forEach(type => {
+            const input = document.getElementById('schedule-color-' + type);
+            if (input) input.value = WORK_ORDER_TYPE_FA[type].color;
+        });
+    }
+    popover.classList.toggle('hidden');
+}
+document.addEventListener('click', (e) => {
+    const popover = document.getElementById('scheduleColorPickerPopover');
+    if (!popover || popover.classList.contains('hidden')) return;
+    if (!popover.parentElement.contains(e.target)) popover.classList.add('hidden');
+});
 const WORK_ORDER_STATUS_FA = {
     PENDING:   { text: 'در انتظار',  color: '#fbbf24' },
     DONE:      { text: 'انجام‌شده',    color: '#4ade80' },
@@ -5423,6 +5489,53 @@ function renderScheduleOrderList(orders, emptyMessage) {
     }).join('');
 }
 
+// ── Drag a schedule item from one day cell to another (month or week view)
+// to reschedule it -- "دیدم فردا تحویل شد، باید جابجاش کنم" without typing
+// a new date. Native HTML5 drag-and-drop: the item chip is the drag
+// source, the whole day cell is the drop target. Desktop/mouse only (the
+// HTML5 DnD spec has no touch equivalent), matching how this was asked for
+// ("با موس می‌گیریم... می‌ذاریم").
+let scheduleDraggingOrderId = null;
+
+function scheduleDragStart(event, orderId) {
+    scheduleDraggingOrderId = orderId;
+    event.dataTransfer.effectAllowed = 'move';
+    try { event.dataTransfer.setData('text/plain', orderId); } catch (e) { /* Safari needs the try/catch, not the data itself */ }
+}
+
+function scheduleDragOver(event) {
+    if (!scheduleDraggingOrderId) return;
+    event.preventDefault();
+    event.currentTarget.style.outline = '2px dashed var(--accent)';
+    event.currentTarget.style.outlineOffset = '-2px';
+}
+
+function scheduleDragLeave(event) {
+    event.currentTarget.style.outline = 'none';
+}
+
+async function scheduleDrop(event, iso) {
+    event.preventDefault();
+    event.currentTarget.style.outline = 'none';
+    const orderId = scheduleDraggingOrderId;
+    scheduleDraggingOrderId = null;
+    if (!orderId) return;
+    const order = (scheduleWeekOrders || []).find(o => o.id === orderId);
+    if (!order || order.due_date === iso) return;
+    try {
+        const res = await fetch(`${CORE}/work-orders/${orderId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
+            body: JSON.stringify({ due_date: iso }),
+        });
+        if (!res.ok) throw new Error();
+        showToast('تاریخ جابجا شد.');
+        await renderSchedule();
+    } catch (e) {
+        showToast('خطا در جابجایی تاریخ.');
+    }
+}
+
 async function renderScheduleWeekView() {
     const grid = document.getElementById('scheduleWeekGrid');
     const list = document.getElementById('scheduleOrderList');
@@ -5477,7 +5590,7 @@ async function renderScheduleWeekView() {
                 const s = WORK_ORDER_STATUS_FA[o.status] || { text: o.status, color: 'var(--text-muted)' };
                 const done = o.status === 'DONE';
                 return `
-                  <div onclick="openScheduleOrderDetail('${o.id}')" title="نمایش جزئیات" class="p-1.5 rounded-md text-[10px] cursor-pointer mb-1 hover:opacity-85" style="background:${(t.color) + '33'};border:1px solid ${t.color}55;border-left:3px solid ${t.color};">
+                  <div draggable="true" ondragstart="scheduleDragStart(event,'${o.id}')" onclick="openScheduleOrderDetail('${o.id}')" title="نمایش جزئیات · برای جابجایی به روز دیگر بکشید" class="p-1.5 rounded-md text-[10px] cursor-pointer mb-1 hover:opacity-85" style="background:${(t.color) + '33'};border:1px solid ${t.color}55;border-left:3px solid ${t.color};">
                     <div class="flex items-center gap-1.5 min-w-0">
                       ${scheduleDoneCheckboxHtml(o.id, done)}
                       <span class="font-bold truncate" style="color:${done ? 'var(--text-muted)' : 'var(--text-main)'};${done ? 'text-decoration:line-through;' : ''}">${o.client_name ? escapeHtml(o.client_name) + (o.title ? ' · ' + escapeHtml(o.title) : '') : escapeHtml(o.title || '—')}</span>
@@ -5491,7 +5604,7 @@ async function renderScheduleWeekView() {
             : `<div class="text-[10px] text-center py-2" style="color:var(--text-muted);">—</div>`;
 
         return `
-          <div class="p-1.5 rounded-lg" title="${escapeHtml(holidayName)}" style="background:${isToday ? 'var(--accent-hover)' : 'var(--bg-main)'};border:1px solid ${holidayName ? 'rgba(248,113,113,0.5)' : (isToday ? 'var(--border-color)' : 'var(--border-subtle)')};${overdue ? 'box-shadow:0 0 0 1px rgba(248,113,113,0.4);' : ''}">
+          <div ondragover="scheduleDragOver(event)" ondragleave="scheduleDragLeave(event)" ondrop="scheduleDrop(event,'${iso}')" class="p-1.5 rounded-lg" title="${escapeHtml(holidayName)}" style="background:${isToday ? 'var(--accent-hover)' : 'var(--bg-main)'};border:1px solid ${holidayName ? 'rgba(248,113,113,0.5)' : (isToday ? 'var(--border-color)' : 'var(--border-subtle)')};${overdue ? 'box-shadow:0 0 0 1px rgba(248,113,113,0.4);' : ''}">
             <div class="flex items-center justify-between mb-1.5" style="padding-bottom:4px;border-bottom:1px solid var(--divider);">
                 <span class="text-[11px] font-black" style="color:${holidayName || isFriday ? '#f87171' : (isToday ? 'var(--accent)' : 'var(--text-main)')};">${WEEKDAY_FA[idx]}</span>
                 <span class="flex items-center gap-1.5">
@@ -5580,14 +5693,14 @@ async function renderScheduleMonth() {
             const t = WORK_ORDER_TYPE_FA[o.order_type] || { text: o.order_type, color: 'var(--accent)' };
             const done = o.status === 'DONE';
             return `
-              <div onclick="openScheduleOrderDetail('${o.id}')" title="نمایش جزئیات" class="flex items-center gap-1 px-1 rounded text-[9px] font-bold cursor-pointer mb-0.5 hover:opacity-85" style="background:${(t.color) + '33'};border-inline-start:2px solid ${t.color};color:${done ? 'var(--text-muted)' : 'var(--text-main)'};${done ? 'text-decoration:line-through;' : ''}">
+              <div draggable="true" ondragstart="scheduleDragStart(event,'${o.id}')" onclick="openScheduleOrderDetail('${o.id}')" title="نمایش جزئیات · برای جابجایی به روز دیگر بکشید" class="flex items-center gap-1 px-1 rounded text-[9px] font-bold cursor-pointer mb-0.5 hover:opacity-85" style="background:${(t.color) + '33'};border-inline-start:2px solid ${t.color};color:${done ? 'var(--text-muted)' : 'var(--text-main)'};${done ? 'text-decoration:line-through;' : ''}">
                 ${scheduleDoneCheckboxHtml(o.id, done, true)}
                 <span class="truncate">${escapeHtml(o.client_name || o.title || '')}</span>
               </div>`;
         }).join('');
 
         return `
-          <div class="p-1 rounded-lg" title="${escapeHtml(holidayName)}" style="min-height:64px;background:${isToday ? 'var(--accent-hover)' : 'var(--bg-main)'};border:1px solid ${holidayName ? 'rgba(248,113,113,0.5)' : (isToday ? 'var(--border-color)' : 'var(--border-subtle)')};opacity:${inMonth ? '1' : '.45'};${overdue ? 'box-shadow:0 0 0 1px rgba(248,113,113,0.4);' : ''}">
+          <div ondragover="scheduleDragOver(event)" ondragleave="scheduleDragLeave(event)" ondrop="scheduleDrop(event,'${iso}')" class="p-1 rounded-lg" title="${escapeHtml(holidayName)}" style="min-height:64px;background:${isToday ? 'var(--accent-hover)' : 'var(--bg-main)'};border:1px solid ${holidayName ? 'rgba(248,113,113,0.5)' : (isToday ? 'var(--border-color)' : 'var(--border-subtle)')};opacity:${inMonth ? '1' : '.45'};${overdue ? 'box-shadow:0 0 0 1px rgba(248,113,113,0.4);' : ''}">
             <div class="flex items-center justify-between mb-1">
               <span class="text-[10px] en font-bold" style="color:${holidayName || isFriday ? '#f87171' : (isToday ? 'var(--accent)' : (inMonth ? 'var(--text-main)' : 'var(--text-muted)'))};">${dJalali.d}</span>
               <span class="flex items-center gap-1">
