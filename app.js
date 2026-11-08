@@ -400,7 +400,7 @@ function reflowOpenViewHeaderPadding() {
     if (!headerEl || headerEl.classList.contains('hidden')) return;
     const openViewId = ['workspaceDashboard', 'clientsWorkspace', 'adminDashboard',
         'clientProfilePage', 'workSchedulePage', 'settingsPage', 'accountSettingsPage',
-        'docSamplesPage', 'myPriceListPage', 'hrPage', 'homePanelsPage', 'dateConverterPage']
+        'docSamplesPage', 'myPriceListPage', 'hrPage', 'homePanelsPage', 'dateConverterPage', 'receptionistPage']
         .find(id => {
             const el = document.getElementById(id);
             return el && !el.classList.contains('hidden');
@@ -2891,6 +2891,7 @@ async function openWorkspaceDashboard(pushHistory = true) {
     document.getElementById('myPriceListPage').classList.add('hidden');
     document.getElementById('homePanelsPage').classList.add('hidden');
     document.getElementById('dateConverterPage').classList.add('hidden');
+    document.getElementById('receptionistPage').classList.add('hidden');
     document.getElementById('hrPage').classList.add('hidden');
 
     // Reserve exactly as much top space as the header actually needs,
@@ -2931,6 +2932,7 @@ async function openClientsWorkspace(pushHistory = true) {
     document.getElementById('myPriceListPage').classList.add('hidden');
     document.getElementById('homePanelsPage').classList.add('hidden');
     document.getElementById('dateConverterPage').classList.add('hidden');
+    document.getElementById('receptionistPage').classList.add('hidden');
     document.getElementById('hrPage').classList.add('hidden');
 
     const headerEl = document.querySelector('.header-bar');
@@ -2977,6 +2979,8 @@ function showLandingView() {
     if (hp) hp.classList.add('hidden');
     const dc = document.getElementById('dateConverterPage');
     if (dc) dc.classList.add('hidden');
+    const rcp = document.getElementById('receptionistPage');
+    if (rcp) rcp.classList.add('hidden');
     const hrp = document.getElementById('hrPage');
     if (hrp) hrp.classList.add('hidden');
     document.body.style.overflow = 'auto';
@@ -3004,6 +3008,7 @@ function openDateConverterPage(pushHistory = true) {
 
 function closeDateConverterPage() {
     document.getElementById('dateConverterPage').classList.add('hidden');
+    document.getElementById('receptionistPage').classList.add('hidden');
     document.body.style.overflow = 'auto';
     openHomePanels(false);
 }
@@ -4958,7 +4963,7 @@ function hideWorkspaceViews() {
     const lp = document.getElementById('landingPage');
     if (lp) lp.style.display = 'none';
     ['workspaceDashboard', 'clientsWorkspace', 'adminDashboard',
-     'clientProfilePage', 'workSchedulePage', 'settingsPage', 'accountSettingsPage', 'docSamplesPage', 'myPriceListPage', 'hrPage', 'homePanelsPage', 'dateConverterPage'].forEach(id => {
+     'clientProfilePage', 'workSchedulePage', 'settingsPage', 'accountSettingsPage', 'docSamplesPage', 'myPriceListPage', 'hrPage', 'homePanelsPage', 'dateConverterPage', 'receptionistPage'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.add('hidden');
     });
@@ -6555,6 +6560,17 @@ function applyRouteForPath(path) {
 
         if (currentUserSession) {
             openMyPriceListPage(false);
+        } else {
+            navigateTo('/', false);
+            showLandingView();
+            openLogin();
+            showToast('برای دسترسی به این بخش، ابتدا وارد شوید.');
+        }
+
+    } else if (path === '/home/receptionist') {
+
+        if (currentUserSession) {
+            openReceptionistPage(false);
         } else {
             navigateTo('/', false);
             showLandingView();
@@ -8251,6 +8267,7 @@ function showAdminDashboard() {
     document.getElementById('myPriceListPage').classList.add('hidden');
     document.getElementById('homePanelsPage').classList.add('hidden');
     document.getElementById('dateConverterPage').classList.add('hidden');
+    document.getElementById('receptionistPage').classList.add('hidden');
     document.getElementById('hrPage').classList.add('hidden');
     document.getElementById('adminDashboard').classList.remove('hidden');
     switchAdminTab('users');

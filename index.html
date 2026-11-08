@@ -28,6 +28,7 @@
        09  signupOverlay         signup dialog (first copy — used by JS)
        10  chatModal             translation pipeline (doc type → passport → doc)
       10.5 homePanelsPage        صفحه نخست -- round-corner feature panel grid
+      10.7 receptionistPage      منشی هوشمند -- AI receptionist (calls + chat)
        11  workspaceDashboard    translation projects view
        12  clientsWorkspace      clients list + Sanam import view
        13  workSchedulePage      office weekly schedule view
@@ -1088,6 +1089,11 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
         <span class="home-panel-title">حضور غیاب</span>
         <span class="home-panel-desc">ورود و خروج پرسنل</span>
       </button>
+      <button type="button" onclick="openReceptionistPage()" class="workspace-panel home-panel-card p-5">
+        <svg class="home-panel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h3.5l1.6 4-2.2 1.4a11 11 0 0 0 5.7 5.7l1.4-2.2 4 1.6V18a2 2 0 0 1-2 2A15 15 0 0 1 3 6a2 2 0 0 1 2-2Z"/><path d="M15 3.5a5.5 5.5 0 0 1 5.5 5.5M15 7a2 2 0 0 1 2 2"/></svg>
+        <span class="home-panel-title">منشی هوشمند</span>
+        <span class="home-panel-desc">پاسخ به تماس‌ها، قیمت و ثبت سفارش</span>
+      </button>
       <button type="button" onclick="openDateConverterPage()" class="workspace-panel home-panel-card p-5">
         <svg class="home-panel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="1.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><path d="m8.5 13.5 2 2 4-4.3"/></svg>
         <span class="home-panel-title">تبدیل تاریخ</span>
@@ -1164,6 +1170,148 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
             </button>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── VIEW 10.7 · منشی هوشمند (AI receptionist) -- answers phone calls
+     (voice mode) and chat for the office: prices from نرخنامه من, hours,
+     address, requirements, intake → درخواست‌ها inbox, call log. All logic
+     in receptionist.js (rcp* ids/functions). ── -->
+<section id="receptionistPage" class="fixed inset-0 z-40 hidden overflow-y-auto p-4 pt-24 md:p-8 md:pt-24" style="background: var(--bg-secondary);">
+  <div class="max-w-5xl mx-auto space-y-5">
+    <div class="flex items-center justify-between gap-3 flex-wrap">
+      <h2 class="text-xl font-black flex items-center gap-2" style="color:var(--text-main);">☎️ منشی هوشمند دفتر ترجمه</h2>
+      <button type="button" onclick="closeReceptionistPage()" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">صفحه نخست ←</button>
+    </div>
+
+    <div class="flex flex-wrap gap-2">
+      <button type="button" id="rcp-tab-chat" class="rcp-tab" onclick="rcpSwitchTab('chat')">📞 تماس و گفتگوی آزمایشی</button>
+      <button type="button" id="rcp-tab-calls" class="rcp-tab" onclick="rcpSwitchTab('calls')">🗂 تماس‌ها</button>
+      <button type="button" id="rcp-tab-leads" class="rcp-tab" onclick="rcpSwitchTab('leads')">📥 درخواست‌ها <span id="rcp-leads-badge" class="rcp-badge hidden">۰</span></button>
+      <button type="button" id="rcp-tab-settings" class="rcp-tab" onclick="rcpSwitchTab('settings')">⚙️ تنظیمات منشی</button>
+    </div>
+
+    <!-- chat / call -->
+    <div id="rcp-pane-chat" class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      <div class="workspace-panel lg:col-span-2 flex flex-col" style="height:min(70vh,640px);">
+        <div class="flex items-center justify-between gap-2 px-5 py-3" style="border-bottom:1px solid var(--border-subtle);">
+          <div>
+            <div class="font-black text-sm" id="rcp-chat-title" style="color:var(--text-main);">منشی</div>
+            <div class="text-[11px] font-bold" id="rcp-chat-status"></div>
+          </div>
+          <button type="button" class="rcp-btn" onclick="rcpResetChat()">↺ گفتگوی تازه</button>
+        </div>
+        <div id="rcp-call-panel" class="hidden px-5 py-3 flex flex-wrap items-center justify-between gap-3" style="background:rgba(34,197,94,.08);border-bottom:1px solid var(--border-subtle);">
+          <div class="flex items-center gap-3">
+            <span class="rcp-call-dot"></span>
+            <div>
+              <div class="text-sm font-black" style="color:var(--text-main);">تماس در جریان · <span id="rcp-call-timer" dir="ltr">۰۰:۰۰</span></div>
+              <div class="text-[11px]" id="rcp-call-state" style="color:var(--text-muted);"></div>
+              <div class="text-[11px] hidden" id="rcp-call-voice-note" style="color:#f59e0b;">صدای فارسی روی این دستگاه نصب نیست؛ پاسخ ممکن است درست خوانده نشود.</div>
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <button type="button" id="rcp-call-mute" class="rcp-btn" onclick="rcpToggleMute()">🔊 صدای منشی: روشن</button>
+            <button type="button" class="rcp-btn" onclick="rcpEndCall()" style="background:#ef4444;color:#fff;border-color:#ef4444;">قطع تماس</button>
+          </div>
+        </div>
+        <div id="rcp-messages" class="flex-1 overflow-y-auto p-4 space-y-3"></div>
+        <div id="rcp-chips" class="flex flex-wrap gap-2 px-4 pb-2"></div>
+        <form class="flex gap-2 p-3" style="border-top:1px solid var(--border-subtle);" onsubmit="event.preventDefault(); rcpSend();">
+          <input id="rcp-input" class="converter-input flex-1 text-sm" autocomplete="off" placeholder="پیام مشتری را بنویسید... (مثلاً: ترجمه سند ازدواج به انگلیسی چند می‌شود؟)">
+          <button type="submit" class="font-black text-xs px-4 py-2.5 rounded-lg" style="background:var(--accent);color:var(--btn-text-on-accent);">ارسال</button>
+        </form>
+      </div>
+      <div class="space-y-4">
+        <div class="workspace-panel p-5">
+          <h3 class="font-black text-sm mb-2" style="color:var(--text-main);">پاسخ به تماس‌ها</h3>
+          <p class="text-xs leading-6 mb-3" style="color:var(--text-muted);">مثل یک تماس واقعی صحبت کنید: منشی گوش می‌دهد، به فارسی جواب می‌دهد، قیمت را از نرخنامهٔ شما می‌گوید و در صورت تمایل تماس‌گیرنده، سفارش را ثبت می‌کند. شماره موبایل را می‌توانید به‌صورت گفتاری بگویید.</p>
+          <button type="button" id="rcp-call-start" onclick="rcpStartCall()" class="w-full font-black text-sm px-4 py-3 rounded-xl" style="background:#22c55e;color:#04210f;">📞 شبیه‌سازی تماس ورودی</button>
+          <p class="text-[11px] mt-2" style="color:var(--text-muted);">نیازمند میکروفون و مرورگر Chrome یا Edge.</p>
+        </div>
+        <div class="workspace-panel p-5 text-xs leading-6" style="color:var(--text-muted);">
+          <h3 class="font-black text-sm mb-2" style="color:var(--text-main);">منشی چه می‌داند؟</h3>
+          <ul class="list-disc pr-4 space-y-1">
+            <li>قیمت حدود ۲۳۰ نوع مدرک از <b>نرخنامه من</b> (با قیمت‌های شخصی شما)</li>
+            <li>ساعات کاری، باز/بسته بودن دفتر به وقت تهران</li>
+            <li>آدرس، تلفن، زبان‌ها، زمان تحویل و ترجمه فوری</li>
+            <li>مدارک لازم و تأییدات دادگستری/خارجه</li>
+            <li>پرسش‌های متداولی که خودتان اضافه می‌کنید</li>
+          </ul>
+          <div class="mt-3 text-[11px]">موتور پاسخ: <span id="rcp-engine-label" style="color:var(--accent);"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- calls log -->
+    <div id="rcp-pane-calls" class="hidden space-y-4">
+      <div id="rcp-calls-stats" class="grid grid-cols-2 md:grid-cols-4 gap-3"></div>
+      <div id="rcp-calls-list" class="space-y-3"></div>
+    </div>
+
+    <!-- leads -->
+    <div id="rcp-pane-leads" class="hidden space-y-4">
+      <div class="flex flex-wrap gap-2">
+        <button type="button" class="rcp-tab" data-rcp-filter="all" onclick="rcpSetLeadFilter('all')">همه</button>
+        <button type="button" class="rcp-tab" data-rcp-filter="new" onclick="rcpSetLeadFilter('new')">جدید</button>
+        <button type="button" class="rcp-tab" data-rcp-filter="contacted" onclick="rcpSetLeadFilter('contacted')">تماس گرفته شد</button>
+        <button type="button" class="rcp-tab" data-rcp-filter="converted" onclick="rcpSetLeadFilter('converted')">تبدیل به مشتری</button>
+        <button type="button" class="rcp-tab" data-rcp-filter="closed" onclick="rcpSetLeadFilter('closed')">بسته شد</button>
+      </div>
+      <div id="rcp-leads-list" class="space-y-3"></div>
+    </div>
+
+    <!-- settings -->
+    <div id="rcp-pane-settings" class="hidden space-y-5">
+      <div class="workspace-panel p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <h3 class="md:col-span-2 font-black text-sm" style="color:var(--text-main);">مشخصات دفتر</h3>
+        <label class="rcp-field"><span>نام دفتر</span><input id="rcp-s-office" class="converter-input" placeholder="مثلاً دفتر ترجمه رسمی ۱۲۳ تهران"></label>
+        <label class="rcp-field"><span>نام منشی</span><input id="rcp-s-assistant" class="converter-input" placeholder="سارا"></label>
+        <label class="rcp-field"><span>تلفن دفتر</span><input id="rcp-s-phone" class="converter-input" dir="ltr"></label>
+        <label class="rcp-field"><span>واتساپ</span><input id="rcp-s-whatsapp" class="converter-input" dir="ltr"></label>
+        <label class="rcp-field md:col-span-2"><span>آدرس</span><input id="rcp-s-address" class="converter-input"></label>
+        <label class="rcp-field md:col-span-2"><span>لینک نقشه (نشان/بلد/گوگل)</span><input id="rcp-s-map" class="converter-input" dir="ltr"></label>
+        <label class="rcp-field md:col-span-2"><span>متن خوشامد گفتگو (خالی = پیش‌فرض)</span><textarea id="rcp-s-greeting" class="converter-input" rows="2"></textarea></label>
+      </div>
+
+      <div class="workspace-panel p-6 space-y-3">
+        <h3 class="font-black text-sm" style="color:var(--text-main);">ساعات کاری <span class="text-[11px] font-normal" style="color:var(--text-muted);">(به وقت تهران)</span></h3>
+        <div id="rcp-s-hours" class="space-y-2"></div>
+      </div>
+
+      <div class="workspace-panel p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <h3 class="md:col-span-3 font-black text-sm" style="color:var(--text-main);">خدمات و قیمت‌گذاری</h3>
+        <label class="rcp-field md:col-span-3"><span>زبان‌های ترجمه</span><input id="rcp-s-langs" class="converter-input"></label>
+        <label class="rcp-field"><span>تحویل عادی (روز کاری)</span><input id="rcp-s-normal" type="number" min="0" class="converter-input" dir="ltr"></label>
+        <label class="rcp-field"><span>تحویل فوری (روز کاری)</span><input id="rcp-s-urgent" type="number" min="0" class="converter-input" dir="ltr"></label>
+        <label class="rcp-field"><span>اضافه هزینه فوری (٪)</span><input id="rcp-s-urgent-pct" type="number" min="0" class="converter-input" dir="ltr"></label>
+        <div class="md:col-span-3 flex flex-wrap gap-x-6 gap-y-2 text-sm" style="color:var(--text-main);">
+          <label class="flex items-center gap-2"><input type="checkbox" id="rcp-s-fee-justice"> افزودن تمبر دادگستری به برآورد</label>
+          <label class="flex items-center gap-2"><input type="checkbox" id="rcp-s-fee-foreign"> افزودن مهر خارجه به برآورد</label>
+          <label class="flex items-center gap-2"><input type="checkbox" id="rcp-s-fee-service"> افزودن هزینه خدمات به برآورد</label>
+          <label class="flex items-center gap-2"><input type="checkbox" id="rcp-s-courier"> پیک دارد</label>
+        </div>
+        <p class="md:col-span-3 text-[11px]" style="color:var(--text-muted);">مبالغ از «نرخنامه من» خوانده می‌شوند؛ برای تغییر قیمت‌ها همان‌جا ویرایش کنید.</p>
+        <label class="rcp-field md:col-span-3"><span>نکته‌ای که منشی همیشه درباره مدارک لازم بگوید</span><textarea id="rcp-s-notes" class="converter-input" rows="2"></textarea></label>
+      </div>
+
+      <div class="workspace-panel p-6 space-y-3">
+        <div class="flex items-center justify-between gap-2">
+          <h3 class="font-black text-sm" style="color:var(--text-main);">پرسش‌های متداول دفتر</h3>
+          <button type="button" class="rcp-btn" onclick="rcpAddFaq()">+ افزودن پرسش</button>
+        </div>
+        <div id="rcp-s-faqs" class="space-y-3"></div>
+      </div>
+
+      <div class="workspace-panel p-6 space-y-2">
+        <label class="flex items-center gap-2 text-sm font-bold" style="color:var(--text-main);"><input type="checkbox" id="rcp-s-ai"> پاسخ با مدل زبانی سرور و خط تلفن واقعی</label>
+        <p class="text-[11px] leading-5" style="color:var(--text-muted);">در صورت فعال بودن، پرسش‌های آزاد با قیمت‌های محاسبه‌شده به سرور DeepT ارسال می‌شود و تماس‌های خط تلفن دفتر (در صورت اتصال) در «تماس‌ها» نمایش داده می‌شود. اگر سرور در دسترس نباشد، منشی با موتور داخلی پاسخ می‌دهد. ثبت سفارش همیشه با موتور داخلی انجام می‌شود.</p>
+      </div>
+
+      <div class="flex justify-end">
+        <button type="button" onclick="rcpSaveSettings()" class="font-black text-sm px-6 py-3 rounded-xl" style="background:var(--accent);color:var(--btn-text-on-accent);">ذخیرهٔ تنظیمات منشی</button>
       </div>
     </div>
   </div>
@@ -2585,5 +2733,6 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
 
 <script src="/price-catalog.js"></script>
 <script src="/app.js"></script>
+<script src="/receptionist.js"></script>
 </body>
 </html>
