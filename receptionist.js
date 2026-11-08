@@ -1331,12 +1331,30 @@ function rcpStartCall() {
                 rcpCallTurn(finalText.trim());
             }
         };
+        // Browser speech recognition runs on the vendor's servers (Google
+        // for Chrome, Microsoft for Edge); they may not serve Persian or may
+        // be unreachable from Iran. Fatal errors used to be swallowed, so the
+        // call sat on «در حال شنیدن» forever -- now they stop listening and
+        // say why, and the call continues with typed input.
         r.onerror = ev => {
-            if (ev.error === 'not-allowed' || ev.error === 'service-not-allowed') {
-                showToast('دسترسی به میکروفون داده نشد؛ می‌توانید پاسخ‌ها را تایپ کنید.', 4000);
+            if (!rcpCall) return;
+            const FATAL = {
+                'not-allowed': 'دسترسی به میکروفون داده نشد (روی آیکون میکروفون در نوار آدرس بزنید و اجازه دهید).',
+                'service-not-allowed': 'مرورگر اجازهٔ سرویس تشخیص گفتار را نداد.',
+                'audio-capture': 'میکروفونی پیدا نشد یا برنامهٔ دیگری از آن استفاده می‌کند.',
+                'network': 'سرویس تشخیص گفتار مرورگر در دسترس نیست (این سرویس روی سرورهای Google/Microsoft اجرا می‌شود).',
+                'language-not-supported': 'تشخیص گفتار فارسی در این مرورگر پشتیبانی نمی‌شود.',
+            };
+            if (FATAL[ev.error]) {
                 rcpCall.recog = null;
+                rcpCall.listening = false;
+                rcpCall.recogError = `${FATAL[ev.error]} (کد: ${ev.error}) — پیام‌ها را تایپ کنید؛ منشی همچنان با صدا جواب می‌دهد.`;
+                showToast('🎙 ' + FATAL[ev.error], 6000);
+                rcpRenderCallPanel();
             } else if (ev.error === 'no-speech') {
                 rcpCall.silence++;
+            } else if (ev.error !== 'aborted') {
+                console.warn('Speech recognition error:', ev.error);
             }
         };
         r.onend = () => {
@@ -1459,7 +1477,7 @@ function rcpRenderCallPanel() {
     if (rcpCall.speaking) state = '🔊 منشی در حال صحبت';
     else if (rcpCall.busy) state = '… در حال پاسخ';
     else if (rcpCall.listening) state = '🎙 در حال شنیدن' + (rcpCall.interim ? ': «' + rcpCall.interim + '»' : '');
-    else if (!rcpCall.recog) state = '⌨️ میکروفون در دسترس نیست — پاسخ را تایپ کنید';
+    else if (!rcpCall.recog) state = rcpCall.recogError || '⌨️ میکروفون در دسترس نیست — پاسخ را تایپ کنید';
     document.getElementById('rcp-call-state').textContent = state;
     document.getElementById('rcp-call-mute').textContent = rcpCall.muted ? '🔈 صدای منشی: خاموش' : '🔊 صدای منشی: روشن';
     const vn = document.getElementById('rcp-call-voice-note');
