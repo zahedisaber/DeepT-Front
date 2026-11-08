@@ -644,6 +644,21 @@ document.getElementById('editWorkRecordModal').addEventListener('click', functio
 // check, which broke every time the office's ISP reassigned its public IP.
 // ═══════════════════════════════════════════════════════════
 
+// حضور غیاب is a physical, Iran-office attendance system -- a punch time
+// must always read as Tehran local time, regardless of the device/browser's
+// own system timezone (an office PC left on UTC, or a manager checking the
+// timesheet from abroad, would otherwise silently show the wrong hour).
+// clock_in/clock_out are stored in UTC (see hr.py) and converted here at
+// display time; 'en-CA' reliably formats as YYYY-MM-DD across browsers,
+// which is what the date-range filter below needs.
+const HR_TIMEZONE = 'Asia/Tehran';
+function _tehranDateString(date) {
+    return date.toLocaleDateString('en-CA', { timeZone: HR_TIMEZONE });
+}
+function _tehranTimeString(iso) {
+    return new Date(iso).toLocaleString('fa-IR', { timeZone: HR_TIMEZONE });
+}
+
 // Promise wrapper around the Geolocation API, shared by the clock-in/out
 // PIN pad and registerHrLocation() below.
 function _getGeoPosition() {
@@ -704,7 +719,7 @@ async function submitHrClock() {
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.detail || 'خطای سرور');
         const time = new Date(data.record.clock_in && data.action === 'clock_in' ? data.record.clock_in : data.record.clock_out)
-            .toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
+            .toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit', timeZone: HR_TIMEZONE });
         status.style.color = 'var(--accent)';
         status.textContent = data.action === 'clock_in'
             ? `✅ ورود ${data.record.staff_name} ساعت ${time} ثبت شد.`
@@ -735,8 +750,8 @@ async function loadHrSettings() {
     if (!fromInput.value && !toInput.value) {
         const today = new Date();
         const twoWeeksAgo = new Date(today.getTime() - 13 * 24 * 60 * 60 * 1000);
-        toInput.value = today.toISOString().slice(0, 10);
-        fromInput.value = twoWeeksAgo.toISOString().slice(0, 10);
+        toInput.value = _tehranDateString(today);
+        fromInput.value = _tehranDateString(twoWeeksAgo);
     }
     await Promise.all([loadHrLocation(), loadHrStaff(), loadHrAttendance()]);
 }
@@ -959,7 +974,7 @@ function renderHrPresentNow(rows) {
         return;
     }
     rows.forEach(r => {
-        const inTime = new Date(r.clock_in).toLocaleString('fa-IR');
+        const inTime = _tehranTimeString(r.clock_in);
         const row = document.createElement('div');
         row.className = 'flex items-center justify-between gap-2 flex-wrap p-2.5 rounded-lg text-[11px]';
         row.style.cssText = 'background:rgba(52,199,89,.08);border:1px solid rgba(52,199,89,.25);';
@@ -983,8 +998,8 @@ function renderHrAttendanceList(rows) {
         return;
     }
     rows.forEach(r => {
-        const inTime = new Date(r.clock_in).toLocaleString('fa-IR');
-        const outTime = r.clock_out ? new Date(r.clock_out).toLocaleString('fa-IR') : 'هنوز حاضر است';
+        const inTime = _tehranTimeString(r.clock_in);
+        const outTime = r.clock_out ? _tehranTimeString(r.clock_out) : 'هنوز حاضر است';
         const row = document.createElement('div');
         row.className = 'p-2 rounded-lg text-[11px]';
         row.style.cssText = 'background:var(--bg-main);border:1px solid var(--border-subtle);';
