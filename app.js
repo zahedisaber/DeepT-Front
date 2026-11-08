@@ -17,8 +17,8 @@
 // const CORE    = 'http://127.0.0.1:8001';
 // const BACKEND = 'http://127.0.0.1:8000';
 
-const CORE    = 'https://core-ir.deept.ir';
-const BACKEND = 'https://backend-ir.deept.ir';
+const CORE    = 'https://core.deept.ir';
+const BACKEND = 'https://backend.deept.ir';
 
 // ═══════════════════════════════════════════════════════════
 // DOCUMENT REGISTRY
@@ -39,6 +39,8 @@ const DOCUMENT_REGISTRY = {
     'vehicle-deed': {
         label:               'سند مالکیت خودرو (برگ سبز)',
         endpoint: `${BACKEND}/api/translate/vehicle-deed`,
+        // Re-enabled after the BackEnd rework (DeepT-Back-End #71: eboo OCR
+        // for the Number / postal code / national ID, Gemini for the rest).
         active:              true,
         usePassportSession:  true,
     },
@@ -47,6 +49,11 @@ const DOCUMENT_REGISTRY = {
         endpoint: `${BACKEND}/api/translate/notary-deed`,
         active:              true,
         usePassportSession:  true,
+        // Notary deed scans run large (multi-page, high-res) and were
+        // failing after all 3 direct-upload attempts with no fallback
+        // (DeepT-Back-End now accepts upload_id here too -- see
+        // notary_deed.py's handle_notary_translation).
+        chunkedUpload:       true,
     },
     'academic-transcript': {
         label:               'ریزنمرات علوم پزشکی',
@@ -85,6 +92,16 @@ const DOCUMENT_REGISTRY = {
         active:              true,
         usePassportSession:  true,
     },
+    'azad-provisional-transcript': {
+        label:               'ریزنمرات موقت دانشگاه آزاد اسلامی',
+        // Provisional transcript printout: semester blocks read from
+        // enlarged crops (see azad_provisional_transcript.py on
+        // DeepT-Back-End). Passport sessions are matched to the student.
+        endpoint: `${BACKEND}/api/translate/azad-provisional-transcript`,
+        active:              true,
+        usePassportSession:  true,
+        courseCodesToggle:   true,
+    },
     'general-transcript': {
         label:               'ریزنمرات سیستم گلستان',
         endpoint: `${BACKEND}/api/translate/general-transcript`,
@@ -104,7 +121,33 @@ const DOCUMENT_REGISTRY = {
         endpoint: `${BACKEND}/api/translate/consolidated-insurance-record`,
         active:              true,
         usePassportSession:  true,
-    },    'national-id-card': {
+    },
+    'insurance-list-receipt': {
+        label:               'رسید بیمه شدگان لیست اینترنتی-تامین اجتماعی',
+        // Employer's monthly list: page-1 summary + employee wage table
+        // (see insurance_list_receipt.py on DeepT-Back-End). No passport
+        // matching on the backend -- usePassportSession only keeps the
+        // usual client link (client_id) in the request.
+        endpoint: `${BACKEND}/api/translate/insurance-list-receipt`,
+        active:              true,
+        usePassportSession:  true,
+    },
+    'insurance-wage-record': {
+        label:               'سوابق پرداخت حق بیمه و ریز دستمزد - تامین اجتماعی',
+        // Days worked and wage per month for every workshop-year (see
+        // insurance_wage_record.py on DeepT-Back-End). The backend matches
+        // passport sessions to the insured person (name + date of birth).
+        endpoint: `${BACKEND}/api/translate/insurance-wage-record`,
+        active:              true,
+        usePassportSession:  true,
+    },
+    'building-permit': {
+        label:               'پروانه های ساختمانی',
+        endpoint: `${BACKEND}/api/translate/building-permit`,
+        active:              true,
+        usePassportSession:  true,
+    },
+    'national-id-card': {
         label:               'کارت ملی',
         // Text read by eboo OCR, not Gemini vision (see national_id_card.py
         // on DeepT-Back-End). One file: front only, or a PDF of both sides.
@@ -289,6 +332,83 @@ async function syncProfileFromServer() {
     } catch (e) { /* offline or Core unreachable -- keep the cached value, try again next load */ }
 }
 
+// ═══════════════════════════════════════════════════════════
+// SYSTEM ANNOUNCEMENT BANNER (پنل مدیریت → publishSystemAnnouncement())
+// ═══════════════════════════════════════════════════════════
+// Shows an admin-published alert at the top of every logged-in user's
+// dashboard (see announcements.py). Keyed by the announcement's own
+// created_at, not a plain "seen it" flag -- so dismissing one doesn't
+// hide a newer one published later in the same browser.
+async function loadSystemAnnouncement() {
+    if (!currentUserSession || !currentUserSession.token) return;
+    const banner = document.getElementById('systemAnnouncementBanner');
+    if (!banner) return;
+    try {
+        const res = await fetch(`${CORE}/announcements/active`, {
+            headers: { 'Authorization': `Bearer ${currentUserSession.token}` }
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data.active) { banner.classList.add('hidden'); return; }
+        if (localStorage.getItem('deept_dismissed_announcement') === data.created_at) {
+            banner.classList.add('hidden');
+            return;
+        }
+        document.getElementById('systemAnnouncementText').textContent = data.message;
+        banner.dataset.createdAt = data.created_at;
+        banner.classList.remove('hidden');
+        banner.classList.add('flex');
+    } catch (e) { /* offline or Core unreachable -- leave banner as it was */
+    } finally {
+        // Whatever the banner ended up doing (appearing, staying hidden,
+        // or resolving after a view was already open) -- make sure
+        // whichever view is open right now reserves the right amount of
+        // top space for the header's ACTUAL current height. See
+        // reflowOpenViewHeaderPadding()'s own comment for why this can't
+        // just be done once, synchronously, at view-open time.
+        reflowOpenViewHeaderPadding();
+    }
+}
+
+function dismissSystemAnnouncement() {
+    const banner = document.getElementById('systemAnnouncementBanner');
+    if (!banner) return;
+    if (banner.dataset.createdAt) {
+        localStorage.setItem('deept_dismissed_announcement', banner.dataset.createdAt);
+    }
+    banner.classList.add('hidden');
+    banner.classList.remove('flex');
+    reflowOpenViewHeaderPadding();
+}
+
+// showFullView() measures .header-bar's live height once, when a view
+// first opens, and reserves that much top padding so the view's own
+// content never renders under the fixed header -- including
+// systemAnnouncementBanner, since it's part of .header-bar's own box (see
+// its HTML comment). But loadSystemAnnouncement() fetches and toggles
+// that banner ASYNCHRONOUSLY, after the page's own startup routing may
+// have already opened a view (most visibly on a direct URL load/refresh
+// of a route like /price-list, where showFullView() runs before that
+// fetch resolves) -- so the reserved padding can be a stale, too-short
+// snapshot from before the banner appeared, leaving the header's real
+// (now taller) box overlapping the top of the page. Re-measuring and
+// re-applying padding here, right after the banner's visibility is
+// actually known (shown or dismissed), fixes that regardless of why the
+// original measurement was stale.
+function reflowOpenViewHeaderPadding() {
+    const headerEl = document.querySelector('.header-bar');
+    if (!headerEl || headerEl.classList.contains('hidden')) return;
+    const openViewId = ['workspaceDashboard', 'clientsWorkspace', 'adminDashboard',
+        'clientProfilePage', 'workSchedulePage', 'settingsPage', 'accountSettingsPage',
+        'docSamplesPage', 'myPriceListPage', 'hrPage', 'homePanelsPage', 'dateConverterPage', 'receptionistPage']
+        .find(id => {
+            const el = document.getElementById(id);
+            return el && !el.classList.contains('hidden');
+        });
+    if (!openViewId) return;
+    document.getElementById(openViewId).style.paddingTop = (headerEl.offsetHeight + 16) + 'px';
+}
+
 let currentUserSession = loadSession();
 let trackingProjectsDatabase = [];
 let resetPasswordToken = null; // carried from ?reset_token=... on page load through to handleResetPassword()
@@ -396,6 +516,7 @@ function syncUserSessionDOM() {
     toggle('railPriceListBtn',   !loggedIn);
     toggle('railSettingsBtn',    !loggedIn);
     toggle('railAccountSettingsBtn', !loggedIn);
+    toggle('railDocSamplesBtn',  !loggedIn);
     toggle('railAdminPanelBtn',  !loggedIn || localStorage.getItem('deept_is_admin') !== '1');
     toggle('railHrClockBtn',    !isOffice);
     // صفحه نخست panel grid -- same admin/office gating as the rail buttons above.
@@ -523,6 +644,21 @@ document.getElementById('editWorkRecordModal').addEventListener('click', functio
 // check, which broke every time the office's ISP reassigned its public IP.
 // ═══════════════════════════════════════════════════════════
 
+// حضور غیاب is a physical, Iran-office attendance system -- a punch time
+// must always read as Tehran local time, regardless of the device/browser's
+// own system timezone (an office PC left on UTC, or a manager checking the
+// timesheet from abroad, would otherwise silently show the wrong hour).
+// clock_in/clock_out are stored in UTC (see hr.py) and converted here at
+// display time; 'en-CA' reliably formats as YYYY-MM-DD across browsers,
+// which is what the date-range filter below needs.
+const HR_TIMEZONE = 'Asia/Tehran';
+function _tehranDateString(date) {
+    return date.toLocaleDateString('en-CA', { timeZone: HR_TIMEZONE });
+}
+function _tehranTimeString(iso) {
+    return new Date(iso).toLocaleString('fa-IR', { timeZone: HR_TIMEZONE });
+}
+
 // Promise wrapper around the Geolocation API, shared by the clock-in/out
 // PIN pad and registerHrLocation() below.
 function _getGeoPosition() {
@@ -545,6 +681,7 @@ function _getGeoPosition() {
 
 function openHrClockWidget() {
     document.getElementById('hr-clock-pin').value = '';
+    document.getElementById('hr-clock-remote').checked = false;
     document.getElementById('hr-clock-status').classList.add('hidden');
     document.getElementById('hrClockOverlay').classList.remove('hidden');
     document.getElementById('hr-clock-pin').focus();
@@ -570,24 +707,35 @@ async function submitHrClock() {
         return;
     }
     btn.disabled = true;
-    status.style.color = 'var(--text-muted)';
-    status.textContent = 'در حال دریافت موقعیت مکانی...';
+    const remote = document.getElementById('hr-clock-remote').checked;
     try {
-        const { lat, lng } = await _getGeoPosition();
+        // A remote punch needs no GPS at all -- that's the whole point --
+        // so only ask the browser for one when it might actually be used.
+        // (A remote clock-OUT sends no lat/lng either; Core reads the
+        // shift's remote-ness from the already-open record either way, see
+        // hr.py's clock(), so this can't wrongly re-demand the geofence.)
+        let lat = null, lng = null;
+        if (!remote) {
+            status.style.color = 'var(--text-muted)';
+            status.textContent = 'در حال دریافت موقعیت مکانی...';
+            ({ lat, lng } = await _getGeoPosition());
+        }
+        status.style.color = 'var(--text-muted)';
         status.textContent = 'در حال ثبت...';
         const res = await fetch(`${CORE}/hr/clock`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ pin, lat, lng })
+            body: JSON.stringify({ pin, lat, lng, remote })
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(data.detail || 'خطای سرور');
         const time = new Date(data.record.clock_in && data.action === 'clock_in' ? data.record.clock_in : data.record.clock_out)
-            .toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' });
+            .toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit', timeZone: HR_TIMEZONE });
         status.style.color = 'var(--accent)';
+        const remoteTag = data.record.is_remote ? ' 🏠 (دورکاری)' : '';
         status.textContent = data.action === 'clock_in'
-            ? `✅ ورود ${data.record.staff_name} ساعت ${time} ثبت شد.`
-            : `✅ خروج ${data.record.staff_name} ساعت ${time} ثبت شد.`;
+            ? `✅ ورود ${data.record.staff_name} ساعت ${time} ثبت شد.${remoteTag}`
+            : `✅ خروج ${data.record.staff_name} ساعت ${time} ثبت شد.${remoteTag}`;
         document.getElementById('hr-clock-pin').value = '';
         // The clock widget is only ever opened from within حضور غیاب
         // پرسنل now (see index.html) -- refresh its "present now" list so
@@ -614,8 +762,8 @@ async function loadHrSettings() {
     if (!fromInput.value && !toInput.value) {
         const today = new Date();
         const twoWeeksAgo = new Date(today.getTime() - 13 * 24 * 60 * 60 * 1000);
-        toInput.value = today.toISOString().slice(0, 10);
-        fromInput.value = twoWeeksAgo.toISOString().slice(0, 10);
+        toInput.value = _tehranDateString(today);
+        fromInput.value = _tehranDateString(twoWeeksAgo);
     }
     await Promise.all([loadHrLocation(), loadHrStaff(), loadHrAttendance()]);
 }
@@ -838,12 +986,12 @@ function renderHrPresentNow(rows) {
         return;
     }
     rows.forEach(r => {
-        const inTime = new Date(r.clock_in).toLocaleString('fa-IR');
+        const inTime = _tehranTimeString(r.clock_in);
         const row = document.createElement('div');
         row.className = 'flex items-center justify-between gap-2 flex-wrap p-2.5 rounded-lg text-[11px]';
         row.style.cssText = 'background:rgba(52,199,89,.08);border:1px solid rgba(52,199,89,.25);';
         row.innerHTML = `
-          <span class="font-bold flex items-center gap-1.5" style="color:var(--text-main);"><span style="color:#34c759;">●</span> ${r.staff_name || '؟'}</span>
+          <span class="font-bold flex items-center gap-1.5" style="color:var(--text-main);"><span style="color:#34c759;">●</span> ${r.staff_name || '؟'}${r.is_remote ? ' <span style="color:var(--accent);font-weight:700;">🏠 دورکاری</span>' : ''}</span>
           <span style="color:var(--text-muted);">از ساعت ${inTime}</span>
         `;
         list.appendChild(row);
@@ -862,14 +1010,14 @@ function renderHrAttendanceList(rows) {
         return;
     }
     rows.forEach(r => {
-        const inTime = new Date(r.clock_in).toLocaleString('fa-IR');
-        const outTime = r.clock_out ? new Date(r.clock_out).toLocaleString('fa-IR') : 'هنوز حاضر است';
+        const inTime = _tehranTimeString(r.clock_in);
+        const outTime = r.clock_out ? _tehranTimeString(r.clock_out) : 'هنوز حاضر است';
         const row = document.createElement('div');
         row.className = 'p-2 rounded-lg text-[11px]';
         row.style.cssText = 'background:var(--bg-main);border:1px solid var(--border-subtle);';
         row.innerHTML = `
           <div class="flex items-center justify-between gap-2 flex-wrap">
-            <span class="font-bold" style="color:var(--text-main);">${r.staff_name || '؟'}</span>
+            <span class="font-bold" style="color:var(--text-main);">${r.staff_name || '؟'}${r.is_remote ? ' <span style="color:var(--accent);font-weight:700;">🏠 دورکاری</span>' : ''}</span>
             <span style="color:var(--text-muted);">ورود: ${inTime} — خروج: ${outTime}</span>
           </div>
           ${r.note ? `<div style="color:var(--text-muted);margin-top:2px;">یادداشت: ${r.note}</div>` : ''}
@@ -889,6 +1037,14 @@ async function saveProfileConfiguration() {
     const type    = document.getElementById('accountTypeToggle').value;
     const contact = document.getElementById('profileContactInput').value;
     const office  = type === 'office' ? document.getElementById('officeNameInput').value : '';
+
+    // Mirrors auth.py's update_profile() requirement: an office account needs
+    // a real office name/license number and a way to reach them, so catch it
+    // here instead of making the user wait for the server's 400.
+    if (type === 'office' && (!office.trim() || !contact.trim())) {
+        showToast('❌ برای ثبت به عنوان دارالترجمه، وارد کردن نام/شماره پروانه دفتر و شماره تماس الزامی است.');
+        return;
+    }
 
     // Test/mock session (see initializeApp()'s ?test=1 handling) has no
     // real account behind it to PATCH -- keep the old localStorage-only
@@ -924,7 +1080,18 @@ async function saveProfileConfiguration() {
         currentUserSession.office  = data.office_name || '';
         currentUserSession.contact = data.contact_info || '';
         syncUserSessionDOM();
-        showToast('✅ پروفایل بروزرسانی شد.');
+        // office_bonus_status is only ever present the ONE time account_type
+        // actually transitions to "office" (see auth.py's
+        // _maybe_grant_office_bonus) -- null on every other save, including
+        // a translator who's already an office account editing their name.
+        if (data.office_bonus_status === 'granted') {
+            showToast('✅ پروفایل بروزرسانی شد. ۲۰۰,۰۰۰ تومان اعتبار هدیه ثبت‌نام دارالترجمه به کیف پول شما اضافه شد!', 4000);
+            refreshWalletBalanceDisplay();
+        } else if (data.office_bonus_status === 'held_for_review') {
+            showToast('✅ پروفایل بروزرسانی شد. اعتبار هدیه ثبت‌نام دارالترجمه شما در حال بررسی توسط تیم دیپتی است.', 4000);
+        } else {
+            showToast('✅ پروفایل بروزرسانی شد.');
+        }
     } catch (e) {
         showToast('❌ خطا در ذخیره پروفایل: ' + e.message);
     } finally {
@@ -1043,7 +1210,7 @@ const DP_DOCS = [
         { key:"qr_caption", label:"زیرنویس کد QR", kind:"simple", def:"[Printed QR Code]" },
         { key:"postscript_label", label:"برچسب پی‌نوشت", kind:"simple", def:"Postscript:" },
         { key:"note_1", label:"پی‌نوشت ۱ — مادهٔ ۶۵۵", kind:"simple", def:"1. By the virtue of Article 655 of Criminal Procedure, the electronic copy of this certificate shall be valid and sufficient, and no seal is required." },
-        { key:"note_2", label:"پی‌نوشت ۲ — استعلام آنلاین", kind:"simple", def:"2. This certificate was issued electronically by inspecting the existing records in accordance with Note 2 of Article 10 of the mentioned By-law. Authenticity can be verified for two months at www.adliran.ir." },
+        { key:"note_2", label:"پی‌نوشت ۲ — استعلام آنلاین", kind:"simple", def:"2. This certificate was issued electronically by inspecting the existing records in accordance with Note 2 of Article 10 of the mentioned By-law and according to Article 25 of the Islamic Penal Code enacted in 2013. The certificate authenticity can be verified for two months since the issue date by visiting www.adliran.ir." },
         { key:"note_3", label:"پی‌نوشت ۳ — مبلغ پرداختی", kind:"complex",
           tokens:[{key:"amount",label:"مبلغ"},{key:"transaction_number",label:"شمارهٔ تراکنش"}],
           def:"3. A sum of {{amount}} Rials was received for electronic services through No. {{transaction_number}}." },
@@ -1169,6 +1336,16 @@ const DP_DOCS = [
           "دفاع مقدس": "Iran-Iraq War",
       } },
     },
+    { id:"azad_provisional_transcript", label:"ریزنمرات موقت دانشگاه آزاد", full:true, fields:[],
+      // Same course-name glossary as azad_transcript (the provisional
+      // transcript's prompt uses azad_transcript.py's
+      // DEFAULT_COURSE_NAME_GLOSSARY), saved separately as
+      // term_glossary["azad_provisional_transcript"].
+      glossary: { defaults: {
+          "روستا": "Rural Architecture",
+          "دفاع مقدس": "Iran-Iraq War",
+      } },
+    },
     { id:"property_deed_owner", label:"سند مالکیت ملک", full:true, fields:[
         { key:"hologram_seal_note", label:"تشریح هولوگرام اداره ثبت", kind:"simple", def:"Affixed Hologram Seal of Registration Organization for Deeds and Real Estate." },
         { key:"legal_basis_statement", label:"این سند مالکیت رسمی است و مطابق ثبت دفتر املاک الکترونیک، بر اساس ماده ۲۲ قانون ثبت و ماده ۴ قانون کاداستر جامع، صادر و در یک برگ تسلیم می‌شود.", kind:"simple", def:"This title deed is officially registered and is issued in one copy according to real estate registration, based on the article 22 of Registration Act and Article 4 of Comprehensive Cadastral Law." },
@@ -1219,7 +1396,9 @@ let dpGlossarySearch = '';  // current client-side filter text for the glossary 
    Per-document-type phrase catalog (PATCH /users/me/preferences merge,
    {{token}} chips are JS-rendered units, never raw braces). ============ */
 function dpEffectiveValue(docId, key, def){
-    if (dpDraft[docId] && dpDraft[docId][key] !== undefined) return dpDraft[docId][key];
+    // A '' draft means "clear the saved override" (sent as null on save),
+    // so the editor shows the default text it will fall back to.
+    if (dpDraft[docId] && dpDraft[docId][key] !== undefined) return dpDraft[docId][key] === '' ? def : dpDraft[docId][key];
     if (dpServerPhrases[docId] && dpServerPhrases[docId][key] !== undefined) return dpServerPhrases[docId][key];
     return def;
 }
@@ -1528,7 +1707,16 @@ document.addEventListener('click', (e) => {
     const resetBtn = e.target.closest('[data-dp-reset]');
     if (resetBtn){
         const doc = DP_DOCS.find(d => d.id === dpCurrentDoc);
-        if (dpDraft[doc.id]) delete dpDraft[doc.id][resetBtn.dataset.dpReset];
+        const key = resetBtn.dataset.dpReset;
+        if (dpServerPhrases[doc.id] && dpServerPhrases[doc.id][key] != null){
+            // A saved override exists -- dropping the draft alone would just
+            // bring that saved text back, never the default. Queue clearing it.
+            if (!dpDraft[doc.id]) dpDraft[doc.id] = {};
+            dpDraft[doc.id][key] = '';
+        } else if (dpDraft[doc.id]) {
+            delete dpDraft[doc.id][key];
+            if (Object.keys(dpDraft[doc.id]).length === 0) delete dpDraft[doc.id];
+        }
         renderDocumentPhrases();
         return;
     }
@@ -1597,7 +1785,7 @@ async function saveCurrentDocumentSettings(){
         // warning) so the translator can keep fixing it.
         for (const key in changes){
             const f = doc.fields.find(f => f.key === key);
-            if (f.kind === 'complex' && !dpCheckComplex(changes[key], f.tokens).valid){
+            if (f.kind === 'complex' && changes[key] !== '' && !dpCheckComplex(changes[key], f.tokens).valid){
                 blockedCount++;
                 continue;
             }
@@ -1830,6 +2018,59 @@ document.addEventListener('click', (e) => {
 let myPriceListServer = {};  // {item_id: {base?, extra?}} -- last known saved overrides, from GET
 let myPriceListDraft  = {};  // {item_id: {base?, extra?}} -- unsaved edits
 
+// A translator's own invented نرخنامه items -- not an override of an
+// official tariff row (that's myPriceListServer/Draft above), a genuinely
+// new row that doesn't exist in PRICE_CATALOG at all. Saved immediately
+// on add/edit/delete (its own PATCH, full-replace -- see
+// saveCustomPriceItem()), not part of the draft/"ذخیرهٔ نرخنامه" batch
+// flow above, since there's no "official default" to diff against or
+// reset to. ids always start with this prefix so they can never collide
+// with an official row id (plain numbers, or "N-1" sub-items) or a pinned
+// id ("224"+, see price-catalog.js) -- both now and as either list grows.
+const CUSTOM_PRICE_ITEM_ID_PREFIX = 'custom-';
+let myPriceListCustomItems = [];  // [{id, label, base, base_unit, extras: [{price, unit}]}]
+let editCustomPriceItemId = null;  // id being edited in the modal, null = adding new
+
+// Injects this account's custom items into the SAME shared lookup
+// structures price-catalog.js builds for the official catalog
+// (PRICE_CATALOG_BY_ID, PINNED_ITEM_IDS) -- every existing consumer
+// (myplEffective, the invoice item-picker, selectMyPriceListItem,
+// applyMyPriceListReprice, quantity controls, print handout) already
+// looks items up through those two structures, so a custom item becomes
+// usable everywhere a catalog item is, with no further changes needed
+// anywhere else. Re-running this (e.g. after an edit) just overwrites the
+// same ids; a REMOVED custom item is deliberately left in place here even
+// though it's gone from myPriceListCustomItems -- an invoice row created
+// from it earlier should keep showing its last-known label/price, not
+// break. PINNED_ITEM_IDS membership mirrors official pinned items: a
+// custom fee has no page-count concept either, so it skips the "مهر
+// برابر با اصل" quantity control the same way.
+function injectCustomPriceItemsIntoCatalog() {
+    myPriceListCustomItems.forEach(item => {
+        PRICE_CATALOG_BY_ID[item.id] = {
+            id: item.id, label: item.label, base: item.base,
+            baseUnit: item.base_unit || null,
+            extra: null, unit: null,  // superseded by extras (see myplEffectiveExtras) -- kept null so any
+                                       // code still checking the old singular fields sees "no extra" rather
+                                       // than stale/wrong data.
+            extras: item.extras || [],
+        };
+        PINNED_ITEM_IDS.add(item.id);
+    });
+}
+
+// PRICE_CATALOG plus one synthetic leading category for this account's
+// own custom items -- every renderer/search that used to iterate
+// PRICE_CATALOG directly now iterates this instead, so custom items show
+// up everywhere a catalog item does (نرخنامه من, the invoice item-picker,
+// the reprice modal, the print handout). An empty custom list renders as
+// an empty category, which every one of those call sites already skips
+// (same "no matches in this group" guard they use for a filtered-out
+// official category).
+function priceCatalogWithCustom() {
+    return [{ category: 'موارد شخصی من', custom: true, items: myPriceListCustomItems }, ...PRICE_CATALOG];
+}
+
 // The price actually shown/used for one component ("base" or "extra") of
 // an item right now: an unsaved edit wins over a saved override, which
 // wins over the catalog's own default for that component.
@@ -1841,15 +2082,21 @@ function myplEffective(itemId, component) {
     return PRICE_CATALOG_BY_ID[itemId][component];
 }
 
-// Both components at once -- what an invoice row actually needs to
-// compute its price. `extra` is null when the item has no such component
-// at all (not just "not overridden").
-function myplEffectiveComponents(itemId) {
+// Every افزوده an item has right now, as a flat [{price, unit}] list --
+// zero, one, or (for a custom item only) several. A custom item's extras
+// ARE its live data (no separate override system -- editing one means
+// re-saving the whole item, see saveCustomPriceItem()), so they're
+// returned as-is. An official catalog item has at most one, stored the
+// original singular way (item.extra/item.unit) specifically so it keeps
+// going through the existing per-component draft/server override system
+// (myplEffective) -- unlike a custom item's live values, an official
+// item's extra price CAN be overridden, and that override must still
+// apply here.
+function myplEffectiveExtras(itemId) {
     const item = PRICE_CATALOG_BY_ID[itemId];
-    return {
-        base: myplEffective(itemId, 'base'),
-        extra: item.extra !== null ? myplEffective(itemId, 'extra') : null,
-    };
+    if (item.extras) return item.extras;
+    if (item.extra === null) return [];
+    return [{ price: myplEffective(itemId, 'extra'), unit: item.unit }];
 }
 
 // "مهر برابر با اصل" (certified-true-copy stamp) is priced per page by its
@@ -1861,30 +2108,43 @@ function myplEffectiveComponents(itemId) {
 // quantity, on top of whatever base/extra components the item itself has.
 const MOHR_BARABAR_ASL_ITEM_ID = '227';
 
-// Maps an updateDraftRow()/updateInvoiceEditRow() field name to the row
-// property it actually mutates -- shared so both functions handle all
-// three نرخنامه quantities identically rather than repeating the
-// three-way branch.
-const MYPL_QTY_FIELD_MAP = {
-    myplBaseQty:  '_mypl_base_qty',
-    myplExtraQty: '_mypl_extra_qty',
-    myplMohrQty:  '_mypl_mohr_qty',
-};
+// Applies one updateDraftRow()/updateInvoiceEditRow() quantity-field edit
+// to the row, returning true if it did (false means `field` wasn't a
+// نرخنامه quantity field at all -- the caller falls back to its own plain
+// description/number handling). myplBaseQty/myplMohrQty are single
+// fields as before; myplExtraQty_N addresses the Nth entry in the item's
+// own extras list (see myplEffectiveExtras) -- a custom item can have
+// several, each gets its own index via myplRowQtyControlsHtml below.
+function myplApplyQtyFieldEdit(row, field, value) {
+    const qty = Math.max(0, parseInt(value, 10) || 0);
+    if (field === 'myplBaseQty') { row._mypl_base_qty = qty; return true; }
+    if (field === 'myplMohrQty') { row._mypl_mohr_qty = qty; return true; }
+    const m = /^myplExtraQty_(\d+)$/.exec(field);
+    if (m) {
+        if (!row._mypl_extra_qtys) row._mypl_extra_qtys = [];
+        row._mypl_extra_qtys[parseInt(m[1], 10)] = qty;
+        return true;
+    }
+    return false;
+}
 
 // Recomputes a نرخنامه-linked invoice row's unit_price_toman from its own
-// live base/extra/مهر quantities and each component's current effective
+// live base/extras/مهر quantities and each component's current effective
 // price -- e.g. ریزنمرات دانشگاه (id "58") at 2 ترم + 10 درس + 3 صفحه مهر
-// becomes base×2 + extra×10 + مهر×3. No-op for a plain manually-typed row
-// (no _mypl_item_id). Called on every quantity edit, and re-derives from
+// becomes base×2 + extra×10 + مهر×3; a custom item with two extras sums
+// both the same way. No-op for a plain manually-typed row (no
+// _mypl_item_id). Called on every quantity edit, and re-derives from
 // نرخنامه's *current* prices each time rather than freezing them at
 // add-time -- if the translator tweaks نرخنامه mid-session, a
 // not-yet-submitted row picks that up too.
 function myplRecomputeRowPrice(row) {
     if (!row._mypl_item_id) return;
-    const c = myplEffectiveComponents(row._mypl_item_id);
     const baseQty = row._mypl_base_qty || 0;
-    const extraQty = row._mypl_extra_qty || 0;
-    let total = baseQty * c.base + (c.extra !== null ? extraQty * c.extra : 0);
+    let total = baseQty * myplEffective(row._mypl_item_id, 'base');
+    const extraQtys = row._mypl_extra_qtys || [];
+    myplEffectiveExtras(row._mypl_item_id).forEach((ex, i) => {
+        total += (extraQtys[i] || 0) * ex.price;
+    });
     if (!PINNED_ITEM_IDS.has(row._mypl_item_id)) {
         const mohrQty = row._mypl_mohr_qty || 0;
         total += mohrQty * myplEffective(MOHR_BARABAR_ASL_ITEM_ID, 'base');
@@ -1902,19 +2162,21 @@ function myplRecomputeRowPrice(row) {
 function myplRowQtyControlsHtml(row, idx, updateFn) {
     if (!row._mypl_item_id) return '';
     const item = PRICE_CATALOG_BY_ID[row._mypl_item_id];
+    const extras = myplEffectiveExtras(row._mypl_item_id);
     const showMohr = !PINNED_ITEM_IDS.has(row._mypl_item_id);
-    if (!item.baseUnit && item.extra === null && !showMohr) return '';
+    if (!item.baseUnit && !extras.length && !showMohr) return '';
     let html = '<div class="flex items-center gap-3 flex-wrap w-full mt-1" style="padding-inline-start:1.75rem;">';
     if (item.baseUnit) {
         html += `<label class="text-[10px] flex items-center gap-1" style="color:var(--text-muted);">تعداد ${escapeHtml(item.baseUnit)}
             <input type="number" min="0" value="${row._mypl_base_qty}" oninput="${updateFn}(${idx},'myplBaseQty',this.value)" class="auth-input en" dir="ltr" style="width:52px;padding:.25rem .35rem;font-size:.72rem;text-align:center;">
         </label>`;
     }
-    if (item.extra !== null) {
-        html += `<label class="text-[10px] flex items-center gap-1" style="color:var(--text-muted);">تعداد (${escapeHtml(item.unit)})
-            <input type="number" min="0" value="${row._mypl_extra_qty}" oninput="${updateFn}(${idx},'myplExtraQty',this.value)" class="auth-input en" dir="ltr" style="width:52px;padding:.25rem .35rem;font-size:.72rem;text-align:center;">
+    extras.forEach((ex, exIdx) => {
+        const qty = (row._mypl_extra_qtys && row._mypl_extra_qtys[exIdx]) || 0;
+        html += `<label class="text-[10px] flex items-center gap-1" style="color:var(--text-muted);">تعداد (${escapeHtml(ex.unit || '')})
+            <input type="number" min="0" value="${qty}" oninput="${updateFn}(${idx},'myplExtraQty_${exIdx}',this.value)" class="auth-input en" dir="ltr" style="width:52px;padding:.25rem .35rem;font-size:.72rem;text-align:center;">
         </label>`;
-    }
+    });
     if (showMohr) {
         html += `<label class="text-[10px] flex items-center gap-1" style="color:var(--text-muted);">تعداد صفحه (مهر برابر با اصل)
             <input type="number" min="0" value="${row._mypl_mohr_qty || 0}" oninput="${updateFn}(${idx},'myplMohrQty',this.value)" class="auth-input en" dir="ltr" style="width:52px;padding:.25rem .35rem;font-size:.72rem;text-align:center;">
@@ -1944,11 +2206,27 @@ async function loadMyPriceListCatalog() {
         if (!res.ok) throw new Error();
         const p = await res.json();
         myPriceListServer = p.price_list || {};
+        myPriceListCustomItems = (p.custom_price_items || []).map(normalizeCustomPriceItemExtras);
     } catch (e) {
         myPriceListServer = {};
+        myPriceListCustomItems = [];
     }
     myPriceListDraft = {};
+    injectCustomPriceItemsIntoCatalog();
     renderMyPriceList();
+}
+
+// A custom item saved before extras became a list (see CustomPriceItem on
+// DeepT-Core) still has the original single extra/unit pair instead of
+// extras -- normalize it into a one-entry (or empty) extras list right
+// after loading, so every other function here only ever has to deal with
+// the new shape, and so the next save of this item (saveCustomPriceItem()
+// always sends the WHOLE list back) writes it in the new shape too.
+function normalizeCustomPriceItemExtras(item) {
+    if (Array.isArray(item.extras)) return item;
+    const extras = (item.extra !== undefined && item.extra !== null) ? [{ price: item.extra, unit: item.unit || null }] : [];
+    const { extra, unit, ...rest } = item;
+    return { ...rest, extras };
 }
 
 // One labeled number input for a single component ("base" or "extra") of
@@ -1984,33 +2262,78 @@ function renderMyPriceList() {
     const query = (document.getElementById('mypl-search').value || '').trim();
     list.innerHTML = '';
 
-    PRICE_CATALOG.forEach(group => {
+    priceCatalogWithCustom().forEach(group => {
         const matches = group.items.filter(item => !query || item.label.includes(query));
         if (!matches.length) return;
 
-        // پinned (e.g. "هزینه‌های رایج") isn't part of the official tariff --
-        // a translator's own everyday fees (courier, scanning, stamps...),
-        // shown first (guaranteed by array order -- see price-catalog.js)
-        // in a visibly different amber box so they read as "yours to set",
-        // not one more row of the government sheet below them.
+        // Custom items (yours to add) and پinned items (e.g. "هزینه‌های
+        // رایج") aren't part of the official tariff -- shown first
+        // (custom always leads, guaranteed by priceCatalogWithCustom()'s
+        // own order; pinned next, guaranteed by array order -- see
+        // price-catalog.js) in a visibly different amber box so they read
+        // as "yours", not one more row of the government sheet below them.
         const header = document.createElement('div');
         header.className = 'text-[11px] font-black px-1 pt-2 pb-1 sticky top-0 flex items-center gap-1.5';
-        header.style.cssText = group.pinned
+        header.style.cssText = (group.pinned || group.custom)
             ? 'color:#fbbf24;background:var(--panel-bg);'
             : 'color:var(--accent);background:var(--panel-bg);';
-        header.innerHTML = group.pinned
+        header.innerHTML = (group.pinned || group.custom)
             ? `⭐ ${escapeHtml(group.category)}`
             : escapeHtml(group.category);
         list.appendChild(header);
 
         matches.forEach(item => {
-            const dirty = !!myPriceListDraft[item.id];
             const row = document.createElement('div');
             row.className = 'flex items-center gap-2 p-2 rounded-lg flex-wrap';
+            row.dataset.myplItem = item.id;
+
+            if (group.custom) {
+                // A custom item has no "official default" to diff against
+                // or reset to -- it's saved live (its own immediate PATCH,
+                // see saveCustomPriceItem()), not part of the
+                // draft/"ذخیرهٔ نرخنامه" flow the rows below use. Shown
+                // read-only here with edit/delete instead of live inputs
+                // + reset.
+                row.style.cssText = 'background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.35);';
+                const priceTxt = item.base_unit
+                    ? `${item.base.toLocaleString()} تومان (هر ${escapeHtml(item.base_unit)})`
+                    : `${item.base.toLocaleString()} تومان`;
+                const extraTxt = (item.extras || [])
+                    .map(ex => ` + ${ex.price.toLocaleString()} تومان (${escapeHtml(ex.unit || '')})`)
+                    .join('');
+                const info = document.createElement('div');
+                info.className = 'flex-1 min-w-0';
+                info.style.minWidth = '160px';
+                info.innerHTML = `<div class="text-xs font-bold truncate" style="color:var(--text-main);" title="${escapeHtml(item.label)}">${escapeHtml(item.label)}</div>
+                    <div class="text-[10px] mt-0.5" style="color:var(--text-muted);">${priceTxt}${extraTxt}</div>`;
+                row.appendChild(info);
+
+                const editBtn = document.createElement('button');
+                editBtn.type = 'button';
+                editBtn.title = 'ویرایش';
+                editBtn.className = 'text-xs font-bold px-2 py-2 rounded-lg shrink-0 transition';
+                editBtn.style.cssText = 'background:var(--panel-bg);color:var(--text-muted);border:1px solid var(--border-subtle);';
+                editBtn.textContent = '✎';
+                editBtn.addEventListener('click', () => openEditCustomPriceItemModal(item.id));
+                row.appendChild(editBtn);
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.type = 'button';
+                deleteBtn.title = 'حذف';
+                deleteBtn.className = 'text-xs font-bold px-2 py-2 rounded-lg shrink-0 transition';
+                deleteBtn.style.cssText = 'background:var(--panel-bg);color:#f87171;border:1px solid var(--border-subtle);';
+                deleteBtn.textContent = '🗑';
+                deleteBtn.addEventListener('click', () => deleteCustomPriceItem(item.id));
+                row.appendChild(deleteBtn);
+
+                list.appendChild(row);
+                return;
+            }
+
+            const dirty = !!myPriceListDraft[item.id];
             row.style.cssText = group.pinned
                 ? `background:rgba(251,191,36,.08);border:1px solid ${dirty ? 'var(--accent)' : 'rgba(251,191,36,.35)'};`
                 : `background:var(--bg-main);border:1px solid ${dirty ? 'var(--accent)' : 'var(--border-subtle)'};`;
-            row.dataset.myplItem = item.id;
 
             const info = document.createElement('div');
             info.className = 'flex-1 min-w-0';
@@ -2075,6 +2398,144 @@ function resetAllMyPriceListDrafts() {
     renderMyPriceList();
 }
 
+// ── مورد شخصی (custom نرخنامه item) ──────────────────────────────────────
+// Add/edit/delete, each saved immediately (own PATCH, full replace) rather
+// than batched into the official-catalog draft/"ذخیرهٔ نرخنامه" flow above
+// -- see the var/function comments near CUSTOM_PRICE_ITEM_ID_PREFIX.
+
+function openAddCustomPriceItemModal() {
+    if (!currentUserSession) { openAuthModal(); return; }
+    editCustomPriceItemId = null;
+    document.getElementById('cpi-modal-title').textContent = '+ مورد شخصی جدید';
+    document.getElementById('cpi-label').value = '';
+    document.getElementById('cpi-base').value = '';
+    document.getElementById('cpi-base-unit').value = '';
+    renderCustomPriceItemExtraRows([]);
+    document.getElementById('cpi-error').classList.add('hidden');
+    document.getElementById('customPriceItemModal').classList.remove('hidden');
+}
+
+function openEditCustomPriceItemModal(itemId) {
+    const item = myPriceListCustomItems.find(i => i.id === itemId);
+    if (!item) return;
+    editCustomPriceItemId = itemId;
+    document.getElementById('cpi-modal-title').textContent = '✎ ویرایش مورد شخصی';
+    document.getElementById('cpi-label').value = item.label;
+    document.getElementById('cpi-base').value = item.base;
+    document.getElementById('cpi-base-unit').value = item.base_unit || '';
+    renderCustomPriceItemExtraRows(item.extras || []);
+    document.getElementById('cpi-error').classList.add('hidden');
+    document.getElementById('customPriceItemModal').classList.remove('hidden');
+}
+
+function closeCustomPriceItemModal() {
+    document.getElementById('customPriceItemModal').classList.add('hidden');
+    editCustomPriceItemId = null;
+}
+
+// One افزوده row's markup -- price + unit + a remove button that just
+// deletes its own row element directly, no index bookkeeping needed
+// (readCustomPriceItemExtraRows() below reads whatever rows are actually
+// still in the DOM at save time, in order).
+function cpiExtraRowHtml(price, unit) {
+    const priceVal = (price === '' || price === null || price === undefined) ? '' : price;
+    return `<div class="cpi-extra-row flex items-center gap-2">
+        <input type="number" class="auth-input en cpi-extra-price" dir="ltr" min="0" placeholder="قیمت (تومان)" value="${escapeHtml(String(priceVal))}" style="flex:1;">
+        <input type="text" class="auth-input cpi-extra-unit" placeholder="واحد (مثلاً هر صفحه)" value="${escapeHtml(unit || '')}" style="flex:1;">
+        <button type="button" onclick="this.closest('.cpi-extra-row').remove()" class="shrink-0 font-black px-2" style="color:#f87171;background:none;border:none;cursor:pointer;" title="حذف این افزوده">✕</button>
+    </div>`;
+}
+
+function addCustomPriceItemExtraRow(price = '', unit = '') {
+    document.getElementById('cpi-extras-list').insertAdjacentHTML('beforeend', cpiExtraRowHtml(price, unit));
+}
+
+// Seeds the list from an existing item's extras -- always at least one
+// (empty) row so there's somewhere to type immediately, matching how the
+// base-price fields are always visible rather than needing a "+" first.
+function renderCustomPriceItemExtraRows(extras) {
+    const list = document.getElementById('cpi-extras-list');
+    list.innerHTML = '';
+    const seed = (extras && extras.length) ? extras : [{ price: '', unit: '' }];
+    seed.forEach(ex => addCustomPriceItemExtraRow(ex.price, ex.unit));
+}
+
+// Reads whatever افزوده rows are currently in the modal into
+// [{price, unit}], skipping any row left completely blank (same
+// "optional, empty means none" convention the single-افزوده version
+// had). Returns {extras: null, error: '...'} on the first row with a
+// price that doesn't parse, so saveCustomPriceItem() can show one clear
+// message instead of silently dropping a mistyped row.
+function readCustomPriceItemExtraRows() {
+    const rows = document.querySelectorAll('#cpi-extras-list .cpi-extra-row');
+    const extras = [];
+    for (const row of rows) {
+        const priceRaw = row.querySelector('.cpi-extra-price').value.trim();
+        const unitRaw = row.querySelector('.cpi-extra-unit').value.trim();
+        if (!priceRaw && !unitRaw) continue;
+        const price = parseInt(priceRaw, 10);
+        if (!Number.isFinite(price) || price < 0) {
+            return { extras: null, error: 'قیمت هر افزوده را به‌صورت عدد معتبر وارد کنید، یا کل ردیف را با ✕ حذف کنید.' };
+        }
+        extras.push({ price, unit: unitRaw || null });
+    }
+    return { extras, error: null };
+}
+
+async function saveCustomPriceItem() {
+    const errorEl = document.getElementById('cpi-error');
+    errorEl.classList.add('hidden');
+
+    const label = document.getElementById('cpi-label').value.trim();
+    const base = parseInt(document.getElementById('cpi-base').value, 10);
+    const baseUnit = document.getElementById('cpi-base-unit').value.trim();
+
+    if (!label) { errorEl.textContent = 'عنوان مورد را وارد کنید.'; errorEl.classList.remove('hidden'); return; }
+    if (!Number.isFinite(base) || base < 0) { errorEl.textContent = 'قیمت پایه را به‌صورت عدد معتبر وارد کنید.'; errorEl.classList.remove('hidden'); return; }
+
+    const { extras, error } = readCustomPriceItemExtraRows();
+    if (error) { errorEl.textContent = error; errorEl.classList.remove('hidden'); return; }
+
+    const item = {
+        id: editCustomPriceItemId || (CUSTOM_PRICE_ITEM_ID_PREFIX + Date.now().toString(36) + Math.random().toString(36).slice(2, 8)),
+        label, base,
+        base_unit: baseUnit || null,
+        extras,
+    };
+
+    const nextItems = editCustomPriceItemId
+        ? myPriceListCustomItems.map(i => i.id === editCustomPriceItemId ? item : i)
+        : [...myPriceListCustomItems, item];
+
+    await persistCustomPriceItems(nextItems, '✅ مورد شخصی ذخیره شد.');
+    closeCustomPriceItemModal();
+}
+
+async function deleteCustomPriceItem(itemId) {
+    if (!confirm('این مورد شخصی حذف شود؟ ردیف‌های فاکتوری که قبلاً از آن استفاده شده‌اند بدون تغییر می‌مانند.')) return;
+    const nextItems = myPriceListCustomItems.filter(i => i.id !== itemId);
+    await persistCustomPriceItems(nextItems, 'مورد شخصی حذف شد.');
+}
+
+async function persistCustomPriceItems(nextItems, successMessage) {
+    const token = getToken();
+    try {
+        const res = await fetch(`${CORE}/users/me/preferences`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ custom_price_items: nextItems })
+        });
+        const p = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(p.detail || 'خطای سرور');
+        myPriceListCustomItems = p.custom_price_items || [];
+        injectCustomPriceItemsIntoCatalog();
+        renderMyPriceList();
+        showToast(successMessage);
+    } catch (e) {
+        showToast(`❌ ذخیره ناموفق بود: ${e.message || 'خطای نامشخص'}`);
+    }
+}
+
 // Bulk inflation adjustment: bump every catalog item's *current* effective
 // price (whether that's still the official default or an already-saved
 // override) by a percentage, all at once. Reuses myplCommit() per
@@ -2098,6 +2559,11 @@ function applyMyplBulkIncrease() {
         return;
     }
     const factor = 1 + pct / 100;
+    // Official catalog only, deliberately -- myplCommit() works in terms
+    // of a draft override against an official default, which custom items
+    // don't have (see saveCustomPriceItem(), which edits a custom item's
+    // own live base/extra directly instead). Bulk-increasing custom items
+    // too would need its own, different code path; left for later.
     PRICE_CATALOG.forEach(group => {
         group.items.forEach(item => {
             const newBase = Math.max(0, Math.round(myplEffective(item.id, 'base') * factor));
@@ -2166,12 +2632,17 @@ function printMyPriceList() {
     const todayFa = new Date().toLocaleDateString('fa-IR');
 
     const priceCell = (item) => {
+        // Official items use baseUnit (price-catalog.js's own authored
+        // shape); custom items use base_unit (CustomPriceItem's shape,
+        // matched to what DeepT-Core stores) -- this renders both kinds
+        // from the same combined list (see priceCatalogWithCustom()).
         const base = myplEffective(item.id, 'base').toLocaleString();
-        const baseUnitTxt = item.baseUnit ? ` (هر ${escapeHtml(item.baseUnit)})` : '';
+        const baseUnit = item.baseUnit || item.base_unit;
+        const baseUnitTxt = baseUnit ? ` (هر ${escapeHtml(baseUnit)})` : '';
         let txt = `${base}${baseUnitTxt}`;
-        if (item.extra !== null) {
-            txt += ` + ${myplEffective(item.id, 'extra').toLocaleString()} ${escapeHtml(item.unit || '')}`;
-        }
+        myplEffectiveExtras(item.id).forEach(ex => {
+            txt += ` + ${ex.price.toLocaleString()} ${escapeHtml(ex.unit || '')}`;
+        });
         return txt;
     };
 
@@ -2186,16 +2657,17 @@ function printMyPriceList() {
     // lets the browser's column/page breaking flow row-by-row instead,
     // packing tightly the way the original tariff sheet itself does
     // (a category routinely continues right across a column boundary).
-    const rowsHtml = PRICE_CATALOG.map(group => {
-        // Pinned items (هزینه‌های رایج) aren't real rows of the official
-        // tariff sheet -- their ids (224+) are just internal bookkeeping,
-        // continuing past the sheet's own last row ("223") so they never
-        // collide with a real one (see price-catalog.js's header comment).
-        // Printing them would misleadingly suggest they're official
-        // numbered items, so this column stays blank for this category only.
+    const rowsHtml = priceCatalogWithCustom().map(group => {
+        // Pinned items (هزینه‌های رایج) and custom items (یک translator's
+        // own additions) aren't real rows of the official tariff sheet --
+        // their ids are just internal bookkeeping (pinned: 224+, continuing
+        // past the sheet's own last row "223"; custom: the
+        // CUSTOM_PRICE_ITEM_ID_PREFIX-prefixed id). Printing them would
+        // misleadingly suggest they're official numbered items, so this
+        // column stays blank for both categories.
         const itemRows = group.items.map(item => `
             <tr>
-                <td class="col-id">${group.pinned ? '' : escapeHtml(item.id)}</td>
+                <td class="col-id">${(group.pinned || group.custom) ? '' : escapeHtml(item.id)}</td>
                 <td class="col-label">${escapeHtml(item.label)}</td>
                 <td class="col-price en" dir="ltr">${priceCell(item)}</td>
             </tr>`).join('');
@@ -2249,12 +2721,105 @@ function printMyPriceList() {
 // ═══════════════════════════════════════════════════════════
 /* ============ SECTION: WALLET, PAYMENT & SUPPORT ============
    Shaparak gateway redirect + wallet balance refresh + support tickets. ============ */
-function triggerShaparakPayment() {
-    // Real payment isn't live yet -- during the trial, credit is added
-    // manually by the admin. No self-service top-up exists on the frontend
-    // at all right now; this replaces the old fake simulator, which showed
-    // a fabricated number disconnected from the real backend balance.
-    showToast('برای افزایش اعتبار با پشتیبانی تماس بگیرید.');
+const MIN_TOPUP_TOMAN = 25000;
+
+async function triggerShaparakPayment(amountOverride) {
+    if (!currentUserSession) { openAuthModal(); return; }
+    let amount = amountOverride;
+    if (!Number.isFinite(amount)) {
+        // Called with no override (e.g. the workspace wallet panel's own
+        // button) -- read its paymentAmountInput directly. The home
+        // dashboard's shortcut always passes its own homePaymentAmountInput
+        // value as amountOverride instead, since both inputs can exist in
+        // the DOM at once and share no id.
+        const amountEl = document.getElementById('paymentAmountInput');
+        if (!amountEl) { openWorkspaceDashboard(); return; }
+        amount = parseInt(amountEl.value, 10);
+    }
+    if (!amount || amount < MIN_TOPUP_TOMAN) {
+        showToast(`❌ حداقل مبلغ شارژ ${MIN_TOPUP_TOMAN.toLocaleString()} تومان است.`);
+        return;
+    }
+    const token = getToken();
+    if (!token) { openAuthModal(); return; }
+    try {
+        const res = await fetch(`${CORE}/wallet/topup/initiate`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ amount_toman: amount })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || 'خطای درگاه پرداخت');
+        window.location.href = data.payment_url;
+    } catch (e) {
+        showToast('❌ خطا در اتصال به درگاه پرداخت: ' + e.message);
+    }
+}
+
+// Card-to-card (Cartbecart, see DeepT-Core's cardtocard.py): the user
+// transfers an exact amount to the office's card from their own banking app;
+// the wallet is credited once the bank's SMS is matched. Same amount field
+// as the gateway; Cartbecart's own page shows the card and the exact amount.
+async function triggerCardToCardPayment(amountOverride) {
+    if (!currentUserSession) { openAuthModal(); return; }
+    let amount = amountOverride;
+    if (!Number.isFinite(amount)) {
+        const amountEl = document.getElementById('paymentAmountInput');
+        if (!amountEl) { openWorkspaceDashboard(); return; }
+        amount = parseInt(amountEl.value, 10);
+    }
+    if (!amount || amount < MIN_TOPUP_TOMAN) {
+        showToast(`❌ حداقل مبلغ شارژ ${MIN_TOPUP_TOMAN.toLocaleString()} تومان است.`);
+        return;
+    }
+    const token = getToken();
+    if (!token) { openAuthModal(); return; }
+    try {
+        const res = await fetch(`${CORE}/wallet/topup/card/initiate`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ amount_toman: amount })
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || 'خطای پرداخت کارت‌به‌کارت');
+        window.location.href = data.payment_url;
+    } catch (e) {
+        showToast('❌ ' + e.message);
+    }
+}
+
+// After card-to-card, the bank's SMS can take a while to be matched (and
+// a transfer that doesn't match exactly waits for the office to approve it
+// by hand) -- keep checking while the page is open, then tell the user.
+async function pollCardTopup(requestId, startedAt = Date.now()) {
+    const token = getToken();
+    if (!token) return;
+    try {
+        const res = await fetch(`${CORE}/wallet/topup/card/status/${encodeURIComponent(requestId)}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+            const data = await res.json();
+            if (data.status === 'paid') {
+                showToast(`✅ کیف پول شما به مبلغ ${Number(data.amount_toman).toLocaleString()} تومان شارژ شد.`, 5000);
+                refreshWalletBalanceDisplay();
+                return;
+            }
+            if (data.status === 'failed') {
+                showToast('❌ واریز کارت‌به‌کارت تأیید نشد یا مهلت آن تمام شد.', 5000);
+                return;
+            }
+            if (data.status === 'needs_review' && !pollCardTopup.reviewNoted) {
+                pollCardTopup.reviewNoted = true;
+                showToast('⏳ واریز شما دریافت شد و در حال بررسی است. پس از تأیید، کیف پول شارژ می‌شود.', 6000);
+            }
+        }
+    } catch (e) { /* transient network error -- just try again */ }
+    // Stop after 2 hours on this page; the server still credits the wallet
+    // whenever Cartbecart confirms, and the balance shows on the next visit.
+    if (Date.now() - startedAt < 2 * 60 * 60 * 1000) {
+        setTimeout(() => pollCardTopup(requestId, startedAt), 15000);
+    }
 }
 
 async function refreshWalletBalanceDisplay() {
@@ -2322,9 +2887,11 @@ async function openWorkspaceDashboard(pushHistory = true) {
     document.getElementById('workSchedulePage').classList.add('hidden');
     document.getElementById('settingsPage').classList.add('hidden');
     document.getElementById('accountSettingsPage').classList.add('hidden');
+    document.getElementById('docSamplesPage').classList.add('hidden');
     document.getElementById('myPriceListPage').classList.add('hidden');
     document.getElementById('homePanelsPage').classList.add('hidden');
     document.getElementById('dateConverterPage').classList.add('hidden');
+    document.getElementById('receptionistPage').classList.add('hidden');
     document.getElementById('hrPage').classList.add('hidden');
 
     // Reserve exactly as much top space as the header actually needs,
@@ -2361,9 +2928,11 @@ async function openClientsWorkspace(pushHistory = true) {
     document.getElementById('workSchedulePage').classList.add('hidden');
     document.getElementById('settingsPage').classList.add('hidden');
     document.getElementById('accountSettingsPage').classList.add('hidden');
+    document.getElementById('docSamplesPage').classList.add('hidden');
     document.getElementById('myPriceListPage').classList.add('hidden');
     document.getElementById('homePanelsPage').classList.add('hidden');
     document.getElementById('dateConverterPage').classList.add('hidden');
+    document.getElementById('receptionistPage').classList.add('hidden');
     document.getElementById('hrPage').classList.add('hidden');
 
     const headerEl = document.querySelector('.header-bar');
@@ -2402,12 +2971,16 @@ function showLandingView() {
     if (st) st.classList.add('hidden');
     const ast = document.getElementById('accountSettingsPage');
     if (ast) ast.classList.add('hidden');
+    const dsp = document.getElementById('docSamplesPage');
+    if (dsp) dsp.classList.add('hidden');
     const pl = document.getElementById('myPriceListPage');
     if (pl) pl.classList.add('hidden');
     const hp = document.getElementById('homePanelsPage');
     if (hp) hp.classList.add('hidden');
     const dc = document.getElementById('dateConverterPage');
     if (dc) dc.classList.add('hidden');
+    const rcp = document.getElementById('receptionistPage');
+    if (rcp) rcp.classList.add('hidden');
     const hrp = document.getElementById('hrPage');
     if (hrp) hrp.classList.add('hidden');
     document.body.style.overflow = 'auto';
@@ -2435,6 +3008,7 @@ function openDateConverterPage(pushHistory = true) {
 
 function closeDateConverterPage() {
     document.getElementById('dateConverterPage').classList.add('hidden');
+    document.getElementById('receptionistPage').classList.add('hidden');
     document.body.style.overflow = 'auto';
     openHomePanels(false);
 }
@@ -2724,6 +3298,9 @@ let editWorkRecordTarget = null;   // { type, id } while editWorkRecordModal is 
 async function openClientDetail(clientId) {
     currentClientDetailId = clientId;
     invoiceDraft = [];
+    draftWholeInvoiceUrgencyChecked = false;
+    draftWholeInvoiceUrgencyPercent = 0;
+    syncDraftWholeInvoiceUrgencyUI();
     document.getElementById('clientDetailModal').classList.remove('hidden');
     const token = localStorage.getItem('deept_token');
     try {
@@ -2784,44 +3361,82 @@ const ACTIVITY_CATEGORY_COLORS = { job: '#4ade80', sanam: '#38bdf8', manual: '#f
 
 function activityRowKey(type, id) { return `${type}:${id}`; }
 
-// A row is "checked" whenever it's currently sitting in invoiceDraft --
-// the checkbox IS the draft-membership toggle, no separate selection
-// state to keep in sync.
+// Checking a box only marks a row PENDING -- it does NOT touch
+// invoiceDraft (and so doesn't show up in the editable پیش‌نویس فاکتور
+// panel) until the bulk bar's "ثبت پیش‌نویس فاکتور" button actually
+// commits the pending selection (see commitCheckedActivityToDraft()).
+// Keeping this as its own Set, rather than deriving "checked" purely
+// from invoiceDraft membership the way this used to work, is what makes
+// that two-step possible.
+let checkedActivityKeys = new Set();
+
+// True once a row has actually been committed into invoiceDraft (as
+// opposed to merely pending in checkedActivityKeys) -- a checkbox shows
+// checked for either state (see the checkbox markup in
+// renderClientActivity()), but only a committed row has a corresponding
+// draft row to remove on uncheck.
 function isActivityInDraft(key) {
     return invoiceDraft.some(row => row._source_key === key);
 }
 
-function toggleActivityInDraft(type, id, description, priceToman, checked) {
+function toggleActivitySelection(type, id, checked) {
     const key = activityRowKey(type, id);
     if (checked) {
-        if (isActivityInDraft(key)) return;
+        checkedActivityKeys.add(key);
+    } else {
+        checkedActivityKeys.delete(key);
+        // Already committed to the draft (the user had clicked "ثبت
+        // پیش‌نویس فاکتور" earlier, then came back and unchecked this one
+        // row) -- unchecking still removes it from the editable panel,
+        // same convenience the old single-step toggle had.
+        if (isActivityInDraft(key)) {
+            invoiceDraft = invoiceDraft.filter(row => row._source_key !== key);
+            renderDraftRows();
+        }
+    }
+    updateActivityBulkBar();
+}
+
+// The bulk bar's "📝 ثبت پیش‌نویس فاکتور" button -- moves every currently
+// PENDING (checked, not yet committed) row into invoiceDraft in one go,
+// then clears the pending set (they're committed now, not pending
+// anymore) so the bulk bar hides and attention shifts to the editable
+// پیش‌نویس فاکتور panel below, where the translator can add نرخنامه rows,
+// تمبر, etc. before the panel's own, unchanged "ثبت فاکتور" actually
+// submits (see submitDraftInvoice()).
+function commitCheckedActivityToDraft() {
+    let committedAny = false;
+    checkedActivityKeys.forEach(key => {
+        if (isActivityInDraft(key)) return;  // already committed from an earlier click
+        const row = lastActivityRows.find(r => activityRowKey(r.type, r.id) === key);
+        if (!row) return;
         // job_id links back to a completed DeepT job; sanam_document_id
         // links back to an imported-but-unbilled Sanam work item (see
         // clients.py's _get_sanam_documents) -- the backend marks it billed
         // (invoice_id) once the invoice is actually created, so it won't be
         // offered again for a second invoice.
         invoiceDraft.push({
-            description, quantity: 1, unit_price_toman: priceToman,
-            job_id: type === 'job' ? id : null,
-            sanam_document_id: type === 'sanam' ? id : null,
+            description: row.title, quantity: 1, unit_price_toman: row.price || 0,
+            job_id: row.type === 'job' ? row.id : null,
+            sanam_document_id: row.type === 'sanam' ? row.id : null,
             _source_key: key,
         });
-    } else {
-        invoiceDraft = invoiceDraft.filter(row => row._source_key !== key);
-    }
-    renderDraftRows();
+        committedAny = true;
+    });
+    checkedActivityKeys.clear();
+    if (committedAny) renderDraftRows();
+    updateActivityBulkBar();
 }
 
 // ── Bulk action bar: create invoice / delete / edit fields ──────────────
 // Appears above the activity list the moment any row is checked, acting
-// on whichever activity-list rows are currently checked (i.e. present in
-// invoiceDraft with a _source_key -- a manually-typed draft row has none,
-// so it's never counted here). "Create invoice" just reuses the existing
-// submitDraftInvoice() flow; delete/edit act on the underlying job/sanam
-// record itself, not just its draft copy.
+// on whichever activity-list rows are currently PENDING (checked, not
+// yet committed to invoiceDraft -- see checkedActivityKeys). "ثبت
+// پیش‌نویس فاکتور" moves them into the editable پیش‌نویس فاکتور panel
+// (commitCheckedActivityToDraft()); delete/edit act on the underlying
+// job/sanam record itself, not a draft copy.
 function checkedActivityRows() {
-    const checkedKeys = new Set(invoiceDraft.map(r => r._source_key).filter(Boolean));
-    return lastActivityRows.filter(r => checkedKeys.has(activityRowKey(r.type, r.id)));
+    return lastActivityRows.filter(r => checkedActivityKeys.has(activityRowKey(r.type, r.id)));
 }
 
 function updateActivityBulkBar() {
@@ -2993,6 +3608,10 @@ async function submitEditWorkRecord() {
 // the width for real columns); the older, narrower client-detail modal
 // (cd-) keeps the original compact card-row layout, which is what it has
 // room for. Both read from the same computed `rows` array below.
+const ACTIVITY_PAGE_SIZE = 25;
+let activityListQuery = '';
+let activityListPage = 1;
+
 function renderClientActivityList(jobs, sanamDocs) {
     const prefix = isProfilePageOpen() ? 'cp' : 'cd';
     const box = document.getElementById(prefix + '-activity-list');
@@ -3020,22 +3639,54 @@ function renderClientActivityList(jobs, sanamDocs) {
     });
     rows.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     lastActivityRows = rows;
+    // A fresh fetch (new client opened, or a refresh after edit/delete) --
+    // start back on page 1. The search box itself is left as the
+    // translator typed it, so a refresh mid-search doesn't lose their
+    // filter.
+    activityListPage = 1;
 
     if (countEl) countEl.textContent = rows.length;
     if (prefix === 'cp') renderClientStats(rows);
 
-    if (!rows.length) {
-        const emptyMsg = '// بدون سابقه پروژه یا سند';
+    renderActivityListPage();
+}
+
+// The part of renderClientActivityList() that actually touches the DOM --
+// split out so the search box and pagination controls can re-render just
+// this, against the already-fetched lastActivityRows, without re-hitting
+// the server. ACTIVITY_PAGE_SIZE caps one page at 25 rows; activityListQuery
+// filters by title (document name / manual description) first, THEN pages
+// the filtered result -- so searching always starts back on a full page 1
+// of matches (see filterActivityList()).
+function renderActivityListPage() {
+    const prefix = isProfilePageOpen() ? 'cp' : 'cd';
+    const box = document.getElementById(prefix + '-activity-list');
+    if (!box) return;
+
+    const query = activityListQuery.trim();
+    const filtered = query
+        ? lastActivityRows.filter(r => (r.title || '').toLowerCase().includes(query.toLowerCase()))
+        : lastActivityRows;
+
+    if (!filtered.length) {
+        const emptyMsg = query ? '// موردی با این نام یافت نشد' : '// بدون سابقه پروژه یا سند';
         box.innerHTML = prefix === 'cp'
             ? `<tr><td colspan="6" class="text-xs text-center py-4" style="color:var(--text-muted);">${emptyMsg}</td></tr>`
             : `<div class="text-xs text-center py-4" style="color:var(--text-muted);">${emptyMsg}</div>`;
+        renderActivityListPagination(prefix, 0, 0);
         updateActivityBulkBar();
         return;
     }
 
-    box.innerHTML = rows.map(r => {
+    const totalPages = Math.max(1, Math.ceil(filtered.length / ACTIVITY_PAGE_SIZE));
+    activityListPage = Math.min(Math.max(1, activityListPage), totalPages);
+    const start = (activityListPage - 1) * ACTIVITY_PAGE_SIZE;
+    const pageRows = filtered.slice(start, start + ACTIVITY_PAGE_SIZE);
+
+    box.innerHTML = pageRows.map(r => {
         const color = ACTIVITY_CATEGORY_COLORS[r.type];
-        const checked = isActivityInDraft(activityRowKey(r.type, r.id));
+        const rowKey = activityRowKey(r.type, r.id);
+        const checked = checkedActivityKeys.has(rowKey) || isActivityInDraft(rowKey);
         const st = r.type === 'job' ? (ACTIVITY_STATUS_LABELS[r.status] || { text: escapeHtml(r.status), color: 'var(--text-muted)' })
             : (r.billed ? { text: 'فاکتور شده', color: '#4ade80' } : null);
         const idBadge = r.type === 'job'
@@ -3044,8 +3695,8 @@ function renderClientActivityList(jobs, sanamDocs) {
         const dateStr = r.date ? escapeHtml(String(r.date).slice(0, 10)) : '—';
         const dotTitle = r.type === 'job' ? 'ترجمه ماشینی' : (r.type === 'sanam' ? 'وارد شده از سنام' : 'ردیف دستی');
         const checkbox = `<input type="checkbox" ${checked ? 'checked' : ''} ${r.checkable ? '' : 'disabled'}
-            data-activity-key="${escapeHtml(activityRowKey(r.type, r.id))}"
-            onchange='toggleActivityInDraft(${JSON.stringify(r.type)}, ${JSON.stringify(r.id)}, ${JSON.stringify(r.title)}, ${r.price}, this.checked)'
+            data-activity-key="${escapeHtml(rowKey)}"
+            onchange='toggleActivitySelection(${JSON.stringify(r.type)}, ${JSON.stringify(r.id)}, this.checked)'
             style="width:15px;height:15px;accent-color:${color};flex-shrink:0;cursor:${r.checkable ? 'pointer' : 'not-allowed'};">`;
 
         if (prefix === 'cp') {
@@ -3068,7 +3719,30 @@ function renderClientActivityList(jobs, sanamDocs) {
             ${st ? `<span class="status-pill" style="color:${st.color};background:${st.color}1f;">${st.text}</span>` : ''}
         </div>`;
     }).join('');
+    renderActivityListPagination(prefix, activityListPage, totalPages);
     updateActivityBulkBar();
+}
+
+function renderActivityListPagination(prefix, page, totalPages) {
+    const el = document.getElementById(prefix + '-activity-pagination');
+    if (!el) return;
+    if (totalPages <= 1) { el.innerHTML = ''; return; }
+    el.innerHTML = `
+        <button type="button" onclick="goToActivityPage(${page - 1})" ${page <= 1 ? 'disabled' : ''} class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);opacity:${page <= 1 ? '.45' : '1'};">→ قبلی</button>
+        <span class="text-[11px]" style="color:var(--text-muted);">صفحهٔ ${page.toLocaleString('fa-IR')} از ${totalPages.toLocaleString('fa-IR')}</span>
+        <button type="button" onclick="goToActivityPage(${page + 1})" ${page >= totalPages ? 'disabled' : ''} class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);opacity:${page >= totalPages ? '.45' : '1'};">بعدی ←</button>`;
+}
+
+function goToActivityPage(page) {
+    activityListPage = page;
+    renderActivityListPage();
+}
+
+function filterActivityList(prefix) {
+    const input = document.getElementById(prefix + '-activity-search');
+    activityListQuery = input ? input.value : '';
+    activityListPage = 1;
+    renderActivityListPage();
 }
 
 // Quick-glance numbers above the profile's activity table -- a failed job
@@ -3092,7 +3766,23 @@ function renderClientStats(rows) {
     lastEl.textContent = last || '—';
 }
 
+// Past invoices are purely historical records -- the پیش‌نویس فاکتور panel
+// (addCustomInvoiceRow() and friends, below) is the only thing meant to feel
+// like an active workbench. Collapsing this list to the 3 most recent by
+// default, with a toggle for the rest, keeps a client with many invoices
+// from burying the draft panel under a long pile of old ones. Collapses
+// again whenever a DIFFERENT client is opened (lastInvoiceListClientId),
+// but stays as the translator left it across same-client refreshes (e.g.
+// after deleting one invoice).
+const INVOICE_LIST_COLLAPSED_COUNT = 3;
+let invoiceListExpanded = false;
+let lastInvoiceListClientId = null;
+
 async function renderClientInvoices(clientId) {
+    if (clientId !== lastInvoiceListClientId) {
+        invoiceListExpanded = false;
+        lastInvoiceListClientId = clientId;
+    }
     const profileOpen = isProfilePageOpen();
     const prefix = profileOpen ? 'cp' : 'cd';
     const box = document.getElementById(prefix + '-invoices-list');
@@ -3103,6 +3793,7 @@ async function renderClientInvoices(clientId) {
         const res = await fetch(`${CORE}/invoices?client_id=${clientId}`, { headers: { 'Authorization': `Bearer ${token}` } });
         if (!res.ok) throw new Error();
         const invoices = await res.json();
+        invoices.sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
         if (countEl) countEl.textContent = invoices.length;
         if (!invoices.length) {
             box.innerHTML = `<div class="text-xs text-center py-4" style="color:var(--text-muted);">// بدون فاکتور ثبت‌شده</div>`;
@@ -3113,20 +3804,23 @@ async function renderClientInvoices(clientId) {
             invoice:  { text: 'فاکتور',     color: '#4ade80' },
             proforma: { text: 'پیش‌فاکتور', color: '#fb923c' },
         };
-        box.innerHTML = invoices.map(inv => {
+        const visibleInvoices = invoiceListExpanded ? invoices : invoices.slice(0, INVOICE_LIST_COLLAPSED_COUNT);
+        box.innerHTML = visibleInvoices.map(inv => {
             const t = TYPE_LABELS[inv.invoice_type] || TYPE_LABELS.invoice;
+            const dateStr = (inv.issue_date || inv.created_at || '').slice(0, 10);
             // finalized_at (set once printed/emailed) is purely informational
             // now -- editing is always allowed, never locked by it.
             const sentBadge = inv.finalized_at
                 ? `<span class="text-[10px] shrink-0" style="color:var(--text-muted);" title="قبلاً چاپ یا ایمیل شده">✓ ارسال‌شده</span>`
                 : '';
-            const actions = `<button onclick="event.stopPropagation();openInvoiceView('${inv.id}', true)" class="text-[10px] font-bold px-2 py-1 rounded-md shrink-0" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">✏️ ویرایش</button>`;
+            const actions = `<button onclick="event.stopPropagation();openInvoiceView('${inv.id}', true)" class="text-[10px] font-bold px-2 py-1 rounded-md shrink-0" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">✏️ ویرایش</button>
+                <button onclick="event.stopPropagation();deleteInvoice('${inv.id}','${clientId}')" class="text-[10px] font-bold px-2 py-1 rounded-md shrink-0" style="background:var(--card-surface);color:#f87171;border:1px solid var(--border-color);">🗑 حذف</button>`;
             return `
             <div onclick="openInvoiceView('${inv.id}')" class="p-2.5 rounded-lg text-xs cursor-pointer transition hover:opacity-80" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
                 <div class="flex items-center justify-between gap-2">
                     <span class="flex items-center gap-1.5" style="color:var(--text-main);">
                         🧾 <span class="status-pill" style="color:${t.color};background:${t.color}1f;">${t.text}</span>
-                        ${SOURCE_LABELS[inv.source] || inv.source}${inv.tracking_code ? ' · کد پیگیری ' + escapeHtml(inv.tracking_code) : ''}
+                        ${SOURCE_LABELS[inv.source] || inv.source}${dateStr ? ' · ' + escapeHtml(dateStr) : ''}${inv.tracking_code ? ' · کد پیگیری ' + escapeHtml(inv.tracking_code) : ''}
                     </span>
                     <span class="flex items-center gap-2">
                         <span class="font-bold en" style="color:var(--accent);">${(inv.total_toman || 0).toLocaleString()} تومان</span>
@@ -3135,9 +3829,38 @@ async function renderClientInvoices(clientId) {
                     </span>
                 </div>
             </div>`;
-        }).join('');
+        }).join('') + (invoices.length > INVOICE_LIST_COLLAPSED_COUNT
+            ? `<button type="button" onclick="toggleInvoiceListVisibility('${clientId}')" class="w-full text-center text-[11px] font-bold py-2 rounded-lg transition" style="background:var(--card-surface);color:var(--accent);border:1px dashed var(--border-color);">${
+                invoiceListExpanded ? '▲ نمایش کمتر' : `▼ نمایش ${(invoices.length - INVOICE_LIST_COLLAPSED_COUNT).toLocaleString('fa-IR')} فاکتور قدیمی‌تر`
+              }</button>`
+            : '');
     } catch (e) {
         box.innerHTML = `<div class="text-xs text-center py-3" style="color:#f87171;">خطا در دریافت فاکتورها.</div>`;
+    }
+}
+
+function toggleInvoiceListVisibility(clientId) {
+    invoiceListExpanded = !invoiceListExpanded;
+    renderClientInvoices(clientId);
+}
+
+async function deleteInvoice(invoiceId, clientId) {
+    if (!confirm('این فاکتور برای همیشه حذف شود؟ این کار قابل بازگشت نیست.')) return;
+    const token = localStorage.getItem('deept_token');
+    try {
+        const res = await fetch(`${CORE}/invoices/${invoiceId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error();
+        showToast('✅ فاکتور حذف شد.');
+        renderClientInvoices(clientId);
+        // Any Sanam work item this invoice had billed is now unlinked and
+        // billable again -- refresh the activity list so it shows up as
+        // checkable instead of still marked "فاکتور شده".
+        _refetchClientActivity(clientId);
+    } catch (e) {
+        showToast('❌ حذف فاکتور ناموفق بود.');
     }
 }
 
@@ -3181,7 +3904,7 @@ function renderMyPriceListMatches(list, query, onSelect) {
 
     const q = (query || '').trim();
     const matches = [];
-    PRICE_CATALOG.forEach(group => {
+    priceCatalogWithCustom().forEach(group => {
         group.items.forEach(item => {
             if (!q || item.label.includes(q)) matches.push(item);
         });
@@ -3302,7 +4025,7 @@ function applyMyPriceListReprice(itemId) {
     row.description = item.label;
     row._mypl_item_id = itemId;
     row._mypl_base_qty = 1;
-    row._mypl_extra_qty = 0;
+    row._mypl_extra_qtys = new Array(myplEffectiveExtras(itemId).length).fill(0);
     row._mypl_mohr_qty = 0;
     myplRecomputeRowPrice(row);
 
@@ -3321,7 +4044,9 @@ function selectMyPriceListItem(instance, itemId) {
     const item = PRICE_CATALOG_BY_ID[itemId];
     const row = {
         description: item.label, quantity: 1, unit_price_toman: 0,
-        _mypl_item_id: itemId, _mypl_base_qty: 1, _mypl_extra_qty: 0, _mypl_mohr_qty: 0,
+        _mypl_item_id: itemId, _mypl_base_qty: 1,
+        _mypl_extra_qtys: new Array(myplEffectiveExtras(itemId).length).fill(0),
+        _mypl_mohr_qty: 0,
     };
     myplRecomputeRowPrice(row);
 
@@ -3351,15 +4076,71 @@ function selectMyPriceListItem(instance, itemId) {
 // just the two numbers that can change -- the row's displayed price (for
 // a نرخنامه-linked row, where price is computed rather than typed) and
 // its line total -- directly in the existing DOM.
+// فوریت (urgency): a per-row surcharge percentage, applied only at the
+// line-total stage -- the unit price itself (manual or نرخنامه-computed)
+// is left alone, so "what's the base price" and "what did urgency add"
+// both stay visible rather than getting baked irreversibly into one
+// number. A whole-invoice surcharge (see draftWholeInvoiceUrgency*) is the
+// same idea one level up, applied once to the sum of all line totals.
+function rowLineTotal(row) {
+    const base = (row.quantity || 0) * (row.unit_price_toman || 0);
+    const pct = (row._urgency_checked && row._urgency_percent > 0) ? row._urgency_percent : 0;
+    return pct > 0 ? Math.round(base * (1 + pct / 100)) : base;
+}
+
+let draftWholeInvoiceUrgencyChecked = false;
+let draftWholeInvoiceUrgencyPercent = 0;
+
+function draftLineSubtotal() {
+    return invoiceDraft.reduce((s, row) => s + rowLineTotal(row), 0);
+}
+
+function draftGrandTotal() {
+    const subtotal = draftLineSubtotal();
+    if (draftWholeInvoiceUrgencyChecked && draftWholeInvoiceUrgencyPercent > 0) {
+        return Math.round(subtotal * (1 + draftWholeInvoiceUrgencyPercent / 100));
+    }
+    return subtotal;
+}
+
+// Keeps the whole-invoice فوریت checkbox/percent inputs (static markup in
+// index.html, both cd/cp instances) in sync with the state above -- needed
+// whenever that state changes from code rather than from the user directly
+// typing into one of them (opening a new client, resetting after submit).
+function syncDraftWholeInvoiceUrgencyUI() {
+    ['cd', 'cp'].forEach(prefix => {
+        const cb = document.getElementById(prefix + '-draft-urgency-checked');
+        const pct = document.getElementById(prefix + '-draft-urgency-pct');
+        if (cb) cb.checked = draftWholeInvoiceUrgencyChecked;
+        if (pct) {
+            pct.disabled = !draftWholeInvoiceUrgencyChecked;
+            pct.value = draftWholeInvoiceUrgencyPercent || '';
+        }
+    });
+}
+
+function toggleDraftWholeInvoiceUrgency(checked) {
+    draftWholeInvoiceUrgencyChecked = !!checked;
+    syncDraftWholeInvoiceUrgencyUI();
+    updateDraftTotal();
+}
+
+function setDraftWholeInvoiceUrgencyPercent(value) {
+    draftWholeInvoiceUrgencyPercent = Math.max(0, parseInt(value, 10) || 0);
+    updateDraftTotal();
+}
+
 function updateDraftRow(idx, field, value) {
     const row = invoiceDraft[idx];
     if (!row) return;
-    if (MYPL_QTY_FIELD_MAP[field]) {
-        const qty = Math.max(0, parseInt(value, 10) || 0);
-        row[MYPL_QTY_FIELD_MAP[field]] = qty;
+    if (myplApplyQtyFieldEdit(row, field, value)) {
         myplRecomputeRowPrice(row);
     } else if (field === 'description') {
         row.description = value;
+    } else if (field === 'urgencyChecked') {
+        row._urgency_checked = !!value;
+    } else if (field === 'urgencyPercent') {
+        row._urgency_percent = Math.max(0, parseInt(value, 10) || 0);
     } else {
         row[field] = parseInt(value, 10) || 0;
     }
@@ -3367,10 +4148,15 @@ function updateDraftRow(idx, field, value) {
     const prefix = isProfilePageOpen() ? 'cp' : 'cd';
     const rowEl = document.getElementById(prefix + '-draft-rows').children[idx];
     if (rowEl) {
-        const priceEl = rowEl.querySelector('.mypl-computed-price');
-        if (priceEl) priceEl.textContent = row.unit_price_toman.toLocaleString();
+        // A نرخنامه-linked row's price can change indirectly (mypl quantity
+        // edit recomputes unit_price_toman) even when `field` itself isn't
+        // the price input -- keep that field's own displayed value in sync.
+        const priceInput = rowEl.querySelector('.draft-unit-price');
+        if (priceInput && document.activeElement !== priceInput) priceInput.value = row.unit_price_toman;
         const totalEl = rowEl.querySelector('.draft-line-total');
-        if (totalEl) totalEl.textContent = ((row.quantity || 0) * (row.unit_price_toman || 0)).toLocaleString();
+        if (totalEl) totalEl.textContent = rowLineTotal(row).toLocaleString();
+        const pctInput = rowEl.querySelector('.urgency-pct-input');
+        if (pctInput) pctInput.disabled = !row._urgency_checked;
     }
     updateDraftTotal();
 }
@@ -3393,10 +4179,18 @@ function isProfilePageOpen() {
 }
 
 function updateDraftTotal() {
-    const total = invoiceDraft.reduce((s, row) => s + (row.quantity || 0) * (row.unit_price_toman || 0), 0);
-    const id = isProfilePageOpen() ? 'cp-draft-total' : 'cd-draft-total';
-    const el = document.getElementById(id);
-    if (el) el.textContent = total.toLocaleString();
+    const prefix = isProfilePageOpen() ? 'cp' : 'cd';
+    const subtotal = draftLineSubtotal();
+    const grandTotal = draftGrandTotal();
+    const el = document.getElementById(prefix + '-draft-total');
+    if (el) el.textContent = grandTotal.toLocaleString();
+    const subEl = document.getElementById(prefix + '-draft-subtotal');
+    if (subEl) subEl.textContent = subtotal.toLocaleString();
+    // Only worth showing "جمع ردیف‌ها: X · جمع کل: Y" as two numbers when
+    // whole-invoice فوریت actually makes them differ -- otherwise it's the
+    // same number twice.
+    const subWrap = document.getElementById(prefix + '-draft-subtotal-wrap');
+    if (subWrap) subWrap.classList.toggle('hidden', subtotal === grandTotal);
 }
 
 function renderDraftRows() {
@@ -3407,16 +4201,24 @@ function renderDraftRows() {
     if (!box || !empty) return;
     empty.classList.toggle('hidden', invoiceDraft.length > 0);
     box.innerHTML = invoiceDraft.map((row, idx) => {
-        const lineTotal = (row.quantity || 0) * (row.unit_price_toman || 0);
+        const lineTotal = rowLineTotal(row);
         // Same color as the source it came from in the activity list above
         // (amber for a row typed fresh, with no _source_key at all) -- so
         // the draft keeps showing the same category coding end to end.
         const dotColor = ACTIVITY_CATEGORY_COLORS[(row._source_key || '').split(':')[0]] || ACTIVITY_CATEGORY_COLORS.manual;
-        // A نرخنامه-linked row's price is computed from its own quantity
-        // inputs below (see myplRowQtyControlsHtml) -- shown, not typed.
-        const priceField = row._mypl_item_id
-            ? `<span class="mypl-computed-price auth-input en" dir="ltr" title="محاسبه‌شده از تعداد زیر" style="width:100px;padding:.4rem .6rem;font-size:.78rem;display:inline-flex;align-items:center;opacity:.75;">${row.unit_price_toman.toLocaleString()}</span>`
-            : `<input type="number" value="${row.unit_price_toman}" title="قیمت واحد (تومان)" oninput="updateDraftRow(${idx},'unit_price_toman',this.value)" class="auth-input en" dir="ltr" style="width:100px;padding:.4rem .6rem;font-size:.78rem;">`;
+        // A نرخنامه-linked row's price starts out computed from its own
+        // quantity inputs below (see myplRowQtyControlsHtml), but stays a
+        // normal editable field -- a translator negotiating a one-off price
+        // for this invoice shouldn't have to go change نرخنامه itself to
+        // do it. Editing it directly just overwrites unit_price_toman; the
+        // next quantity edit recomputes from نرخنامه and overwrites it back.
+        const priceField = `<input type="number" value="${row.unit_price_toman}" title="قیمت واحد (تومان)" oninput="updateDraftRow(${idx},'unit_price_toman',this.value)" class="auth-input draft-unit-price en" dir="ltr" style="width:100px;padding:.4rem .6rem;font-size:.78rem;">`;
+        const urgencyField = `
+            <label class="flex items-center gap-1 text-[10px] shrink-0" style="color:var(--text-muted);" title="فوریت: درصد افزایش قیمت این ردیف">
+              <input type="checkbox" ${row._urgency_checked ? 'checked' : ''} onchange="updateDraftRow(${idx},'urgencyChecked',this.checked)" style="width:12px;height:12px;">
+              فوریت
+              <input type="number" min="0" max="500" value="${row._urgency_percent || ''}" placeholder="٪" oninput="updateDraftRow(${idx},'urgencyPercent',this.value)" class="auth-input urgency-pct-input en" dir="ltr" style="width:42px;padding:.2rem .3rem;font-size:.7rem;text-align:center;" ${row._urgency_checked ? '' : 'disabled'}>
+            </label>`;
         return `
         <div class="flex flex-wrap items-center gap-1.5 p-2 rounded-lg" style="background:var(--card-surface);border:1px solid var(--border-subtle);border-inline-start:3px solid ${dotColor};">
             <span style="width:8px;height:8px;border-radius:50%;background:${dotColor};display:inline-block;flex-shrink:0;"></span>
@@ -3427,6 +4229,7 @@ function renderDraftRows() {
             <span class="draft-line-total text-[11px] font-bold en shrink-0" style="width:95px;text-align:left;color:var(--accent);">${lineTotal.toLocaleString()}</span>
             ${myplRepriceButtonHtml('draft', idx, row)}
             <button onclick="removeDraftRow(${idx})" style="color:#f87171;background:none;border:none;cursor:pointer;font-weight:700;padding:0 .25rem;">✕</button>
+            ${urgencyField}
             ${myplRowQtyControlsHtml(row, idx, 'updateDraftRow')}
         </div>`;
     }).join('');
@@ -3439,13 +4242,36 @@ async function submitDraftInvoice(invoiceType) {
     if (!invoiceDraft.length) { showToast('⚠️ حداقل یک ردیف به فاکتور اضافه کنید.'); return; }
     if (invoiceDraft.some(row => !row.description.trim())) { showToast('⚠️ شرح همه ردیف‌ها باید تکمیل شود.'); return; }
 
-    const items = invoiceDraft.map(row => ({
-        description: row.description,
-        quantity: row.quantity || 1,
-        line_total_toman: (row.quantity || 0) * (row.unit_price_toman || 0),
-        job_id: row.job_id,
-        sanam_document_id: row.sanam_document_id,
-    }));
+    // Per-row فوریت is baked into each line's own total (with a note added
+    // to its description so the surcharge stays visible on the printed
+    // invoice, not just a silently higher price); whole-invoice فوریت
+    // becomes one extra synthetic line for the same reason -- invoice_items
+    // has no surcharge concept of its own, so this is the one place that
+    // transparency can live without a backend change.
+    const items = invoiceDraft.map(row => {
+        const urgencyPct = (row._urgency_checked && row._urgency_percent > 0) ? row._urgency_percent : 0;
+        return {
+            description: urgencyPct > 0 ? `${row.description} (فوریت ٪${urgencyPct})` : row.description,
+            quantity: row.quantity || 1,
+            line_total_toman: rowLineTotal(row),
+            job_id: row.job_id,
+            sanam_document_id: row.sanam_document_id,
+        };
+    });
+
+    if (draftWholeInvoiceUrgencyChecked && draftWholeInvoiceUrgencyPercent > 0) {
+        const subtotal = draftLineSubtotal();
+        const surcharge = draftGrandTotal() - subtotal;
+        if (surcharge > 0) {
+            items.push({
+                description: `فوریت فاکتور (٪${draftWholeInvoiceUrgencyPercent})`,
+                quantity: 1,
+                line_total_toman: surcharge,
+                job_id: null,
+                sanam_document_id: null,
+            });
+        }
+    }
 
     const token = localStorage.getItem('deept_token');
     try {
@@ -3458,6 +4284,9 @@ async function submitDraftInvoice(invoiceType) {
         const label = invoiceType === 'proforma' ? 'پیش‌فاکتور' : 'فاکتور';
         showToast(`✅ ${label}ی با ${items.length} ردیف ثبت شد.`);
         invoiceDraft = [];
+        draftWholeInvoiceUrgencyChecked = false;
+        draftWholeInvoiceUrgencyPercent = 0;
+        syncDraftWholeInvoiceUrgencyUI();
         renderDraftRows();
         // Uncheck every activity-list checkbox now that the draft they
         // fed is gone -- no cached jobs/sanam data to re-render the list
@@ -3494,70 +4323,22 @@ function toPersianDigits(input) {
     return String(input).replace(/[0-9]/g, d => fa[+d]);
 }
 
-// Civil-calendar conversion algorithm (the same one used by most Jalali
-// date libraries) -- round-trips exactly for every date, leap years
-// included, verified against known Nowruz dates (1403-1405).
-function gregorianToJalali(gy, gm, gd) {
-    const g_d_m = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
-    const gy2 = (gm > 2) ? (gy + 1) : gy;
-    let days = 355666 + (365 * gy) + Math.floor((gy2 + 3) / 4) - Math.floor((gy2 + 99) / 100)
-        + Math.floor((gy2 + 399) / 400) + gd + g_d_m[gm - 1];
-    let jy = -1595 + (33 * Math.floor(days / 12053));
-    days %= 12053;
-    jy += 4 * Math.floor(days / 1461);
-    days %= 1461;
-    if (days > 365) {
-        jy += Math.floor((days - 1) / 365);
-        days = (days - 1) % 365;
-    }
-    let jm, jd;
-    if (days < 186) {
-        jm = 1 + Math.floor(days / 31);
-        jd = 1 + (days % 31);
-    } else {
-        jm = 7 + Math.floor((days - 186) / 30);
-        jd = 1 + ((days - 186) % 30);
-    }
-    return [jy, jm, jd];
-}
-
-function jalaliToGregorian(jy, jm, jd) {
-    jy += 1595;
-    let days = -355668 + (365 * jy) + (Math.floor(jy / 33) * 8) + Math.floor(((jy % 33) + 3) / 4)
-        + jd + ((jm < 7) ? (jm - 1) * 31 : ((jm - 7) * 30) + 186);
-    let gy = 400 * Math.floor(days / 146097);
-    days %= 146097;
-    if (days > 36524) {
-        gy += 100 * Math.floor(--days / 36524);
-        days %= 36524;
-        if (days >= 365) days++;
-    }
-    gy += 4 * Math.floor(days / 1461);
-    days %= 1461;
-    if (days > 365) {
-        gy += Math.floor((days - 1) / 365);
-        days = (days - 1) % 365;
-    }
-    const gd0 = days + 1;
-    const sal_a = [0, 31, ((gy % 4 === 0 && gy % 100 !== 0) || (gy % 400 === 0)) ? 29 : 28,
-        31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-    let gm = 0, gd = gd0;
-    for (; gm < 13; gm++) {
-        const v = sal_a[gm];
-        if (gd <= v) break;
-        gd -= v;
-    }
-    return [gy, gm, gd];
-}
+// Gregorian<->Jalali conversion itself (gregorianToJalali(date) -> {y,m,d},
+// jalaliToGregorian(jy,jm,jd) -> Date) is defined once, further down this
+// file, and shared with the office-wide schedule calendar -- this block
+// used to carry its own second, incompatible copy of both (an array-based
+// civil-calendar algorithm) which silently won the "last function
+// declaration wins" conflict against the shared one for a while, breaking
+// every caller below. Don't re-add a second definition here.
 
 // Month 1-6 are always 31 days, 7-11 always 30 -- only month 12 (28/29
 // days, esfand) varies by leap year. Rather than re-deriving the 33-year
 // leap-year rule (easy to get subtly wrong), just measure this Jalali
 // year's real length via the already-verified conversion above.
 function jalaliYearLength(jy) {
-    const [gy1, gm1, gd1] = jalaliToGregorian(jy, 1, 1);
-    const [gy2, gm2, gd2] = jalaliToGregorian(jy + 1, 1, 1);
-    return Math.round((Date.UTC(gy2, gm2 - 1, gd2) - Date.UTC(gy1, gm1 - 1, gd1)) / 86400000);
+    const d1 = jalaliToGregorian(jy, 1, 1);
+    const d2 = jalaliToGregorian(jy + 1, 1, 1);
+    return Math.round((d2 - d1) / 86400000);
 }
 
 function jalaliMonthLength(jy, jm) {
@@ -3569,7 +4350,7 @@ function jalaliMonthLength(jy, jm) {
 function formatIsoAsJalaliDisplay(iso) {
     if (!iso) return '';
     const [gy, gm, gd] = iso.split('-').map(Number);
-    const [jy, jm, jd] = gregorianToJalali(gy, gm, gd);
+    const { y: jy, m: jm, d: jd } = gregorianToJalali(new Date(gy, gm - 1, gd));
     return `${toPersianDigits(jd)} ${PERSIAN_MONTHS_FA[jm - 1]} ${toPersianDigits(jy)}`;
 }
 
@@ -3584,14 +4365,15 @@ function toggleJalaliCalendar(baseId) {
     if (!popup || !hidden) return;
 
     jalaliCalendarOpenFor = baseId;
-    const today = new Date();
+    let j;
     if (hidden.value) {
         const [gy, gm, gd] = hidden.value.split('-').map(Number);
-        [jalaliCalendarViewYear, jalaliCalendarViewMonth] = gregorianToJalali(gy, gm, gd);
+        j = gregorianToJalali(new Date(gy, gm - 1, gd));
     } else {
-        [jalaliCalendarViewYear, jalaliCalendarViewMonth] =
-            gregorianToJalali(today.getFullYear(), today.getMonth() + 1, today.getDate());
+        j = gregorianToJalali(new Date());
     }
+    jalaliCalendarViewYear = j.y;
+    jalaliCalendarViewMonth = j.m;
     renderJalaliCalendar();
     popup.classList.remove('hidden');
 }
@@ -3620,21 +4402,20 @@ function renderJalaliCalendar() {
     let selJ = null;
     if (hidden.value) {
         const [gy, gm, gd] = hidden.value.split('-').map(Number);
-        selJ = gregorianToJalali(gy, gm, gd);
+        selJ = gregorianToJalali(new Date(gy, gm - 1, gd));
     }
-    const today = new Date();
-    const [ty, tm, td] = gregorianToJalali(today.getFullYear(), today.getMonth() + 1, today.getDate());
+    const t = gregorianToJalali(new Date());
 
-    const [gy1, gm1, gd1] = jalaliToGregorian(jy, jm, 1);
-    const jsWeekday = new Date(gy1, gm1 - 1, gd1).getDay(); // JS: 0=Sun..6=Sat
+    const gDate1 = jalaliToGregorian(jy, jm, 1);
+    const jsWeekday = gDate1.getDay(); // JS: 0=Sun..6=Sat
     const startOffset = (jsWeekday + 1) % 7;                // shift so 0=Sat (شنبه)
     const monthLen = jalaliMonthLength(jy, jm);
 
     let cells = '';
     for (let i = 0; i < startOffset; i++) cells += `<div></div>`;
     for (let d = 1; d <= monthLen; d++) {
-        const isSel = !!(selJ && selJ[0] === jy && selJ[1] === jm && selJ[2] === d);
-        const isToday = ty === jy && tm === jm && td === d;
+        const isSel = !!(selJ && selJ.y === jy && selJ.m === jm && selJ.d === d);
+        const isToday = t.y === jy && t.m === jm && t.d === d;
         cells += `<button type="button" onclick="selectJalaliDate('${baseId}',${jy},${jm},${d})"
             class="text-[11px] rounded-md py-1.5 en" style="
                 background:${isSel ? 'var(--accent)' : 'transparent'};
@@ -3661,8 +4442,7 @@ function renderJalaliCalendar() {
 }
 
 function selectJalaliDate(baseId, jy, jm, jd) {
-    const [gy, gm, gd] = jalaliToGregorian(jy, jm, jd);
-    const iso = `${gy}-${String(gm).padStart(2, '0')}-${String(gd).padStart(2, '0')}`;
+    const iso = fmtWeekISO(jalaliToGregorian(jy, jm, jd));
     const hidden = document.getElementById(baseId);
     const display = document.getElementById(baseId + '-display');
     if (hidden) hidden.value = iso;
@@ -3679,9 +4459,8 @@ function clearJalaliDate(baseId) {
 }
 
 function jalaliCalendarGoToday(baseId) {
-    const today = new Date();
-    const [jy, jm, jd] = gregorianToJalali(today.getFullYear(), today.getMonth() + 1, today.getDate());
-    selectJalaliDate(baseId, jy, jm, jd);
+    const j = gregorianToJalali(new Date());
+    selectJalaliDate(baseId, j.y, j.m, j.d);
 }
 
 document.addEventListener('click', (e) => {
@@ -3699,13 +4478,167 @@ document.addEventListener('click', (e) => {
 const WORK_ORDER_TYPE_FA = {
     TAYIDI:        { text: 'تاییدی',     color: '#38bdf8' },
     MEHR_MOTARJEM: { text: 'مهر مترجم',  color: '#c084fc' },
+    TASK:          { text: 'یادداشت',    color: '#2dd4bf' },
 };
+// A translator's own color choice for each type, kept client-side only
+// (localStorage, per browser) -- these are a display preference, not data,
+// so there's no reason to round-trip them through Core. Every place that
+// colors a type badge/pill/chip already reads WORK_ORDER_TYPE_FA[t].color
+// live at render time (see setScheduleTypeFilter, refreshDayTaskTypeBtns,
+// refreshScheduleOrderTypeBtns, and the schedule render functions below),
+// so overwriting the color here and re-running those is enough to repaint
+// everything -- no separate "custom color" plumbing needed anywhere else.
+const WORK_ORDER_TYPE_DEFAULT_COLORS = { TAYIDI: '#38bdf8', MEHR_MOTARJEM: '#c084fc', TASK: '#2dd4bf' };
+const SCHEDULE_TYPE_COLORS_STORAGE_KEY = 'deept_schedule_type_colors';
+
+function loadScheduleTypeColorOverrides() {
+    try {
+        const saved = JSON.parse(localStorage.getItem(SCHEDULE_TYPE_COLORS_STORAGE_KEY) || '{}');
+        Object.keys(saved).forEach(type => {
+            if (WORK_ORDER_TYPE_FA[type] && /^#[0-9a-fA-F]{6}$/.test(saved[type])) {
+                WORK_ORDER_TYPE_FA[type].color = saved[type];
+            }
+        });
+    } catch (e) { /* corrupt/blocked storage -- just keep the defaults */ }
+}
+loadScheduleTypeColorOverrides();
+
+function refreshAllScheduleTypeColorUI() {
+    setScheduleTypeFilter(scheduleTypeFilter);
+    refreshDayTaskTypeBtns();
+    refreshScheduleOrderTypeBtns();
+}
+
+function setScheduleTypeColor(type, color) {
+    if (!WORK_ORDER_TYPE_FA[type]) return;
+    WORK_ORDER_TYPE_FA[type].color = color;
+    let saved = {};
+    try { saved = JSON.parse(localStorage.getItem(SCHEDULE_TYPE_COLORS_STORAGE_KEY) || '{}'); } catch (e) { /* start fresh */ }
+    saved[type] = color;
+    try { localStorage.setItem(SCHEDULE_TYPE_COLORS_STORAGE_KEY, JSON.stringify(saved)); } catch (e) { /* private window etc -- color still applies this session */ }
+    refreshAllScheduleTypeColorUI();
+}
+
+function resetScheduleTypeColors() {
+    Object.keys(WORK_ORDER_TYPE_DEFAULT_COLORS).forEach(type => {
+        WORK_ORDER_TYPE_FA[type].color = WORK_ORDER_TYPE_DEFAULT_COLORS[type];
+        const input = document.getElementById('schedule-color-' + type);
+        if (input) input.value = WORK_ORDER_TYPE_DEFAULT_COLORS[type];
+    });
+    try { localStorage.removeItem(SCHEDULE_TYPE_COLORS_STORAGE_KEY); } catch (e) { /* ignore */ }
+    refreshAllScheduleTypeColorUI();
+}
+
+function toggleScheduleColorPicker() {
+    const popover = document.getElementById('scheduleColorPickerPopover');
+    if (!popover) return;
+    const opening = popover.classList.contains('hidden');
+    if (opening) {
+        Object.keys(WORK_ORDER_TYPE_FA).forEach(type => {
+            const input = document.getElementById('schedule-color-' + type);
+            if (input) input.value = WORK_ORDER_TYPE_FA[type].color;
+        });
+    }
+    popover.classList.toggle('hidden');
+}
+document.addEventListener('click', (e) => {
+    const popover = document.getElementById('scheduleColorPickerPopover');
+    if (!popover || popover.classList.contains('hidden')) return;
+    if (!popover.parentElement.contains(e.target)) popover.classList.add('hidden');
+});
 const WORK_ORDER_STATUS_FA = {
     PENDING:   { text: 'در انتظار',  color: '#fbbf24' },
     DONE:      { text: 'انجام‌شده',    color: '#4ade80' },
     CANCELLED: { text: 'لغو شده',      color: '#f87171' },
 };
 const WEEKDAY_FA = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه'];
+
+// ── Iranian official holidays, for highlighting on the office-wide schedule.
+// Two kinds, since they behave completely differently:
+//  - Solar-Hijri (Jalali) holidays fall on the same {month, day} every year
+//    forever -- Nowruz and the other nationally-fixed dates below. No
+//    maintenance needed, ever.
+//  - Lunar-Hijri (Islamic) holidays -- Eid Fitr, Eid Ghorban, Ashura, etc. --
+//    drift ~10-11 days earlier each Jalali year since the Hijri calendar is
+//    ~354 days long, so there is no fixed {month, day}. These are hardcoded
+//    per Jalali year below, cross-checked against multiple published 1405/
+//    1406 calendars (bahesab.ir, emrooz.app, vacglobal.com, surfiran.com) as
+//    of 2026-11. The first pass of this table had three entries off by one
+//    day (میلاد امام علی, مبعث, میلاد امام مهدی -- all in the same Rajab/
+//    Sha'ban stretch, likely one shared bug in the source site) caught by
+//    comparing against time.ir; two of the three are now time.ir-confirmed
+//    for 1405, the third (مبعث) and all three 1406 equivalents are only
+//    extrapolated from that same +1-day correction, not independently
+//    re-verified. Imam Reza's martyrdom (شهادت امام رضا) could not be
+//    confirmed for 1406 at all, so it's omitted rather than guessed -- treat
+//    this whole lunar table as "best effort," not an official government
+//    publication, and verify against Iran's own calendar before relying on
+//    it for anything binding. ADD 1407 HERE before Nowruz 1407 (~March
+//    2027), or the calendar silently stops highlighting lunar holidays.
+const IRAN_SOLAR_HOLIDAYS = [
+    { m: 1,  d: 1,  name: 'نوروز' },
+    { m: 1,  d: 2,  name: 'نوروز' },
+    { m: 1,  d: 3,  name: 'نوروز' },
+    { m: 1,  d: 4,  name: 'نوروز' },
+    { m: 1,  d: 12, name: 'روز جمهوری اسلامی' },
+    { m: 1,  d: 13, name: 'سیزده بدر' },
+    { m: 3,  d: 14, name: 'رحلت امام خمینی (ره)' },
+    { m: 3,  d: 15, name: 'قیام ۱۵ خرداد' },
+    { m: 11, d: 22, name: 'پیروزی انقلاب اسلامی' },
+    { m: 12, d: 29, name: 'ملی شدن صنعت نفت' },
+];
+const IRAN_LUNAR_HOLIDAYS_BY_YEAR = {
+    1405: [
+        { m: 1,  d: 25, name: 'شهادت امام جعفر صادق (ع)' },
+        { m: 3,  d: 6,  name: 'عید سعید قربان' },
+        { m: 3,  d: 14, name: 'عید سعید غدیر خم' },
+        { m: 4,  d: 3,  name: 'تاسوعای حسینی' },
+        { m: 4,  d: 4,  name: 'عاشورای حسینی' },
+        { m: 5,  d: 13, name: 'اربعین حسینی' },
+        { m: 5,  d: 21, name: 'رحلت رسول اکرم (ص) و شهادت امام حسن مجتبی (ع)' },
+        { m: 5,  d: 22, name: 'شهادت امام رضا (ع)' },
+        { m: 5,  d: 30, name: 'شهادت امام حسن عسکری (ع)' },
+        { m: 6,  d: 8,  name: 'میلاد پیامبر اکرم (ص) و امام جعفر صادق (ع)' },
+        { m: 8,  d: 22, name: 'شهادت حضرت فاطمه زهرا (س)' }, // single-source, user-confirmed correct
+        { m: 10, d: 2,  name: 'میلاد امام علی (ع)' },         // corrected +1 day against time.ir (was 10,1)
+        { m: 10, d: 16, name: 'مبعث حضرت رسول اکرم (ص)' },    // +1 day, same Rajab/Sha'ban source error as above -- not independently confirmed
+        { m: 11, d: 4,  name: 'میلاد امام مهدی (عج)' },       // corrected +1 day against time.ir (was 11,3)
+        { m: 12, d: 9,  name: 'شهادت امام علی (ع)' },
+        { m: 12, d: 19, name: 'عید سعید فطر' },
+        { m: 12, d: 20, name: 'تعطیل عید فطر' },
+    ],
+    1406: [
+        { m: 1,  d: 14, name: 'شهادت امام جعفر صادق (ع)' },
+        { m: 2,  d: 27, name: 'عید سعید قربان' },
+        { m: 3,  d: 4,  name: 'عید سعید غدیر خم' },
+        { m: 3,  d: 24, name: 'تاسوعای حسینی' },
+        { m: 3,  d: 25, name: 'عاشورای حسینی' },
+        { m: 5,  d: 3,  name: 'اربعین حسینی' },
+        { m: 5,  d: 11, name: 'رحلت رسول اکرم (ص) و شهادت امام حسن مجتبی (ع)' },
+        { m: 5,  d: 20, name: 'شهادت امام حسن عسکری (ع)' },
+        { m: 5,  d: 29, name: 'میلاد پیامبر اکرم (ص) و امام جعفر صادق (ع)' },
+        { m: 8,  d: 11, name: 'شهادت حضرت فاطمه زهرا (س)' }, // single-source
+        { m: 9,  d: 22, name: 'میلاد امام علی (ع)' },         // +1 day vs. original source, same correction as 1405 -- not independently confirmed for 1406
+        { m: 10, d: 6,  name: 'مبعث حضرت رسول اکرم (ص)' },    // +1 day, same correction as 1405 -- not independently confirmed
+        { m: 10, d: 23, name: 'میلاد امام مهدی (عج)' },       // +1 day vs. original source, same correction as 1405 -- not independently confirmed for 1406
+        { m: 11, d: 28, name: 'شهادت امام علی (ع)' },
+        { m: 12, d: 8,  name: 'عید سعید فطر' },
+        { m: 12, d: 9,  name: 'تعطیل عید فطر' },
+        // شهادت امام رضا (ع) not included -- couldn't confirm its 1406 date.
+    ],
+};
+
+// Returns the holiday name for a Jalali {y,m,d}, or '' if it's an ordinary
+// day. A solar hit is checked first since those never conflict with a
+// lunar one in practice; if more than one fell on the same day they'd just
+// show as one combined label.
+function getIranHolidayName(jy, jm, jd) {
+    const solar = IRAN_SOLAR_HOLIDAYS.find(h => h.m === jm && h.d === jd);
+    const lunarYear = IRAN_LUNAR_HOLIDAYS_BY_YEAR[jy] || [];
+    const lunar = lunarYear.find(h => h.m === jm && h.d === jd);
+    if (solar && lunar) return `${solar.name} · ${lunar.name}`;
+    return (solar || lunar)?.name || '';
+}
 
 let workWeekStart = null;      // JS Date (Monday-based offset for Persian week)
 let workOrderTypeFilter = null; // 'TAYIDI' | 'MEHR_MOTARJEM' | null = all
@@ -3830,7 +4763,11 @@ async function renderWorkWeek() {
     document.getElementById('workWeekLabel').textContent = `${startFmt} — ${endFmt}`;
 
     const grid = document.getElementById('workWeekGrid');
-    grid.innerHTML = `<div class="text-xs text-center py-6" style="color:var(--text-muted);grid-column:1/-1;">در حال بارگذاری تقویم...</div>`;
+    // See renderScheduleWeekView()'s identical check -- only the very
+    // first render should blank the grid to a loading placeholder.
+    if (!grid.children.length) {
+        grid.innerHTML = `<div class="text-xs text-center py-6" style="color:var(--text-muted);grid-column:1/-1;">در حال بارگذاری تقویم...</div>`;
+    }
 
     try {
         const url = new URL(`${CORE}/work-orders`);
@@ -3875,7 +4812,7 @@ async function renderWorkWeek() {
                 const s = WORK_ORDER_STATUS_FA[o.status] || { text: o.status, color: 'var(--text-muted)' };
                 const done = o.status === 'DONE';
                 return `
-                  <div onclick="openWorkOrderEdit('${o.id}')" class="p-1.5 rounded-md text-[10px] cursor-pointer mb-1 hover:opacity-85" style="background:${(t.color) + '1a'};border:1px solid ${t.color}55;border-left:3px solid ${t.color};">
+                  <div onclick="openWorkOrderEdit('${o.id}')" class="p-1.5 rounded-md text-[10px] cursor-pointer mb-1 hover:opacity-85" style="background:${(t.color) + '33'};border:1px solid ${t.color}55;border-left:3px solid ${t.color};">
                     <div class="flex items-center justify-between gap-1">
                       <span class="font-bold truncate" style="color:${done ? 'var(--text-muted)' : 'var(--text-main)'};${done ? 'text-decoration:line-through;' : ''}">${escapeHtml(o.title || t.text)}</span>
                     </div>
@@ -4026,7 +4963,7 @@ function hideWorkspaceViews() {
     const lp = document.getElementById('landingPage');
     if (lp) lp.style.display = 'none';
     ['workspaceDashboard', 'clientsWorkspace', 'adminDashboard',
-     'clientProfilePage', 'workSchedulePage', 'settingsPage', 'accountSettingsPage', 'myPriceListPage', 'hrPage', 'homePanelsPage', 'dateConverterPage'].forEach(id => {
+     'clientProfilePage', 'workSchedulePage', 'settingsPage', 'accountSettingsPage', 'docSamplesPage', 'myPriceListPage', 'hrPage', 'homePanelsPage', 'dateConverterPage', 'receptionistPage'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.add('hidden');
     });
@@ -4067,6 +5004,9 @@ async function openClientProfile(clientId) {
     if (!currentUserSession) { openAuthModal(); return; }
     currentClientDetailId = clientId;
     invoiceDraft = [];
+    draftWholeInvoiceUrgencyChecked = false;
+    draftWholeInvoiceUrgencyPercent = 0;
+    syncDraftWholeInvoiceUrgencyUI();
     showFullView('clientProfilePage');
     navigateTo('/clients/' + clientId);
     switchClientProfileTab('overview');
@@ -4095,15 +5035,6 @@ async function openClientProfile(clientId) {
         document.getElementById('cp-phone').textContent = c.phone || '—';
         document.getElementById('cp-email').textContent = c.email || '—';
         document.getElementById('cp-notes').value = c.notes || '';
-        // target_language: null/undefined or anything other than the three
-        // named languages falls back to the empty option, which means
-        // English -- matches how DeepT-Core/Back-End treat a missing or
-        // unrecognized value.
-        const targetLangSel = document.getElementById('cp-target-lang');
-        if (targetLangSel) {
-            const validLangs = ['French', 'Italian', 'Spanish'];
-            targetLangSel.value = validLangs.includes(c.target_language) ? c.target_language : '';
-        }
         // cp-job-count's header was replaced by the combined activity
         // list's own count (cp-activity-count, set in renderClientActivityList).
 
@@ -4297,8 +5228,90 @@ function openAccountSettingsPage(pushHistory = true) {
 
 function closeAccountSettingsPage() {
     document.getElementById('accountSettingsPage').classList.add('hidden');
+    document.getElementById('docSamplesPage').classList.add('hidden');
     document.body.style.overflow = 'auto';
     openWorkspaceDashboard(false);
+}
+
+// نمونه مدارک -- redacted real-world sample of every active document type in
+// DOCUMENT_REGISTRY (images in assets/doc-samples/), so a user can compare
+// "does what I have look like this" before uploading. One image per type,
+// except national-id-card which shows front+back since both sides matter.
+// New document types just need an entry here (and the matching image file)
+// -- nothing else changes, same philosophy as DOCUMENT_REGISTRY itself.
+const DOC_SAMPLE_IMAGES = {
+    'police-certificate':            ['police-certificate.jpg'],
+    'vehicle-deed':                  ['vehicle-deed.jpg'],
+    'notary-deed':                   ['notary-deed.jpg'],
+    'academic-transcript':           ['academic-transcript.jpg'],
+    'gazette-notice':                ['gazette-notice.jpg'],
+    'high-school-transcript':        ['high-school-transcript.jpg'],
+    'ownership-deed':                ['ownership-deed.jpg'],
+    'azad-transcript':               ['azad-transcript.jpg'],
+    'general-transcript':            ['general-transcript.jpg'],
+    'insurance-record':              ['insurance-record.jpg'],
+    'consolidated-insurance-record': ['consolidated-insurance-record.jpg'],
+    'insurance-list-receipt':        ['insurance-list-receipt-p1.jpg', 'insurance-list-receipt-p2.jpg'],
+    'insurance-wage-record':         ['insurance-wage-record.jpg'],
+    'building-permit':               ['building-permit.jpg'],
+    'national-id-card':              ['national-id-card-front.jpg', 'national-id-card-back.jpg'],
+};
+
+function openDocSamplesPage(pushHistory = true) {
+    if (!currentUserSession) { openAuthModal(); return; }
+    showFullView('docSamplesPage');
+    if (pushHistory) navigateTo('/doc-samples');
+    document.getElementById('docSamplesSearch').value = '';
+    renderDocSamplesGallery('');
+}
+
+function closeDocSamplesPage() {
+    document.getElementById('docSamplesPage').classList.add('hidden');
+    document.body.style.overflow = 'auto';
+    openWorkspaceDashboard(false);
+}
+
+function renderDocSamplesGallery(query) {
+    const grid = document.getElementById('docSamplesGrid');
+    if (!grid) return;
+    const q = (query || '').trim().toLowerCase();
+
+    const entries = Object.entries(DOCUMENT_REGISTRY).filter(([key, doc]) => {
+        if (!DOC_SAMPLE_IMAGES[key]) return false; // no sample image yet -- skip rather than show a broken card
+        if (!q) return true;
+        return doc.label.toLowerCase().includes(q);
+    });
+
+    if (!entries.length) {
+        grid.innerHTML = `<p class="col-span-full text-center py-8 text-sm" style="color:var(--text-muted);">موردی یافت نشد</p>`;
+        return;
+    }
+
+    grid.innerHTML = entries.map(([key, doc]) => `
+        <button type="button" onclick="openDocSampleLightbox('${key}')" class="workspace-panel p-3 text-right transition hover:opacity-90">
+            <div class="rounded-lg overflow-hidden mb-2" style="border:1px solid var(--border-subtle);">
+                <img src="assets/doc-samples/${DOC_SAMPLE_IMAGES[key][0]}" alt="${escapeHtml(doc.label)}" class="w-full h-40 object-cover object-top">
+            </div>
+            <span class="block text-xs font-bold" style="color:var(--text-main);">${escapeHtml(doc.label)}</span>
+        </button>
+    `).join('');
+}
+
+function openDocSampleLightbox(key) {
+    const doc = DOCUMENT_REGISTRY[key];
+    const images = DOC_SAMPLE_IMAGES[key];
+    if (!doc || !images) return;
+    document.getElementById('docSampleLightboxTitle').textContent = doc.label;
+    document.getElementById('docSampleLightboxImages').innerHTML = images.map(f =>
+        `<img src="assets/doc-samples/${f}" alt="${escapeHtml(doc.label)}" class="w-full rounded-lg" style="border:1px solid var(--border-subtle);">`
+    ).join('');
+    document.getElementById('docSampleLightbox').classList.remove('hidden');
+    document.getElementById('docSampleLightbox').classList.add('flex');
+}
+
+function closeDocSampleLightbox() {
+    document.getElementById('docSampleLightbox').classList.add('hidden');
+    document.getElementById('docSampleLightbox').classList.remove('flex');
 }
 
 function showAccountStatus(id, msg, ok) {
@@ -4447,7 +5460,7 @@ function setScheduleViewMode(mode) {
 
 function setScheduleTypeFilter(type) {
     scheduleTypeFilter = type;
-    ['all', 'TAYIDI', 'MEHR_MOTARJEM'].forEach(t => {
+    ['all', 'TAYIDI', 'MEHR_MOTARJEM', 'TASK'].forEach(t => {
         const el = document.getElementById('sf-' + t);
         if (!el) return;
         const active = (type === null && t === 'all') || type === t;
@@ -4494,20 +5507,69 @@ function renderScheduleOrderList(orders, emptyMessage) {
     list.innerHTML = orders.map(o => {
         const t = WORK_ORDER_TYPE_FA[o.order_type] || { text: o.order_type, color: 'var(--accent)' };
         const s = WORK_ORDER_STATUS_FA[o.status] || { text: o.status, color: 'var(--text-muted)' };
+        const done = o.status === 'DONE';
         return `
-          <div class="flex items-center justify-between gap-3 p-2.5 rounded-lg text-xs" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
+          <div onclick="openScheduleOrderDetail('${o.id}')" class="flex items-center justify-between gap-3 p-2.5 rounded-lg text-xs cursor-pointer transition hover:opacity-85" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
             <div class="flex items-center gap-2 min-w-0">
+              ${scheduleDoneCheckboxHtml(o.id, done)}
               <span class="inline-block w-2.5 h-2.5 rounded-sm shrink-0" style="background:${t.color};"></span>
-              <span class="font-bold en truncate" style="color:var(--text-main);">${escapeHtml(o.client_name || '')}${o.title ? ' — ' + escapeHtml(o.title) : ''}</span>
+              <span class="font-bold en truncate" style="color:${done ? 'var(--text-muted)' : 'var(--text-main)'};${done ? 'text-decoration:line-through;' : ''}">${o.client_name ? escapeHtml(o.client_name) + (o.title ? ' — ' + escapeHtml(o.title) : '') : escapeHtml(o.title || '—')}</span>
             </div>
             <div class="flex items-center gap-3 shrink-0">
               <span class="en font-bold" style="color:${o.due_date ? 'var(--accent)' : 'var(--text-muted)'};">${o.due_date || 'بدون ددلاین'}</span>
               <span style="color:${t.color};">${t.text}</span>
               <span class="en" style="color:${s.color};">${s.text}</span>
-              ${o.client_id ? `<button onclick="openClientProfile('${o.client_id}')" class="text-[11px] font-bold px-2 py-1 rounded-md" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">مشتری</button>` : ''}
+              ${o.client_id ? `<button onclick="event.stopPropagation();openClientProfile('${o.client_id}')" class="text-[11px] font-bold px-2 py-1 rounded-md" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">مشتری</button>` : ''}
             </div>
           </div>`;
     }).join('');
+}
+
+// ── Drag a schedule item from one day cell to another (month or week view)
+// to reschedule it -- "دیدم فردا تحویل شد، باید جابجاش کنم" without typing
+// a new date. Native HTML5 drag-and-drop: the item chip is the drag
+// source, the whole day cell is the drop target. Desktop/mouse only (the
+// HTML5 DnD spec has no touch equivalent), matching how this was asked for
+// ("با موس می‌گیریم... می‌ذاریم").
+let scheduleDraggingOrderId = null;
+
+function scheduleDragStart(event, orderId) {
+    scheduleDraggingOrderId = orderId;
+    event.dataTransfer.effectAllowed = 'move';
+    try { event.dataTransfer.setData('text/plain', orderId); } catch (e) { /* Safari needs the try/catch, not the data itself */ }
+}
+
+function scheduleDragOver(event) {
+    if (!scheduleDraggingOrderId) return;
+    event.preventDefault();
+    event.currentTarget.style.outline = '2px dashed var(--accent)';
+    event.currentTarget.style.outlineOffset = '-2px';
+}
+
+function scheduleDragLeave(event) {
+    event.currentTarget.style.outline = 'none';
+}
+
+async function scheduleDrop(event, iso) {
+    event.preventDefault();
+    event.currentTarget.style.outline = 'none';
+    const orderId = scheduleDraggingOrderId;
+    scheduleDraggingOrderId = null;
+    if (!orderId) return;
+    const order = (scheduleWeekOrders || []).find(o => o.id === orderId);
+    if (!order || order.due_date === iso) return;
+    try {
+        const res = await fetch(`${CORE}/work-orders/${orderId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
+            body: JSON.stringify({ due_date: iso }),
+        });
+        if (!res.ok) throw new Error();
+        showToast('تاریخ جابجا شد.');
+        await renderSchedule();
+    } catch (e) {
+        showToast('خطا در جابجایی تاریخ.');
+    }
 }
 
 async function renderScheduleWeekView() {
@@ -4530,7 +5592,15 @@ async function renderScheduleWeekView() {
     document.getElementById('scheduleWeekLabel').textContent = `${startFmt} — ${endFmt}`;
     document.getElementById('scheduleListHeading').textContent = '📋 سفارش‌های این هفته';
 
-    grid.innerHTML = `<div class="text-xs text-center py-6" style="color:var(--text-muted);grid-column:1/-1;">در حال بارگذاری تقویم...</div>`;
+    // Only blank the grid out on the very first render (nothing in it yet)
+    // -- every later call here is a refresh after some quick action (drag-
+    // drop a day, tick the done checkmark, page to another week), and
+    // flashing the whole grid to a loading placeholder each time looks
+    // broken for something that fast. Keep the current grid showing
+    // instead; it gets replaced in one shot once the new data is in.
+    if (!grid.children.length) {
+        grid.innerHTML = `<div class="text-xs text-center py-6" style="color:var(--text-muted);grid-column:1/-1;">در حال بارگذاری تقویم...</div>`;
+    }
 
     let orders = [];
     try {
@@ -4551,6 +5621,9 @@ async function renderScheduleWeekView() {
     grid.innerHTML = days.map((d, idx) => {
         const iso = fmtWeekISO(d);
         const isToday = todayISO === iso;
+        const dJalali = gregorianToJalali(d);
+        const isFriday = d.getDay() === 5;
+        const holidayName = getIranHolidayName(dJalali.y, dJalali.m, dJalali.d);
         const dayOrders = byDay[iso] || [];
         const pendingCount = dayOrders.filter(o => o.status === 'PENDING').length;
         const overdue = dayOrders.some(o => o.status === 'PENDING' && o.due_date && o.due_date < todayISO);
@@ -4560,12 +5633,12 @@ async function renderScheduleWeekView() {
                 const t = WORK_ORDER_TYPE_FA[o.order_type] || { text: o.order_type, color: 'var(--accent)' };
                 const s = WORK_ORDER_STATUS_FA[o.status] || { text: o.status, color: 'var(--text-muted)' };
                 const done = o.status === 'DONE';
-                const clickTarget = o.client_id
-                    ? `onclick="openClientProfile('${o.client_id}')" title="باز کردن پروفایل مشتری"`
-                    : '';
                 return `
-                  <div ${clickTarget} class="p-1.5 rounded-md text-[10px] cursor-pointer mb-1 hover:opacity-85" style="background:${(t.color) + '1a'};border:1px solid ${t.color}55;border-left:3px solid ${t.color};">
-                    <div class="font-bold truncate" style="color:${done ? 'var(--text-muted)' : 'var(--text-main)'};${done ? 'text-decoration:line-through;' : ''}">${escapeHtml(o.client_name || '')}${o.title ? ' · ' + escapeHtml(o.title) : ''}</div>
+                  <div draggable="true" ondragstart="scheduleDragStart(event,'${o.id}')" onclick="openScheduleOrderDetail('${o.id}')" title="نمایش جزئیات · برای جابجایی به روز دیگر بکشید" class="p-1.5 rounded-md text-[10px] cursor-pointer mb-1 hover:opacity-85" style="background:${(t.color) + '33'};border:1px solid ${t.color}55;border-left:3px solid ${t.color};">
+                    <div class="flex items-center gap-1.5 min-w-0">
+                      ${scheduleDoneCheckboxHtml(o.id, done)}
+                      <span class="font-bold truncate" style="color:${done ? 'var(--text-muted)' : 'var(--text-main)'};${done ? 'text-decoration:line-through;' : ''}">${o.client_name ? escapeHtml(o.client_name) + (o.title ? ' · ' + escapeHtml(o.title) : '') : escapeHtml(o.title || '—')}</span>
+                    </div>
                     <div class="flex items-center justify-between mt-0.5" style="color:var(--text-muted);">
                       <span style="color:${t.color};">${t.text}</span>
                       <span class="en" style="color:${s.color};">${s.text}</span>
@@ -4575,11 +5648,15 @@ async function renderScheduleWeekView() {
             : `<div class="text-[10px] text-center py-2" style="color:var(--text-muted);">—</div>`;
 
         return `
-          <div class="p-1.5 rounded-lg" style="background:${isToday ? 'var(--accent-hover)' : 'var(--bg-main)'};border:1px solid ${isToday ? 'var(--border-color)' : 'var(--border-subtle)'};${overdue ? 'box-shadow:0 0 0 1px rgba(248,113,113,0.4);' : ''}">
+          <div ondragover="scheduleDragOver(event)" ondragleave="scheduleDragLeave(event)" ondrop="scheduleDrop(event,'${iso}')" class="p-1.5 rounded-lg" title="${escapeHtml(holidayName)}" style="background:${isToday ? 'var(--accent-hover)' : 'var(--bg-main)'};border:1px solid ${holidayName ? 'rgba(248,113,113,0.5)' : (isToday ? 'var(--border-color)' : 'var(--border-subtle)')};${overdue ? 'box-shadow:0 0 0 1px rgba(248,113,113,0.4);' : ''}">
             <div class="flex items-center justify-between mb-1.5" style="padding-bottom:4px;border-bottom:1px solid var(--divider);">
-                <span class="text-[11px] font-black" style="color:${isToday ? 'var(--accent)' : 'var(--text-main)'};">${WEEKDAY_FA[idx]}</span>
-                <span class="text-[10px] en font-bold" style="color:${isToday ? 'var(--accent)' : 'var(--text-muted)'};">${gregorianToJalali(d).d}</span>
+                <span class="text-[11px] font-black" style="color:${holidayName || isFriday ? '#f87171' : (isToday ? 'var(--accent)' : 'var(--text-main)')};">${WEEKDAY_FA[idx]}</span>
+                <span class="flex items-center gap-1.5">
+                  <span class="text-[10px] en font-bold" style="color:${holidayName || isFriday ? '#f87171' : (isToday ? 'var(--accent)' : 'var(--text-muted)')};">${dJalali.d}</span>
+                  <button type="button" onclick="openDayTaskModal('${iso}')" title="افزودن به این روز" class="flex items-center justify-center text-[10px] font-black rounded leading-none" style="width:14px;height:14px;background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">+</button>
+                </span>
             </div>
+            ${holidayName ? `<div class="text-[9px] font-bold mb-1 truncate" style="color:#f87171;">🔴 ${escapeHtml(holidayName)}</div>` : ''}
             ${pendingCount ? `<div class="text-[9px] font-bold mb-1" style="color:var(--accent);"><span class="en">${pendingCount}</span> در انتظار</div>` : ''}
             ${overdue ? `<div class="text-[9px] font-bold mb-1" style="color:#f87171;">⚠ ددلاین گذشته</div>` : ''}
             ${itemsHtml}
@@ -4625,7 +5702,11 @@ async function renderScheduleMonth() {
         monthFirstDay.toLocaleDateString('fa-IR', { month: 'long', year: 'numeric' });
     document.getElementById('scheduleListHeading').textContent = '📋 سفارش‌های این ماه';
 
-    grid.innerHTML = `<div class="text-xs text-center py-6" style="color:var(--text-muted);grid-column:1/-1;">در حال بارگذاری تقویم...</div>`;
+    // See renderScheduleWeekView()'s identical check -- only the very
+    // first render should blank the grid to a loading placeholder.
+    if (!grid.children.length) {
+        grid.innerHTML = `<div class="text-xs text-center py-6" style="color:var(--text-muted);grid-column:1/-1;">در حال بارگذاری تقویم...</div>`;
+    }
 
     let orders = [];
     try {
@@ -4643,13 +5724,15 @@ async function renderScheduleMonth() {
     const byDay = {};
     for (const o of orders) byDay[o.due_date || ''] = (byDay[o.due_date || ''] || []).concat(o);
 
-    const headerHtml = WEEKDAY_FA.map(w => `<div class="text-[10px] font-black text-center py-1" style="color:var(--text-muted);">${w}</div>`).join('');
+    const headerHtml = WEEKDAY_FA.map((w, idx) => `<div class="text-[10px] font-black text-center py-1" style="color:${idx === 6 ? '#f87171' : 'var(--text-muted)'};">${w}</div>`).join('');
 
     const cellsHtml = days.map(d => {
         const iso = fmtWeekISO(d);
         const isToday = todayISO === iso;
         const dJalali = gregorianToJalali(d);
         const inMonth = dJalali.y === jy && dJalali.m === jm;
+        const isFriday = d.getDay() === 5;
+        const holidayName = getIranHolidayName(dJalali.y, dJalali.m, dJalali.d);
         const dayOrders = byDay[iso] || [];
         const pendingCount = dayOrders.filter(o => o.status === 'PENDING').length;
         const overdue = dayOrders.some(o => o.status === 'PENDING' && o.due_date && o.due_date < todayISO);
@@ -4657,19 +5740,23 @@ async function renderScheduleMonth() {
         const itemsHtml = dayOrders.map(o => {
             const t = WORK_ORDER_TYPE_FA[o.order_type] || { text: o.order_type, color: 'var(--accent)' };
             const done = o.status === 'DONE';
-            const clickTarget = o.client_id
-                ? `onclick="openClientProfile('${o.client_id}')" title="باز کردن پروفایل مشتری"`
-                : '';
             return `
-              <div ${clickTarget} class="px-1 rounded text-[9px] cursor-pointer mb-0.5 truncate hover:opacity-85" style="background:${(t.color) + '1a'};border-inline-start:2px solid ${t.color};color:${done ? 'var(--text-muted)' : 'var(--text-main)'};${done ? 'text-decoration:line-through;' : ''}">${escapeHtml(o.client_name || o.title || '')}</div>`;
+              <div draggable="true" ondragstart="scheduleDragStart(event,'${o.id}')" onclick="openScheduleOrderDetail('${o.id}')" title="نمایش جزئیات · برای جابجایی به روز دیگر بکشید" class="flex items-center gap-1 px-1 rounded text-[9px] font-bold cursor-pointer mb-0.5 hover:opacity-85" style="background:${(t.color) + '33'};border-inline-start:2px solid ${t.color};color:${done ? 'var(--text-muted)' : 'var(--text-main)'};${done ? 'text-decoration:line-through;' : ''}">
+                ${scheduleDoneCheckboxHtml(o.id, done, true)}
+                <span class="truncate">${escapeHtml(o.client_name || o.title || '')}</span>
+              </div>`;
         }).join('');
 
         return `
-          <div class="p-1 rounded-lg" style="min-height:64px;background:${isToday ? 'var(--accent-hover)' : 'var(--bg-main)'};border:1px solid ${isToday ? 'var(--border-color)' : 'var(--border-subtle)'};opacity:${inMonth ? '1' : '.45'};${overdue ? 'box-shadow:0 0 0 1px rgba(248,113,113,0.4);' : ''}">
+          <div ondragover="scheduleDragOver(event)" ondragleave="scheduleDragLeave(event)" ondrop="scheduleDrop(event,'${iso}')" class="p-1 rounded-lg" title="${escapeHtml(holidayName)}" style="min-height:64px;background:${isToday ? 'var(--accent-hover)' : 'var(--bg-main)'};border:1px solid ${holidayName ? 'rgba(248,113,113,0.5)' : (isToday ? 'var(--border-color)' : 'var(--border-subtle)')};opacity:${inMonth ? '1' : '.45'};${overdue ? 'box-shadow:0 0 0 1px rgba(248,113,113,0.4);' : ''}">
             <div class="flex items-center justify-between mb-1">
-              <span class="text-[10px] en font-bold" style="color:${isToday ? 'var(--accent)' : (inMonth ? 'var(--text-main)' : 'var(--text-muted)')};">${dJalali.d}</span>
-              ${pendingCount ? `<span class="text-[8px] font-bold en" style="color:var(--accent);">${pendingCount}</span>` : ''}
+              <span class="text-[10px] en font-bold" style="color:${holidayName || isFriday ? '#f87171' : (isToday ? 'var(--accent)' : (inMonth ? 'var(--text-main)' : 'var(--text-muted)'))};">${dJalali.d}</span>
+              <span class="flex items-center gap-1">
+                ${pendingCount ? `<span class="text-[8px] font-bold en" style="color:var(--accent);">${pendingCount}</span>` : ''}
+                <button type="button" onclick="openDayTaskModal('${iso}')" title="افزودن به این روز" class="flex items-center justify-center text-[10px] font-black rounded leading-none" style="width:14px;height:14px;background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">+</button>
+              </span>
             </div>
+            ${holidayName ? `<div class="text-[8px] font-bold mb-0.5 truncate" style="color:#f87171;">🔴 ${escapeHtml(holidayName)}</div>` : ''}
             ${itemsHtml}
           </div>`;
     }).join('');
@@ -4679,7 +5766,267 @@ async function renderScheduleMonth() {
     renderScheduleOrderList(orders, '// در این ماه سفارشی ثبت نشده');
 }
 
-// 
+// ── "+" on a day cell (office-wide schedule, month or week view): quick-add
+// anything to that day -- a freeform note (order_type "TASK", no client
+// required) or, if a client is picked, an actual TAYIDI/MEHR_MOTARJEM work
+// order. Reuses /work-orders (which now accepts an optional client_id)
+// rather than a separate table, so these entries show up on the calendar
+// exactly like any other order.
+let dayTaskDraftType = 'TASK';
+let dayTaskDraftDate = null;      // ISO date of the clicked cell
+let dayTaskSelectedClient = null; // { id, name } | null
+let dayTaskClientSearchDebounce = null;
+
+function openDayTaskModal(iso) {
+    if (!currentUserSession) { openAuthModal(); return; }
+    dayTaskDraftType = 'TASK';
+    dayTaskDraftDate = iso;
+    dayTaskSelectedClient = null;
+    document.getElementById('dt-date-label').textContent = formatIsoAsJalaliDisplay(iso);
+    document.getElementById('dt-title').value = '';
+    document.getElementById('dt-notes').value = '';
+    document.getElementById('dt-client-search').value = '';
+    document.getElementById('dt-client-results').innerHTML = '';
+    document.getElementById('dt-client-chip').classList.add('hidden');
+    refreshDayTaskTypeBtns();
+    document.getElementById('dayTaskModal').classList.remove('hidden');
+}
+
+function closeDayTaskModal() {
+    document.getElementById('dayTaskModal').classList.add('hidden');
+}
+
+function selectDayTaskType(type) {
+    dayTaskDraftType = type;
+    refreshDayTaskTypeBtns();
+}
+
+function refreshDayTaskTypeBtns() {
+    ['TASK', 'TAYIDI', 'MEHR_MOTARJEM'].forEach(t => {
+        const el = document.getElementById('dt-type-' + t);
+        if (!el) return;
+        const active = dayTaskDraftType === t;
+        const color = WORK_ORDER_TYPE_FA[t].color;
+        el.style.background = active ? color : 'var(--bg-main)';
+        el.style.color = active ? '#000' : color;
+        el.style.borderColor = color;
+        el.style.fontWeight = active ? '900' : '700';
+    });
+}
+
+function dtSearchClients(q) {
+    clearTimeout(dayTaskClientSearchDebounce);
+    dayTaskClientSearchDebounce = setTimeout(() => dtFetchClients(q.trim()), 250);
+}
+
+async function dtFetchClients(q) {
+    const box = document.getElementById('dt-client-results');
+    if (!q) { box.innerHTML = ''; return; }
+    box.innerHTML = `<div class="text-[11px] text-center py-2" style="color:var(--text-muted);">در حال جستجو...</div>`;
+    try {
+        const url = new URL(`${CORE}/clients`);
+        url.searchParams.set('q', q);
+        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${getToken()}` } });
+        if (!res.ok) throw new Error();
+        const clients = await res.json();
+        if (!clients.length) {
+            box.innerHTML = `<div class="text-[11px] text-center py-2" style="color:var(--text-muted);">موردی یافت نشد.</div>`;
+            return;
+        }
+        box.innerHTML = clients.slice(0, 8).map(c => {
+            const name = `${c.first_name || ''} ${c.last_name || ''}`.trim();
+            return `<button type="button" onclick="dtSelectClient('${c.id}','${name.replace(/'/g, "")}')" class="w-full flex items-center justify-between p-2 rounded-lg text-right text-xs transition" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
+                <span class="font-bold en" style="color:var(--text-main);">${escapeHtml(name)}</span>
+                <span style="color:var(--accent);font-size:.65rem;font-weight:700;">انتخاب ←</span>
+            </button>`;
+        }).join('');
+    } catch (e) {
+        box.innerHTML = `<div class="text-[11px] text-center py-2" style="color:#f87171;">خطا در جستجوی مشتری.</div>`;
+    }
+}
+
+function dtSelectClient(id, name) {
+    dayTaskSelectedClient = { id, name };
+    document.getElementById('dt-client-chip-name').textContent = name;
+    document.getElementById('dt-client-chip').classList.remove('hidden');
+    document.getElementById('dt-client-search').value = '';
+    document.getElementById('dt-client-results').innerHTML = '';
+}
+
+function dtClearClient() {
+    dayTaskSelectedClient = null;
+    document.getElementById('dt-client-chip').classList.add('hidden');
+}
+
+async function submitDayTask() {
+    const title = document.getElementById('dt-title').value.trim();
+    const notes = document.getElementById('dt-notes').value.trim();
+    if (!title && !notes) { showToast('عنوان یا یادداشتی وارد کنید.'); return; }
+
+    const payload = {
+        title,
+        order_type: dayTaskDraftType,
+        due_date: dayTaskDraftDate,
+        notes: notes || null,
+    };
+    if (dayTaskSelectedClient) payload.client_id = dayTaskSelectedClient.id;
+
+    const btn = document.getElementById('dt-submit-btn');
+    const originalLabel = btn.textContent;
+    btn.disabled = true; btn.textContent = 'در حال ثبت...';
+    try {
+        const res = await fetch(`${CORE}/work-orders`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
+            body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.detail || `خطای سرور (${res.status})`);
+        }
+        closeDayTaskModal();
+        showToast('به تقویم اضافه شد.');
+        await renderSchedule();
+    } catch (e) {
+        showToast('❌ ' + (e.message || 'خطا در افزودن به تقویم.'));
+    } finally {
+        btn.disabled = false; btn.textContent = originalLabel;
+    }
+}
+
+// ── Quick "mark as done" checkmark on a schedule item, usable straight from
+// the calendar (day cell or list row) without opening the detail popup.
+// Shared across all three render spots (month cell, week cell, flat list) so
+// the markup and toggle logic stay in one place. `tiny` shrinks it further
+// for the month view's single-line chip, which has almost no room to spare.
+function scheduleDoneCheckboxHtml(orderId, done, tiny) {
+    const size = tiny ? '10px' : '13px';
+    return `<button type="button" onclick="toggleScheduleOrderDone(event, '${orderId}', ${done})" title="${done ? 'علامت‌گذاری به عنوان انجام‌نشده' : 'علامت‌گذاری به عنوان انجام‌شده'}" class="shrink-0 flex items-center justify-center rounded-full transition" style="width:${size};height:${size};border:1.5px solid ${done ? '#4ade80' : 'var(--text-muted)'};background:${done ? '#4ade80' : 'transparent'};color:#06281a;font-size:${tiny ? '7px' : '9px'};line-height:1;">${done ? '✓' : ''}</button>`;
+}
+
+async function toggleScheduleOrderDone(event, orderId, done) {
+    event.stopPropagation();
+    try {
+        const res = await fetch(`${CORE}/work-orders/${orderId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
+            body: JSON.stringify({ status: done ? 'PENDING' : 'DONE' }),
+        });
+        if (!res.ok) throw new Error();
+        await renderSchedule();
+    } catch (e) {
+        showToast('خطا در به‌روزرسانی وضعیت.');
+    }
+}
+
+// ── Clicking an item on the office-wide schedule (a day cell or the list
+// below) opens this instead of jumping straight to the client's profile --
+// a freeform note has no client to jump to anyway, and even a client-linked
+// item usually just needs a quick look/edit, not a full page navigation.
+// "باز کردن پروفایل" inside it still gets you to the client when there is one.
+let scheduleOrderDetailId = null;
+let scheduleOrderDetailType = 'TASK';
+
+function openScheduleOrderDetail(orderId) {
+    const o = (scheduleWeekOrders || []).find(x => x.id === orderId);
+    if (!o) return;
+    scheduleOrderDetailId = orderId;
+    scheduleOrderDetailType = o.order_type;
+    document.getElementById('sod-title').value = o.title || '';
+    document.getElementById('sod-due').value = o.due_date || '';
+    document.getElementById('sod-due-display').value = formatIsoAsJalaliDisplay(o.due_date || '');
+    document.getElementById('sod-notes').value = o.notes || '';
+    document.getElementById('sod-status').value = o.status || 'PENDING';
+
+    const clientInfo = document.getElementById('sod-client-info');
+    if (o.client_id) {
+        clientInfo.dataset.clientId = o.client_id;
+        document.getElementById('sod-client-name').textContent = o.client_name || '—';
+        clientInfo.classList.remove('hidden');
+    } else {
+        clientInfo.classList.add('hidden');
+    }
+
+    refreshScheduleOrderTypeBtns();
+    document.getElementById('scheduleOrderDetailModal').classList.remove('hidden');
+}
+
+function closeScheduleOrderDetail() {
+    document.getElementById('scheduleOrderDetailModal').classList.add('hidden');
+    scheduleOrderDetailId = null;
+    closeJalaliCalendar();
+}
+
+function selectScheduleOrderType(type) {
+    scheduleOrderDetailType = type;
+    refreshScheduleOrderTypeBtns();
+}
+
+function refreshScheduleOrderTypeBtns() {
+    ['TASK', 'TAYIDI', 'MEHR_MOTARJEM'].forEach(t => {
+        const el = document.getElementById('sod-type-' + t);
+        if (!el) return;
+        const active = scheduleOrderDetailType === t;
+        const color = WORK_ORDER_TYPE_FA[t].color;
+        el.style.background = active ? color : 'var(--bg-main)';
+        el.style.color = active ? '#000' : color;
+        el.style.borderColor = color;
+        el.style.fontWeight = active ? '900' : '700';
+    });
+}
+
+function openClientProfileFromScheduleDetail() {
+    const clientId = document.getElementById('sod-client-info').dataset.clientId;
+    if (!clientId) return;
+    closeScheduleOrderDetail();
+    openClientProfile(clientId);
+}
+
+async function submitScheduleOrderEdit() {
+    if (!scheduleOrderDetailId) return;
+    const payload = {
+        title: document.getElementById('sod-title').value.trim(),
+        order_type: scheduleOrderDetailType,
+        due_date: document.getElementById('sod-due').value || null,
+        notes: document.getElementById('sod-notes').value.trim() || null,
+        status: document.getElementById('sod-status').value,
+    };
+    try {
+        const res = await fetch(`${CORE}/work-orders/${scheduleOrderDetailId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
+            body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.detail || `خطای سرور (${res.status})`);
+        }
+        closeScheduleOrderDetail();
+        showToast('ذخیره شد.');
+        await renderSchedule();
+    } catch (e) {
+        showToast('❌ ' + (e.message || 'خطا در ذخیره تغییرات.'));
+    }
+}
+
+async function deleteScheduleOrder() {
+    if (!scheduleOrderDetailId) return;
+    if (!confirm('این مورد حذف شود؟')) return;
+    try {
+        const res = await fetch(`${CORE}/work-orders/${scheduleOrderDetailId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${getToken()}` },
+        });
+        if (!res.ok) throw new Error();
+        closeScheduleOrderDetail();
+        showToast('حذف شد.');
+        await renderSchedule();
+    } catch (e) {
+        showToast('خطا در حذف.');
+    }
+}
+
+//
 // ── Invoice view / print / email — a translator needs a signed paper copy
 // for the client's file and often needs to email a copy too, not just see
 // a row in a list. The browser's own print dialog doubles as the "PDF
@@ -4826,11 +6173,10 @@ function renderInvoiceEditRows() {
     box.innerHTML = invoiceEditState.items.map((row, idx) => {
         const lineTotal = (row.quantity || 1) * (row.unit_price_toman || 0);
         row.line_total_toman = lineTotal;
-        // A نرخنامه-linked row's price is computed from its own quantity
-        // inputs below (see myplRowQtyControlsHtml) -- shown, not typed.
-        const priceField = row._mypl_item_id
-            ? `<span class="mypl-computed-price auth-input en" dir="ltr" title="محاسبه‌شده از تعداد زیر" style="width:100px;padding:.4rem .6rem;font-size:.78rem;display:inline-flex;align-items:center;opacity:.75;">${row.unit_price_toman.toLocaleString()}</span>`
-            : `<input type="number" value="${row.unit_price_toman}" oninput="updateInvoiceEditRow(${idx},'unit_price_toman',this.value)" class="auth-input en" dir="ltr" style="width:100px;padding:.4rem .6rem;font-size:.78rem;">`;
+        // A نرخنامه-linked row's price starts out computed from its own
+        // quantity inputs below (see myplRowQtyControlsHtml), but stays a
+        // normal editable field -- see renderDraftRows()'s identical note.
+        const priceField = `<input type="number" value="${row.unit_price_toman}" oninput="updateInvoiceEditRow(${idx},'unit_price_toman',this.value)" class="auth-input ive-unit-price en" dir="ltr" style="width:100px;padding:.4rem .6rem;font-size:.78rem;">`;
         return `
         <div class="flex flex-wrap items-center gap-1.5 p-2 rounded-lg" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
             <input type="text" value="${row.description.replace(/"/g,'&quot;')}" oninput="updateInvoiceEditRow(${idx},'description',this.value)" class="auth-input flex-1" style="padding:.4rem .6rem;font-size:.78rem;">
@@ -4852,9 +6198,7 @@ function renderInvoiceEditRows() {
 function updateInvoiceEditRow(idx, field, value) {
     if (!invoiceEditState || !invoiceEditState.items[idx]) return;
     const row = invoiceEditState.items[idx];
-    if (MYPL_QTY_FIELD_MAP[field]) {
-        const qty = Math.max(0, parseInt(value, 10) || 0);
-        row[MYPL_QTY_FIELD_MAP[field]] = qty;
+    if (myplApplyQtyFieldEdit(row, field, value)) {
         myplRecomputeRowPrice(row);
     } else if (field === 'description') row.description = value;
     else if (field === 'quantity') row.quantity = parseInt(value, 10) || 1;
@@ -4862,8 +6206,8 @@ function updateInvoiceEditRow(idx, field, value) {
 
     row.line_total_toman = (row.quantity || 1) * (row.unit_price_toman || 0);
     const rowEl = document.getElementById('ive-rows').children[idx];
-    const priceEl = rowEl.querySelector('.mypl-computed-price');
-    if (priceEl) priceEl.textContent = row.unit_price_toman.toLocaleString();
+    const priceInput = rowEl.querySelector('.ive-unit-price');
+    if (priceInput && document.activeElement !== priceInput) priceInput.value = row.unit_price_toman;
     rowEl.querySelector('.ive-line-total').textContent = row.line_total_toman.toLocaleString();
     updateInvoiceEditTotal();
 }
@@ -4978,29 +6322,6 @@ async function saveClientNotes() {
         showToast('✅ یادداشت ذخیره شد.');
     } catch (e) {
         showToast('خطا در ذخیره یادداشت.');
-    }
-}
-
-// Per-client "translate into this language instead of English" setting
-// (DeepT-Core's `target_language` field on the client record, read by
-// DeepT-Back-End when it runs a translation). Saved immediately on change,
-// same as other single-field edits on this page -- no separate save button
-// needed for a dropdown.
-async function saveClientTargetLanguage() {
-    if (!currentClientDetailId) return;
-    const sel = document.getElementById('cp-target-lang');
-    if (!sel) return;
-    const token = localStorage.getItem('deept_token');
-    try {
-        const res = await fetch(`${CORE}/clients/${currentClientDetailId}`, {
-            method: 'PATCH',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ target_language: sel.value || null })
-        });
-        if (!res.ok) throw new Error();
-        showToast('✅ زبان مقصد ترجمه ذخیره شد.');
-    } catch (e) {
-        showToast('خطا در ذخیره زبان مقصد ترجمه.');
     }
 }
 
@@ -5121,7 +6442,7 @@ async function submitJobToSupport(jobId) {
             headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
-            showToast('📩 سند برای ترجمه دستی به پشتیبانی ارسال شد.');
+            showToast('📩 سند برای ترجمه به پشتیبانی ارسال شد.');
             await renderDashboardActiveProjects();
         } else {
             showToast('❌ ارسال سند به پشتیبانی ناموفق بود. دوباره تلاش کنید.');
@@ -5224,10 +6545,32 @@ function applyRouteForPath(path) {
             showToast('برای دسترسی به این بخش، ابتدا وارد شوید.');
         }
 
+    } else if (path === '/doc-samples') {
+
+        if (currentUserSession) {
+            openDocSamplesPage(false);
+        } else {
+            navigateTo('/', false);
+            showLandingView();
+            openLogin();
+            showToast('برای دسترسی به این بخش، ابتدا وارد شوید.');
+        }
+
     } else if (path === '/price-list') {
 
         if (currentUserSession) {
             openMyPriceListPage(false);
+        } else {
+            navigateTo('/', false);
+            showLandingView();
+            openLogin();
+            showToast('برای دسترسی به این بخش، ابتدا وارد شوید.');
+        }
+
+    } else if (path === '/home/receptionist') {
+
+        if (currentUserSession) {
+            openReceptionistPage(false);
         } else {
             navigateTo('/', false);
             showLandingView();
@@ -6248,7 +7591,12 @@ async function executeTranslationPipeline() {
         } else {
             showToast('❌ خطا در پردازش سند. لطفاً دوباره تلاش کنید یا با پشتیبانی تماس بگیرید.');
         }
-    } finally {
+        // Only re-enable on failure. A successful submission leaves it
+        // disabled on purpose -- the job ticket is already created at this
+        // point, so a second click (or an accidental double-click) would
+        // re-translate and re-charge for the exact same document. The way
+        // back in is "سند مدرک بعدی" (resetForNextDocument), which clears
+        // docSelectedFile and only re-enables once a fresh file is chosen.
         submitBtn.disabled = false;
     }
 }
@@ -6324,6 +7672,7 @@ let pendingResetToken = null;
     // a saved profile edit shows up in a different tab/session. Self-heals
     // on every page load instead of requiring a re-login.
     syncProfileFromServer();
+    loadSystemAnnouncement();
 
     // GitHub Pages has no server routing: a refresh on /dashboard etc. lands
     // on 404.html, which stashes the intended path (+ query string, e.g. a
@@ -6389,6 +7738,25 @@ let pendingResetToken = null;
         showToast('⚠️ لینک تغییر ایمیل نامعتبر یا منقضی شده است.');
         window.history.replaceState({}, document.title, window.location.pathname);
     }
+    // Wallet top-up redirect (from DeepT-Core's GET /wallet/topup/callback,
+    // after Zibal confirms or denies the payment) -- same redirect-with-flag
+    // pattern as the activation/reset-token links above.
+    const topupStatus = params.get('topup');
+    if (topupStatus === 'success') {
+        const amt = parseInt(params.get('amount'), 10);
+        showToast(amt ? `✅ کیف پول شما به مبلغ ${amt.toLocaleString()} تومان شارژ شد.` : '✅ شارژ کیف پول با موفقیت انجام شد.', 4000);
+        refreshWalletBalanceDisplay();
+        window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (topupStatus === 'failed') {
+        showToast('❌ پرداخت ناموفق بود یا لغو شد.');
+        window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (topupStatus === 'pending') {
+        // Card-to-card: back from Cartbecart's page before the transfer was matched.
+        const requestId = params.get('id');
+        showToast('⏳ پرداخت کارت‌به‌کارت شما در انتظار تأیید است. پس از تأیید، کیف پول خودکار شارژ می‌شود.', 6000);
+        window.history.replaceState({}, document.title, window.location.pathname);
+        if (requestId) pollCardTopup(requestId);
+    }
 })();
 
 // ── AUTH ──
@@ -6443,6 +7811,7 @@ document.getElementById('loginSuccess').classList.add('show');
 
 currentUserSession = loadSession();
 syncUserSessionDOM();
+loadSystemAnnouncement();
 
 setTimeout(() => {
     closeModals();
@@ -6894,13 +8263,16 @@ function showAdminDashboard() {
     document.getElementById('workSchedulePage').classList.add('hidden');
     document.getElementById('settingsPage').classList.add('hidden');
     document.getElementById('accountSettingsPage').classList.add('hidden');
+    document.getElementById('docSamplesPage').classList.add('hidden');
     document.getElementById('myPriceListPage').classList.add('hidden');
     document.getElementById('homePanelsPage').classList.add('hidden');
     document.getElementById('dateConverterPage').classList.add('hidden');
+    document.getElementById('receptionistPage').classList.add('hidden');
     document.getElementById('hrPage').classList.add('hidden');
     document.getElementById('adminDashboard').classList.remove('hidden');
     switchAdminTab('users');
     loadAdminUsers();
+    loadAdminAnnouncementStatus();
     // Without its own URL, a reload had nowhere to route back to and fell
     // through to the landing page instead -- navigateTo is a no-op if the
     // address bar already says /admin (e.g. when applyRouteForPath itself
@@ -6996,8 +8368,125 @@ async function loadAdminUsers() {
         const searchInput = document.getElementById('adminUserSearchInput');
         if (searchInput) searchInput.value = '';
         renderAdminUsersRows(adminUsersCache);
+        renderPendingBonusRequests(adminUsersCache);
     } catch (e) {
         tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در اتصال.</td></tr>`;
+    }
+}
+
+// ── Office-signup bonus review (پنل مدیریت) ─────────────────────────────────
+// Lists accounts _maybe_grant_office_bonus (auth.py) held instead of
+// auto-crediting -- their signup_ip or normalized email matched an
+// account that already got the OFFICE_SIGNUP_BONUS_TOMAN bonus. Never
+// auto-blocked server-side; this is where a human decides.
+function renderPendingBonusRequests(users) {
+    const panel = document.getElementById('adminPendingBonusPanel');
+    const rows = document.getElementById('adminPendingBonusRows');
+    const pending = users.filter(u => u.office_bonus_status === 'held_for_review');
+    if (!pending.length) { panel.classList.add('hidden'); return; }
+
+    panel.classList.remove('hidden');
+    rows.innerHTML = pending.map(u => `
+        <div class="flex items-center justify-between gap-3 flex-wrap text-sm py-2" style="border-bottom:1px solid var(--divider);">
+            <div class="min-w-0">
+                <span class="font-bold en" dir="ltr" style="color:var(--text-main);">${escapeHtml(u.email)}</span>
+                <span style="color:var(--text-muted);"> — ${escapeHtml(u.full_name || '')}</span>
+                <span class="text-xs en block" dir="ltr" style="color:var(--text-muted);">IP: ${escapeHtml(u.signup_ip || 'نامشخص')}</span>
+            </div>
+            <div class="flex gap-2 shrink-0">
+                <button type="button" onclick="approveOfficeBonus('${u.user_id}')" class="text-xs font-bold px-3 py-1.5 rounded-lg" style="background:var(--accent);color:var(--btn-text-on-accent);">تایید اعتبار</button>
+                <button type="button" onclick="denyOfficeBonus('${u.user_id}')" class="text-xs font-bold px-3 py-1.5 rounded-lg" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">رد</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function approveOfficeBonus(userId) {
+    const token = localStorage.getItem('deept_token');
+    try {
+        const res = await fetch(`${CORE}/auth/admin/office-bonus/${userId}/approve`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || 'خطای سرور'); }
+        showToast('✅ اعتبار دفتر تایید و به کیف پول کاربر اضافه شد.');
+        loadAdminUsers();
+    } catch (e) {
+        showToast(`❌ ${e.message || 'تایید اعتبار ناموفق بود.'}`);
+    }
+}
+
+async function denyOfficeBonus(userId) {
+    if (!confirm('درخواست اعتبار دفتر این کاربر رد شود؟')) return;
+    const token = localStorage.getItem('deept_token');
+    try {
+        const res = await fetch(`${CORE}/auth/admin/office-bonus/${userId}/deny`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || 'خطای سرور'); }
+        showToast('اعتبار دفتر رد شد.');
+        loadAdminUsers();
+    } catch (e) {
+        showToast(`❌ ${e.message || 'رد درخواست ناموفق بود.'}`);
+    }
+}
+
+// ── System announcement publisher (پنل مدیریت) ──────────────────────────────
+async function loadAdminAnnouncementStatus() {
+    const token = localStorage.getItem('deept_token');
+    const statusEl = document.getElementById('adminAnnouncementStatus');
+    try {
+        const res = await fetch(`${CORE}/announcements/active`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) { statusEl.textContent = 'خطا در دریافت وضعیت.'; return; }
+        const data = await res.json();
+        if (data.active) {
+            statusEl.textContent = `فعال: «${data.message}»`;
+            statusEl.style.color = 'var(--accent)';
+        } else {
+            statusEl.textContent = 'غیرفعال — اعلانی منتشر نشده است.';
+            statusEl.style.color = 'var(--text-muted)';
+        }
+    } catch (e) {
+        statusEl.textContent = 'خطا در اتصال.';
+    }
+}
+
+async function publishSystemAnnouncement() {
+    const token = localStorage.getItem('deept_token');
+    const input = document.getElementById('adminAnnouncementInput');
+    const message = input.value.trim();
+    if (!message) { showToast('متن اعلان نمی‌تواند خالی باشد.'); return; }
+    try {
+        const res = await fetch(`${CORE}/announcements`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message })
+        });
+        if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.detail || 'خطای سرور'); }
+        input.value = '';
+        showToast('✅ اعلان منتشر شد.');
+        await loadAdminAnnouncementStatus();
+    } catch (e) {
+        showToast(`❌ ${e.message || 'انتشار اعلان ناموفق بود.'}`);
+    }
+}
+
+async function clearSystemAnnouncement() {
+    if (!confirm('اعلان فعال پاک شود؟')) return;
+    const token = localStorage.getItem('deept_token');
+    try {
+        const res = await fetch(`${CORE}/announcements/active`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error();
+        showToast('✅ اعلان پاک شد.');
+        await loadAdminAnnouncementStatus();
+    } catch (e) {
+        showToast('❌ پاک کردن اعلان ناموفق بود.');
     }
 }
 async function adminDeduct(userId) {
@@ -7218,7 +8707,7 @@ async function loadAdminFailedDocs(silent = false) {
     // Silent refresh (used while a retranslate is running) must not flash the
     // loading placeholder or re-render unchanged rows -- same quiet behavior as
     // the normal dashboard's periodic poll.
-    if (tbody && !silent) tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>`;
+    if (tbody && !silent) tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>`;
     try {
         const res = await fetch(`${CORE}/jobs/admin/failed`, {
             headers: { 'Authorization': `Bearer ${token}` }
@@ -7229,16 +8718,22 @@ async function loadAdminFailedDocs(silent = false) {
         adminFailedDocsCache = fresh;
         if (!silent || changed) renderAdminFailedDocs(adminFailedDocsCache);
     } catch (e) {
-        if (tbody && !silent) tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در بارگذاری اسناد ناموفق.</td></tr>`;
+        if (tbody && !silent) tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در بارگذاری اسناد ناموفق.</td></tr>`;
         if (!silent) showToast('خطا در بارگذاری اسناد ناموفق');
     }
 }
+
+// Upload-file icon (default) and a spinning version used while the picker is
+// open / the file is uploading.
+const _UPLOAD_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V3"/><path d="M7 8l5-5 5 5"/><path d="M4 15v3a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-3"/></svg>`;
+const _UPLOAD_SPINNER = `<svg class="animate-spin" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" stroke-opacity="0.25"/><path d="M21 12a9 9 0 0 0-9-9"/></svg>`;
+const _DOWNLOAD_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>`;
 
 function renderAdminFailedDocs(jobs) {
     const tbody = document.getElementById('adminFailedDocsRowsBlock');
     if (!tbody) return;
     if (!jobs.length) {
-        tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-sm" style="color:var(--text-muted);">سند ناموفقی وجود ندارد.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">سند ناموفقی وجود ندارد.</td></tr>`;
         return;
     }
     const typeLabel = (t) => DOCUMENT_REGISTRY[t]?.label || escapeHtml(t);
@@ -7247,9 +8742,12 @@ function renderAdminFailedDocs(jobs) {
         const shortId = escapeHtml((j.id || '').slice(0, 8));
         let ops;
         if (j.status === 'support_translated') {
-            ops = `<div class="flex items-center justify-center gap-2 flex-wrap">
-                <a href="javascript:void(0)" onclick="downloadJobResult('${j.id}')" class="font-bold hover:underline" style="color:var(--accent);" title="${escapeHtml(j.result_filename || 'دانلود فایل ترجمه')}">دانلود</a>
-                <button type="button" id="sendToUser-${j.id}" onclick="sendSupportTranslationToUser('${j.id}')" class="font-bold px-3 py-1 rounded-lg" style="background:var(--accent);color:#000;border:none;cursor:pointer;">ارسال به کاربر</button>
+            const sendEl = j.completion_email_status === 'sent'
+                ? `<span class="font-bold" style="color:#4ade80;">ارسال شد ✓</span>`
+                : `<button type="button" id="sendToUser-${j.id}" onclick="sendSupportTranslationToUser('${j.id}')" class="font-bold px-3 py-1 rounded-lg" style="background:var(--accent);color:#000;border:none;cursor:pointer;">ارسال به کاربر</button>`;
+            ops = `<div class="flex items-center justify-between gap-2 flex-wrap">
+                ${sendEl}
+                <a href="javascript:void(0)" id="upload-${j.id}" onclick="promptUploadTranslation('${j.id}')" class="font-bold hover:underline" style="color:var(--accent);" title="آپلود فایل ترجمه">${_UPLOAD_ICON}</a>
             </div>`;
         } else if (j.status === 'retrying') {
             ops = `<span class="font-bold" style="color:var(--accent);">در حال ترجمه...</span>`;
@@ -7259,14 +8757,17 @@ function renderAdminFailedDocs(jobs) {
             const errNote = j.status === 'support_retry_failed'
                 ? `<span class="text-[10px]" style="color:#f87171;">آخرین تلاش ناموفق بود</span>`
                 : '';
-            ops = `<div class="flex flex-col items-center gap-1">
-                <div class="flex items-center gap-2 flex-wrap justify-center">
+            ops = `<div class="flex flex-col gap-1">
+                <div class="flex items-center gap-2 flex-wrap justify-between">
                     <button type="button" id="retry-${j.id}" onclick="retryTranslation('${j.id}')" class="font-bold px-3 py-1 rounded-lg" style="background:var(--accent);color:#000;border:none;cursor:pointer;">ترجمه سند</button>
-                    <button type="button" onclick="promptUploadTranslation('${j.id}')" class="font-bold px-3 py-1 rounded-lg" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);cursor:pointer;">آپلود فایل ترجمه</button>
+                    <a href="javascript:void(0)" id="upload-${j.id}" onclick="promptUploadTranslation('${j.id}')" class="font-bold hover:underline" style="color:var(--accent);" title="آپلود فایل ترجمه">${_UPLOAD_ICON}</a>
                 </div>
                 ${errNote}
             </div>`;
         }
+        const downloadCell = j.status === 'support_translated'
+            ? `<a href="javascript:void(0)" onclick="downloadJobResult('${j.id}')" title="${escapeHtml(j.result_filename || 'دانلود فایل ترجمه')}" style="color:var(--accent);display:inline-flex;align-items:center;">${_DOWNLOAD_ICON}</a>`
+            : `<span style="color:var(--text-muted);">—</span>`;
         return `<tr style="border-bottom:1px solid var(--divider);">
             <td class="py-2 px-3">
                 <div class="flex items-center gap-2">
@@ -7279,6 +8780,7 @@ function renderAdminFailedDocs(jobs) {
             </td>
             <td class="py-2 px-3 text-center" style="color:var(--text-muted);">${dateStr}</td>
             <td class="py-2 px-3 text-center">${ops}</td>
+            <td class="py-2 px-3 text-center">${downloadCell}</td>
         </tr>`;
     }).join('');
 }
@@ -7313,10 +8815,26 @@ async function retryTranslation(jobId) {
 
 let pendingUploadJobId = null;
 
+function _setUploadState(jobId, state, busy) {
+    const el = document.getElementById(`upload-${jobId}`);
+    if (!el) return;
+    el.innerHTML = state === 'busy' ? _UPLOAD_SPINNER : _UPLOAD_ICON;
+    el.title = state === 'busy' ? 'در حال آپلود...' : 'آپلود فایل ترجمه';
+    el.style.pointerEvents = busy ? 'none' : '';
+    el.style.opacity = busy ? '.6' : '';
+}
+
 function promptUploadTranslation(jobId) {
     pendingUploadJobId = jobId;
+    _setUploadState(jobId, 'busy', true);
     const input = document.getElementById('translationUploadInput');
     if (input) input.click();
+}
+
+function onTranslationUploadCancelled() {
+    if (!pendingUploadJobId) return;
+    _setUploadState(pendingUploadJobId, 'upload', false);
+    pendingUploadJobId = null;
 }
 
 function readFileAsBase64(file) {
@@ -7335,11 +8853,15 @@ function readFileAsBase64(file) {
 async function onTranslationFileChosen(input) {
     const file = input.files && input.files[0];
     input.value = '';
-    if (!file || !pendingUploadJobId) return;
     const jobId = pendingUploadJobId;
     pendingUploadJobId = null;
+    if (!file || !jobId) {
+        if (jobId) _setUploadState(jobId, 'upload', false);
+        return;
+    }
     const token = getToken();
-    if (!token) return;
+    if (!token) { _setUploadState(jobId, 'upload', false); return; }
+    _setUploadState(jobId, 'busy', true);
     try {
         const b64 = await readFileAsBase64(file);
         const res = await fetch(`${CORE}/jobs/${jobId}/support-translation`, {
@@ -7349,12 +8871,14 @@ async function onTranslationFileChosen(input) {
         });
         if (res.ok) {
             showToast('✅ فایل ترجمه بارگذاری شد.');
-            await loadAdminFailedDocs();
+            await loadAdminFailedDocs(true);
         } else {
             showToast('❌ بارگذاری فایل ترجمه ناموفق بود.');
+            _setUploadState(jobId, 'upload', false);
         }
     } catch (e) {
         showToast('❌ بارگذاری فایل ترجمه ناموفق بود. اتصال خود را بررسی کنید.');
+        _setUploadState(jobId, 'upload', false);
     }
 }
 
@@ -7369,7 +8893,7 @@ async function deleteFailedJob(jobId) {
         });
         if (res.ok) {
             showToast('🗑️ سند حذف شد.');
-            await loadAdminFailedDocs();
+            await loadAdminFailedDocs(true);
         } else {
             showToast('❌ حذف سند ناموفق بود.');
         }
@@ -7390,7 +8914,9 @@ async function sendSupportTranslationToUser(jobId) {
         });
         if (res.ok) {
             showToast('📩 ترجمه برای کاربر ارسال شد.');
-            if (btn) { btn.textContent = 'ارسال شد ✓'; btn.disabled = true; }
+            const cached = adminFailedDocsCache.find(x => x.id === jobId);
+            if (cached) cached.completion_email_status = 'sent';
+            if (btn) btn.outerHTML = `<span class="font-bold" style="color:#4ade80;">ارسال شد ✓</span>`;
         } else {
             showToast('❌ ارسال به کاربر ناموفق بود. دوباره تلاش کنید.');
             if (btn) { btn.disabled = false; btn.textContent = 'ارسال به کاربر'; }
@@ -7938,4 +9464,4 @@ function toggleTheme() { toggleGlobalTheme(); }
 
     // CRM time-frame selects — init early so they are ready when admin opens CRM
     try { populateCrmTimeFrameSelects(); } catch(e) {}
-})();
+})()

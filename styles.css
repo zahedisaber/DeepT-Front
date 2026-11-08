@@ -75,6 +75,9 @@
     --modal-overlay: rgba(0,0,0,0.85);
     --toast-bg: #111;
     --toast-border: rgba(0,255,255,0.4);
+    --alert-bg: rgba(245,158,11,0.14);
+    --alert-border: rgba(245,158,11,0.4);
+    --alert-text: #fbbf24;
 
     /* Landing namespace */
     --bg:          #0c0c0e;
@@ -118,6 +121,9 @@
     --modal-overlay: rgba(15,27,42,0.7);
     --toast-bg: #fff;
     --toast-border: rgba(3,105,161,0.35);
+    --alert-bg: rgba(217,119,6,0.12);
+    --alert-border: rgba(217,119,6,0.35);
+    --alert-text: #b45309;
 
     --bg:          #f4f6fb;
     --bg2:         #eceef5;
@@ -520,6 +526,7 @@ select.converter-input option {
     #workSchedulePage,
     #settingsPage,
     #accountSettingsPage,
+    #docSamplesPage,
     #myPriceListPage,
     #clientProfilePage,
     #adminDashboard,
@@ -1044,3 +1051,101 @@ footer {
     #iv-sheet, #iv-sheet * { color: #000 !important; background: #fff !important; border-color: #000 !important; }
     #iv-sheet table, #iv-sheet th, #iv-sheet td { border: 1px solid #000 !important; }
 }
+
+/* Wallet top-up: each payment method is its own full-width tile of equal
+   weight (bank gateway, card-to-card), not a primary button plus a
+   secondary one. */
+.pay-method {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    width: 100%;
+    padding: .7rem .85rem;
+    border-radius: .75rem;
+    border: 1px solid var(--border-color);
+    background: var(--bg-main);
+    color: var(--text-main);
+    text-align: right;
+    cursor: pointer;
+    transition: border-color .15s, background .15s, transform .15s;
+}
+.pay-method:hover {
+    border-color: var(--accent);
+    background: var(--card-surface);
+    transform: translateY(-1px);
+}
+.pay-method:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+.pay-method-icon {
+    flex-shrink: 0;
+    width: 2.25rem;
+    height: 2.25rem;
+    display: grid;
+    place-items: center;
+    border-radius: .6rem;
+    font-size: 1.15rem;
+    background: var(--card-surface);
+    border: 1px solid var(--border-subtle);
+}
+.pay-method-text {
+    display: flex;
+    flex-direction: column;
+    gap: .15rem;
+    min-width: 0;
+}
+.pay-method-title {
+    font-weight: 900;
+    font-size: .85rem;
+    color: var(--accent);
+}
+.pay-method-sub {
+    font-size: .68rem;
+    color: var(--text-muted);
+}
+
+/* ── منشی هوشمند (receptionist.js) ── */
+.rcp-tab {
+    font-size: .78rem; font-weight: 700; padding: .55rem 1rem; border-radius: .75rem;
+    background: var(--card-surface); color: var(--text-muted); border: 1px solid var(--border-subtle);
+    transition: color .15s, border-color .15s;
+    display: inline-flex; align-items: center; gap: .4rem;
+}
+.rcp-tab:hover { color: var(--text-main); }
+.rcp-tab.rcp-tab-active { color: var(--accent); border-color: var(--accent); }
+.rcp-badge {
+    font-size: .65rem; min-width: 1.2rem; padding: 0 .35rem; border-radius: 999px;
+    background: var(--accent); color: var(--btn-text-on-accent); text-align: center;
+}
+.rcp-badge.hidden { display: none; }
+.rcp-btn {
+    display: inline-flex; align-items: center; gap: .3rem;
+    font-size: .72rem; font-weight: 700; padding: .4rem .75rem; border-radius: .6rem;
+    background: var(--card-surface); color: var(--text-main); border: 1px solid var(--border-subtle);
+    cursor: pointer; text-decoration: none;
+}
+.rcp-btn:hover { border-color: var(--accent); }
+.rcp-field { display: flex; flex-direction: column; gap: .35rem; }
+.rcp-field > span { font-size: .72rem; font-weight: 700; color: var(--text-muted); }
+.rcp-msg { display: flex; }
+.rcp-msg-user { justify-content: flex-start; }   /* RTL: user on the right edge */
+.rcp-msg-bot  { justify-content: flex-end; }
+.rcp-bubble {
+    max-width: 85%; padding: .65rem .9rem; border-radius: 1rem; font-size: .85rem; line-height: 1.75;
+    white-space: normal; word-break: break-word;
+}
+.rcp-msg-user .rcp-bubble { background: var(--accent); color: var(--btn-text-on-accent); border-bottom-right-radius: .3rem; }
+.rcp-msg-bot .rcp-bubble  { background: var(--card-surface); color: var(--text-main); border: 1px solid var(--border-subtle); border-bottom-left-radius: .3rem; }
+.rcp-chip {
+    font-size: .72rem; font-weight: 700; padding: .35rem .75rem; border-radius: 999px;
+    border: 1px solid var(--accent); color: var(--accent); background: transparent; cursor: pointer;
+}
+.rcp-chip:hover { background: var(--accent-hover); }
+.rcp-typing { display: inline-flex; gap: .25rem; }
+.rcp-typing span { width: .4rem; height: .4rem; border-radius: 50%; background: var(--text-muted); animation: rcpDot 1s infinite ease-in-out; }
+.rcp-typing span:nth-child(2) { animation-delay: .15s; }
+.rcp-typing span:nth-child(3) { animation-delay: .3s; }
+@keyframes rcpDot { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+.rcp-call-dot { width: .75rem; height: .75rem; border-radius: 50%; background: #22c55e; box-shadow: 0 0 0 0 rgba(34,197,94,.6); animation: rcpPulse 1.4s infinite; }
+@keyframes rcpPulse { 0% { box-shadow: 0 0 0 0 rgba(34,197,94,.6); } 70% { box-shadow: 0 0 0 10px rgba(34,197,94,0); } 100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); } }

@@ -12,8 +12,8 @@
    in "نرخنامه من", both entered as live, independently-editable quantities
    on an invoice row (see mypl* in app.js), never auto-multiplied together:
 
-     id       -> the tariff sheet's own row number (e.g. "56", or "9-1" for
-                 a lettered sub-item/addition under row 9) -- stable, used
+     id       -> the tariff sheet's own row number (e.g. "56", or "48-1" for
+                 a lettered sub-item/addition under row 48) -- stable, used
                  as the override key sent to the backend. Never reuse or
                  renumber an id; that would silently repoint anyone's saved
                  override.
@@ -34,7 +34,7 @@
      unit     -> Persian label for what `extra` is charged per (e.g. "هر
                  سطر"), or null when extra is null.
      addition -> true for a lettered sub-item that is only ever an add-on
-                 to its parent row (e.g. "9-1"), never invoiced on its own.
+                 to its parent row (e.g. "48-1"), never invoiced on its own.
 
    A category can also carry `pinned: true` -- a translator's own everyday
    service fees (courier, scanning, stamps, ...), not part of the official
@@ -68,8 +68,7 @@ const PRICE_CATALOG = [
     { id: "8", label: "برگه مرخصی", base: 195840, extra: null, unit: null },
   ]},
   { category: "احوال شخصیه و اسناد سجلی", items: [
-    { id: "9", label: "شناسنامه", base: 171360, extra: null, unit: null },
-    { id: "9-1", label: "وقایع شناسنامه (ازدواج، طلاق یا فوت همسر، مشخصات هریک از فرزندان، فوت)", base: 25000, extra: null, unit: null, addition: true },
+    { id: "9", label: "شناسنامه", base: 171360, extra: 25000, unit: "واقعه (ازدواج، طلاق یا فوت همسر، مشخصات هریک از فرزندان، فوت)" },
     { id: "10", label: "پروانه زناشویی (برگه موقت)", base: 293760, extra: null, unit: null },
     { id: "11", label: "سند ازدواج یا رونوشت آن", base: 477360, extra: 10000, unit: "هر سطر توضیحات، مهریه، شهود و معرفین" },
     { id: "12", label: "سند طلاق (دفترچه) (هر صفحه)", base: 550800, extra: 20000, unit: "هر سطر توضیحات، مهریه، شهود و معرفین", baseUnit: "صفحه" },

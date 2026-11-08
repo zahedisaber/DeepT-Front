@@ -6,10 +6,10 @@
 <meta name="description" content="DeepT — مترجمیار خودکار اسناد: ترجمه رسمی مدارک با خروجی Word">
 <meta name="theme-color" content="#0c0c0e">
 <title>DeepT — مترجمیار خودکار اسناد </title>
-<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="icon" type="image/png" href="/assets/favicon.png">
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;700;900&family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="/styles.css">
 </head>
 <body>
 
@@ -28,6 +28,7 @@
        09  signupOverlay         signup dialog (first copy — used by JS)
        10  chatModal             translation pipeline (doc type → passport → doc)
       10.5 homePanelsPage        صفحه نخست -- round-corner feature panel grid
+      10.7 receptionistPage      منشی هوشمند -- AI receptionist (calls + chat)
        11  workspaceDashboard    translation projects view
        12  clientsWorkspace      clients list + Sanam import view
        13  workSchedulePage      office weekly schedule view
@@ -55,7 +56,8 @@
      page, and openWorkspaceDashboard()/showFullView()/showAdminDashboard()
      unhide it for authenticated views. Without this, the first paint before
      app.js runs shows the dashboard header above the landing header. -->
-<div class="header-bar hidden fixed top-0 left-0 right-0 z-50 px-4 py-3 flex items-center justify-between gap-2">
+<div class="header-bar hidden fixed top-0 left-0 right-0 z-50 px-4 py-3 flex flex-col">
+  <div class="flex items-center justify-between gap-2">
   <div class="flex items-center gap-1 flex-wrap">
     <button type="button" id="railHomeBtn" onclick="goToHomePage()" class="side-rail-btn hidden" title="صفحه نخست">
       <svg class="side-rail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5 12 4l8 7.5"/><path d="M6 10v9a1 1 0 0 0 1 1h4v-5h2v5h4a1 1 0 0 0 1-1v-9"/></svg>
@@ -84,6 +86,10 @@
     <button type="button" id="railAccountSettingsBtn" onclick="openAccountSettingsPage()" class="side-rail-btn hidden" title="تنظیمات حساب">
       <svg class="side-rail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4.5" y="10.5" width="15" height="10" rx="2"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/><circle cx="12" cy="15.5" r="1.2"/></svg>
       <span class="side-rail-label">حساب</span>
+    </button>
+    <button type="button" id="railDocSamplesBtn" onclick="openDocSamplesPage()" class="side-rail-btn hidden" title="نمونه مدارک">
+      <svg class="side-rail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="13" height="18" rx="1.5"/><path d="M8 8h5M8 12h5M8 16h3"/><path d="M17 7h3v14h-10v-2"/></svg>
+      <span class="side-rail-label">نمونه مدارک</span>
     </button>
     <button type="button" id="railAdminPanelBtn" onclick="showAdminDashboard()" class="side-rail-btn hidden" title="پنل مدیریت">
       <svg class="side-rail-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 19 6v6c0 4.5-3 7.5-7 8.5-4-1-7-4-7-8.5V6l7-2.5Z"/><path d="m9.2 12 1.9 1.9 3.7-3.9"/></svg>
@@ -145,6 +151,17 @@
       </div>
     </div>
   </div>
+  </div>
+
+  <!-- Admin-published platform-wide alert (see announcements.py /
+       loadSystemAnnouncement() in app.js) -- grows header-bar's own height,
+       which every openXPage()'s `headerEl.offsetHeight + 16` content
+       padding already measures live, so nothing else needs to account for
+       it appearing/disappearing. -->
+  <div id="systemAnnouncementBanner" class="hidden items-start justify-between gap-3 px-3 py-2 text-xs font-bold" style="color:var(--alert-text);background:var(--alert-bg);border:1px solid var(--alert-border);border-radius:.6rem;margin-top:.5rem;">
+    <span>⚠️ <span id="systemAnnouncementText"></span></span>
+    <button type="button" onclick="dismissSystemAnnouncement()" class="shrink-0 font-black px-2" style="color:var(--alert-text);opacity:.75;" title="بستن">✕</button>
+  </div>
 </div>
 
 <!-- ── VIEW 02 · logout confirm dialog ── -->
@@ -201,8 +218,12 @@
       <h3 class="text-base font-black" style="color:var(--text-main);">🕐 ثبت ورود / خروج</h3>
       <button type="button" onclick="closeHrClockWidget()" style="color:var(--text-muted);background:none;border:none;cursor:pointer;font-size:1.1rem;">✕</button>
     </div>
-    <p class="text-[11px] mb-4" style="color:var(--text-muted);">پین خود را وارد کنید. با ورود یک پین، اگر در حال حاضر حاضر نیستید ورود و در غیر این صورت خروج شما ثبت می‌شود. مرورگر موقعیت مکانی شما را می‌پرسد — این ثبت فقط در محل دفتر انجام می‌شود.</p>
+    <p class="text-[11px] mb-4" style="color:var(--text-muted);">پین خود را وارد کنید. با ورود یک پین، اگر در حال حاضر حاضر نیستید ورود و در غیر این صورت خروج شما ثبت می‌شود. مرورگر موقعیت مکانی شما را می‌پرسد — این ثبت فقط در محل دفتر انجام می‌شود، مگر اینکه دورکاری را انتخاب کنید.</p>
     <input type="text" id="hr-clock-pin" inputmode="numeric" maxlength="6" class="auth-input en text-center mb-3" dir="ltr" style="font-size:1.3rem;letter-spacing:.3rem;" placeholder="••••">
+    <label class="flex items-center justify-center gap-2 text-[12px] font-bold mb-3" style="color:var(--text-main);">
+      <input type="checkbox" id="hr-clock-remote" style="width:15px;height:15px;">
+      🏠 این شیفت دورکاری است (بدون نیاز به حضور در دفتر)
+    </label>
     <button type="button" onclick="submitHrClock()" id="hr-clock-submit-btn" class="w-full font-black py-2.5 rounded-xl text-sm transition" style="background:var(--accent);color:var(--btn-text-on-accent);">ثبت</button>
     <p id="hr-clock-status" class="text-[12px] mt-3 hidden"></p>
   </div>
@@ -301,6 +322,53 @@
   </div>
 </div>
 
+<!-- ── "مورد شخصی" -- a translator's own نرخنامه line item that isn't
+     part of the official tariff sheet at all (e.g. a one-off service the
+     client wants billed separately) -- see CUSTOM_PRICE_ITEM_ID_PREFIX
+     and the custom-item functions in app.js. Same add/edit dialog for
+     both: editCustomPriceItemId holds which item (if any) is being
+     edited, null for a brand-new one. ── -->
+<div role="dialog" aria-modal="true" id="customPriceItemModal" class="modal-overlay fixed inset-0 z-[75] hidden flex items-center justify-center p-4">
+  <div class="w-full max-w-sm p-6" style="background:var(--card-surface);border:1px solid var(--border-color);border-radius:1rem;max-height:85vh;overflow-y:auto;">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-base font-black" id="cpi-modal-title" style="color:var(--text-main);">+ مورد شخصی جدید</h3>
+      <button type="button" onclick="closeCustomPriceItemModal()" style="color:var(--text-muted);background:none;border:none;cursor:pointer;font-size:1.1rem;">✕</button>
+    </div>
+    <p class="text-[11px] mb-3" style="color:var(--text-muted);">یک ردیف کاملاً دلخواه، خارج از فهرست رسمی تعرفه، برای استفاده در نرخنامه و فاکتورهای خودتان.</p>
+    <div class="space-y-3">
+      <div>
+        <label for="cpi-label" class="auth-label">عنوان مورد <span style="color:#f87171;">*</span></label>
+        <input type="text" id="cpi-label" class="auth-input" placeholder="مثلاً مشاوره حقوقی">
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label for="cpi-base" class="auth-label">قیمت پایه (تومان) <span style="color:#f87171;">*</span></label>
+          <input type="number" id="cpi-base" class="auth-input en" dir="ltr" min="0" placeholder="150000">
+        </div>
+        <div>
+          <label for="cpi-base-unit" class="auth-label">واحد قیمت پایه (اختیاری)</label>
+          <input type="text" id="cpi-base-unit" class="auth-input" placeholder="مثلاً صفحه">
+        </div>
+      </div>
+      <p class="text-[10px]" style="color:var(--text-muted);">واحد را فقط زمانی پر کنید که قیمت پایه به‌ازای هر واحد (مثلاً هر صفحه) باشد، نه یک‌جا برای کل مورد.</p>
+      <div>
+        <label class="auth-label">افزوده‌های اختیاری</label>
+        <!-- Rows injected by renderCustomPriceItemExtraRows()/
+             addCustomPriceItemExtraRow() in app.js -- any number, each its
+             own price+unit, all summed into the item's total on an
+             invoice row (see myplEffectiveExtras()/myplRecomputeRowPrice()). ── -->
+        <div id="cpi-extras-list" class="space-y-2"></div>
+        <button type="button" onclick="addCustomPriceItemExtraRow()" class="text-[11px] font-bold mt-2" style="color:var(--accent);background:none;border:none;cursor:pointer;">+ افزودن افزودهٔ دیگر</button>
+      </div>
+    </div>
+    <p id="cpi-error" class="text-[11px] mt-2 hidden" style="color:#f87171;"></p>
+    <div class="flex items-center gap-2 mt-4">
+      <button type="button" onclick="saveCustomPriceItem()" class="flex-1 font-black py-2 rounded-lg text-xs transition" style="background:var(--accent);color:var(--btn-text-on-accent);">ذخیره</button>
+      <button type="button" onclick="closeCustomPriceItemModal()" class="text-xs font-bold px-3 py-2 rounded-lg transition shrink-0" style="background:var(--bg-main);color:var(--text-muted);border:1px solid var(--border-subtle);">انصراف</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── VIEW 04 · add/edit client dialog (standalone; no passport/job) ── -->
 <div role="dialog" aria-modal="true" id="addClientModal" class="modal-overlay fixed inset-0 z-[70] hidden flex items-center justify-center p-4">
   <div class="w-full max-w-md p-6" style="background:var(--card-surface);border:1px solid var(--border-color);border-radius:1rem;max-height:88vh;overflow-y:auto;">
@@ -378,15 +446,17 @@
         <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:50%;background:#38bdf8;display:inline-block;"></span>وارد شده از سنام</span>
         <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:50%;background:#fbbf24;display:inline-block;"></span>ردیف دستی (پیش‌نویس فاکتور)</span>
     </div>
-    <p class="text-[11px] mb-2" style="color:var(--text-muted);">برای افزودن هر مورد به پیش‌نویس فاکتور پایین، تیک آن را بزنید.</p>
+    <p class="text-[11px] mb-2" style="color:var(--text-muted);">تیک هر مورد را بزنید، سپس «ثبت پیش‌نویس فاکتور» را بزنید تا به پیش‌نویس فاکتور پایین اضافه شود و در آنجا قابل ویرایش باشد.</p>
     <div id="cd-activity-bulk-bar" class="hidden flex items-center gap-2 flex-wrap p-2 rounded-lg mb-2" style="background:var(--bg-main);border:1px solid var(--accent);">
         <span id="cd-activity-bulk-count" class="text-[11px] font-bold" style="color:var(--text-main);"></span>
         <span class="flex-1"></span>
-        <button type="button" onclick="submitDraftInvoice('invoice')" class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition" style="background:var(--accent);color:var(--btn-text-on-accent);border:1px solid transparent;">🧾 ایجاد فاکتور</button>
+        <button type="button" onclick="commitCheckedActivityToDraft()" class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition" style="background:var(--accent);color:var(--btn-text-on-accent);border:1px solid transparent;">📝 ثبت پیش‌نویس فاکتور</button>
         <button type="button" id="cd-activity-bulk-edit" onclick="openEditWorkRecordModalForSelection()" class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">✏️ ویرایش فیلدها</button>
         <button type="button" id="cd-activity-bulk-delete" onclick="bulkDeleteCheckedActivityRows()" class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition" style="background:var(--card-surface);color:#f87171;border:1px solid var(--border-subtle);">🗑 حذف</button>
     </div>
-    <div id="cd-activity-list" class="space-y-1.5 mb-5"></div>
+    <input type="text" id="cd-activity-search" class="auth-input mb-2 w-full" style="font-size:.78rem;" placeholder="🔍 جستجو بر اساس نام سند..." oninput="filterActivityList('cd')">
+    <div id="cd-activity-list" class="space-y-1.5 mb-2"></div>
+    <div id="cd-activity-pagination" class="flex items-center justify-center gap-2 mb-5"></div>
 
     <div class="p-3.5 rounded-xl mb-5" style="background:var(--bg-main);border:1px solid var(--border-color);">
       <h4 class="text-sm font-black flex items-center gap-1.5 mb-2.5" style="color:var(--text-main);">🧮 پیش‌نویس فاکتور</h4>
@@ -405,8 +475,18 @@
       <p class="text-[11px] mb-2" style="color:var(--text-muted);">از سابقه پروژه‌ها «+ افزودن» بزنید، یا ردیف دلخواه اضافه کنید. تعداد و قیمت واحد هر ردیف قابل ویرایش است.</p>
       <div id="cd-draft-rows" class="space-y-1.5"></div>
       <div id="cd-draft-empty" class="text-xs text-center py-4" style="color:var(--text-muted);">// هنوز ردیفی اضافه نشده</div>
-      <div class="flex items-center justify-between mt-3 pt-3" style="border-top:1px solid var(--divider);">
-        <span class="text-xs font-bold" style="color:var(--text-muted);">جمع کل: <span class="en" id="cd-draft-total" style="color:var(--text-main);">۰</span> تومان</span>
+      <div class="flex items-center gap-2 mt-3 pt-3" style="border-top:1px solid var(--divider);">
+        <label class="flex items-center gap-1.5 text-[11px] font-bold" style="color:var(--text-muted);" title="درصد افزایش یکباره روی جمع کل فاکتور">
+          <input type="checkbox" id="cd-draft-urgency-checked" onchange="toggleDraftWholeInvoiceUrgency(this.checked)" style="width:13px;height:13px;">
+          فوریت کل فاکتور
+        </label>
+        <input type="number" id="cd-draft-urgency-pct" min="0" max="500" placeholder="٪" disabled oninput="setDraftWholeInvoiceUrgencyPercent(this.value)" class="auth-input en" dir="ltr" style="width:52px;padding:.3rem .4rem;font-size:.75rem;text-align:center;">
+      </div>
+      <div class="flex items-center justify-between mt-2">
+        <span class="text-xs" style="color:var(--text-muted);">
+          <span id="cd-draft-subtotal-wrap">جمع ردیف‌ها: <span class="en" id="cd-draft-subtotal" style="color:var(--text-main);">۰</span> تومان · </span>
+          جمع کل: <span class="en font-bold" id="cd-draft-total" style="color:var(--text-main);">۰</span> تومان
+        </span>
         <span class="flex items-center gap-2">
           <button type="button" onclick="submitDraftInvoice('proforma')" class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition" style="background:var(--card-surface);color:var(--text-muted);border:1px solid var(--border-subtle);">ثبت پیش‌فاکتور</button>
           <button type="button" onclick="submitDraftInvoice('invoice')" class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition" style="background:var(--accent);color:var(--btn-text-on-accent);border:1px solid transparent;">ثبت فاکتور</button>
@@ -462,6 +542,102 @@
     <div class="flex gap-2 mt-5">
       <button type="button" onclick="deleteWorkOrder(workOrderEditingId)" id="wo-delete-btn" class="hidden px-4 py-2.5 rounded-xl text-sm font-black transition" style="background:var(--bg-main);color:#f87171;border:1px solid rgba(248,113,113,0.4);">حذف</button>
       <button type="button" onclick="submitWorkOrder()" id="wo-submit-btn" class="flex-1 py-2.5 rounded-xl text-sm font-black transition" style="background:var(--accent);color:var(--btn-text-on-accent);">ثبت سفارش</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Office-wide schedule: "+" on a day cell -> add anything to that day,
+     optionally linked to an existing client (a translation project) or left
+     as a plain note. See openDayTaskModal()/submitDayTask() in app.js. ── -->
+<div role="dialog" aria-modal="true" id="dayTaskModal" class="modal-overlay fixed inset-0 z-[75] hidden flex items-center justify-center p-4">
+  <div class="w-full max-w-sm p-6" style="background:var(--card-surface);border:1px solid var(--border-color);border-radius:1rem;">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-base font-black" style="color:var(--text-main);">➕ افزودن به <span class="en" id="dt-date-label" style="color:var(--accent);">—</span></h3>
+      <button type="button" onclick="closeDayTaskModal()" style="color:var(--text-muted);background:none;border:none;cursor:pointer;font-size:1.1rem;">✕</button>
+    </div>
+    <div class="space-y-3">
+      <div>
+        <label class="auth-label">نوع</label>
+        <div class="grid grid-cols-3 gap-2">
+          <button type="button" onclick="selectDayTaskType('TASK')" id="dt-type-TASK" class="text-[11px] font-bold px-2 py-2.5 rounded-xl transition" style="background:var(--bg-main);border:1px solid #2dd4bf;color:#2dd4bf;">یادداشت</button>
+          <button type="button" onclick="selectDayTaskType('TAYIDI')" id="dt-type-TAYIDI" class="text-[11px] font-bold px-2 py-2.5 rounded-xl transition" style="background:var(--bg-main);border:1px solid #38bdf8;color:#38bdf8;">تاییدی</button>
+          <button type="button" onclick="selectDayTaskType('MEHR_MOTARJEM')" id="dt-type-MEHR_MOTARJEM" class="text-[11px] font-bold px-2 py-2.5 rounded-xl transition" style="background:var(--bg-main);border:1px solid #c084fc;color:#c084fc;">مهر مترجم</button>
+        </div>
+      </div>
+      <div>
+        <label class="auth-label" for="dt-title">عنوان</label>
+        <input type="text" id="dt-title" class="auth-input" placeholder="مثلاً یادآوری تماس با مشتری">
+      </div>
+      <div>
+        <label class="auth-label">مشتری (اختیاری — برای یک پروژه ترجمه)</label>
+        <div id="dt-client-chip" class="hidden flex items-center justify-between p-2 rounded-lg text-xs mb-1.5" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
+          <span class="font-bold en" id="dt-client-chip-name" style="color:var(--text-main);">—</span>
+          <button type="button" onclick="dtClearClient()" style="color:#f87171;background:none;border:none;cursor:pointer;font-weight:700;">حذف ✕</button>
+        </div>
+        <input type="text" id="dt-client-search" class="auth-input" placeholder="جستجوی نام یا کد ملی..." oninput="dtSearchClients(this.value)">
+        <div id="dt-client-results" class="space-y-1 mt-1.5" style="max-height:120px;overflow-y:auto;"></div>
+      </div>
+      <div>
+        <label class="auth-label" for="dt-notes">یادداشت</label>
+        <textarea id="dt-notes" rows="2" class="auth-input resize-none" placeholder="یادداشت اختیاری..."></textarea>
+      </div>
+    </div>
+    <div class="flex gap-2 mt-5">
+      <button type="button" onclick="submitDayTask()" id="dt-submit-btn" class="flex-1 py-2.5 rounded-xl text-sm font-black transition" style="background:var(--accent);color:var(--btn-text-on-accent);">افزودن به تقویم</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Office-wide schedule: click an item (day cell or the list below) to
+     see/edit its details, including a freeform note that has no client.
+     See openScheduleOrderDetail()/submitScheduleOrderEdit() in app.js. ── -->
+<div role="dialog" aria-modal="true" id="scheduleOrderDetailModal" class="modal-overlay fixed inset-0 z-[75] hidden flex items-center justify-center p-4">
+  <div class="w-full max-w-sm p-6" style="background:var(--card-surface);border:1px solid var(--border-color);border-radius:1rem;">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-base font-black" style="color:var(--text-main);">جزئیات</h3>
+      <button type="button" onclick="closeScheduleOrderDetail()" style="color:var(--text-muted);background:none;border:none;cursor:pointer;font-size:1.1rem;">✕</button>
+    </div>
+    <div id="sod-client-info" class="hidden flex items-center justify-between p-2.5 rounded-lg text-xs mb-3" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
+      <span style="color:var(--text-muted);">مشتری: <span class="font-bold en" id="sod-client-name" style="color:var(--text-main);">—</span></span>
+      <button type="button" onclick="openClientProfileFromScheduleDetail()" class="text-[11px] font-bold px-2 py-1 rounded-md" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">باز کردن پروفایل ←</button>
+    </div>
+    <div class="space-y-3">
+      <div>
+        <label class="auth-label">نوع</label>
+        <div class="grid grid-cols-3 gap-2">
+          <button type="button" onclick="selectScheduleOrderType('TASK')" id="sod-type-TASK" class="text-[11px] font-bold px-2 py-2.5 rounded-xl transition" style="background:var(--bg-main);border:1px solid #2dd4bf;color:#2dd4bf;">یادداشت</button>
+          <button type="button" onclick="selectScheduleOrderType('TAYIDI')" id="sod-type-TAYIDI" class="text-[11px] font-bold px-2 py-2.5 rounded-xl transition" style="background:var(--bg-main);border:1px solid #38bdf8;color:#38bdf8;">تاییدی</button>
+          <button type="button" onclick="selectScheduleOrderType('MEHR_MOTARJEM')" id="sod-type-MEHR_MOTARJEM" class="text-[11px] font-bold px-2 py-2.5 rounded-xl transition" style="background:var(--bg-main);border:1px solid #c084fc;color:#c084fc;">مهر مترجم</button>
+        </div>
+      </div>
+      <div>
+        <label class="auth-label" for="sod-title">عنوان</label>
+        <input type="text" id="sod-title" class="auth-input">
+      </div>
+      <div>
+        <label class="auth-label" for="sod-due-display">مهلت (ددلاین)</label>
+        <div class="relative">
+          <input type="text" id="sod-due-display" class="auth-input" readonly placeholder="انتخاب تاریخ از تقویم..." onclick="toggleJalaliCalendar('sod-due')" style="cursor:pointer;">
+          <input type="hidden" id="sod-due">
+          <div id="sod-due-calendar" class="hidden" style="position:absolute;top:calc(100% + 4px);right:0;z-index:20;width:264px;background:var(--card-surface);border:1px solid var(--border-color);border-radius:.75rem;padding:.6rem;box-shadow:0 8px 24px rgba(0,0,0,.3);"></div>
+        </div>
+      </div>
+      <div>
+        <label class="auth-label" for="sod-status">وضعیت</label>
+        <select id="sod-status" class="auth-input" style="background:var(--input-bg);color:var(--text-main);">
+          <option value="PENDING">در انتظار</option>
+          <option value="DONE">انجام‌شده</option>
+          <option value="CANCELLED">لغو شده</option>
+        </select>
+      </div>
+      <div>
+        <label class="auth-label" for="sod-notes">یادداشت</label>
+        <textarea id="sod-notes" rows="2" class="auth-input resize-none"></textarea>
+      </div>
+    </div>
+    <div class="flex gap-2 mt-5">
+      <button type="button" onclick="deleteScheduleOrder()" class="px-4 py-2.5 rounded-xl text-sm font-black transition" style="background:var(--bg-main);color:#f87171;border:1px solid rgba(248,113,113,0.4);">حذف</button>
+      <button type="button" onclick="submitScheduleOrderEdit()" class="flex-1 py-2.5 rounded-xl text-sm font-black transition" style="background:var(--accent);color:var(--btn-text-on-accent);">ذخیره تغییرات</button>
     </div>
   </div>
 </div>
@@ -691,6 +867,7 @@
         <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shrink-0" style="background:var(--accent);color:var(--btn-text-on-accent);">۱</span>
         <span class="font-black text-sm" style="color:var(--text-main);">مرحله ۱: انتخاب نوع سند</span>
         <span title="لطفا نوع سند مورد نظر خود را برای ترجمه انتخاب کنید" style="cursor:help;color:var(--text-muted);font-size:.85rem;">ⓘ</span>
+        <button type="button" onclick="openDocSamplesPage()" class="text-[11px] font-bold mr-auto" style="color:var(--accent);background:none;border:none;cursor:pointer;">🗂️ نمونه مدارک را ببینید</button>
       </div>
       <div id="docTypeStageBody" class="mb-4">
         <div class="relative">
@@ -851,7 +1028,7 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
           <span class="text-xs en" id="home-profileEmailBadge" style="color:var(--text-muted);"></span>
         </div>
       </div>
-      <div class="flex items-center gap-4">
+      <div class="flex items-center gap-3 flex-wrap">
         <div>
           <h4 class="text-[11px] font-bold uppercase tracking-wide mb-1" style="color:var(--text-muted);">کیف پول (تومان)</h4>
           <div class="text-xl font-black font-mono flex items-baseline gap-1" style="color:var(--text-main);">
@@ -859,7 +1036,9 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
             <span class="text-xs font-sans font-bold" style="color:var(--accent);">تومان</span>
           </div>
         </div>
-        <button type="button" onclick="triggerShaparakPayment()" class="font-black text-xs px-4 py-2.5 rounded-lg transition shrink-0" style="background:var(--accent);color:var(--btn-text-on-accent);">افزایش اعتبار</button>
+        <input type="number" id="homePaymentAmountInput" value="500000" step="25000" min="25000" class="converter-input text-left" dir="ltr" style="font-size:.8rem;width:7.5rem;" aria-label="مبلغ افزایش اعتبار">
+        <button type="button" onclick="triggerShaparakPayment(parseInt(document.getElementById('homePaymentAmountInput').value, 10))" class="font-black text-xs px-3 py-2.5 rounded-lg transition shrink-0" style="background:var(--accent);color:var(--btn-text-on-accent);">🏦 درگاه بانکی</button>
+        <button type="button" onclick="triggerCardToCardPayment(parseInt(document.getElementById('homePaymentAmountInput').value, 10))" class="text-xs font-bold px-3 py-2.5 rounded-lg transition shrink-0" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">💳 کارت‌به‌کارت</button>
         <button type="button" onclick="openWorkspaceDashboard()" class="text-xs font-bold px-4 py-2.5 rounded-lg transition shrink-0" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">ویرایش پروفایل</button>
       </div>
     </div>
@@ -895,6 +1074,11 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
         <span class="home-panel-title">تنظیمات حساب</span>
         <span class="home-panel-desc">رمز عبور و ایمیل</span>
       </button>
+      <button type="button" onclick="openDocSamplesPage()" class="workspace-panel home-panel-card p-5">
+        <svg class="home-panel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="13" height="18" rx="1.5"/><path d="M8 8h5M8 12h5M8 16h3"/><path d="M17 7h3v14h-10v-2"/></svg>
+        <span class="home-panel-title">نمونه مدارک</span>
+        <span class="home-panel-desc">قبل از آپلود، شکل مدرک را ببینید</span>
+      </button>
       <button type="button" id="homePanelAdmin" onclick="showAdminDashboard()" class="workspace-panel home-panel-card p-5 hidden">
         <svg class="home-panel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5 19 6v6c0 4.5-3 7.5-7 8.5-4-1-7-4-7-8.5V6l7-2.5Z"/><path d="m9.2 12 1.9 1.9 3.7-3.9"/></svg>
         <span class="home-panel-title">پنل مدیریت</span>
@@ -904,6 +1088,11 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
         <svg class="home-panel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>
         <span class="home-panel-title">حضور غیاب</span>
         <span class="home-panel-desc">ورود و خروج پرسنل</span>
+      </button>
+      <button type="button" onclick="openReceptionistPage()" class="workspace-panel home-panel-card p-5">
+        <svg class="home-panel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h3.5l1.6 4-2.2 1.4a11 11 0 0 0 5.7 5.7l1.4-2.2 4 1.6V18a2 2 0 0 1-2 2A15 15 0 0 1 3 6a2 2 0 0 1 2-2Z"/><path d="M15 3.5a5.5 5.5 0 0 1 5.5 5.5M15 7a2 2 0 0 1 2 2"/></svg>
+        <span class="home-panel-title">منشی هوشمند</span>
+        <span class="home-panel-desc">پاسخ به تماس‌ها، قیمت و ثبت سفارش</span>
       </button>
       <button type="button" onclick="openDateConverterPage()" class="workspace-panel home-panel-card p-5">
         <svg class="home-panel-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="1.5"/><path d="M3.5 9.5h17M8 3v4M16 3v4"/><path d="m8.5 13.5 2 2 4-4.3"/></svg>
@@ -986,6 +1175,161 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
   </div>
 </section>
 
+<!-- ── VIEW 10.7 · منشی هوشمند (AI receptionist) -- answers phone calls
+     (voice mode) and chat for the office: prices from نرخنامه من, hours,
+     address, requirements, intake → درخواست‌ها inbox, call log. All logic
+     in receptionist.js (rcp* ids/functions). ── -->
+<section id="receptionistPage" class="fixed inset-0 z-40 hidden overflow-y-auto p-4 pt-24 md:p-8 md:pt-24" style="background: var(--bg-secondary);">
+  <div class="max-w-5xl mx-auto space-y-5">
+    <div class="flex items-center justify-between gap-3 flex-wrap">
+      <h2 class="text-xl font-black flex items-center gap-2" style="color:var(--text-main);">☎️ منشی هوشمند دفتر ترجمه</h2>
+      <button type="button" onclick="closeReceptionistPage()" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">صفحه نخست ←</button>
+    </div>
+
+    <div class="flex flex-wrap gap-2">
+      <button type="button" id="rcp-tab-chat" class="rcp-tab" onclick="rcpSwitchTab('chat')">📞 تماس و گفتگوی آزمایشی</button>
+      <button type="button" id="rcp-tab-calls" class="rcp-tab" onclick="rcpSwitchTab('calls')">🗂 تماس‌ها</button>
+      <button type="button" id="rcp-tab-leads" class="rcp-tab" onclick="rcpSwitchTab('leads')">📥 درخواست‌ها <span id="rcp-leads-badge" class="rcp-badge hidden">۰</span></button>
+      <button type="button" id="rcp-tab-settings" class="rcp-tab" onclick="rcpSwitchTab('settings')">⚙️ تنظیمات منشی</button>
+    </div>
+
+    <!-- chat / call -->
+    <div id="rcp-pane-chat" class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+      <div class="workspace-panel lg:col-span-2 flex flex-col" style="height:min(70vh,640px);">
+        <div class="flex items-center justify-between gap-2 px-5 py-3" style="border-bottom:1px solid var(--border-subtle);">
+          <div>
+            <div class="font-black text-sm" id="rcp-chat-title" style="color:var(--text-main);">منشی</div>
+            <div class="text-[11px] font-bold" id="rcp-chat-status"></div>
+          </div>
+          <button type="button" class="rcp-btn" onclick="rcpResetChat()">↺ گفتگوی تازه</button>
+        </div>
+        <div id="rcp-call-panel" class="hidden px-5 py-3 flex flex-wrap items-center justify-between gap-3" style="background:rgba(34,197,94,.08);border-bottom:1px solid var(--border-subtle);">
+          <div class="flex items-center gap-3">
+            <span class="rcp-call-dot"></span>
+            <div>
+              <div class="text-sm font-black" style="color:var(--text-main);">تماس در جریان · <span id="rcp-call-timer" dir="ltr">۰۰:۰۰</span></div>
+              <div class="text-[11px]" id="rcp-call-state" style="color:var(--text-muted);"></div>
+              <div class="text-[11px] hidden" id="rcp-call-voice-note" style="color:#f59e0b;">صدای فارسی روی این دستگاه نصب نیست؛ پاسخ ممکن است درست خوانده نشود.</div>
+            </div>
+          </div>
+          <div class="flex gap-2">
+            <button type="button" id="rcp-call-mute" class="rcp-btn" onclick="rcpToggleMute()">🔊 صدای منشی: روشن</button>
+            <button type="button" class="rcp-btn" onclick="rcpEndCall()" style="background:#ef4444;color:#fff;border-color:#ef4444;">قطع تماس</button>
+          </div>
+        </div>
+        <div id="rcp-messages" class="flex-1 overflow-y-auto p-4 space-y-3"></div>
+        <div id="rcp-chips" class="flex flex-wrap gap-2 px-4 pb-2"></div>
+        <form class="flex gap-2 p-3" style="border-top:1px solid var(--border-subtle);" onsubmit="event.preventDefault(); rcpSend();">
+          <input id="rcp-input" class="converter-input flex-1 text-sm" autocomplete="off" placeholder="پیام مشتری را بنویسید... (مثلاً: ترجمه سند ازدواج به انگلیسی چند می‌شود؟)">
+          <button type="submit" class="font-black text-xs px-4 py-2.5 rounded-lg" style="background:var(--accent);color:var(--btn-text-on-accent);">ارسال</button>
+        </form>
+      </div>
+      <div class="space-y-4">
+        <div class="workspace-panel p-5">
+          <h3 class="font-black text-sm mb-2" style="color:var(--text-main);">پاسخ به تماس‌ها</h3>
+          <p class="text-xs leading-6 mb-3" style="color:var(--text-muted);">مثل یک تماس واقعی صحبت کنید: منشی گوش می‌دهد، به فارسی جواب می‌دهد، قیمت را از نرخنامهٔ شما می‌گوید و در صورت تمایل تماس‌گیرنده، سفارش را ثبت می‌کند. شماره موبایل را می‌توانید به‌صورت گفتاری بگویید.</p>
+          <button type="button" id="rcp-call-start" onclick="rcpStartCall()" class="w-full font-black text-sm px-4 py-3 rounded-xl" style="background:#22c55e;color:#04210f;">📞 شبیه‌سازی تماس ورودی</button>
+          <p class="text-[11px] mt-2" style="color:var(--text-muted);">نیازمند میکروفون و مرورگر Chrome یا Edge.</p>
+        </div>
+        <div class="workspace-panel p-5 text-xs leading-6" style="color:var(--text-muted);">
+          <h3 class="font-black text-sm mb-2" style="color:var(--text-main);">منشی چه می‌داند؟</h3>
+          <ul class="list-disc pr-4 space-y-1">
+            <li>قیمت حدود ۲۳۰ نوع مدرک از <b>نرخنامه من</b> (با قیمت‌های شخصی شما)</li>
+            <li>ساعات کاری، باز/بسته بودن دفتر به وقت تهران</li>
+            <li>آدرس، تلفن، زبان‌ها، زمان تحویل و ترجمه فوری</li>
+            <li>مدارک لازم و تأییدات دادگستری/خارجه</li>
+            <li>پرسش‌های متداولی که خودتان اضافه می‌کنید</li>
+          </ul>
+          <div class="mt-3 text-[11px]">موتور پاسخ: <span id="rcp-engine-label" style="color:var(--accent);"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- calls log -->
+    <div id="rcp-pane-calls" class="hidden space-y-4">
+      <div id="rcp-calls-stats" class="grid grid-cols-2 md:grid-cols-4 gap-3"></div>
+      <div id="rcp-calls-list" class="space-y-3"></div>
+    </div>
+
+    <!-- leads -->
+    <div id="rcp-pane-leads" class="hidden space-y-4">
+      <div class="flex flex-wrap gap-2">
+        <button type="button" class="rcp-tab" data-rcp-filter="all" onclick="rcpSetLeadFilter('all')">همه</button>
+        <button type="button" class="rcp-tab" data-rcp-filter="new" onclick="rcpSetLeadFilter('new')">جدید</button>
+        <button type="button" class="rcp-tab" data-rcp-filter="contacted" onclick="rcpSetLeadFilter('contacted')">تماس گرفته شد</button>
+        <button type="button" class="rcp-tab" data-rcp-filter="converted" onclick="rcpSetLeadFilter('converted')">تبدیل به مشتری</button>
+        <button type="button" class="rcp-tab" data-rcp-filter="closed" onclick="rcpSetLeadFilter('closed')">بسته شد</button>
+      </div>
+      <div id="rcp-leads-list" class="space-y-3"></div>
+    </div>
+
+    <!-- settings -->
+    <div id="rcp-pane-settings" class="hidden space-y-5">
+      <div class="workspace-panel p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <h3 class="md:col-span-2 font-black text-sm" style="color:var(--text-main);">مشخصات دفتر</h3>
+        <label class="rcp-field"><span>نام دفتر</span><input id="rcp-s-office" class="converter-input" placeholder="مثلاً دفتر ترجمه رسمی ۱۲۳ تهران"></label>
+        <label class="rcp-field"><span>نام منشی</span><input id="rcp-s-assistant" class="converter-input" placeholder="سارا"></label>
+        <label class="rcp-field"><span>تلفن دفتر</span><input id="rcp-s-phone" class="converter-input" dir="ltr"></label>
+        <label class="rcp-field"><span>واتساپ</span><input id="rcp-s-whatsapp" class="converter-input" dir="ltr"></label>
+        <label class="rcp-field md:col-span-2"><span>آدرس</span><input id="rcp-s-address" class="converter-input"></label>
+        <label class="rcp-field md:col-span-2"><span>لینک نقشه (نشان/بلد/گوگل)</span><input id="rcp-s-map" class="converter-input" dir="ltr"></label>
+        <label class="rcp-field md:col-span-2"><span>متن خوشامد گفتگو (خالی = پیش‌فرض)</span><textarea id="rcp-s-greeting" class="converter-input" rows="2"></textarea></label>
+      </div>
+
+      <div class="workspace-panel p-6 space-y-3">
+        <h3 class="font-black text-sm" style="color:var(--text-main);">ساعات کاری <span class="text-[11px] font-normal" style="color:var(--text-muted);">(به وقت تهران)</span></h3>
+        <div id="rcp-s-hours" class="space-y-2"></div>
+      </div>
+
+      <div class="workspace-panel p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <h3 class="md:col-span-3 font-black text-sm" style="color:var(--text-main);">خدمات و قیمت‌گذاری</h3>
+        <label class="rcp-field md:col-span-3"><span>زبان‌های ترجمه</span><input id="rcp-s-langs" class="converter-input"></label>
+        <label class="rcp-field"><span>تحویل عادی (روز کاری)</span><input id="rcp-s-normal" type="number" min="0" class="converter-input" dir="ltr"></label>
+        <label class="rcp-field"><span>تحویل فوری (روز کاری)</span><input id="rcp-s-urgent" type="number" min="0" class="converter-input" dir="ltr"></label>
+        <label class="rcp-field"><span>اضافه هزینه فوری (٪)</span><input id="rcp-s-urgent-pct" type="number" min="0" class="converter-input" dir="ltr"></label>
+        <div class="md:col-span-3 flex flex-wrap gap-x-6 gap-y-2 text-sm" style="color:var(--text-main);">
+          <label class="flex items-center gap-2"><input type="checkbox" id="rcp-s-fee-justice"> افزودن تمبر دادگستری به برآورد</label>
+          <label class="flex items-center gap-2"><input type="checkbox" id="rcp-s-fee-foreign"> افزودن مهر خارجه به برآورد</label>
+          <label class="flex items-center gap-2"><input type="checkbox" id="rcp-s-fee-service"> افزودن هزینه خدمات به برآورد</label>
+          <label class="flex items-center gap-2"><input type="checkbox" id="rcp-s-courier"> پیک دارد</label>
+        </div>
+        <p class="md:col-span-3 text-[11px]" style="color:var(--text-muted);">مبالغ از «نرخنامه من» خوانده می‌شوند؛ برای تغییر قیمت‌ها همان‌جا ویرایش کنید.</p>
+        <label class="rcp-field md:col-span-3"><span>نکته‌ای که منشی همیشه درباره مدارک لازم بگوید</span><textarea id="rcp-s-notes" class="converter-input" rows="2"></textarea></label>
+      </div>
+
+      <div class="workspace-panel p-6 space-y-3">
+        <div class="flex items-center justify-between gap-2">
+          <h3 class="font-black text-sm" style="color:var(--text-main);">پرسش‌های متداول دفتر</h3>
+          <button type="button" class="rcp-btn" onclick="rcpAddFaq()">+ افزودن پرسش</button>
+        </div>
+        <div id="rcp-s-faqs" class="space-y-3"></div>
+      </div>
+
+      <div class="workspace-panel p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <h3 class="md:col-span-3 font-black text-sm" style="color:var(--text-main);">مسیر تماس‌های تلفن ثابت دفتر</h3>
+        <label class="rcp-field md:col-span-3"><span>چه زمانی منشی هوشمند جواب بدهد؟</span>
+          <select id="rcp-s-route-mode" class="converter-input">
+            <option value="after_hours">فقط خارج از ساعت کاری</option>
+            <option value="no_answer">اگر همکاران جواب ندادند یا خطوط مشغول بود (و خارج از ساعت کاری)</option>
+            <option value="always">همیشه؛ در صورت درخواست به همکار وصل شود</option>
+          </select></label>
+        <label class="rcp-field"><span>مدت زنگ برای همکاران (ثانیه)</span><input id="rcp-s-route-ring" type="number" min="5" max="120" class="converter-input" dir="ltr"></label>
+        <label class="rcp-field md:col-span-2"><span>انتقال به همکار (داخلی یا موبایل)</span><input id="rcp-s-route-transfer" class="converter-input" dir="ltr" placeholder="مثلاً 101 یا 0912xxxxxxx"></label>
+        <p class="md:col-span-3 text-[11px] leading-5" style="color:var(--text-muted);">این تنظیم را سرور تلفن (Asterisk/Issabel) پس از اتصال خط ثابت دفتر با گیت‌وی FXO یا دایورت به شماره VoIP می‌خواند. تا آن زمان فقط ذخیره می‌شود.</p>
+      </div>
+
+      <div class="workspace-panel p-6 space-y-2">
+        <label class="flex items-center gap-2 text-sm font-bold" style="color:var(--text-main);"><input type="checkbox" id="rcp-s-ai"> پاسخ با مدل زبانی سرور و خط تلفن واقعی</label>
+        <p class="text-[11px] leading-5" style="color:var(--text-muted);">در صورت فعال بودن، پرسش‌های آزاد با قیمت‌های محاسبه‌شده به سرور DeepT ارسال می‌شود و تماس‌های خط تلفن دفتر (در صورت اتصال) در «تماس‌ها» نمایش داده می‌شود. اگر سرور در دسترس نباشد، منشی با موتور داخلی پاسخ می‌دهد. ثبت سفارش همیشه با موتور داخلی انجام می‌شود.</p>
+      </div>
+
+      <div class="flex justify-end">
+        <button type="button" onclick="rcpSaveSettings()" class="font-black text-sm px-6 py-3 rounded-xl" style="background:var(--accent);color:var(--btn-text-on-accent);">ذخیرهٔ تنظیمات منشی</button>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ── VIEW 11 · translation projects dashboard ── -->
 <section id="workspaceDashboard" class="fixed inset-0 z-40 hidden overflow-y-auto p-4 pt-24 md:p-8 md:pt-24" style="background: var(--bg-secondary);">
     <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -1019,17 +1363,31 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
             </div>
 
             <div class="workspace-panel p-6 relative overflow-hidden">
-                <div class="absolute top-0 left-0 px-3 py-0.5 text-[9px] font-mono font-black uppercase rounded-br-lg" style="background:var(--accent);color:var(--btn-text-on-accent);">Shaparak</div>
-                <h4 class="text-xs font-bold uppercase tracking-wide mb-2 mt-2" style="color:var(--text-muted);">کیف پول (تومان)</h4>
+                <h4 class="text-xs font-bold uppercase tracking-wide mb-2" style="color:var(--text-muted);">کیف پول (تومان)</h4>
                 <div class="text-3xl font-black font-mono my-3 flex items-baseline gap-1" style="color:var(--text-main);">
                     <span id="walletBalanceDisplay">۰</span>
                     <span class="text-xs font-sans font-bold" style="color:var(--accent);">تومان</span>
                 </div>
                 <div class="space-y-2 mt-4 pt-4" style="border-top:1px solid var(--divider);">
                     <label for="paymentAmountInput" class="block text-[11px]" style="color:var(--text-muted);">مبلغ افزایش اعتبار (تومان):</label>
-                    <div class="flex gap-2">
-                        <input type="number" id="paymentAmountInput" value="500000" step="50000" min="100000" class="converter-input flex-1 text-left" dir="ltr" style="font-size:.85rem;">
-                        <button type="button" onclick="triggerShaparakPayment()" class="font-black text-xs px-4 rounded-lg transition shrink-0" style="background:var(--accent);color:var(--btn-text-on-accent);">درگاه</button>
+                    <input type="number" id="paymentAmountInput" value="500000" step="25000" min="25000" class="converter-input w-full text-left" dir="ltr" style="font-size:.85rem;">
+                    <p class="text-[11px] pt-2" style="color:var(--text-muted);">روش پرداخت را انتخاب کنید:</p>
+                    <!-- Two separate, equal ways to pay -- neither is a sub-option of the other. -->
+                    <div class="space-y-2">
+                        <button type="button" onclick="triggerShaparakPayment()" class="pay-method">
+                            <span class="pay-method-icon" aria-hidden="true">🏦</span>
+                            <span class="pay-method-text">
+                                <span class="pay-method-title">درگاه بانکی</span>
+                                <span class="pay-method-sub">پرداخت آنلاین با کارت بانکی (شتاب)</span>
+                            </span>
+                        </button>
+                        <button type="button" onclick="triggerCardToCardPayment()" class="pay-method">
+                            <span class="pay-method-icon" aria-hidden="true">💳</span>
+                            <span class="pay-method-text">
+                                <span class="pay-method-title">کارت‌به‌کارت</span>
+                                <span class="pay-method-sub">واریز از اپلیکیشن بانک؛ تأیید خودکار</span>
+                            </span>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1143,6 +1501,25 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                     <button type="button" onclick="setScheduleTypeFilter(null)" id="sf-all" class="text-[11px] font-bold px-3 py-1 rounded-lg transition" style="background:var(--accent);color:var(--btn-text-on-accent);border:1px solid transparent;">همه</button>
                     <button type="button" onclick="setScheduleTypeFilter('TAYIDI')" id="sf-TAYIDI" class="text-[11px] font-bold px-3 py-1 rounded-lg transition" style="background:var(--bg-main);border:1px solid #38bdf8;color:#38bdf8;">تاییدی</button>
                     <button type="button" onclick="setScheduleTypeFilter('MEHR_MOTARJEM')" id="sf-MEHR_MOTARJEM" class="text-[11px] font-bold px-3 py-1 rounded-lg transition" style="background:var(--bg-main);border:1px solid #c084fc;color:#c084fc;">مهر مترجم</button>
+                    <button type="button" onclick="setScheduleTypeFilter('TASK')" id="sf-TASK" class="text-[11px] font-bold px-3 py-1 rounded-lg transition" style="background:var(--bg-main);border:1px solid #2dd4bf;color:#2dd4bf;">یادداشت</button>
+                    <span style="width:1px;height:20px;background:var(--border-subtle);"></span>
+                    <div class="relative">
+                        <button type="button" onclick="toggleScheduleColorPicker()" title="تغییر رنگ انواع" class="text-[11px] font-bold px-2.5 py-1 rounded-lg transition" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">🎨</button>
+                        <div id="scheduleColorPickerPopover" class="hidden" style="position:absolute;top:calc(100% + 4px);left:0;z-index:30;width:180px;background:var(--card-surface);border:1px solid var(--border-color);border-radius:.75rem;padding:.75rem;box-shadow:0 8px 24px rgba(0,0,0,.3);">
+                            <div class="space-y-2">
+                                <label class="flex items-center justify-between text-[11px] font-bold" style="color:var(--text-main);">تاییدی
+                                    <input type="color" id="schedule-color-TAYIDI" value="#38bdf8" oninput="setScheduleTypeColor('TAYIDI', this.value)" style="width:28px;height:22px;padding:0;border:none;background:none;cursor:pointer;">
+                                </label>
+                                <label class="flex items-center justify-between text-[11px] font-bold" style="color:var(--text-main);">مهر مترجم
+                                    <input type="color" id="schedule-color-MEHR_MOTARJEM" value="#c084fc" oninput="setScheduleTypeColor('MEHR_MOTARJEM', this.value)" style="width:28px;height:22px;padding:0;border:none;background:none;cursor:pointer;">
+                                </label>
+                                <label class="flex items-center justify-between text-[11px] font-bold" style="color:var(--text-main);">یادداشت
+                                    <input type="color" id="schedule-color-TASK" value="#2dd4bf" oninput="setScheduleTypeColor('TASK', this.value)" style="width:28px;height:22px;padding:0;border:none;background:none;cursor:pointer;">
+                                </label>
+                            </div>
+                            <button type="button" onclick="resetScheduleTypeColors()" class="w-full mt-2.5 pt-2 text-[10px] font-bold" style="border-top:1px solid var(--divider);color:var(--text-muted);background:none;border-left:none;border-right:none;border-bottom:none;cursor:pointer;">بازنشانی به پیش‌فرض</button>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div id="scheduleWeekGrid" style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;overflow-x:auto;"></div>
@@ -1383,6 +1760,41 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
     </div>
 </section>
 
+<!-- ── VIEW · نمونه مدارک (Document Sample Guide) ── its own top-level page
+     (see the header's own "نمونه مدارک" button + صفحه نخست card + the inline
+     "؟" link next to مرحله ۱ in the upload flow): a redacted real-world
+     sample of every active document type in DOCUMENT_REGISTRY, so a user can
+     visually compare "does what I have look like this" before uploading.
+     Every face, name, national/document ID number, signature and seal in
+     these samples is blurred -- see app.js's buildDocSamplesGallery(). ─── -->
+<section id="docSamplesPage" class="fixed inset-0 z-40 hidden overflow-y-auto p-4 pt-24 md:p-8 md:pt-24" style="background: var(--bg-secondary);">
+    <div class="max-w-6xl mx-auto space-y-5">
+        <div class="flex items-center justify-between gap-3 flex-wrap">
+            <h2 class="text-xl font-black flex items-center gap-2" style="color:var(--text-main);">
+                🗂️ نمونه مدارک
+            </h2>
+            <button type="button" onclick="closeDocSamplesPage()" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">میز کار ترجمه ←</button>
+        </div>
+        <p class="text-xs" style="color:var(--text-muted);">برای هر نوع مدرک، یک نمونه واقعی (با حذف نام، شماره ملی، عکس، امضا و مهر افراد) نمایش داده شده تا مطمئن شوید مدرک درستی را آپلود می‌کنید. روی هر نمونه کلیک کنید تا بزرگ‌تر دیده شود.</p>
+
+        <div class="relative">
+            <input type="text" id="docSamplesSearch" class="auth-input" style="font-family:'Vazirmatn',sans-serif;" placeholder="جستجوی نوع مدرک..." autocomplete="off" oninput="renderDocSamplesGallery(this.value)">
+        </div>
+
+        <div id="docSamplesGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+    </div>
+</section>
+
+<!-- Lightbox: full-size view of a document sample (one or two pages, e.g.
+     national-id-card's front/back), opened from docSamplesGrid cards. -->
+<div id="docSampleLightbox" class="hidden fixed inset-0 z-50 items-center justify-center p-4" style="background:rgba(0,0,0,0.85);" onclick="if(event.target===this) closeDocSampleLightbox()">
+    <div class="relative max-w-4xl w-full max-h-full overflow-y-auto rounded-xl p-4" style="background:var(--card-surface);">
+        <button type="button" onclick="closeDocSampleLightbox()" class="absolute top-3 left-3 w-8 h-8 rounded-full flex items-center justify-center text-sm font-black z-10" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">✕</button>
+        <h3 id="docSampleLightboxTitle" class="text-sm font-black mb-3 pl-10" style="color:var(--text-main);"></h3>
+        <div id="docSampleLightboxImages" class="grid gap-3"></div>
+    </div>
+</div>
+
 <!-- ── VIEW · حضور غیاب پرسنل (Staff Attendance) ── its own top-level page
      (not a settings card) for office accounts (see hr.py): defining staff
      (name + PIN, no login of their own), seeing who's clocked in right
@@ -1455,8 +1867,9 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
             <h2 class="text-xl font-black flex items-center gap-2" style="color:var(--text-main);">
                 💰 نرخنامه من
             </h2>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2 flex-wrap">
                 <button type="button" onclick="printMyPriceList()" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">🖨️ چاپ / PDF</button>
+                <button type="button" onclick="openAddCustomPriceItemModal()" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">+ مورد شخصی جدید</button>
                 <button type="button" onclick="openMyplBulkIncreaseModal()" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">📈 افزایش نرخ‌ها</button>
                 <button type="button" onclick="closeMyPriceListPage()" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">میز کار ترجمه ←</button>
             </div>
@@ -1547,15 +1960,6 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                     <h3 class="text-sm font-black mt-5 mb-3 flex items-center gap-1.5" style="color:var(--text-main);">👨‍👩‍👧‍👦 نفرات مرتبط</h3>
                     <div id="cp-related-list" class="space-y-1.5 mb-4"></div>
 
-                    <label for="cp-target-lang" class="auth-label">زبان مقصد ترجمه</label>
-                    <select id="cp-target-lang" class="auth-input mb-1" onchange="saveClientTargetLanguage()">
-                        <option value="">English (پیش‌فرض)</option>
-                        <option value="French">فرانسوی</option>
-                        <option value="Italian">ایتالیایی</option>
-                        <option value="Spanish">اسپانیایی</option>
-                    </select>
-                    <p class="text-[11px] mb-3" style="color:var(--text-muted);">این زبان برای تمام ترجمه‌های آینده این مشتری استفاده می‌شود.</p>
-
                     <label for="cp-notes" class="auth-label">یادداشت</label>
                     <textarea id="cp-notes" rows="3" class="auth-input resize-none mb-2" placeholder="یادداشتی برای این مشتری..."></textarea>
                     <button type="button" onclick="saveClientNotes()" class="w-full py-2 rounded-xl text-xs font-black transition" style="background:var(--bg-main);color:var(--accent);border:1px solid var(--border-color);">ذخیره یادداشت</button>
@@ -1572,14 +1976,15 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                         <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:50%;background:#38bdf8;display:inline-block;"></span>وارد شده از سنام</span>
                         <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:50%;background:#fbbf24;display:inline-block;"></span>ردیف دستی (پیش‌نویس فاکتور)</span>
                     </div>
-                    <p class="text-[11px] mb-2" style="color:var(--text-muted);">برای افزودن هر مورد به پیش‌نویس فاکتور، تیک آن را بزنید.</p>
+                    <p class="text-[11px] mb-2" style="color:var(--text-muted);">تیک هر مورد را بزنید، سپس «ثبت پیش‌نویس فاکتور» را بزنید تا به پیش‌نویس فاکتور اضافه شود و در آنجا قابل ویرایش باشد.</p>
                     <div id="cp-activity-bulk-bar" class="hidden flex items-center gap-2 flex-wrap p-2 rounded-lg mb-2" style="background:var(--bg-main);border:1px solid var(--accent);">
                         <span id="cp-activity-bulk-count" class="text-[11px] font-bold" style="color:var(--text-main);"></span>
                         <span class="flex-1"></span>
-                        <button type="button" onclick="submitDraftInvoice('invoice')" class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition" style="background:var(--accent);color:var(--btn-text-on-accent);border:1px solid transparent;">🧾 ایجاد فاکتور</button>
+                        <button type="button" onclick="commitCheckedActivityToDraft()" class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition" style="background:var(--accent);color:var(--btn-text-on-accent);border:1px solid transparent;">📝 ثبت پیش‌نویس فاکتور</button>
                         <button type="button" id="cp-activity-bulk-edit" onclick="openEditWorkRecordModalForSelection()" class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">✏️ ویرایش فیلدها</button>
                         <button type="button" id="cp-activity-bulk-delete" onclick="bulkDeleteCheckedActivityRows()" class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition" style="background:var(--card-surface);color:#f87171;border:1px solid var(--border-subtle);">🗑 حذف</button>
                     </div>
+                    <input type="text" id="cp-activity-search" class="auth-input mb-2 w-full" style="font-size:.78rem;" placeholder="🔍 جستجو بر اساس نام سند..." oninput="filterActivityList('cp')">
                     <!-- Capped height + its own scrollbar: a long history must
                          not push فاکتورها all the way down the page. Horizontal
                          scroll (with nowrap cells) keeps rows on one tidy line
@@ -1603,12 +2008,13 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                             <tbody id="cp-activity-list"></tbody>
                         </table>
                     </div>
+                    <div id="cp-activity-pagination" class="flex items-center justify-center gap-2 mt-2"></div>
                 </div>
             </div>
 
             <!-- Invoices row -->
             <div class="workspace-panel p-5">
-                <h3 class="text-sm font-black mb-3 flex items-center gap-1.5" style="color:var(--text-main);">🧾 فاکتورها <span class="en" style="color:var(--text-muted);">(<span id="cp-invoice-count">۰</span>)</span></h3>
+                <h3 class="text-sm font-black mb-3 flex items-center gap-1.5" style="color:var(--text-main);">🧾 فاکتورهای ثبت‌شده <span class="en" style="color:var(--text-muted);">(<span id="cp-invoice-count">۰</span>)</span></h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div class="p-3 rounded-xl" style="background:var(--bg-main);border:1px solid var(--border-color);">
                         <h4 class="text-xs font-black mb-2.5 flex items-center gap-1.5" style="color:var(--text-main);">🧮 پیش‌نویس فاکتور</h4>
@@ -1626,8 +2032,18 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                         </div>
                         <div id="cp-draft-rows" class="space-y-1.5"></div>
                         <div id="cp-draft-empty" class="text-xs text-center py-3" style="color:var(--text-muted);">// هنوز ردیفی اضافه نشده</div>
-                        <div class="flex items-center justify-between mt-3 pt-3" style="border-top:1px solid var(--divider);">
-                            <span class="text-xs font-bold" style="color:var(--text-muted);">جمع: <span class="en" id="cp-draft-total" style="color:var(--text-main);">۰</span> تومان</span>
+                        <div class="flex items-center gap-2 mt-3 pt-3" style="border-top:1px solid var(--divider);">
+                            <label class="flex items-center gap-1.5 text-[11px] font-bold" style="color:var(--text-muted);" title="درصد افزایش یکباره روی جمع کل فاکتور">
+                                <input type="checkbox" id="cp-draft-urgency-checked" onchange="toggleDraftWholeInvoiceUrgency(this.checked)" style="width:13px;height:13px;">
+                                فوریت کل فاکتور
+                            </label>
+                            <input type="number" id="cp-draft-urgency-pct" min="0" max="500" placeholder="٪" disabled oninput="setDraftWholeInvoiceUrgencyPercent(this.value)" class="auth-input en" dir="ltr" style="width:52px;padding:.3rem .4rem;font-size:.75rem;text-align:center;">
+                        </div>
+                        <div class="flex items-center justify-between mt-2">
+                            <span class="text-xs" style="color:var(--text-muted);">
+                                <span id="cp-draft-subtotal-wrap">جمع ردیف‌ها: <span class="en" id="cp-draft-subtotal" style="color:var(--text-main);">۰</span> تومان · </span>
+                                جمع: <span class="en font-bold" id="cp-draft-total" style="color:var(--text-main);">۰</span> تومان
+                            </span>
                             <span class="flex items-center gap-2">
                                 <button type="button" onclick="submitDraftInvoice('proforma')" class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition" style="background:var(--card-surface);color:var(--text-muted);border:1px solid var(--border-subtle);">پیش‌فاکتور</button>
                                 <button type="button" onclick="submitDraftInvoice('invoice')" class="text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition" style="background:var(--accent);color:var(--btn-text-on-accent);border:1px solid transparent;">ثبت فاکتور</button>
@@ -1666,6 +2082,22 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
             <button type="button" onclick="adminLogout()" class="text-sm font-bold px-4 py-2 rounded-lg" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">خروج</button>
         </div>
 
+        <!-- Platform-wide alert banner publisher (see announcements.py /
+             publishSystemAnnouncement() in app.js) -- shown at the top of
+             پنل مدیریت regardless of tab, since it isn't CRM- or
+             users-specific. -->
+        <div class="workspace-panel p-5 mb-6">
+            <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+                <h3 class="text-sm font-black" style="color:var(--text-main);">اعلان سراسری (نمایش در داشبورد همه کاربران)</h3>
+                <span id="adminAnnouncementStatus" class="text-xs font-bold" style="color:var(--text-muted);">در حال بارگذاری...</span>
+            </div>
+            <textarea id="adminAnnouncementInput" rows="2" placeholder="متن اعلان را اینجا بنویسید..." class="auth-input text-sm w-full mb-3" style="resize:vertical;"></textarea>
+            <div class="flex gap-2 flex-wrap">
+                <button type="button" onclick="publishSystemAnnouncement()" class="text-sm font-bold px-4 py-2 rounded-lg" style="background:var(--accent);color:var(--btn-text-on-accent);">انتشار اعلان</button>
+                <button type="button" onclick="clearSystemAnnouncement()" class="text-sm font-bold px-4 py-2 rounded-lg" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">پاک کردن اعلان فعال</button>
+            </div>
+        </div>
+
         <!-- Tabs for Admin Dashboard -->
         <div class="flex gap-2 border-b mb-6" style="border-color: var(--divider);">
             <button type="button" onclick="switchAdminTab('users')" id="adminTabUsers" class="px-4 py-2 text-sm font-black border-b-2 transition-all duration-200" style="color: var(--accent); border-color: var(--accent); background: transparent;">
@@ -1679,6 +2111,15 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
             </button>
         </div>
         <div class="flex gap-2 border-b mb-6" style="border-color: var(--divider);">
+
+        <!-- Office-signup bonus requests held for review (see auth.py's
+             _maybe_grant_office_bonus) -- a new office account whose
+             signup_ip or normalized email matches an account that already
+             got the bonus. Hidden whenever there's nothing pending. -->
+        <div id="adminPendingBonusPanel" class="workspace-panel p-5 mb-6 hidden">
+            <h3 class="text-sm font-black mb-3" style="color:var(--alert-text);">⚠️ درخواست‌های اعتبار دفتر در انتظار بررسی</h3>
+            <div id="adminPendingBonusRows" class="flex flex-col gap-2"></div>
+        </div>
 
         <div id="adminUsersPanel" class="workspace-panel p-6 mb-6">
             <div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
@@ -1867,7 +2308,9 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
         <div id="adminFailedDocsPanel" class="workspace-panel p-6 mb-6 hidden">
             <div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
                 <h3 class="text-base font-black" style="color:var(--text-main);">اسناد ناموفق — نیازمند ترجمه توسط پشتیبانی</h3>
-                <button type="button" onclick="loadAdminFailedDocs()" class="text-sm font-bold px-4 py-2 rounded-lg" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">بروزرسانی</button>
+                <button type="button" onclick="loadAdminFailedDocs()" title="بروزرسانی" aria-label="بروزرسانی" class="text-sm font-bold px-3 py-2 rounded-lg" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);display:inline-flex;align-items:center;justify-content:center;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                </button>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-sm text-right">
@@ -1877,15 +2320,16 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                             <th class="py-3 px-3 font-bold">نوع سند</th>
                             <th class="py-3 px-3 font-bold text-center">تاریخ</th>
                             <th class="py-3 px-3 font-bold text-center">عملیات</th>
+                            <th class="py-3 px-3 font-bold text-center">دانلود</th>
                         </tr>
                     </thead>
                     <tbody id="adminFailedDocsRowsBlock">
-                        <tr><td colspan="4" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>
+                        <tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>
                     </tbody>
                 </table>
             </div>
             <!-- Hidden file input used by the "آپلود فایل ترجمه" fallback button -->
-            <input type="file" id="translationUploadInput" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="hidden" onchange="onTranslationFileChosen(this)">
+            <input type="file" id="translationUploadInput" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="hidden" onchange="onTranslationFileChosen(this)" oncancel="onTranslationUploadCancelled()">
         </div>
 
         <div id="adminUserJobsPanel" class="workspace-panel p-6 hidden">
@@ -2300,7 +2744,8 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
 
 </div>
 
-<script src="price-catalog.js"></script>
-<script src="app.js"></script>
+<script src="/price-catalog.js"></script>
+<script src="/app.js"></script>
+<script src="/receptionist.js"></script>
 </body>
 </html>
