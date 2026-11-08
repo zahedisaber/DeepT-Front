@@ -9,6 +9,7 @@
    INTEGRATION CONTRACTS (do not change without a matching backend change):
      CORE            -> https://core.deept.ir  (auth/wallet/jobs/clients/invoices)
      BACKEND         -> https://backend.deept.ir (translation + passport)
+                        (core-ir / backend-ir when served from ir-pilot.deept.ir)
      X-Service-Secret -> INTERNAL_SERVICE_SECRET (service-to-service, BackEnd side)
    State is persisted in localStorage under the deept_* keys (see SESSION section).
 /* ============ CONFIGURATION & BACKEND ENDPOINTS ============ Core = auth/wallet/jobs/clients/invoices; BackEnd = translation + passport.
@@ -17,8 +18,17 @@
 // const CORE    = 'http://127.0.0.1:8001';
 // const BACKEND = 'http://127.0.0.1:8000';
 
-const CORE    = 'https://core.deept.ir';
-const BACKEND = 'https://backend.deept.ir';
+// One build serves both sites. ir-pilot.deept.ir (the stage site, deployed
+// from the `stage` branch) talks to its own backend servers, core-ir /
+// backend-ir (separate machines from production, whose CORS allows the
+// ir-pilot origin); every other host (deept.ir production, localhost)
+// talks to the production servers core / backend, as before.
+// These two lines used to be hand-edited per branch (core-ir on stage, core
+// on main), so merging main into stage silently pointed stage at production
+// -- whose CORS policy rejects ir-pilot, breaking login there.
+const DEEPT_IR_STACK = location.hostname === 'ir-pilot.deept.ir';
+const CORE    = DEEPT_IR_STACK ? 'https://core-ir.deept.ir'    : 'https://core.deept.ir';
+const BACKEND = DEEPT_IR_STACK ? 'https://backend-ir.deept.ir' : 'https://backend.deept.ir';
 
 // ═══════════════════════════════════════════════════════════
 // DOCUMENT REGISTRY
@@ -7762,13 +7772,28 @@ let pendingResetToken = null;
 // ── AUTH ──
 /* ============ SECTION: DEEPT-CORE API CLIENT (auth) ============
    verify/signup/login/activate; token + session persistence. ============ */
+// A network failure still throws (callers show «خطا در اتصال»), but a
+// reply that isn't JSON -- a proxy/gateway error page (502/504), a WAF or
+// rate-limit page -- used to throw too and show the same message, which
+// hid that the server WAS reached. Now it comes back as a normal failed
+// result whose detail names the HTTP status, so the user (and support)
+// can tell "can't reach the server" from "the server answered with an
+// error".
 async function corePost(path, body) {
     const res = await fetch(`${CORE}${path}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
     });
-    return { ok: res.ok, data: await res.json() };
+    let data;
+    try {
+        data = await res.json();
+    } catch (e) {
+        console.error(`Non-JSON response from ${path}: HTTP ${res.status}`);
+        data = { detail: `خطای سرور (کد ${res.status}). کمی بعد دوباره تلاش کنید.` };
+        return { ok: false, data };
+    }
+    return { ok: res.ok, data };
 }
 
 function saveSession(data) {
@@ -7822,7 +7847,7 @@ setTimeout(() => {
         showDashboardView();
     }
 }, 1400);
-    } catch(e) { err.textContent='خطا در اتصال.'; err.classList.add('show'); btn.textContent='ورود'; btn.disabled=false; }
+    } catch(e) { console.error('Login request failed:', e); err.textContent='خطا در اتصال به سرور. اینترنت یا فیلترشکن را بررسی کنید.'; err.classList.add('show'); btn.textContent='ورود'; btn.disabled=false; }
 }
 
 async function handleSignup() {
