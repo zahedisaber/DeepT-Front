@@ -19,8 +19,10 @@
 // const BACKEND = 'http://127.0.0.1:8000';
 
 // One build serves both sites. ir-pilot.deept.ir (the stage site, deployed
-// from the `stage` branch) talks to the Iran-hosted backends; every other
-// host (deept.ir production, localhost) talks to production, as before.
+// from the `stage` branch) talks to its own backend servers, core-ir /
+// backend-ir (separate machines from production, whose CORS allows the
+// ir-pilot origin); every other host (deept.ir production, localhost)
+// talks to the production servers core / backend, as before.
 // These two lines used to be hand-edited per branch (core-ir on stage, core
 // on main), so merging main into stage silently pointed stage at production
 // -- whose CORS policy rejects ir-pilot, breaking login there.
