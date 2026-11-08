@@ -771,6 +771,13 @@
           <svg class="eye-off" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
         </button>
       </div>
+      <label style="display:flex;align-items:flex-start;gap:.5rem;font-size:.78rem;color:var(--muted);margin:.9rem 0;cursor:pointer;">
+        <input type="checkbox" id="su-terms-checkbox" style="margin-top:.2rem;flex-shrink:0;">
+        <span>
+          <a href="javascript:void(0)" id="su-terms-link" onclick="event.preventDefault(); openTermsAgreement();" style="color:var(--accent);font-weight:700;">توافق‌نامه کاربری، حریم خصوصی و نحوه استفاده از داده‌ها</a>
+          را مطالعه کرده‌ام و با آن موافقم.
+        </span>
+      </label>
       <p class="modal-error" id="su-error"></p>
       <button type="button" class="modal-btn" onclick="handleSignup()">ساخت حساب</button>
     </div>
@@ -780,6 +787,68 @@
       <p>لطفاً ایمیل (شامل پوشه اسپم و Junk mail) خود را بررسی کنید و روی لینک فعال‌سازی کلیک کنید.</p>
     </div>
     <p class="modal-switch">قبلاً ثبت‌نام کردید؟ <a href="javascript:void(0)" onclick="switchToLogin()">وارد شوید</a></p>
+  </div>
+</div>
+
+<!-- ── VIEW 08b · privacy / data-use agreement (single copy, shared by both
+     signupOverlay copies -- opened via su-terms-link, see openTermsAgreement()/
+     closeTermsAgreement() in app.js). Read-only; the actual consent is the
+     checkbox on the signup form itself (su-terms-checkbox), not this modal. -->
+<div role="dialog" aria-modal="true" aria-label="توافق‌نامه کاربری و حریم خصوصی" class="overlay" id="termsAgreementModal">
+  <div class="modal" style="max-width:680px;max-height:85vh;overflow-y:auto;text-align:right;">
+    <button type="button" class="modal-close" onclick="closeTermsAgreement()">بستن ✕</button>
+    <h2>توافق‌نامه کاربری، حریم خصوصی و نحوه استفاده از داده‌ها</h2>
+    <p class="modal-sub">آخرین به‌روزرسانی: آبان ۱۴۰۵</p>
+    <div style="font-size:.85rem;line-height:2;color:var(--text);">
+      <p>با ایجاد حساب کاربری و استفاده از خدمات DeepT، شما اعلام می‌کنید که این توافق‌نامه را به‌طور کامل مطالعه کرده و با تمامی مفاد آن موافقت می‌کنید. در صورت عدم موافقت با هر یک از بندهای زیر، لطفاً از ایجاد حساب کاربری و استفاده از خدمات DeepT خودداری کنید.</p>
+
+      <h3 style="font-weight:900;margin-top:1.2rem;">۱. ماهیت خدمات</h3>
+      <p>DeepT یک پلتفرم ترجمه اسناد مبتنی بر هوش مصنوعی (AI) است که با استفاده از مدل‌های زبانی بزرگ (LLM)، ترجمه ماشینی اسناد رسمی و غیررسمی (از جمله گذرنامه، شناسنامه، سند ازدواج، ریزنمرات تحصیلی، اسناد ملکی و موارد مشابه) را به‌صورت خودکار انجام می‌دهد. خروجی تولیدشده توسط DeepT یک پیش‌نویس ترجمه ماشینی است و جایگزین بررسی، تأیید و مهر و امضای یک مترجم رسمی/دارالترجمه دارای مجوز نیست.</p>
+
+      <h3 style="font-weight:900;margin-top:1.2rem;color:#fb923c;">۲. هشدار مهم: DeepT یک سرویس هوش مصنوعی است و ممکن است خطا داشته باشد</h3>
+      <p>DeepT یک سرویس مبتنی بر هوش مصنوعی است و همانند هر سیستم هوش مصنوعی دیگر، ممکن است در موارد نادر دچار خطا، برداشت نادرست از متن، حذف یا جابه‌جایی اطلاعات، یا عدم تطابق کامل با متن مبدأ شود. DeepT هیچ‌گونه تضمینی مبنی بر صحت صددرصدی، کامل بودن یا عدم وجود خطا در ترجمه‌های تولیدشده ارائه نمی‌دهد. مسئولیت بررسی نهایی، تطبیق با سند اصلی و تأیید صحت ترجمه پیش از هرگونه استفاده رسمی، حقوقی، اداری یا کنسولی، بر عهده حساب کاربری استفاده‌کننده (مترجم/دارالترجمه) است، نه DeepT. استفاده از خروجی DeepT بدون بازبینی انسانی متخصص، به‌ویژه برای اسناد رسمی و حقوقی، به هیچ عنوان توصیه نمی‌شود.</p>
+
+      <h3 style="font-weight:900;margin-top:1.2rem;">۳. دسترسی DeepT به اسناد شما و هدف آن</h3>
+      <p>به‌منظور کنترل کیفیت ترجمه‌های ارائه‌شده توسط سیستم، DeepT به سند مبدأ (اصل) و فایل ترجمه‌شده هر سفارش، صرفاً برای مدت زمانی محدود دسترسی خواهد داشت:</p>
+      <ul style="padding-inline-start:1.4rem;list-style:disc;margin:.4rem 0;">
+        <li>سند مبدأ حداکثر تا ۲ ساعت پس از ثبت اطلاع‌رسانی داخلی برای بررسی کیفیت، به‌طور خودکار از سرورهای DeepT حذف می‌شود.</li>
+        <li>فایل ترجمه‌شده (خروجی) حداکثر تا ۱۲ ساعت پس از تکمیل سفارش، به‌طور خودکار از سرورهای DeepT حذف می‌شود.</li>
+      </ul>
+      <p>این دسترسی محدود، صرفاً و منحصراً به‌منظور بررسی و کنترل کیفیت ترجمه انجام می‌شود و هدف دیگری ندارد.</p>
+
+      <h3 style="font-weight:900;margin-top:1.2rem;">۴. ممنوعیت استفاده از داده‌ها برای آموزش هوش مصنوعی</h3>
+      <p>DeepT تعهد می‌دهد که از اسناد مبدأ، اسناد ترجمه‌شده، یا هرگونه محتوای بارگذاری‌شده توسط کاربران، تحت هیچ شرایطی برای آموزش (Training)، پژوهش (Research) یا مدل‌سازی (Modeling) مدل‌های هوش مصنوعی استفاده نخواهد کرد. این ممنوعیت مطلق است و هیچ استثنایی ندارد.</p>
+
+      <h3 style="font-weight:900;margin-top:1.2rem;">۵. پردازش توسط سرویس‌های هوش مصنوعی شخص ثالث</h3>
+      <p>به‌منظور انجام فرایند ترجمه ماشینی، محتوای سند شما ممکن است برای پردازش به سرویس‌های هوش مصنوعی نسخه پولی (Paid API) ارسال شود. طبق سیاست حریم خصوصی این ارائه‌دهندگان در سطح API پولی، داده‌های ارسالی برای آموزش مدل، پژوهش یا مدل‌سازی توسط آن‌ها مورد استفاده قرار نمی‌گیرد.</p>
+
+      <h3 style="font-weight:900;margin-top:1.2rem;">۶. محرمانگی و مالکیت اسناد</h3>
+      <p>کلیه اسناد بارگذاری‌شده و خروجی‌های تولیدشده، متعلق به کاربر (یا مشتری وی) بوده و DeepT هیچ‌گونه ادعای مالکیتی نسبت به محتوای آن‌ها ندارد. DeepT تمامی تلاش معقول خود را برای حفظ امنیت و محرمانگی این اطلاعات به‌کار می‌گیرد، اما نمی‌تواند امنیت صددرصدی انتقال داده بر بستر اینترنت را تضمین کند.</p>
+
+      <h3 style="font-weight:900;margin-top:1.2rem;">۷. مسئولیت کاربر</h3>
+      <p>کاربر (مترجم/دارالترجمه) متعهد است:</p>
+      <ul style="padding-inline-start:1.4rem;list-style:disc;margin:.4rem 0;">
+        <li>صحت و اصالت اسنادی که بارگذاری می‌کند را تأیید کند.</li>
+        <li>پیش از ارائه هرگونه ترجمه به مشتری نهایی یا نهاد رسمی، خروجی DeepT را به‌طور کامل بازبینی، تصحیح و در صورت لزوم مهر و امضا کند.</li>
+        <li>از خدمات DeepT صرفاً برای مقاصد قانونی استفاده نماید.</li>
+      </ul>
+
+      <h3 style="font-weight:900;margin-top:1.2rem;">۸. ثبت‌نام، حساب کاربری و کیف پول</h3>
+      <p>برای استفاده از خدمات، ایجاد حساب کاربری با ایمیل معتبر الزامی است. مسئولیت حفظ محرمانگی رمز عبور و هرگونه فعالیت انجام‌شده از طریق حساب کاربری، بر عهده کاربر است. شارژ کیف پول و کسر هزینه هر سفارش، طبق نرخنامه اعلام‌شده در پلتفرم انجام می‌شود.</p>
+
+      <h3 style="font-weight:900;margin-top:1.2rem;">۹. محدودیت مسئولیت</h3>
+      <p>DeepT، تا حداکثر میزان مجاز طبق قوانین، در قبال هرگونه خسارت مستقیم یا غیرمستقیم ناشی از استفاده از خروجی ترجمه ماشینی بدون بازبینی انسانی، از جمله رد شدن درخواست توسط نهادهای رسمی، تأخیر در امور اداری/کنسولی، یا هرگونه سوءتفاهم ناشی از ترجمه نادرست، مسئولیتی نخواهد داشت.</p>
+
+      <h3 style="font-weight:900;margin-top:1.2rem;">۱۰. تعلیق یا لغو حساب</h3>
+      <p>DeepT این حق را برای خود محفوظ می‌دارد که در صورت مشاهده سوءاستفاده، تخلف از این توافق‌نامه یا فعالیت مشکوک، حساب کاربری را بدون اطلاع قبلی، به‌طور موقت یا دائم، مسدود یا لغو کند.</p>
+
+      <h3 style="font-weight:900;margin-top:1.2rem;">۱۱. تغییرات در توافق‌نامه</h3>
+      <p>این توافق‌نامه ممکن است در آینده به‌روزرسانی شود. در صورت ایجاد تغییرات اساسی، تلاش می‌شود کاربران از طریق پلتفرم یا ایمیل مطلع شوند. ادامه استفاده از خدمات پس از اعمال تغییرات، به‌منزله پذیرش نسخه جدید توافق‌نامه است.</p>
+
+      <h3 style="font-weight:900;margin-top:1.2rem;">۱۲. تماس با ما</h3>
+      <p>در صورت هرگونه پرسش در خصوص این توافق‌نامه یا نحوه پردازش داده‌ها، می‌توانید از طریق ایمیل پشتیبانی (deeptsupport@gmail.com) با ما در تماس باشید.</p>
+    </div>
+    <button type="button" class="modal-btn" style="margin-top:1.4rem;" onclick="closeTermsAgreement()">متوجه شدم</button>
   </div>
 </div>
 
@@ -2267,6 +2336,13 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
           <svg class="eye-off" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
         </button>
       </div>
+      <label style="display:flex;align-items:flex-start;gap:.5rem;font-size:.78rem;color:var(--muted);margin:.9rem 0;cursor:pointer;">
+        <input type="checkbox" id="su-terms-checkbox" style="margin-top:.2rem;flex-shrink:0;">
+        <span>
+          <a href="javascript:void(0)" id="su-terms-link" onclick="event.preventDefault(); openTermsAgreement();" style="color:var(--accent);font-weight:700;">توافق‌نامه کاربری، حریم خصوصی و نحوه استفاده از داده‌ها</a>
+          را مطالعه کرده‌ام و با آن موافقم.
+        </span>
+      </label>
       <p class="modal-error" id="su-error"></p>
       <button type="button" class="modal-btn" onclick="handleSignup()">ساخت حساب</button>
     </div>

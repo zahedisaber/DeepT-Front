@@ -7786,15 +7786,17 @@ async function handleSignup() {
     const name  = document.getElementById('su-name').value.trim();
     const email = document.getElementById('su-email').value.trim();
     const pass  = document.getElementById('su-pass').value;
+    const termsAccepted = document.getElementById('su-terms-checkbox').checked;
     const err   = document.getElementById('su-error');
     const btn   = document.querySelector('#signupForm .modal-btn');
     err.classList.remove('show');
     if (!name||!email||!pass) { err.textContent='لطفاً همه فیلدها را پر کنید.'; err.classList.add('show'); return; }
     if (pass.length<8)        { err.textContent='رمز عبور باید حداقل ۸ کاراکتر باشد.'; err.classList.add('show'); return; }
     if (!email.includes('@')) { err.textContent='یک ایمیل معتبر وارد کنید.'; err.classList.add('show'); return; }
+    if (!termsAccepted)       { err.textContent='برای ساخت حساب باید با توافق‌نامه کاربری موافقت کنید.'; err.classList.add('show'); return; }
     btn.textContent='در حال ثبت‌نام...'; btn.disabled=true;
     try {
-        const {ok,data} = await corePost('/auth/signup', {email, password:pass, full_name:name, account_type:'individual'});
+        const {ok,data} = await corePost('/auth/signup', {email, password:pass, full_name:name, account_type:'individual', terms_accepted:true});
         if (!ok) { err.textContent=data.detail||'این ایمیل قبلاً ثبت شده است.'; err.classList.add('show'); btn.textContent='ساخت حساب'; btn.disabled=false; return; }
         document.getElementById('signupForm').style.display='none';
         document.getElementById('signupSuccess').classList.add('show');
@@ -7828,6 +7830,10 @@ function openSignup() {
     document.getElementById('signupOverlay').classList.add('open');
 }
 function openAuthModal() { openLogin(); }
+// Read-only legal text, opened from either signupOverlay copy's su-terms-link.
+// Consent itself is the su-terms-checkbox next to that link, not this modal.
+function openTermsAgreement() { document.getElementById('termsAgreementModal').classList.add('open'); }
+function closeTermsAgreement() { document.getElementById('termsAgreementModal').classList.remove('open'); }
 function togglePasswordVisibility(btn) {
     const input = btn.parentElement.querySelector('input');
     if (!input) return;
