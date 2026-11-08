@@ -110,6 +110,14 @@
   <div id="headerWalletBadge" class="hidden items-center gap-1 text-xs font-black" style="color:var(--accent);" title="موجودی کیف پول">
     💰 <span id="headerWalletBalance">۰</span><span style="color:var(--text-muted);font-weight:400;">تومان</span>
   </div>
+  <!-- Whichever office_staff member most recently clocked in (see
+       submitHrClock() in app.js) is shown here as the "currently working"
+       person -- any translation job created while this badge is visible
+       gets auto-tagged with them (see renderActiveOperatorBadge()). Purely
+       informational; clocking out is what turns it off again. -->
+  <div id="activeOperatorBadge" class="hidden items-center gap-1 text-xs font-bold" style="color:var(--text-main);" title="سفارش‌های ثبت‌شده اکنون به‌نام این کارمند تگ می‌شوند">
+    👤 <span id="activeOperatorName"></span>
+  </div>
   <div id="userBadge" class="hidden items-center gap-2 text-xs" onclick="openUserProfilePreview(event)" style="cursor:pointer;position:relative;" title="نمایش پروفایل من">
     <div id="headerAvatarBadge" class="w-7 h-7 rounded-full bg-gradient-to-tr from-cyan-500 to-blue-600 flex items-center justify-center font-black text-black text-xs">D</div>
     <span id="headerUserName" class="font-bold" style="color:var(--text-main);"></span>

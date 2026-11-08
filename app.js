@@ -525,6 +525,7 @@ function syncUserSessionDOM() {
     const ub = document.getElementById('userBadge');
     if (ub) { ub.classList.toggle('hidden', !loggedIn); ub.style.display = loggedIn ? 'flex' : 'none'; }
     toggle('headerWalletBadge', !loggedIn);
+    renderActiveOperatorBadge();
     if (loggedIn) {
         const displayName = currentUserSession.office || currentUserSession.username || currentUserSession.email || '؟';
         const l = displayName[0].toUpperCase();
@@ -612,6 +613,8 @@ function executeLogout() {
     localStorage.removeItem('deept_account_type');
     localStorage.removeItem('deept_office_name');
     localStorage.removeItem('deept_contact_info');
+    localStorage.removeItem('deept_active_staff_id');
+    localStorage.removeItem('deept_active_staff_name');
     closeLogoutConfirm();
     closeWorkspaceDashboard();
     closeChatInterface();
@@ -643,6 +646,23 @@ document.getElementById('editWorkRecordModal').addEventListener('click', functio
 // loadHrSettings(), for registering it) -- replaced an earlier WiFi-IP
 // check, which broke every time the office's ISP reassigned its public IP.
 // ═══════════════════════════════════════════════════════════
+
+// The office_staff member who most recently clocked in, not yet clocked
+// out -- "whoever's currently working," attributed automatically to any
+// translation job created while they're active (see the staff_id PATCH in
+// the document-submit flow below). Kept in localStorage (same pattern as
+// deept_token/deept_user_id) rather than in-memory state, so it survives a
+// page reload -- a shared office computer left open across a shift change
+// shouldn't need staff to re-punch just to restore attribution.
+function renderActiveOperatorBadge() {
+    const badge = document.getElementById('activeOperatorBadge');
+    if (!badge) return;
+    const name = currentUserSession && currentUserSession.type === 'office'
+        ? localStorage.getItem('deept_active_staff_name') : null;
+    document.getElementById('activeOperatorName').textContent = name ? `کاربر: ${name}` : '';
+    badge.classList.toggle('hidden', !name);
+    badge.style.display = name ? 'flex' : 'none';
+}
 
 // Promise wrapper around the Geolocation API, shared by the clock-in/out
 // PIN pad and registerHrLocation() below.
@@ -710,6 +730,18 @@ async function submitHrClock() {
             ? `✅ ورود ${data.record.staff_name} ساعت ${time} ثبت شد.`
             : `✅ خروج ${data.record.staff_name} ساعت ${time} ثبت شد.`;
         document.getElementById('hr-clock-pin').value = '';
+
+        if (data.action === 'clock_in') {
+            localStorage.setItem('deept_active_staff_id', data.record.staff_id);
+            localStorage.setItem('deept_active_staff_name', data.record.staff_name);
+        } else if (data.record.staff_id === localStorage.getItem('deept_active_staff_id')) {
+            // Only clear if the person clocking out is the one currently
+            // attributed -- someone else clocking out of a shift they
+            // forgot to end earlier must not wipe whoever is active now.
+            localStorage.removeItem('deept_active_staff_id');
+            localStorage.removeItem('deept_active_staff_name');
+        }
+        renderActiveOperatorBadge();
         // The clock widget is only ever opened from within حضور غیاب
         // پرسنل now (see index.html) -- refresh its "present now" list so
         // this punch shows up without needing a manual reload.
@@ -3498,17 +3530,29 @@ function openEditWorkRecordModalForSelection() {
     openEditWorkRecordModal(checked[0].type, checked[0].id);
 }
 
-function openEditWorkRecordModal(type, id) {
+async function openEditWorkRecordModal(type, id) {
     const row = lastActivityRows.find(r => r.type === type && String(r.id) === String(id));
     if (!row) return;
     editWorkRecordTarget = { type, id };
 
     const fieldsBox = document.getElementById('edit-work-record-fields');
     if (type === 'job') {
+        // Staff roster is lazy-loaded (only otherwise fetched by the HR
+        // settings panel) -- fetch it here too so the picker below has
+        // something to show the first time a translator edits a job.
+        if (!hrStaffList.length) await loadHrStaff();
+        const staffOptions = hrStaffList.map(s =>
+            `<option value="${s.id}" ${String(row.staffId) === String(s.id) ? 'selected' : ''}>${s.full_name}${s.is_active ? '' : ' (غیرفعال)'}</option>`
+        ).join('');
         fieldsBox.innerHTML = `
             <label class="text-xs font-bold block mb-1" style="color:var(--text-main);">قیمت (تومان)</label>
             <input type="number" id="ewr-price" class="auth-input en w-full" dir="ltr" value="${row.price || 0}">
-            <p class="text-[11px] mt-2" style="color:var(--text-muted);">فقط قیمت این سفارش قابل ویرایش است -- نوع سند تغییر نمی‌کند.</p>`;
+            <label class="text-xs font-bold block mb-1 mt-2.5" style="color:var(--text-main);">کارمند انجام‌دهنده</label>
+            <select id="ewr-staff" class="auth-input w-full">
+                <option value="">بدون تخصیص</option>
+                ${staffOptions}
+            </select>
+            <p class="text-[11px] mt-2" style="color:var(--text-muted);">فقط قیمت و کارمند انجام‌دهنده این سفارش قابل ویرایش است -- نوع سند تغییر نمی‌کند.</p>`;
     } else {
         fieldsBox.innerHTML = `
             <label class="text-xs font-bold block mb-1" style="color:var(--text-main);">شرح</label>
@@ -3536,7 +3580,10 @@ async function submitEditWorkRecord() {
     let url, body;
     if (type === 'job') {
         url = `${CORE}/jobs/${id}/fields`;
-        body = { price_toman: parseInt(document.getElementById('ewr-price').value, 10) || 0 };
+        body = {
+            price_toman: parseInt(document.getElementById('ewr-price').value, 10) || 0,
+            staff_id: document.getElementById('ewr-staff').value || '',
+        };
     } else {
         url = `${CORE}/invoices/sanam-documents/${id}`;
         body = {
@@ -3591,7 +3638,7 @@ function renderClientActivityList(jobs, sanamDocs) {
         rows.push({
             type: 'job', id: j.id, date: j.created_at,
             title: DOCUMENT_REGISTRY[j.document_type]?.label || j.document_type,
-            price: j.price_toman || 0, status: j.status,
+            price: j.price_toman || 0, status: j.status, staffId: j.staff_id || null,
             // Only a completed job has a settled price worth invoicing.
             checkable: j.status === 'completed',
         });
@@ -3617,6 +3664,14 @@ function renderClientActivityList(jobs, sanamDocs) {
     if (prefix === 'cp') renderClientStats(rows);
 
     renderActivityListPage();
+
+    // The staff roster is otherwise only fetched by the HR settings panel
+    // or the edit-work-record modal -- if a job here is already tagged,
+    // fetch it now too so renderActivityListPage can resolve the name
+    // instead of showing a raw id, then re-render once it lands.
+    if (!hrStaffList.length && rows.some(r => r.staffId)) {
+        loadHrStaff().then(() => renderActivityListPage());
+    }
 }
 
 // The part of renderClientActivityList() that actually touches the DOM --
@@ -3662,6 +3717,8 @@ function renderActivityListPage() {
             : (r.trackingCode ? `<span class="en" style="color:var(--text-muted);font-size:.65rem;">کد پیگیری ${escapeHtml(r.trackingCode)}</span>` : '');
         const dateStr = r.date ? escapeHtml(String(r.date).slice(0, 10)) : '—';
         const dotTitle = r.type === 'job' ? 'ترجمه ماشینی' : (r.type === 'sanam' ? 'وارد شده از سنام' : 'ردیف دستی');
+        const staffName = r.staffId ? (hrStaffList.find(s => String(s.id) === String(r.staffId)) || {}).full_name : null;
+        const staffBadge = staffName ? `<span class="text-[10px]" style="color:var(--text-muted);" title="کارمند انجام‌دهنده">👤 ${escapeHtml(staffName)}</span>` : '';
         const checkbox = `<input type="checkbox" ${checked ? 'checked' : ''} ${r.checkable ? '' : 'disabled'}
             data-activity-key="${escapeHtml(rowKey)}"
             onchange='toggleActivitySelection(${JSON.stringify(r.type)}, ${JSON.stringify(r.id)}, this.checked)'
@@ -3670,7 +3727,7 @@ function renderActivityListPage() {
         if (prefix === 'cp') {
             return `<tr>
                 <td style="padding:.6rem;"><span title="${dotTitle}" style="width:9px;height:9px;border-radius:50%;background:${color};display:inline-block;"></span></td>
-                <td style="padding:.6rem;color:var(--text-main);font-weight:700;">${escapeHtml(r.title)}</td>
+                <td style="padding:.6rem;color:var(--text-main);font-weight:700;">${escapeHtml(r.title)}${staffBadge ? `<br>${staffBadge}` : ''}</td>
                 <td class="en" style="padding:.6rem;color:var(--text-muted);">${idBadge || '—'}</td>
                 <td class="en" style="padding:.6rem;color:var(--text-muted);">${dateStr}</td>
                 <td class="en font-bold" style="padding:.6rem;color:var(--accent);">${r.price ? r.price.toLocaleString() + ' ت' : '—'}</td>
@@ -3680,7 +3737,7 @@ function renderActivityListPage() {
         return `<div class="flex items-center gap-2.5 p-2.5 rounded-lg text-xs" style="background:var(--bg-main);border:1px solid var(--border-subtle);border-inline-start:3px solid ${color};">
             <span title="${dotTitle}" style="width:9px;height:9px;border-radius:50%;background:${color};display:inline-block;flex-shrink:0;"></span>
             ${checkbox}
-            <span class="flex-1" style="color:var(--text-main);">${escapeHtml(r.title)}</span>
+            <span class="flex-1" style="color:var(--text-main);">${escapeHtml(r.title)}${staffBadge ? ` · ${staffBadge}` : ''}</span>
             ${idBadge}
             <span class="en shrink-0" style="color:var(--text-muted);">${dateStr}</span>
             <span class="en font-bold shrink-0" style="color:var(--accent);width:80px;text-align:left;">${r.price ? r.price.toLocaleString() + ' ت' : '—'}</span>
@@ -7527,6 +7584,20 @@ async function executeTranslationPipeline() {
         // downloading once ready) is a separate piece still to be built --
         // for now, just confirm the ticket was created and show the price.
         const ticket = await res.json();
+
+        // Auto-attribute this job to whoever's currently clocked in (see
+        // renderActiveOperatorBadge()) -- fire-and-forget: a failure here
+        // must never block the "document submitted" confirmation the
+        // translator is waiting on. Reuses the same staff_id field a
+        // translator can also set/correct by hand later (PATCH /jobs/{id}/fields).
+        const activeStaffId = localStorage.getItem('deept_active_staff_id');
+        if (activeStaffId && ticket.job_id) {
+            fetch(`${CORE}/jobs/${ticket.job_id}/fields`, {
+                method: 'PATCH',
+                headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ staff_id: activeStaffId }),
+            }).catch(() => {});
+        }
 
         allJobsTerminal = false; // a fresh queued job exists now -- resume polling
         const priceLabel = ticket.price_toman ? `${ticket.price_toman.toLocaleString()} تومان` : '';
