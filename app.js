@@ -9,6 +9,7 @@
    INTEGRATION CONTRACTS (do not change without a matching backend change):
      CORE            -> https://core.deept.ir  (auth/wallet/jobs/clients/invoices)
      BACKEND         -> https://backend.deept.ir (translation + passport)
+                        (core-ir / backend-ir when served from ir-pilot.deept.ir)
      X-Service-Secret -> INTERNAL_SERVICE_SECRET (service-to-service, BackEnd side)
    State is persisted in localStorage under the deept_* keys (see SESSION section).
 /* ============ CONFIGURATION & BACKEND ENDPOINTS ============ Core = auth/wallet/jobs/clients/invoices; BackEnd = translation + passport.
@@ -17,8 +18,15 @@
 // const CORE    = 'http://127.0.0.1:8001';
 // const BACKEND = 'http://127.0.0.1:8000';
 
-const CORE    = 'https://core.deept.ir';
-const BACKEND = 'https://backend.deept.ir';
+// One build serves both sites. ir-pilot.deept.ir (the stage site, deployed
+// from the `stage` branch) talks to the Iran-hosted backends; every other
+// host (deept.ir production, localhost) talks to production, as before.
+// These two lines used to be hand-edited per branch (core-ir on stage, core
+// on main), so merging main into stage silently pointed stage at production
+// -- whose CORS policy rejects ir-pilot, breaking login there.
+const DEEPT_IR_STACK = location.hostname === 'ir-pilot.deept.ir';
+const CORE    = DEEPT_IR_STACK ? 'https://core-ir.deept.ir'    : 'https://core.deept.ir';
+const BACKEND = DEEPT_IR_STACK ? 'https://backend-ir.deept.ir' : 'https://backend.deept.ir';
 
 // ═══════════════════════════════════════════════════════════
 // DOCUMENT REGISTRY
