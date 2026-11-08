@@ -1305,6 +1305,19 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
         <div id="rcp-s-faqs" class="space-y-3"></div>
       </div>
 
+      <div class="workspace-panel p-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <h3 class="md:col-span-3 font-black text-sm" style="color:var(--text-main);">مسیر تماس‌های تلفن ثابت دفتر</h3>
+        <label class="rcp-field md:col-span-3"><span>چه زمانی منشی هوشمند جواب بدهد؟</span>
+          <select id="rcp-s-route-mode" class="converter-input">
+            <option value="after_hours">فقط خارج از ساعت کاری</option>
+            <option value="no_answer">اگر همکاران جواب ندادند یا خطوط مشغول بود (و خارج از ساعت کاری)</option>
+            <option value="always">همیشه؛ در صورت درخواست به همکار وصل شود</option>
+          </select></label>
+        <label class="rcp-field"><span>مدت زنگ برای همکاران (ثانیه)</span><input id="rcp-s-route-ring" type="number" min="5" max="120" class="converter-input" dir="ltr"></label>
+        <label class="rcp-field md:col-span-2"><span>انتقال به همکار (داخلی یا موبایل)</span><input id="rcp-s-route-transfer" class="converter-input" dir="ltr" placeholder="مثلاً 101 یا 0912xxxxxxx"></label>
+        <p class="md:col-span-3 text-[11px] leading-5" style="color:var(--text-muted);">این تنظیم را سرور تلفن (Asterisk/Issabel) پس از اتصال خط ثابت دفتر با گیت‌وی FXO یا دایورت به شماره VoIP می‌خواند. تا آن زمان فقط ذخیره می‌شود.</p>
+      </div>
+
       <div class="workspace-panel p-6 space-y-2">
         <label class="flex items-center gap-2 text-sm font-bold" style="color:var(--text-main);"><input type="checkbox" id="rcp-s-ai"> پاسخ با مدل زبانی سرور و خط تلفن واقعی</label>
         <p class="text-[11px] leading-5" style="color:var(--text-muted);">در صورت فعال بودن، پرسش‌های آزاد با قیمت‌های محاسبه‌شده به سرور DeepT ارسال می‌شود و تماس‌های خط تلفن دفتر (در صورت اتصال) در «تماس‌ها» نمایش داده می‌شود. اگر سرور در دسترس نباشد، منشی با موتور داخلی پاسخ می‌دهد. ثبت سفارش همیشه با موتور داخلی انجام می‌شود.</p>

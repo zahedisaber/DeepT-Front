@@ -89,6 +89,9 @@ const RCP_DEFAULT_CONFIG = {
     extraNotes: '',      // anything else the receptionist should always mention for requirements
     faqs: [],            // [{q, a}]
     aiBackend: false,
+    // Landline routing policy, read by the telephony bridge (see
+    // docs/receptionist-telephony.md §3): who answers the office line when.
+    routing: { mode: 'no_answer', ringSeconds: 20, transferTo: '' },
 };
 
 const RCP_LEAD_STATUSES = {
@@ -175,6 +178,7 @@ function rcpLoad() {
     const cfg = Object.assign({}, RCP_DEFAULT_CONFIG, stored.config || {});
     cfg.hours = Object.assign({}, RCP_DEFAULT_CONFIG.hours, (stored.config && stored.config.hours) || {});
     if (!Array.isArray(cfg.faqs)) cfg.faqs = [];
+    cfg.routing = Object.assign({}, RCP_DEFAULT_CONFIG.routing, (stored.config && stored.config.routing) || {});
     rcpConfig = cfg;
     rcpLeads = Array.isArray(stored.leads) ? stored.leads : [];
     rcpCalls = Array.isArray(stored.calls) ? stored.calls : [];
@@ -1008,6 +1012,9 @@ function rcpRenderSettings() {
     val('rcp-s-courier', c.courier);
     val('rcp-s-notes', c.extraNotes);
     val('rcp-s-ai', c.aiBackend);
+    val('rcp-s-route-mode', c.routing.mode);
+    val('rcp-s-route-ring', c.routing.ringSeconds);
+    val('rcp-s-route-transfer', c.routing.transferTo);
 
     const hoursEl = document.getElementById('rcp-s-hours');
     if (hoursEl) {
@@ -1074,6 +1081,11 @@ function rcpSaveSettings() {
     c.courier = g('rcp-s-courier').checked;
     c.extraNotes = g('rcp-s-notes').value.trim();
     c.aiBackend = g('rcp-s-ai').checked;
+    c.routing = {
+        mode: ['after_hours', 'no_answer', 'always'].includes(g('rcp-s-route-mode').value) ? g('rcp-s-route-mode').value : 'no_answer',
+        ringSeconds: num('rcp-s-route-ring', 20, 5, 120),
+        transferTo: g('rcp-s-route-transfer').value.trim(),
+    };
     RCP_WEEKDAYS.forEach(d => {
         c.hours[d.key] = {
             open: document.querySelector(`[data-h-open="${d.key}"]`).checked,
@@ -1101,13 +1113,19 @@ function rcpSaveSettings() {
    Spoken phone numbers ("صفر نهصد و دوازده سیصد و چهل و پنج ...") are
    turned back into digits by rcpSpokenDigits().
 
+   How an Iranian office landline (مخابرات, analog) gets routed to this
+   agent -- FXO gateway vs. دایورت to a VoIP number vs. IP PBX, Asterisk
+   ARI/ExternalMedia bridge, routing policy, Persian STT/TTS choices under
+   sanctions -- is designed in docs/receptionist-telephony.md.
+
    Connecting the office's REAL phone line has to happen server-side
    (DeepT-Core): a telephony bridge (Asterisk/Issabel AGI, or a cloud
    PBX webhook) streams caller audio to STT, posts each caller turn to
    POST /receptionist/reply (same payload as rcpServerReply()), plays the
    reply with TTS, and on hang-up posts the call to
        POST /receptionist/calls  {started_at, seconds, caller_number,
-                                  lead:{...} | null, transcript:[...]}
+                                  lead:{...} | null, transcript:[...],
+                                  transferred_to: "..." | null}
    With "پاسخ با مدل زبانی سرور" on, this page also reads
        GET  /receptionist/calls  -> [{...same shape...}]
    and lists those calls (marked «خط تلفن») beside the browser ones.
