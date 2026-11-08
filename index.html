@@ -1201,7 +1201,10 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
             <div class="font-black text-sm" id="rcp-chat-title" style="color:var(--text-main);">منشی</div>
             <div class="text-[11px] font-bold" id="rcp-chat-status"></div>
           </div>
-          <button type="button" class="rcp-btn" onclick="rcpResetChat()">↺ گفتگوی تازه</button>
+          <div class="flex gap-2">
+            <button type="button" id="rcp-read-aloud" class="rcp-btn" onclick="rcpToggleReadAloud()">🔈 خواندن پاسخ‌ها: خاموش</button>
+            <button type="button" class="rcp-btn" onclick="rcpResetChat()">↺ گفتگوی تازه</button>
+          </div>
         </div>
         <div id="rcp-call-panel" class="hidden px-5 py-3 flex flex-wrap items-center justify-between gap-3" style="background:rgba(34,197,94,.08);border-bottom:1px solid var(--border-subtle);">
           <div class="flex items-center gap-3">
@@ -1303,6 +1306,15 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
           <button type="button" class="rcp-btn" onclick="rcpAddFaq()">+ افزودن پرسش</button>
         </div>
         <div id="rcp-s-faqs" class="space-y-3"></div>
+      </div>
+
+      <div class="workspace-panel p-6 space-y-3">
+        <h3 class="font-black text-sm" style="color:var(--text-main);">صدای منشی</h3>
+        <p id="rcp-s-voice-status" class="text-xs leading-6" style="color:var(--text-muted);"></p>
+        <div class="flex flex-wrap gap-2 items-center">
+          <select id="rcp-s-voice" class="converter-input text-sm" style="width:auto;max-width:100%;"></select>
+          <button type="button" class="rcp-btn" onclick="rcpTestVoice()">🔊 آزمایش صدا</button>
+        </div>
       </div>
 
       <div class="workspace-panel p-6 grid grid-cols-1 md:grid-cols-3 gap-4">

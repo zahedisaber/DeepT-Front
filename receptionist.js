@@ -89,6 +89,8 @@ const RCP_DEFAULT_CONFIG = {
     extraNotes: '',      // anything else the receptionist should always mention for requirements
     faqs: [],            // [{q, a}]
     aiBackend: false,
+    voiceName: '',       // speechSynthesis voice chosen in settings ('' = first Persian voice)
+    readAloud: false,    // also speak replies in typed chat, not only in call mode
     // Landline routing policy, read by the telephony bridge (see
     // docs/receptionist-telephony.md §3): who answers the office line when.
     routing: { mode: 'no_answer', ringSeconds: 20, transferTo: '' },
@@ -814,6 +816,7 @@ async function rcpSend(textArg) {
     rcpPushBot(reply);
     rcpRenderChat();
     if (rcpCall && rcpCall.active) rcpSpeak(reply.text);
+    else rcpSpeakChat(reply.text);
 }
 
 function rcpRenderChat(typing = false) {
@@ -839,6 +842,8 @@ function rcpRenderChat(typing = false) {
         st.textContent = s.openNow ? '● دفتر باز است' : '● خارج از ساعت کاری';
         st.style.color = s.openNow ? '#22c55e' : '#f59e0b';
     }
+    const ra = document.getElementById('rcp-read-aloud');
+    if (ra) ra.textContent = rcpConfig.readAloud ? '🔊 خواندن پاسخ‌ها: روشن' : '🔈 خواندن پاسخ‌ها: خاموش';
     const eng = document.getElementById('rcp-engine-label');
     if (eng) eng.textContent = rcpConfig.aiBackend ? 'مدل زبانی سرور + موتور داخلی' : 'موتور داخلی (قیمت‌ها از نرخنامه شما)';
     box.scrollTop = box.scrollHeight;
@@ -1012,6 +1017,7 @@ function rcpRenderSettings() {
     val('rcp-s-courier', c.courier);
     val('rcp-s-notes', c.extraNotes);
     val('rcp-s-ai', c.aiBackend);
+    rcpRenderVoiceSettings();
     val('rcp-s-route-mode', c.routing.mode);
     val('rcp-s-route-ring', c.routing.ringSeconds);
     val('rcp-s-route-transfer', c.routing.transferTo);
@@ -1081,6 +1087,7 @@ function rcpSaveSettings() {
     c.courier = g('rcp-s-courier').checked;
     c.extraNotes = g('rcp-s-notes').value.trim();
     c.aiBackend = g('rcp-s-ai').checked;
+    c.voiceName = g('rcp-s-voice') ? g('rcp-s-voice').value : '';
     c.routing = {
         mode: ['after_hours', 'no_answer', 'always'].includes(g('rcp-s-route-mode').value) ? g('rcp-s-route-mode').value : 'no_answer',
         ringSeconds: num('rcp-s-route-ring', 20, 5, 120),
@@ -1171,9 +1178,81 @@ function rcpSpeechText(text) {
         .trim();
 }
 
+// Persian voices are rare: Windows has none built in, and desktop Chrome
+// adds none. Microsoft Edge exposes online Persian voices (e.g. "Dilara",
+// "Farid"); Android Chrome uses the phone's Google TTS, which can download
+// Persian. Settings → «صدای منشی» lists what this browser actually has.
+function rcpVoices() {
+    return ('speechSynthesis' in window) ? speechSynthesis.getVoices() : [];
+}
+
 function rcpPersianVoice() {
-    if (!('speechSynthesis' in window)) return null;
-    return speechSynthesis.getVoices().find(v => /^fa/i.test(v.lang)) || null;
+    const voices = rcpVoices();
+    if (rcpConfig && rcpConfig.voiceName) {
+        const chosen = voices.find(v => v.name === rcpConfig.voiceName);
+        if (chosen) return chosen;
+    }
+    return voices.find(v => /^fa/i.test(v.lang)) || null;
+}
+
+function rcpRenderVoiceSettings() {
+    const sel = document.getElementById('rcp-s-voice');
+    const status = document.getElementById('rcp-s-voice-status');
+    if (!sel || !status) return;
+    if (!('speechSynthesis' in window)) {
+        sel.innerHTML = '';
+        status.innerHTML = '❌ این مرورگر اصلاً از خواندن متن با صدا پشتیبانی نمی‌کند.';
+        return;
+    }
+    const voices = rcpVoices();
+    const fa = voices.filter(v => /^fa/i.test(v.lang));
+    const label = v => `${v.name} (${v.lang})${v.localService ? '' : ' · آنلاین'}`;
+    sel.innerHTML = '<option value="">خودکار: اولین صدای فارسی</option>'
+        + (fa.length ? '<optgroup label="فارسی">' + fa.map(v => `<option value="${escapeHtml(v.name)}">${escapeHtml(label(v))}</option>`).join('') + '</optgroup>' : '')
+        + '<optgroup label="سایر صداها (فارسی را درست نمی‌خوانند)">' + voices.filter(v => !fa.includes(v)).map(v => `<option value="${escapeHtml(v.name)}">${escapeHtml(label(v))}</option>`).join('') + '</optgroup>';
+    sel.value = rcpConfig.voiceName && voices.some(v => v.name === rcpConfig.voiceName) ? rcpConfig.voiceName : '';
+    if (!voices.length) {
+        status.innerHTML = '⏳ فهرست صداها هنوز بارگذاری نشده؛ چند ثانیه بعد دوباره این بخش را باز کنید.';
+    } else if (fa.length) {
+        status.innerHTML = `✅ ${rcpFa(fa.length)} صدای فارسی پیدا شد. «آزمایش صدا» را بزنید.`;
+    } else {
+        status.innerHTML = `⚠️ در این مرورگر <b>هیچ صدای فارسی</b> نیست (${rcpFa(voices.length)} صدای غیرفارسی موجود است)، به همین دلیل منشی بی‌صداست.<br>`
+            + 'راه‌حل: همین صفحه را در <b>Microsoft Edge</b> باز کنید (صداهای آنلاین فارسی دارد)، یا روی گوشی اندروید در Chrome امتحان کنید. '
+            + 'برای خط تلفن واقعی، صدا را سرور با یک سرویس تبدیل متن به گفتار فارسی تولید می‌کند و به مرورگر وابسته نیست.';
+    }
+}
+
+function rcpTestVoice() {
+    if (!('speechSynthesis' in window)) { showToast('این مرورگر صدا ندارد.'); return; }
+    const sel = document.getElementById('rcp-s-voice');
+    const voices = rcpVoices();
+    const v = (sel && sel.value && voices.find(x => x.name === sel.value)) || voices.find(x => /^fa/i.test(x.lang));
+    if (!v) { showToast('صدای فارسی در این مرورگر نیست؛ Edge را امتحان کنید.', 4000); }
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(`سلام، وقت بخیر. من ${rcpConfig.assistantName || 'منشی'} هستم، منشی هوشمند ${rcpOfficeName()}. ترجمه شناسنامه حدود سیصد و ده هزار تومان است.`);
+    u.lang = 'fa-IR';
+    if (v) u.voice = v;
+    u.onerror = e => showToast('خطای پخش صدا: ' + (e.error || 'نامشخص'), 4000);
+    speechSynthesis.speak(u);
+}
+
+// Typed-chat read-aloud (call mode always speaks).
+function rcpSpeakChat(text) {
+    if (!rcpConfig.readAloud || !('speechSynthesis' in window)) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(rcpSpeechText(text));
+    u.lang = 'fa-IR';
+    const v = rcpPersianVoice();
+    if (v) u.voice = v;
+    speechSynthesis.speak(u);
+}
+
+function rcpToggleReadAloud() {
+    rcpConfig.readAloud = !rcpConfig.readAloud;
+    rcpSave();
+    if (!rcpConfig.readAloud && 'speechSynthesis' in window) speechSynthesis.cancel();
+    rcpRenderChat();
+    if (rcpConfig.readAloud && !rcpPersianVoice()) showToast('صدای فارسی در این مرورگر نیست؛ تنظیمات منشی → صدای منشی را ببینید.', 4500);
 }
 
 function rcpSpeak(text) {
@@ -1451,7 +1530,10 @@ async function rcpRenderCalls() {
     }).join('');
 }
 
-if ('speechSynthesis' in window) speechSynthesis.onvoiceschanged = () => rcpRenderCallPanel();
+if ('speechSynthesis' in window) speechSynthesis.onvoiceschanged = () => {
+    rcpRenderCallPanel();
+    if (rcpConfig && rcpActiveTab === 'settings') rcpRenderVoiceSettings();
+};
 
 // Leaving the page by any route (header nav, back button, logout) hides
 // #receptionistPage -- end a live call then, so the mic doesn't stay open
