@@ -3277,6 +3277,20 @@ function notifyJobCompleted(job) {
     playJobCompleteChime();
 }
 
+// Voice alert (not a synthesized chime like playJobCompleteChime -- a real
+// recorded clip) for the admin: plays whenever a user sends a failed job to
+// پشتیبانی for manual translation (see the newly-pending diff in
+// loadAdminFailedDocs()). Browsers block audio.play() before the page has
+// seen any user interaction at all -- by the time this can fire (a poll,
+// at least 30s after load), an admin has normally already clicked
+// something, but the catch here is still needed for the rare case they
+// haven't.
+function playAdminFailedJobAlarm() {
+    try {
+        new Audio('/assets/admin-failed-job-alert.mp3').play().catch(() => {});
+    } catch (e) { /* Audio unavailable/blocked -- the admin's panel still shows the new row */ }
+}
+
 /* ============ SECTION: DASHBOARD — ACTIVE PROJECTS ============
    Renders the translation-jobs table (id: projectDashboardRowsBlock). ============ */
 async function renderDashboardActiveProjects() {
@@ -6635,8 +6649,12 @@ async function submitJobToSupport(jobId) {
 // elsewhere in the app; renderDashboardActiveProjects() itself guards on
 // currentUserSession and just updates the (possibly hidden) table otherwise.
 setInterval(async () => {
-    if (allJobsTerminal || !currentUserSession) return;
-    await renderDashboardActiveProjects();
+    if (!currentUserSession) return;
+    if (!allJobsTerminal) await renderDashboardActiveProjects();
+    // Same "works from anywhere in the app" reasoning, for the admin
+    // voice alert (see loadAdminFailedDocs()/playAdminFailedJobAlarm()) --
+    // an admin shouldn't have to keep اسناد ناموفق open to hear it.
+    if (localStorage.getItem('deept_is_admin') === '1') await loadAdminFailedDocs(true);
 }, 30000);
 
 // ═══════════════════════════════════════════════════════════
@@ -8867,6 +8885,10 @@ function switchAdminTab(tab) {
 }
 
 let adminFailedDocsCache = [];
+// False until the first successful fetch -- an empty starting cache would
+// otherwise make every pre-existing backlog item look "newly pending" and
+// set off the alarm on login, instead of only for a genuinely new event.
+let _adminFailedDocsLoadedOnce = false;
 
 async function loadAdminFailedDocs(silent = false) {
     const token = localStorage.getItem('deept_token');
@@ -8882,8 +8904,20 @@ async function loadAdminFailedDocs(silent = false) {
         if (!res.ok) throw new Error('failed_load');
         const fresh = await res.json();
         const changed = JSON.stringify(fresh) !== JSON.stringify(adminFailedDocsCache);
+        // A user just clicked "ارسال به پشتیبانی" -- that job's status is
+        // pending_support now but wasn't in the cache we had a moment ago
+        // (either it's brand new, or support just retried it and it failed
+        // again). Compares by (id, status) pair, not just id, so a job that
+        // already existed in some OTHER status before also counts as new.
+        const prevPending = new Set(adminFailedDocsCache
+            .filter(j => j.status === 'pending_support' || j.status === 'support_retry_failed')
+            .map(j => j.id));
+        const newlyPending = fresh.filter(j =>
+            (j.status === 'pending_support' || j.status === 'support_retry_failed') && !prevPending.has(j.id));
         adminFailedDocsCache = fresh;
         if (!silent || changed) renderAdminFailedDocs(adminFailedDocsCache);
+        if (newlyPending.length && _adminFailedDocsLoadedOnce) playAdminFailedJobAlarm();
+        _adminFailedDocsLoadedOnce = true;
     } catch (e) {
         if (tbody && !silent) tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در بارگذاری اسناد ناموفق.</td></tr>`;
         if (!silent) showToast('خطا در بارگذاری اسناد ناموفق');
