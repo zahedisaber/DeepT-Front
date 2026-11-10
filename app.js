@@ -5820,6 +5820,10 @@ async function renderScheduleWeekView() {
         const dayOrders = byDay[iso] || [];
         const pendingCount = dayOrders.filter(o => o.status === 'PENDING').length;
         const overdue = dayOrders.some(o => o.status === 'PENDING' && o.due_date && o.due_date < todayISO);
+        // Same bottom-left Gregorian day (+ month name only when it just
+        // changed) as the month grid below -- see renderScheduleMonth().
+        const gregDay = d.getDate();
+        const gregMonthLabel = gregDay === 1 ? d.toLocaleDateString('en-US', { month: 'short' }) : '';
 
         const itemsHtml = dayOrders.length
             ? dayOrders.map(o => {
@@ -5845,7 +5849,7 @@ async function renderScheduleWeekView() {
             <div class="flex items-center justify-between mb-1.5" style="padding-bottom:4px;border-bottom:1px solid var(--divider);">
                 <span class="text-[11px] font-black" style="color:${holidayName || isFriday ? '#f87171' : (isToday ? 'var(--accent)' : 'var(--text-main)')};">${WEEKDAY_FA[idx]}</span>
                 <span class="flex items-center gap-1.5">
-                  <span class="text-[10px] en font-bold" style="color:${holidayName || isFriday ? '#f87171' : (isToday ? 'var(--accent)' : 'var(--text-muted)')};">${dJalali.d}</span>
+                  <span class="text-[10px] font-bold" style="color:${holidayName || isFriday ? '#f87171' : (isToday ? 'var(--accent)' : 'var(--text-muted)')};">${toPersianDigits(dJalali.d)}</span>
                   <button type="button" onclick="openDayTaskModal('${iso}')" title="افزودن به این روز" class="flex items-center justify-center text-[10px] font-black rounded leading-none" style="width:14px;height:14px;background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">+</button>
                 </span>
             </div>
@@ -5853,6 +5857,7 @@ async function renderScheduleWeekView() {
             ${pendingCount ? `<div class="text-[9px] font-bold mb-1" style="color:var(--accent);"><span class="en">${pendingCount}</span> در انتظار</div>` : ''}
             ${overdue ? `<div class="text-[9px] font-bold mb-1" style="color:#f87171;">⚠ ددلاین گذشته</div>` : ''}
             ${itemsHtml}
+            <div class="en text-[8px]" style="color:var(--text-muted);opacity:.65;text-align:left;margin-top:4px;">${gregDay}${gregMonthLabel ? ' ' + gregMonthLabel : ''}</div>
           </div>`;
     }).join('');
 
@@ -5929,6 +5934,12 @@ async function renderScheduleMonth() {
         const dayOrders = byDay[iso] || [];
         const pendingCount = dayOrders.filter(o => o.status === 'PENDING').length;
         const overdue = dayOrders.some(o => o.status === 'PENDING' && o.due_date && o.due_date < todayISO);
+        // Gregorian day, bottom-left of the cell, English digits -- the
+        // Gregorian month name only shows on the 1st of that month (where
+        // it visibly changes), not on every cell, to avoid repeating it
+        // 28-31 times across the grid for no reason.
+        const gregDay = d.getDate();
+        const gregMonthLabel = gregDay === 1 ? d.toLocaleDateString('en-US', { month: 'short' }) : '';
 
         const itemsHtml = dayOrders.map(o => {
             const t = WORK_ORDER_TYPE_FA[o.order_type] || { text: o.order_type, color: 'var(--accent)' };
@@ -5943,7 +5954,7 @@ async function renderScheduleMonth() {
         return `
           <div ondragover="scheduleDragOver(event)" ondragleave="scheduleDragLeave(event)" ondrop="scheduleDrop(event,'${iso}')" class="p-1 rounded-lg" title="${escapeHtml(holidayName)}" style="min-height:64px;background:${isToday ? 'var(--accent-hover)' : 'var(--bg-main)'};border:1px solid ${holidayName ? 'rgba(248,113,113,0.5)' : (isToday ? 'var(--border-color)' : 'var(--border-subtle)')};opacity:${inMonth ? '1' : '.45'};${overdue ? 'box-shadow:0 0 0 1px rgba(248,113,113,0.4);' : ''}">
             <div class="flex items-center justify-between mb-1">
-              <span class="text-[10px] en font-bold" style="color:${holidayName || isFriday ? '#f87171' : (isToday ? 'var(--accent)' : (inMonth ? 'var(--text-main)' : 'var(--text-muted)'))};">${dJalali.d}</span>
+              <span class="text-[10px] font-bold" style="color:${holidayName || isFriday ? '#f87171' : (isToday ? 'var(--accent)' : (inMonth ? 'var(--text-main)' : 'var(--text-muted)'))};">${toPersianDigits(dJalali.d)}</span>
               <span class="flex items-center gap-1">
                 ${pendingCount ? `<span class="text-[8px] font-bold en" style="color:var(--accent);">${pendingCount}</span>` : ''}
                 <button type="button" onclick="openDayTaskModal('${iso}')" title="افزودن به این روز" class="flex items-center justify-center text-[10px] font-black rounded leading-none" style="width:14px;height:14px;background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">+</button>
@@ -5951,6 +5962,7 @@ async function renderScheduleMonth() {
             </div>
             ${holidayName ? `<div class="text-[8px] font-bold mb-0.5 truncate" style="color:#f87171;">🔴 ${escapeHtml(holidayName)}</div>` : ''}
             ${itemsHtml}
+            <div class="en text-[8px]" style="color:var(--text-muted);opacity:.65;text-align:left;margin-top:2px;">${gregDay}${gregMonthLabel ? ' ' + gregMonthLabel : ''}</div>
           </div>`;
     }).join('');
 
