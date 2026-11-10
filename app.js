@@ -8889,6 +8889,14 @@ let adminFailedDocsCache = [];
 // otherwise make every pre-existing backlog item look "newly pending" and
 // set off the alarm on login, instead of only for a genuinely new event.
 let _adminFailedDocsLoadedOnce = false;
+// job_id -> ms timestamp this job was last alerted on. Covers both "ring
+// again if still unaddressed" (checked every poll, re-alerted once
+// ADMIN_ALERT_REPEAT_MS has passed since the last ring) and cleanup (an
+// id drops out once the job leaves pending_support/support_retry_failed,
+// so a backlog can never grow unbounded and a job that comes back later
+// starts its repeat timer fresh rather than reusing a stale one).
+const _adminFailedDocsAlertedAt = new Map();
+const ADMIN_ALERT_REPEAT_MS = 2 * 60 * 1000;
 
 async function loadAdminFailedDocs(silent = false) {
     const token = localStorage.getItem('deept_token');
@@ -8904,19 +8912,34 @@ async function loadAdminFailedDocs(silent = false) {
         if (!res.ok) throw new Error('failed_load');
         const fresh = await res.json();
         const changed = JSON.stringify(fresh) !== JSON.stringify(adminFailedDocsCache);
-        // A user just clicked "ارسال به پشتیبانی" -- that job's status is
-        // pending_support now but wasn't in the cache we had a moment ago
-        // (either it's brand new, or support just retried it and it failed
-        // again). Compares by (id, status) pair, not just id, so a job that
-        // already existed in some OTHER status before also counts as new.
-        const prevPending = new Set(adminFailedDocsCache
-            .filter(j => j.status === 'pending_support' || j.status === 'support_retry_failed')
-            .map(j => j.id));
-        const newlyPending = fresh.filter(j =>
-            (j.status === 'pending_support' || j.status === 'support_retry_failed') && !prevPending.has(j.id));
+        const pending = fresh.filter(j => j.status === 'pending_support' || j.status === 'support_retry_failed');
+        const pendingIds = new Set(pending.map(j => j.id));
+        // Ring now if: this job is brand new to the pending set (never
+        // alerted before), or it's still sitting there unaddressed
+        // ADMIN_ALERT_REPEAT_MS after the last time we rang for it --
+        // "if no action is taken, repeat the notification 2 minutes
+        // later," and again after that, for as long as it stays
+        // unaddressed. _adminFailedDocsLoadedOnce still suppresses only
+        // the very first ring (an existing backlog on login gets its
+        // first reminder after the full repeat interval, not instantly).
+        const now = Date.now();
+        let shouldRing = false;
+        pending.forEach(j => {
+            const lastAlertedAt = _adminFailedDocsAlertedAt.get(j.id);
+            if (lastAlertedAt === undefined || now - lastAlertedAt >= ADMIN_ALERT_REPEAT_MS) {
+                if (_adminFailedDocsLoadedOnce) shouldRing = true;
+                _adminFailedDocsAlertedAt.set(j.id, now);
+            }
+        });
+        // A job that got resolved (support uploaded a translation, or it
+        // was deleted) drops its timer -- if it ever comes back it starts
+        // a fresh repeat cycle instead of reusing a stale timestamp.
+        for (const id of [..._adminFailedDocsAlertedAt.keys()]) {
+            if (!pendingIds.has(id)) _adminFailedDocsAlertedAt.delete(id);
+        }
         adminFailedDocsCache = fresh;
         if (!silent || changed) renderAdminFailedDocs(adminFailedDocsCache);
-        if (newlyPending.length && _adminFailedDocsLoadedOnce) playAdminFailedJobAlarm();
+        if (shouldRing) playAdminFailedJobAlarm();
         _adminFailedDocsLoadedOnce = true;
     } catch (e) {
         if (tbody && !silent) tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در بارگذاری اسناد ناموفق.</td></tr>`;
