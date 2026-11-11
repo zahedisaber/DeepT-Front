@@ -5864,7 +5864,7 @@ async function renderScheduleWeekView() {
             : `<div class="text-[10px] text-center py-2" style="color:var(--text-muted);">—</div>`;
 
         return `
-          <div ondragover="scheduleDragOver(event)" ondragleave="scheduleDragLeave(event)" ondrop="scheduleDrop(event,'${iso}')" class="p-1.5 rounded-lg" title="${escapeHtml(holidayName)}" style="background:${isToday ? 'var(--accent-hover)' : 'var(--bg-main)'};border:1px solid ${holidayName ? 'rgba(248,113,113,0.5)' : (isToday ? 'var(--border-color)' : 'var(--border-subtle)')};${overdue ? 'box-shadow:0 0 0 1px rgba(248,113,113,0.4);' : ''}">
+          <div ondragover="scheduleDragOver(event)" ondragleave="scheduleDragLeave(event)" ondrop="scheduleDrop(event,'${iso}')" class="p-1.5 rounded-lg" title="${escapeHtml(holidayName)}" style="display:flex;flex-direction:column;background:${isToday ? 'var(--accent-hover)' : 'var(--bg-main)'};border:1px solid ${holidayName ? 'rgba(248,113,113,0.5)' : (isToday ? 'var(--border-color)' : 'var(--border-subtle)')};${overdue ? 'box-shadow:0 0 0 1px rgba(248,113,113,0.4);' : ''}">
             <div class="flex items-center justify-between mb-1.5" style="padding-bottom:4px;border-bottom:1px solid var(--divider);">
                 <span class="text-[11px] font-black" style="color:${holidayName || isFriday ? '#f87171' : (isToday ? 'var(--accent)' : 'var(--text-main)')};">${WEEKDAY_FA[idx]}</span>
                 <span class="flex items-center gap-1.5">
@@ -5876,7 +5876,7 @@ async function renderScheduleWeekView() {
             ${pendingCount ? `<div class="text-[9px] font-bold mb-1" style="color:var(--accent);"><span class="en">${pendingCount}</span> در انتظار</div>` : ''}
             ${overdue ? `<div class="text-[9px] font-bold mb-1" style="color:#f87171;">⚠ ددلاین گذشته</div>` : ''}
             ${itemsHtml}
-            <div class="en text-[8px]" style="color:var(--text-muted);opacity:.65;text-align:left;margin-top:4px;">${gregDay}</div>
+            <div class="en text-[8px]" style="color:var(--text-muted);opacity:.65;text-align:left;margin-top:auto;padding-top:4px;">${gregDay}</div>
           </div>`;
     }).join('');
 
@@ -5972,7 +5972,7 @@ async function renderScheduleMonth() {
         }).join('');
 
         return `
-          <div ondragover="scheduleDragOver(event)" ondragleave="scheduleDragLeave(event)" ondrop="scheduleDrop(event,'${iso}')" class="p-1 rounded-lg" title="${escapeHtml(holidayName)}" style="min-height:64px;background:${isToday ? 'var(--accent-hover)' : 'var(--bg-main)'};border:1px solid ${holidayName ? 'rgba(248,113,113,0.5)' : (isToday ? 'var(--border-color)' : 'var(--border-subtle)')};opacity:${inMonth ? '1' : '.45'};${overdue ? 'box-shadow:0 0 0 1px rgba(248,113,113,0.4);' : ''}">
+          <div ondragover="scheduleDragOver(event)" ondragleave="scheduleDragLeave(event)" ondrop="scheduleDrop(event,'${iso}')" class="p-1 rounded-lg" title="${escapeHtml(holidayName)}" style="display:flex;flex-direction:column;min-height:64px;background:${isToday ? 'var(--accent-hover)' : 'var(--bg-main)'};border:1px solid ${holidayName ? 'rgba(248,113,113,0.5)' : (isToday ? 'var(--border-color)' : 'var(--border-subtle)')};opacity:${inMonth ? '1' : '.45'};${overdue ? 'box-shadow:0 0 0 1px rgba(248,113,113,0.4);' : ''}">
             <div class="flex items-center justify-between mb-1">
               <span class="text-[10px] font-bold" style="color:${holidayName || isFriday ? '#f87171' : (isToday ? 'var(--accent)' : (inMonth ? 'var(--text-main)' : 'var(--text-muted)'))};">${toPersianDigits(dJalali.d)}</span>
               <span class="flex items-center gap-1">
@@ -5982,7 +5982,7 @@ async function renderScheduleMonth() {
             </div>
             ${holidayName ? `<div class="text-[8px] font-bold mb-0.5 truncate" style="color:#f87171;">🔴 ${escapeHtml(holidayName)}</div>` : ''}
             ${itemsHtml}
-            <div class="en text-[8px]" style="color:var(--text-muted);opacity:.65;text-align:left;margin-top:2px;">${gregDay}</div>
+            <div class="en text-[8px]" style="color:var(--text-muted);opacity:.65;text-align:left;margin-top:auto;padding-top:2px;">${gregDay}</div>
           </div>`;
     }).join('');
 
