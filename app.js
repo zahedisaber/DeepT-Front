@@ -79,6 +79,7 @@ const DOCUMENT_REGISTRY = {
         endpoint: `${BACKEND}/api/translate/high-school-transcript`,
         active:              true,
         usePassportSession:  true,
+        courseCodesToggle:   true,   // the "نمایش کد دروس" checkbox, sends include_course_codes
     },
     'ownership-deed': {
     label: 'سند مالکیت (تک برگ؛ نام مالک اول)',
