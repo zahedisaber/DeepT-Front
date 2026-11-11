@@ -4887,6 +4887,23 @@ function jalaliMonthBounds(jy, jm) {
     return { firstDay, lastDay };
 }
 
+// A Jalali month/week almost always spans two different Gregorian months
+// (the ~11-day offset between the two calendars), so "the Gregorian month"
+// of a given Jalali period is really a range -- "October - November 2026"
+// -- collapsing to one name only on the rare week that doesn't cross a
+// Gregorian month boundary. Shown big/bold like time.ir's own month
+// header, under the Jalali month/year (see renderScheduleMonth()/
+// renderScheduleWeekView()).
+function formatGregorianRangeLabel(startDate, endDate) {
+    const startMonth = startDate.toLocaleDateString('en-US', { month: 'long' });
+    const endMonth = endDate.toLocaleDateString('en-US', { month: 'long' });
+    const startYear = startDate.getFullYear();
+    const endYear = endDate.getFullYear();
+    if (startMonth === endMonth && startYear === endYear) return `${startMonth} ${startYear}`;
+    if (startYear === endYear) return `${startMonth} - ${endMonth} ${startYear}`;
+    return `${startMonth} ${startYear} - ${endMonth} ${endYear}`;
+}
+
 // ── Week navigation (Persian week: Saturday .. Friday) ────────────────
 function startOfPersianWeek(d) {
     const date = new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -5783,6 +5800,7 @@ async function renderScheduleWeekView() {
     const startFmt = days[0].toLocaleDateString('fa-IR', { day: 'numeric', month: 'long', year: 'numeric' });
     const endFmt = days[6].toLocaleDateString('fa-IR', { day: 'numeric', month: 'long' });
     document.getElementById('scheduleWeekLabel').textContent = `${startFmt} — ${endFmt}`;
+    document.getElementById('scheduleGregorianRangeLabel').textContent = formatGregorianRangeLabel(days[0], days[6]);
     document.getElementById('scheduleListHeading').textContent = '📋 سفارش‌های این هفته';
 
     // Only blank the grid out on the very first render (nothing in it yet)
@@ -5820,10 +5838,11 @@ async function renderScheduleWeekView() {
         const dayOrders = byDay[iso] || [];
         const pendingCount = dayOrders.filter(o => o.status === 'PENDING').length;
         const overdue = dayOrders.some(o => o.status === 'PENDING' && o.due_date && o.due_date < todayISO);
-        // Same bottom-left Gregorian day (+ month name only when it just
-        // changed) as the month grid below -- see renderScheduleMonth().
+        // Bottom-left Gregorian day -- same as the month grid below (see
+        // renderScheduleMonth()). The Gregorian month itself is shown once,
+        // prominently, in the scheduleGregorianRangeLabel header instead of
+        // repeated faintly on individual cells.
         const gregDay = d.getDate();
-        const gregMonthLabel = gregDay === 1 ? d.toLocaleDateString('en-US', { month: 'short' }) : '';
 
         const itemsHtml = dayOrders.length
             ? dayOrders.map(o => {
@@ -5857,7 +5876,7 @@ async function renderScheduleWeekView() {
             ${pendingCount ? `<div class="text-[9px] font-bold mb-1" style="color:var(--accent);"><span class="en">${pendingCount}</span> در انتظار</div>` : ''}
             ${overdue ? `<div class="text-[9px] font-bold mb-1" style="color:#f87171;">⚠ ددلاین گذشته</div>` : ''}
             ${itemsHtml}
-            <div class="en text-[8px]" style="color:var(--text-muted);opacity:.65;text-align:left;margin-top:4px;">${gregDay}${gregMonthLabel ? ' ' + gregMonthLabel : ''}</div>
+            <div class="en text-[8px]" style="color:var(--text-muted);opacity:.65;text-align:left;margin-top:4px;">${gregDay}</div>
           </div>`;
     }).join('');
 
@@ -5898,6 +5917,8 @@ async function renderScheduleMonth() {
 
     document.getElementById('scheduleWeekLabel').textContent =
         monthFirstDay.toLocaleDateString('fa-IR', { month: 'long', year: 'numeric' });
+    document.getElementById('scheduleGregorianRangeLabel').textContent =
+        formatGregorianRangeLabel(monthFirstDay, monthLastDay);
     document.getElementById('scheduleListHeading').textContent = '📋 سفارش‌های این ماه';
 
     // See renderScheduleWeekView()'s identical check -- only the very
@@ -5935,11 +5956,10 @@ async function renderScheduleMonth() {
         const pendingCount = dayOrders.filter(o => o.status === 'PENDING').length;
         const overdue = dayOrders.some(o => o.status === 'PENDING' && o.due_date && o.due_date < todayISO);
         // Gregorian day, bottom-left of the cell, English digits -- the
-        // Gregorian month name only shows on the 1st of that month (where
-        // it visibly changes), not on every cell, to avoid repeating it
-        // 28-31 times across the grid for no reason.
+        // Gregorian month itself is shown once, prominently, in the
+        // scheduleGregorianRangeLabel header instead of repeated faintly
+        // on individual cells.
         const gregDay = d.getDate();
-        const gregMonthLabel = gregDay === 1 ? d.toLocaleDateString('en-US', { month: 'short' }) : '';
 
         const itemsHtml = dayOrders.map(o => {
             const t = WORK_ORDER_TYPE_FA[o.order_type] || { text: o.order_type, color: 'var(--accent)' };
@@ -5962,7 +5982,7 @@ async function renderScheduleMonth() {
             </div>
             ${holidayName ? `<div class="text-[8px] font-bold mb-0.5 truncate" style="color:#f87171;">🔴 ${escapeHtml(holidayName)}</div>` : ''}
             ${itemsHtml}
-            <div class="en text-[8px]" style="color:var(--text-muted);opacity:.65;text-align:left;margin-top:2px;">${gregDay}${gregMonthLabel ? ' ' + gregMonthLabel : ''}</div>
+            <div class="en text-[8px]" style="color:var(--text-muted);opacity:.65;text-align:left;margin-top:2px;">${gregDay}</div>
           </div>`;
     }).join('');
 
