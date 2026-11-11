@@ -1334,7 +1334,10 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                     <button type="button" onclick="shiftSchedulePeriod(-1)" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--bg-main);color:var(--accent);border:1px solid var(--border-color);">‹ قبلی</button>
                     <button type="button" onclick="setScheduleWeekToToday()" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">امروز</button>
                     <button type="button" onclick="shiftSchedulePeriod(1)" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--bg-main);color:var(--accent);border:1px solid var(--border-color);">بعدی ›</button>
-                    <span class="text-sm font-black en" id="scheduleWeekLabel" style="color:var(--text-main);">—</span>
+                    <div class="flex flex-col items-start" style="line-height:1.25;">
+                        <span class="text-lg font-black" id="scheduleWeekLabel" style="color:var(--accent);">—</span>
+                        <span class="text-[11px] en" id="scheduleGregorianRangeLabel" style="color:var(--text-muted);">—</span>
+                    </div>
                 </div>
                 <div class="flex items-center gap-2 flex-wrap">
                     <button type="button" onclick="setScheduleTypeFilter(null)" id="sf-all" class="text-[11px] font-bold px-3 py-1 rounded-lg transition" style="background:var(--accent);color:var(--btn-text-on-accent);border:1px solid transparent;">همه</button>
