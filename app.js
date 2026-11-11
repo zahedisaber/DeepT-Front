@@ -7604,6 +7604,26 @@ if (docDropZoneEl) {
         if (e.dataTransfer.files.length) handleDocFileSelection(e.dataTransfer.files[0]);
     });
 }
+// fetch() has no built-in timeout -- on a connection that's being
+// filtered/throttled rather than cleanly reset (the common failure mode
+// reported from inside Iran, working fine from elsewhere, VPN or not), the
+// request can just hang indefinitely instead of ever rejecting. The retry
+// loops below only ever catch a REJECTED fetch, so a hung one means they
+// never fire at all -- the user is stuck on "در حال پردازش" forever, never
+// reaching the retry, chunked-upload fallback, or even an error message.
+// Wrapping every upload-related fetch with an AbortController timeout
+// turns "hangs forever" into "fails after N seconds", which the existing
+// catch blocks already handle correctly -- no change needed there.
+async function fetchWithTimeout(url, options, timeoutMs) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        return await fetch(url, { ...options, signal: controller.signal });
+    } finally {
+        clearTimeout(timeoutId);
+    }
+}
+
 /* ============ SECTION: CHUNKED FILE UPLOAD ============
    BackEnd /upload/chunk with retries; falls back to direct translate. ============ */
 async function uploadFileInChunks(file, onProgress) {
@@ -7628,10 +7648,10 @@ async function uploadFileInChunks(file, onProgress) {
         let succeeded = false;
         for (let attempt = 1; attempt <= MAX_RETRIES_PER_CHUNK; attempt++) {
             try {
-                const res = await fetch('https://backend.deept.ir/upload/chunk', {
+                const res = await fetchWithTimeout('https://backend.deept.ir/upload/chunk', {
                     method: 'POST',
                     body: fd,
-                });
+                }, 15000);
                 if (!res.ok) {
                     const err = await res.json().catch(() => ({ detail: 'خطای ناشناخته' }));
                     throw new Error(err.detail);
@@ -7717,11 +7737,11 @@ async function executeTranslationPipeline() {
     const maxAttempts = 3;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
-            res = await fetch(url, {
+            res = await fetchWithTimeout(url, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` },
                 body: fd
-            });
+            }, 25000);
             break; // got a real HTTP response (even an error one) -- stop retrying
         } catch (networkErr) {
             // Only retry on a true network-level failure (connection drop,
@@ -7760,11 +7780,11 @@ async function executeTranslationPipeline() {
             }
 
             statusText.textContent = 'در حال پردازش؛ این فرایند ممکن است چند دقیقه طول بکشد. لطفا منتظر بمانید.';
-            res = await fetch(url, {
+            res = await fetchWithTimeout(url, {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${token}` },
                 body: chunkedFd
-            });
+            }, 20000);
         } catch (chunkErr) {
             throw new Error('آپلود سند ناموفق بود. لطفاً اتصال اینترنت خود را بررسی کرده و دوباره تلاش کنید.');
         }
