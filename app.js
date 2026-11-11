@@ -5876,7 +5876,7 @@ async function renderScheduleWeekView() {
             ${pendingCount ? `<div class="text-[9px] font-bold mb-1" style="color:var(--accent);"><span class="en">${pendingCount}</span> در انتظار</div>` : ''}
             ${overdue ? `<div class="text-[9px] font-bold mb-1" style="color:#f87171;">⚠ ددلاین گذشته</div>` : ''}
             ${itemsHtml}
-            <div class="en text-[8px]" style="color:var(--text-muted);opacity:.65;text-align:left;margin-top:auto;padding-top:4px;">${gregDay}</div>
+            <div class="en text-[8px] font-bold" style="color:var(--text-muted);opacity:.65;text-align:left;margin-top:auto;padding-top:4px;">${gregDay}</div>
           </div>`;
     }).join('');
 
@@ -5982,7 +5982,7 @@ async function renderScheduleMonth() {
             </div>
             ${holidayName ? `<div class="text-[8px] font-bold mb-0.5 truncate" style="color:#f87171;">🔴 ${escapeHtml(holidayName)}</div>` : ''}
             ${itemsHtml}
-            <div class="en text-[8px]" style="color:var(--text-muted);opacity:.65;text-align:left;margin-top:auto;padding-top:2px;">${gregDay}</div>
+            <div class="en text-[8px] font-bold" style="color:var(--text-muted);opacity:.65;text-align:left;margin-top:auto;padding-top:2px;">${gregDay}</div>
           </div>`;
     }).join('');
 
