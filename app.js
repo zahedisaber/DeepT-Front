@@ -19,6 +19,14 @@
 
 const CORE    = 'https://core.deept.ir';
 const BACKEND = 'https://backend.deept.ir';
+// Transparent Cloudflare Worker proxy in front of the same Back-End (see
+// deept-back-end's cloudflare-customer-relay/worker.js) -- last-resort
+// fallback for executeTranslationPipeline() when a direct upload to
+// BACKEND keeps failing. Iran's filtering intermittently resets
+// connections to Render's IP range specifically (net::ERR_CONNECTION_
+// RESET, stable from outside Iran with or without a VPN); Cloudflare's
+// shared edge tends to be reachable even when that direct path isn't.
+const BACKEND_RELAY = 'https://deept-backend-relay.zahedi-saber.workers.dev';
 
 // ═══════════════════════════════════════════════════════════
 // DOCUMENT REGISTRY
@@ -7625,6 +7633,21 @@ async function fetchWithTimeout(url, options, timeoutMs) {
     }
 }
 
+// Last-resort fallback for executeTranslationPipeline(): retries the
+// whole (unchunked) upload once more through BACKEND_RELAY instead of
+// BACKEND directly. Only reached after the direct attempt -- and, where
+// supported, the chunked-upload attempt -- have already failed, so this
+// never adds a dependency on Cloudflare for a customer whose direct
+// connection works fine.
+async function tryUploadViaRelay(url, token, body) {
+    const relayUrl = url.replace(BACKEND, BACKEND_RELAY);
+    return await fetchWithTimeout(relayUrl, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body,
+    }, 30000);
+}
+
 /* ============ SECTION: CHUNKED FILE UPLOAD ============
    BackEnd /upload/chunk with retries; falls back to direct translate. ============ */
 async function uploadFileInChunks(file, onProgress) {
@@ -7787,10 +7810,24 @@ async function executeTranslationPipeline() {
                 body: chunkedFd
             }, 20000);
         } catch (chunkErr) {
-            throw new Error('آپلود سند ناموفق بود. لطفاً اتصال اینترنت خود را بررسی کرده و دوباره تلاش کنید.');
+            // Even chunking (small 150KB pieces) couldn't get through --
+            // suggests the direct path to BACKEND itself is blocked, not
+            // just slow. One last attempt: the whole file again, same as
+            // the very first attempt, but through BACKEND_RELAY instead.
+            try {
+                statusText.textContent = 'در حال تلاش از مسیر جایگزین؛ لطفا منتظر بمانید.';
+                res = await tryUploadViaRelay(url, token, fd);
+            } catch (relayErr) {
+                throw new Error('آپلود سند ناموفق بود. لطفاً اتصال اینترنت خود را بررسی کرده و دوباره تلاش کنید.');
+            }
         }
     } else if (directFailed) {
-        throw new Error('آپلود سند ناموفق بود. لطفاً اتصال اینترنت خود را بررسی کرده و دوباره تلاش کنید.');
+        try {
+            statusText.textContent = 'در حال تلاش از مسیر جایگزین؛ لطفا منتظر بمانید.';
+            res = await tryUploadViaRelay(url, token, fd);
+        } catch (relayErr) {
+            throw new Error('آپلود سند ناموفق بود. لطفاً اتصال اینترنت خود را بررسی کرده و دوباره تلاش کنید.');
+        }
     }
 
     if (!res.ok) {
