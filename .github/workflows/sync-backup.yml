@@ -1,0 +1,70 @@
+name: Sync Backup Site
+
+# Keeps zahedisaber/DeepT-Front-Backup (serves backup.deept.ir) current with
+# this repo's main branch. Before this workflow existed, the backup site had
+# to be manually re-synced and drifted a full month out of date (last synced
+# Oct 13, found Nov 12) -- missing a month of features and carrying a stale
+# CORE override that caused real bugs (see that sync commit's message).
+#
+# Only the shared files are copied -- never CNAME (backup's own custom
+# domain) and never the whole repo, so backup-specific config survives every
+# sync. After copying app.js verbatim, BACKEND is repatched to the backup's
+# own instance; CORE is deliberately left pointing at the same real
+# core.deept.ir as production, matching today's decision that Core only
+# ever lives on Arvan -- a separate core-backup is what caused jobs to show
+# "expired" on download here.
+#
+# Requires a one-time setup step: a Personal Access Token with `repo` scope,
+# added as this repository's Settings -> Secrets and variables -> Actions ->
+# BACKUP_REPO_TOKEN. The default GITHUB_TOKEN can't push to a different repo.
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout DeepT-Front (source)
+        uses: actions/checkout@v4
+        with:
+          path: source
+
+      - name: Checkout DeepT-Front-Backup (target)
+        uses: actions/checkout@v4
+        with:
+          repository: zahedisaber/DeepT-Front-Backup
+          token: ${{ secrets.BACKUP_REPO_TOKEN }}
+          path: backup
+
+      - name: Copy shared files into the backup repo
+        run: |
+          cp source/app.js backup/app.js
+          cp source/index.html backup/index.html
+          cp source/price-catalog.js backup/price-catalog.js
+          cp source/styles.css backup/styles.css
+          cp source/404.html backup/404.html
+          mkdir -p backup/assets
+          cp -r source/assets/. backup/assets/
+
+      - name: Repatch BACKEND for the backup instance
+        run: |
+          sed -i "s|^const BACKEND = 'https://backend.deept.ir';|const BACKEND = 'https://backend-backup.deept.ir';|" backup/app.js
+          grep -q "backend-backup.deept.ir" backup/app.js || {
+            echo "::error::BACKEND override did not apply -- main's app.js likely changed its BACKEND line's exact text. Fix this workflow's sed pattern to match before merging anything else."
+            exit 1
+          }
+
+      - name: Commit and push if anything changed
+        working-directory: backup
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to sync."
+          else
+            git commit -m "Auto-sync from DeepT-Front main ($(cd ../source && git rev-parse --short HEAD))"
+            git push
+          fi
