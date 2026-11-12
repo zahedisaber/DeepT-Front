@@ -610,7 +610,7 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeUserP
 function confirmLogout()   { document.getElementById('logoutOverlay').classList.remove('hidden'); }
 function closeLogoutConfirm() { document.getElementById('logoutOverlay').classList.add('hidden'); }
 function executeLogout() {
-    closeHrDialogs();
+    resetHrAttendanceSession();
     currentUserSession = null;
     lastKnownJobStatuses = {};
     localStorage.removeItem('deept_mock_user');
@@ -768,14 +768,8 @@ async function submitHrClock() {
 let hrStaffList = [];
 
 async function loadHrSettings() {
-    const fromInput = document.getElementById('hr-attendance-from');
-    const toInput = document.getElementById('hr-attendance-to');
-    if (!fromInput.value && !toInput.value) {
-        const today = new Date();
-        const twoWeeksAgo = new Date(today.getTime() - 13 * 24 * 60 * 60 * 1000);
-        setHrDate('hr-attendance-to', _tehranDateString(today));
-        setHrDate('hr-attendance-from', _tehranDateString(twoWeeksAgo));
-    }
+    const owner = JSON.stringify([currentUserSession?.user_id || localStorage.getItem('deept_user_id'), getToken()]);
+    if (owner !== hrAttendance.owner) resetHrAttendanceSession(owner);
     await Promise.all([loadHrLocation(), loadHrStaff(), loadHrAttendance()]);
 }
 
@@ -819,13 +813,18 @@ async function registerHrLocation() {
 }
 
 async function loadHrStaff() {
+    const version = ++hrAttendance.staffVersion, token = getToken();
     try {
-        const res = await fetch(`${CORE}/hr/staff`, { headers: { 'Authorization': `Bearer ${getToken()}` } });
-        hrStaffList = await res.json();
+        const res = await fetch(`${CORE}/hr/staff`, { headers: { 'Authorization': `Bearer ${token}` } });
+        const rows = await res.json();
+        if (version !== hrAttendance.staffVersion || token !== getToken()) return;
+        hrStaffList = rows;
     } catch (e) {
+        if (version !== hrAttendance.staffVersion || token !== getToken()) return;
         hrStaffList = [];
     }
     renderHrStaffList();
+    renderHrAttendanceStaff();
     if (document.getElementById('hr-days-off-admin').open) initHrDaysOff();
 }
 
@@ -966,36 +965,77 @@ async function addHrStaff() {
 }
 
 async function loadHrAttendance() {
-    const from = document.getElementById('hr-attendance-from').value;
-    const to = document.getElementById('hr-attendance-to').value;
-    const params = new URLSearchParams();
-    if (from) params.set('from', from);
-    // A date-only "to" (from <input type=date>) must include the WHOLE
-    // day -- appending the day's last second turns it into an inclusive
-    // upper bound for the plain string comparison hr.py's /hr/attendance
-    // does against each record's full ISO clock_in timestamp.
-    if (to) params.set('to', `${to}T23:59:59`);
+    const version = ++hrAttendance.version;
+    const token = getToken();
+    const range = hrAttendanceRange();
+    const params = new URLSearchParams({ from: range.from, to: range.to, overlap: 'true' });
+    if (hrAttendance.staffId) params.set('staff_id', hrAttendance.staffId);
+    hrAttendance.rows = [];
+    hrAttendance.state = 'loading';
+    renderHrAttendanceList([]);
+    await Promise.all([loadHrPresentNow(), (async () => {
     try {
-        const res = await fetch(`${CORE}/hr/attendance?${params}`, { headers: { 'Authorization': `Bearer ${getToken()}` } });
+        let res = await fetch(`${CORE}/hr/attendance?${params}`, { headers: { 'Authorization': `Bearer ${token}` } });
+        if (version !== hrAttendance.version || token !== getToken()) return;
+        if (!res.ok) throw new Error('attendance');
+        const legacy = res.headers?.get('X-HR-Calendar') !== 'overlap-v1';
+        if (legacy) {
+            hrAttendance.legacy = true;
+            renderHrAttendanceList([]);
+            // Legacy servers compare timestamp strings and cannot query interval overlap.
+            params.delete('overlap');
+            params.set('from', new Date(hrAttendanceDayStart(hrAttendanceAddDay(range.from, -1))).toISOString());
+            params.set('to', new Date(hrAttendanceDayStart(hrAttendanceAddDay(range.to, 1))).toISOString());
+            res = await fetch(`${CORE}/hr/attendance?${params}`, { headers: { Authorization: `Bearer ${token}` } });
+            if (version !== hrAttendance.version || token !== getToken()) return;
+            if (!res.ok) throw new Error('attendance');
+        }
         const rows = await res.json();
+        if (!Array.isArray(rows)) throw new Error('attendance');
+        if (version !== hrAttendance.version || token !== getToken()) return;
+        hrAttendance.legacy = legacy;
+        hrAttendance.state = 'ready';
         renderHrAttendanceList(rows);
-        // "Present now" is just this same result set filtered down to
-        // still-open records (no clock_out yet) -- no second round trip.
-        // Someone who clocked in before the selected "از" date won't show
-        // here, but the date range defaults to the last two weeks (see
-        // loadHrSettings()), which comfortably covers any forgotten
-        // clock-out.
-        renderHrPresentNow(rows.filter(r => !r.clock_out));
     } catch (e) {
+        if (version !== hrAttendance.version || token !== getToken()) return;
+        hrAttendance.state = 'error';
         renderHrAttendanceList([]);
-        renderHrPresentNow([]);
+    }
+    })()]);
+}
+
+async function loadHrPresentNow() {
+    const version = ++hrAttendance.presentVersion, token = getToken();
+    const list = document.getElementById('hr-present-now-list');
+    list.textContent = 'در حال دریافت افراد حاضر...';
+    try {
+        const res = await fetch(`${CORE}/hr/attendance?open_only=true`, { headers: { Authorization: `Bearer ${token}` } });
+        if (!res.ok) throw new Error('present');
+        const rows = await res.json();
+        if (!Array.isArray(rows)) throw new Error('present');
+        if (version !== hrAttendance.presentVersion || token !== getToken()) return;
+        renderHrPresentNow(rows.filter(r => r.clock_out == null), res.headers?.get('X-HR-Calendar') !== 'overlap-v1');
+    } catch (_) {
+        if (version === hrAttendance.presentVersion && token === getToken()) list.textContent = 'خطا در دریافت افراد حاضر؛ وضعیت فعلی مشخص نیست.';
     }
 }
 
-function renderHrPresentNow(rows) {
+function renderHrPresentNow(rows, legacy = false) {
     const list = document.getElementById('hr-present-now-list');
     if (!list) return;
     list.innerHTML = '';
+    if (legacy) {
+        const warning = document.createElement('p');
+        warning.className = 'hr-note hr-timing-alert';
+        warning.textContent = 'سرور فعلی قدیمی است؛ پوشش شیفت‌های باز قدیمی یا رکوردهای صفحه‌بندی‌شده تضمین نمی‌شود و فهرست افراد حاضر ممکن است کامل نباشد.';
+        list.appendChild(warning);
+        if (!rows?.length) {
+            const note = document.createElement('p');
+            note.textContent = 'در داده‌های دریافتی شیفت بازی یافت نشد؛ وضعیت قطعی افراد حاضر مشخص نیست.';
+            list.appendChild(note);
+            return;
+        }
+    }
     if (!rows || !rows.length) {
         const note = document.createElement('div');
         note.className = 'text-[11px] p-3 rounded-lg';
@@ -1010,39 +1050,166 @@ function renderHrPresentNow(rows) {
         row.className = 'flex items-center justify-between gap-2 flex-wrap p-2.5 rounded-lg text-[11px]';
         row.style.cssText = 'background:rgba(52,199,89,.08);border:1px solid rgba(52,199,89,.25);';
         row.innerHTML = `
-          <span class="font-bold flex items-center gap-1.5" style="color:var(--text-main);"><span style="color:#34c759;">●</span> ${r.staff_name || '؟'}${r.is_remote ? ' <span style="color:var(--accent);font-weight:700;">🏠 دورکاری</span>' : ''}</span>
+          <span class="font-bold flex items-center gap-1.5" style="color:var(--text-main);"><span style="color:#34c759;">●</span> ${escapeHtml(r.staff_name || '؟')}${r.is_remote ? ' <span style="color:var(--accent);font-weight:700;">🏠 دورکاری</span>' : ''}</span>
           <span style="color:var(--text-muted);">از ساعت ${inTime}</span>
         `;
         list.appendChild(row);
     });
 }
 
-function renderHrAttendanceList(rows) {
-    const list = document.getElementById('hr-attendance-list');
-    list.innerHTML = '';
-    if (!rows || !rows.length) {
-        const note = document.createElement('div');
-        note.className = 'text-[11px] p-3 rounded-lg';
-        note.style.cssText = 'background:var(--bg-main);border:1px dashed var(--border-subtle);color:var(--text-muted);';
-        note.textContent = 'رکوردی در این بازه یافت نشد.';
-        list.appendChild(note);
-        return;
+const hrAttendance = { anchor: null, view: 'month', staffId: '', selected: null, rows: [], buckets: new Map(), version: 0, presentVersion: 0, staffVersion: 0, owner: null, legacy: false, state: 'ready' };
+function resetHrAttendanceSession(owner = null) {
+    closeHrDialogs();
+    hrAttendance.owner = owner;
+    ++hrAttendance.staffVersion;
+    hrAttendance.staffId = '';
+    hrAttendance.legacy = false;
+    hrStaffList = [];
+    renderHrStaffList();
+    renderHrAttendanceStaff();
+    document.getElementById('hr-attendance-coverage').classList.add('hidden');
+}
+const hrAttendanceOffset = new Intl.DateTimeFormat('en-US', { timeZone: HR_TIMEZONE, timeZoneName: 'shortOffset' });
+function hrAttendanceDayStart(iso) {
+    const midnight = Date.parse(`${iso}T00:00:00Z`);
+    let probe = midnight, previous;
+    for (let i = 0; i < 4; i++) {
+        const zone = hrAttendanceOffset.formatToParts(new Date(probe)).find(p => p.type === 'timeZoneName').value;
+        const match = zone.match(/GMT([+-])(\d+)(?::(\d+))?/);
+        const offset = match ? (match[1] === '+' ? 1 : -1) * (Number(match[2]) * 60 + Number(match[3] || 0)) * 60000 : 0;
+        const next = midnight - offset;
+        if (next === probe) return next;
+        // Historical spring transitions skipped midnight; use the first valid instant of that date.
+        if (next === previous) return Math.max(next, probe);
+        previous = probe;
+        probe = next;
     }
-    rows.forEach(r => {
-        const inTime = _tehranTimeString(r.clock_in);
-        const outTime = r.clock_out ? _tehranTimeString(r.clock_out) : 'هنوز حاضر است';
-        const row = document.createElement('div');
-        row.className = 'p-2 rounded-lg text-[11px]';
-        row.style.cssText = 'background:var(--bg-main);border:1px solid var(--border-subtle);';
-        row.innerHTML = `
-          <div class="flex items-center justify-between gap-2 flex-wrap">
-            <span class="font-bold" style="color:var(--text-main);">${r.staff_name || '؟'}${r.is_remote ? ' <span style="color:var(--accent);font-weight:700;">🏠 دورکاری</span>' : ''}</span>
-            <span style="color:var(--text-muted);">ورود: ${inTime} — خروج: ${outTime}</span>
-          </div>
-          ${r.note ? `<div style="color:var(--text-muted);margin-top:2px;">یادداشت: ${r.note}</div>` : ''}
-        `;
-        list.appendChild(row);
+    return probe;
+}
+function hrAttendanceAddDay(iso, amount) {
+    return new Date(Date.parse(`${iso}T12:00:00Z`) + amount * 86400000).toISOString().slice(0, 10);
+}
+function hrAttendanceRange() {
+    const anchor = hrAttendance.anchor || (hrAttendance.anchor = hrToday());
+    const j = gregorianToJalali(new Date(`${anchor}T12:00:00`));
+    const bounds = jalaliMonthBounds(j.y, j.m);
+    const first = hrAttendance.view === 'week' ? anchor : fmtWeekISO(bounds.firstDay);
+    const offset = (new Date(`${first}T12:00:00Z`).getUTCDay() + 1) % 7;
+    const from = hrAttendanceAddDay(first, -offset);
+    const last = hrAttendance.view === 'week' ? hrAttendanceAddDay(from, 6) : fmtWeekISO(bounds.lastDay);
+    const to = hrAttendanceAddDay(last, 6 - (new Date(`${last}T12:00:00Z`).getUTCDay() + 1) % 7);
+    return { from, to, j };
+}
+function renderHrAttendanceStaff() {
+    const select = document.getElementById('hr-attendance-staff');
+    const people = new Map(hrStaffList.map(s => [String(s.id), s.full_name]));
+    hrAttendance.rows.forEach(r => { if (!people.has(String(r.staff_id))) people.set(String(r.staff_id), r.staff_name || 'کارمند'); });
+    if (hrAttendance.staffId && !people.has(hrAttendance.staffId)) people.set(hrAttendance.staffId, select.selectedOptions[0]?.textContent || 'کارمند');
+    select.innerHTML = '<option value="">همه کارمندان</option>' + [...people].map(([id, name]) => `<option value="${escapeHtml(id)}">${escapeHtml(name)}</option>`).join('');
+    select.value = hrAttendance.staffId;
+}
+function navigateHrAttendance(direction) {
+    const { j } = hrAttendanceRange();
+    if (!direction) hrAttendance.anchor = hrToday();
+    else if (hrAttendance.view === 'week') hrAttendance.anchor = hrAttendanceAddDay(hrAttendance.anchor, direction * 7);
+    else {
+        const month = j.m - 1 + direction;
+        hrAttendance.anchor = fmtWeekISO(jalaliMonthBounds(j.y + Math.floor(month / 12), ((month % 12) + 12) % 12 + 1).firstDay);
+    }
+    hrAttendance.selected = null;
+    return loadHrAttendance();
+}
+function setHrAttendanceView(view) {
+    if (!['month', 'week'].includes(view)) return;
+    if (hrAttendance.selected) hrAttendance.anchor = hrAttendance.selected;
+    hrAttendance.view = view;
+    hrAttendance.selected = null;
+    return loadHrAttendance();
+}
+function renderHrAttendanceList(rows) {
+    hrAttendance.rows = rows || [];
+    renderHrAttendanceStaff();
+    const { from, to, j } = hrAttendanceRange();
+    const buckets = new Map();
+    for (let day = from; day <= to; day = hrAttendanceAddDay(day, 1)) buckets.set(day, []);
+    const boundaries = new Map([...buckets.keys()].map(day => [day, hrAttendanceDayStart(day)]));
+    boundaries.set(hrAttendanceAddDay(to, 1), hrAttendanceDayStart(hrAttendanceAddDay(to, 1)));
+    let invalid = 0;
+    for (const r of hrAttendance.rows) {
+        if (hrAttendance.staffId && String(r.staff_id) !== hrAttendance.staffId) continue;
+        const start = Date.parse(r.clock_in), open = r.clock_out == null, end = open ? NaN : Date.parse(r.clock_out);
+        const bad = !Number.isFinite(start) || (!open && (!Number.isFinite(end) || end < start));
+        if (bad) invalid++;
+        // Open/invalid shifts have no inferred interval. Anchor them only to their punch day.
+        const punchDay = Number.isFinite(start) ? _tehranDateString(new Date(start)) : null;
+        for (const [day, entries] of buckets) {
+            const dayStart = boundaries.get(day), dayEnd = boundaries.get(hrAttendanceAddDay(day, 1));
+            if (open || bad || end === start) {
+                if (day === punchDay) entries.push({ r, open, bad, start: null, end: null, continuation: false });
+            } else if (start < dayEnd && end > dayStart) entries.push({ r, open, bad, start: Math.max(start, dayStart), end: Math.min(end, dayEnd), continuation: start < dayStart || end > dayEnd });
+        }
+    }
+    hrAttendance.buckets = buckets;
+    document.getElementById('hr-attendance-label').textContent = hrAttendance.view === 'month' ? `${PERSIAN_MONTHS_FA[j.m - 1]} ${toPersianDigits(j.y)}` : `${hrDateDisplay(from)} تا ${hrDateDisplay(to)}`;
+    document.querySelectorAll('[data-hr-view]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.hrView === hrAttendance.view)));
+    const status = document.getElementById('hr-attendance-status');
+    document.getElementById('hr-attendance-coverage').classList.toggle('hidden', !hrAttendance.legacy);
+    const incomplete = [...buckets.values()].some(entries => entries.some(e => e.open || e.bad));
+    status.textContent = hrAttendance.state === 'loading' ? 'در حال دریافت کارکرد...' : hrAttendance.state === 'error' ? 'خطا در دریافت کارکرد. برای تلاش دوباره دوره را انتخاب کنید.' : `${invalid ? `${toPersianDigits(invalid)} رکورد با زمان نامعتبر؛ ` : ''}${incomplete ? 'داده ناقص یا شیفت باز؛ جمع مدت قطعی نیست.' : 'مدت بسته‌شده، بدون هم‌پوشانی برای هر کارمند.'}`;
+    const list = document.getElementById('hr-attendance-list');
+    list.className = `hr-timesheet-grid hr-timesheet-${hrAttendance.view}`;
+    list.innerHTML = HR_WEEKDAYS.map(d => `<div class="hr-timesheet-weekday">${d}</div>`).join('');
+    const clock = value => new Date(value).toLocaleTimeString('fa-IR', { timeZone: HR_TIMEZONE, hour: '2-digit', minute: '2-digit', hour12: false });
+    for (const [day, entries] of buckets) {
+        const jd = gregorianToJalali(new Date(`${day}T12:00:00`));
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `hr-timesheet-day${jd.m !== j.m || jd.y !== j.y ? ' is-outside' : ''}${day === hrToday() ? ' is-today' : ''}`;
+        button.dataset.hrDay = day;
+        button.setAttribute('aria-label', `${hrDateDisplay(day)}، ${toPersianDigits(entries.length)} رکورد`);
+        button.setAttribute('aria-pressed', String(day === hrAttendance.selected));
+        const shown = entries.slice(0, hrAttendance.view === 'month' ? 2 : 3);
+        const duration = hrDuration(hrAttendanceMinutes(entries));
+        const pending = entries.some(e => e.open || e.bad) ? ' *' : '';
+        button.innerHTML = `<span class="hr-timesheet-date">${hrAttendance.view === 'week' ? hrDateDisplay(day) : toPersianDigits(jd.d)}</span>` + shown.map(e => {
+            let times = '';
+            if (hrAttendance.view === 'week' && !e.bad && !e.open) {
+                const end = e.end === boundaries.get(hrAttendanceAddDay(day, 1)) ? '۲۴:۰۰' : clock(e.end ?? Date.parse(e.r.clock_out));
+                times = `<span class="hr-timesheet-time" dir="ltr">${clock(e.start ?? Date.parse(e.r.clock_in))} - ${end}</span>`;
+            }
+            return `<span class="hr-timesheet-event" style="--staff-color:${_hrAvatarColor(e.r.staff_id)}">${escapeHtml(e.r.staff_name || hrStaffName(e.r.staff_id))}${times}<small>${e.bad ? 'زمان نامعتبر' : e.open ? 'باز / غیرقطعی' : hrDuration(Math.floor((e.end - e.start) / 60000))}${e.continuation ? ' · ادامه' : ''}${e.r.is_remote ? ' · دورکاری' : ''}</small></span>`;
+        }).join('') + (entries.length > shown.length ? `<span class="hr-timesheet-more">${toPersianDigits(entries.length - shown.length)} مورد بیشتر</span>` : '') + (entries.length ? `<span class="hr-timesheet-total">مدت بسته: ${duration}${pending}</span>` + (hrAttendance.view === 'month' ? `<span class="hr-timesheet-mobile-count">${toPersianDigits(entries.length)} ثبت</span><span class="hr-timesheet-mobile-duration"><span class="sr-only">مدت بسته: </span><bdi>${duration}</bdi>${pending}</span>` : '') : '');
+        button.onclick = () => {
+            hrAttendance.selected = day;
+            renderHrAttendanceList(hrAttendance.rows);
+            list.querySelector(`[data-hr-day="${day}"]`).focus({ preventScroll: true });
+        };
+        list.appendChild(button);
+    }
+    renderHrAttendanceDetails();
+}
+function hrAttendanceMinutes(entries) {
+    const people = new Map();
+    entries.filter(e => e.start != null && e.end != null).forEach(e => {
+        const key = String(e.r.staff_id);
+        if (!people.has(key)) people.set(key, []);
+        people.get(key).push([e.start, e.end]);
     });
+    let total = 0;
+    for (const intervals of people.values()) {
+        intervals.sort((a, b) => a[0] - b[0]);
+        let end = -Infinity, staffTotal = 0;
+        for (const [a, b] of intervals) { staffTotal += Math.max(0, b - Math.max(a, end)); end = Math.max(end, b); }
+        total += Math.floor(staffTotal / 60000);
+    }
+    return total;
+}
+function renderHrAttendanceDetails() {
+    const details = document.getElementById('hr-attendance-details'), day = hrAttendance.selected;
+    if (!day || hrAttendance.state !== 'ready') { details.textContent = 'برای جزئیات، یک روز را انتخاب کنید.'; return; }
+    const entries = hrAttendance.buckets.get(day) || [];
+    const stamp = value => Number.isFinite(Date.parse(value)) ? `${hrDateDisplay(_tehranDateString(new Date(value)))}، ${new Date(value).toLocaleTimeString('fa-IR', { timeZone: HR_TIMEZONE, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}` : 'زمان نامعتبر';
+    details.innerHTML = `<h5>${hrDateDisplay(day)}</h5>` + (entries.length ? entries.map(e => `<article class="hr-timesheet-shift"><strong>${escapeHtml(e.r.staff_name || hrStaffName(e.r.staff_id))}</strong> ${e.r.is_remote ? '<span class="hr-timesheet-badge">دورکاری</span>' : ''}<p>ورود: ${stamp(e.r.clock_in)} | خروج: ${e.open ? 'باز / نهایی نشده' : stamp(e.r.clock_out)}</p><p>${e.bad ? 'زمان نامعتبر یا خروج پیش از ورود؛ محاسبه نشده' : e.open ? 'شیفت باز؛ مدت محاسبه نشده' : `مدت بسته در این روز: ${hrDuration(Math.floor((e.end - e.start) / 60000))}${e.continuation ? ' · ادامه از / به روز دیگر' : ''}`}</p>${e.r.note ? `<p>${escapeHtml(String(e.r.note))}</p>` : ''}</article>`).join('') : '<p>رکوردی برای این روز ثبت نشده است؛ وضعیت غیبت از این تقویم تعیین نمی‌شود.</p>');
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -1110,6 +1277,14 @@ function closeHrReport(restoreFocus = true) {
     if (restoreFocus && !document.getElementById('hrPage').classList.contains('hidden')) hrReport.opener?.focus();
 }
 function closeHrDialogs() {
+    ++hrAttendance.version;
+    ++hrAttendance.presentVersion;
+    hrAttendance.rows = [];
+    hrAttendance.buckets.clear();
+    hrAttendance.selected = null;
+    document.getElementById('hr-attendance-list').replaceChildren();
+    document.getElementById('hr-attendance-details').replaceChildren();
+    document.getElementById('hr-present-now-list').replaceChildren();
     // These overlays live outside hrPage, so hiding a view alone is not enough.
     closeHrReport(false);
     closeHrSchedule(false);
@@ -8942,7 +9117,7 @@ function showAdminDashboard() {
 }
 
 function adminLogout() {
-    closeHrDialogs();
+    resetHrAttendanceSession();
     currentUserSession = null;
 
     localStorage.removeItem('deept_mock_user');

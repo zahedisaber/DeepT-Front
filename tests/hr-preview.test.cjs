@@ -44,6 +44,30 @@ function setup(t, url = 'https://example.vercel.app/?hr-preview=1', loadApp = tr
 }
 const currentQuery = h => h.run('new URLSearchParams({ year: hrCurrentMonth().y, month: hrCurrentMonth().m, staff_id: "sample-sara" }).toString()');
 
+test('sample attendance calendar contains boundary, remote, overnight, open records and scoped overlap contract', async t => {
+    const h = setup(t);
+    await h.tick();
+    const rows = await (await h.api('/hr/attendance')).json();
+    for (const query of ['overlap=true', 'open_only=true']) {
+        const res = await h.api('/hr/attendance?' + query);
+        assert.equal(res.headers.get('X-HR-Calendar'), 'overlap-v1');
+    }
+    assert.equal(h.w.document.getElementById('hr-attendance-coverage').classList.contains('hidden'), true);
+    assert.equal(new Set(rows.map(r => r.staff_id)).size, 2);
+    assert.ok(rows.some(r => r.is_remote));
+    assert.ok(rows.some(r => r.clock_out == null));
+    assert.ok(rows.some(r => r.id === 'sample-night'));
+    const open = await (await h.api('/hr/attendance?open_only=true&from=1990-01-01&to=1990-01-02&staff_id=missing')).json();
+    assert.equal(open.length, 1);
+    assert.equal(open[0].clock_out, null);
+    const day = h.run("fmtWeekISO(jalaliMonthBounds(hrCurrentMonth().y,hrCurrentMonth().m).firstDay)");
+    const filtered = await (await h.api(`/hr/attendance?from=${day}&to=${day}&overlap=true&staff_id=sample-sara`)).json();
+    assert.ok(filtered.length >= 2);
+    assert.ok(filtered.every(r => r.staff_id === 'sample-sara'));
+    assert.ok(h.w.document.querySelectorAll('.hr-timesheet-event').length > 0);
+    h.unchanged();
+});
+
 test('preview script is included before app and after catalog', () => {
     assert.ok(html.indexOf('src="/price-catalog.js"') < html.indexOf('src="/hr-preview.js"'));
     assert.ok(html.indexOf('src="/hr-preview.js"') < html.indexOf('src="/app.js"'));
