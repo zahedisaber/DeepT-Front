@@ -1678,8 +1678,35 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                     <span style="font-size:.95em;">+</span> افزودن کارمند جدید
                 </button>
             </div>
-            <p class="text-[11px] mb-4" style="color:var(--text-muted);">کارمندان دفتر خود را با یک پین کوتاه تعریف کنید تا فقط از طریق وای‌فای دفتر بتوانند ورود/خروج خود را ثبت کنند.</p>
+            <p class="text-[11px] mb-4" style="color:var(--text-muted);">برای هر کارمند، پین و ساعات موظفی روزهای هفته را تعیین کنید. ثبت حضور حضوری با موقعیت دفتر کنترل می‌شود.</p>
             <div id="hr-staff-list" class="flex flex-col gap-2"></div>
+        </div>
+
+        <div class="workspace-panel p-6 space-y-4">
+            <div class="flex items-center justify-between gap-3 flex-wrap">
+                <h3 class="text-base font-black" style="color:var(--text-main);">گزارش ماهانه حضور و غیاب</h3>
+                <button type="button" id="hr-report-export" onclick="exportHrReport()" disabled class="text-xs font-bold px-3 py-2 rounded-lg disabled:opacity-40" style="color:var(--accent);border:1px solid var(--border-subtle);">خروجی CSV</button>
+            </div>
+            <div class="flex gap-2 items-end flex-wrap">
+                <label class="text-xs">سال شمسی<input id="hr-report-year" type="number" min="1300" max="1600" class="auth-input en" style="width:100px;" onchange="loadHrMonthlyReport()"></label>
+                <label class="text-xs">ماه<select id="hr-report-month" class="auth-input" style="width:auto;" onchange="loadHrMonthlyReport()"></select></label>
+                <button type="button" onclick="loadHrMonthlyReport()" class="text-xs font-bold px-3 py-2 rounded-lg" style="background:var(--accent);color:var(--btn-text-on-accent);">نمایش / به‌روزرسانی</button>
+            </div>
+            <p class="text-[11px] leading-6" style="color:var(--text-muted);">محاسبه به وقت تهران و روزبه‌روز است؛ اضافه‌کاری یک روز، کسری روز دیگر را جبران نمی‌کند. روز جاری و رکوردهای بدون خروج نهایی نیستند. بدون برنامه موظفی، غیبت یا اضافه‌کاری محاسبه نمی‌شود.</p>
+            <label class="text-xs flex gap-2 items-center"><input id="hr-report-exceptions-only" type="checkbox" onchange="renderHrMonthlyReport()">در جزئیات فقط روزهای کسری، اضافه‌کاری و رکوردهای ناقص نمایش داده شود</label>
+            <p id="hr-report-status" role="status" class="text-xs" style="color:var(--text-muted);"></p>
+            <div id="hr-monthly-report" class="space-y-3"></div>
+            <details class="rounded-xl p-3" style="border:1px solid var(--border-subtle);">
+                <summary class="text-sm font-bold cursor-pointer">تعطیلی دفتر / مرخصی روزانه</summary>
+                <p class="text-[11px] leading-6 mt-2" style="color:var(--text-muted);">تعطیلی یا مرخصی، موظفی آن روز را صفر می‌کند. کار ثبت‌شده در آن روز اضافه‌کاری است. تعطیلات رسمی خودکار اعمال نمی‌شوند.</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                    <label class="text-xs">برای<select id="hr-dayoff-staff" class="auth-input"></select></label>
+                    <label class="text-xs">تاریخ (میلادی)<input id="hr-dayoff-date" type="date" class="auth-input" onchange="updateHrDateLabel(this, 'hr-dayoff-date-label')"><span id="hr-dayoff-date-label" class="text-[11px]"></span></label>
+                    <label class="text-xs sm:col-span-2">علت<input id="hr-dayoff-reason" maxlength="1000" class="auth-input" placeholder="تعطیلی دفتر یا مرخصی تأییدشده"></label>
+                </div>
+                <button type="button" id="hr-dayoff-save" onclick="saveHrDayOff()" class="text-xs font-bold px-3 py-2 mt-3 rounded-lg" style="background:var(--accent);color:var(--btn-text-on-accent);">ثبت روز تعطیل / مرخصی</button>
+                <div id="hr-days-off-list" class="space-y-2 mt-3 text-xs"></div>
+            </details>
         </div>
 
         <div class="workspace-panel p-6">
@@ -1694,6 +1721,23 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
         </div>
     </div>
 </section>
+
+<div role="dialog" aria-modal="true" aria-labelledby="hr-schedule-title" id="hrScheduleModal" class="modal-overlay fixed inset-0 z-[70] hidden flex items-center justify-center p-4">
+    <div class="w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto rounded-2xl" style="background:var(--card-surface);border:1px solid var(--border-color);">
+        <div class="flex justify-between gap-3 mb-3">
+            <h3 id="hr-schedule-title" class="text-base font-black">ساعات موظفی</h3>
+            <button type="button" onclick="closeHrSchedule()" aria-label="بستن">بستن</button>
+        </div>
+        <p id="hr-schedule-name" class="text-sm font-bold mb-3"></p>
+        <p class="text-[11px] leading-6 mb-3" style="color:var(--text-muted);">صفر یعنی روز غیرکاری. هر برنامه از تاریخ انتخابی تا برنامه بعدی معتبر است؛ برنامه جدید گزارش‌های قبل از آن تاریخ را تغییر نمی‌دهد. برای پایان همکاری، برنامه صفر از تاریخ پایان ثبت کنید؛ غیرفعال‌کردن پین به‌تنهایی موظفی را متوقف نمی‌کند.</p>
+        <label class="text-xs block mb-3">تاریخ شروع اعتبار (میلادی)<input id="hr-schedule-from" type="date" class="auth-input" onchange="updateHrDateLabel(this, 'hr-schedule-date-label')"><span id="hr-schedule-date-label" class="text-[11px]"></span></label>
+        <div id="hr-schedule-week" class="space-y-2"></div>
+        <button id="hr-schedule-save" type="button" onclick="saveHrSchedule()" class="w-full mt-4 py-2 rounded-xl text-sm font-bold" style="background:var(--accent);color:var(--btn-text-on-accent);">ثبت برنامه</button>
+        <p id="hr-schedule-status" role="status" class="text-xs mt-3"></p>
+        <h4 class="text-sm font-bold mt-4 mb-2">تاریخچه برنامه‌ها</h4>
+        <div id="hr-schedule-history" class="space-y-2 text-xs"></div>
+    </div>
+</div>
 
 <!-- ── VIEW · نرخنامه من (My Price List) ── a translator's own price
      overrides for every row of the official tariff catalog

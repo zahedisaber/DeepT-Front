@@ -750,6 +750,7 @@ async function submitHrClock() {
         // پرسنل now (see index.html) -- refresh its "present now" list so
         // this punch shows up without needing a manual reload.
         loadHrAttendance();
+        if (document.getElementById('hr-report-month').options.length) loadHrMonthlyReport();
     } catch (e) {
         status.style.color = '#f87171';
         status.textContent = `❌ ${e.message || 'خطای نامشخص'}`;
@@ -775,6 +776,7 @@ async function loadHrSettings() {
         fromInput.value = _tehranDateString(twoWeeksAgo);
     }
     await Promise.all([loadHrLocation(), loadHrStaff(), loadHrAttendance()]);
+    initializeHrReport();
 }
 
 async function loadHrLocation() {
@@ -819,6 +821,7 @@ async function registerHrLocation() {
 async function loadHrStaff() {
     try {
         const res = await fetch(`${CORE}/hr/staff`, { headers: { 'Authorization': `Bearer ${getToken()}` } });
+        if (!res.ok) throw new Error();
         hrStaffList = await res.json();
     } catch (e) {
         hrStaffList = [];
@@ -853,13 +856,14 @@ function renderHrStaffList() {
         row.style.cssText = `background:var(--bg-main);border:1px solid var(--border-subtle);opacity:${s.is_active ? '1' : '.6'};`;
         const initial = (s.full_name || '؟').trim().charAt(0) || '؟';
         row.innerHTML = `
-          <div class="w-9 h-9 rounded-full flex items-center justify-center font-black text-sm shrink-0" style="background:${_hrAvatarColor(s.id)};color:#0a0a0a;">${initial}</div>
+          <div class="w-9 h-9 rounded-full flex items-center justify-center font-black text-sm shrink-0" style="background:${_hrAvatarColor(s.id)};color:#0a0a0a;">${escapeHtml(initial)}</div>
           <div style="flex:1;min-width:0;">
-            <div class="text-xs font-bold truncate" style="color:var(--text-main);">${s.full_name}</div>
-            <div class="text-[10px] truncate" style="color:var(--text-muted);">${s.role || 'بدون سمت مشخص'}</div>
+            <div class="text-xs font-bold truncate" style="color:var(--text-main);">${escapeHtml(s.full_name)}</div>
+            <div class="text-[10px] truncate" style="color:var(--text-muted);">${escapeHtml(s.role || 'بدون سمت مشخص')}</div>
           </div>
           <span class="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0" style="background:${s.is_active ? 'rgba(52,199,89,.12);color:#34c759' : 'rgba(148,148,148,.15);color:#999'};">${s.is_active ? '● فعال' : '○ غیرفعال'}</span>
           <div class="flex items-center gap-1 shrink-0">
+            <button type="button" data-hr-schedule-staff="${escapeHtml(s.id)}" class="text-[11px] px-2 py-1 rounded-lg" style="color:var(--accent);border:1px solid var(--border-subtle);">ساعات موظفی</button>
             <button type="button" data-hr-toggle-staff="${s.id}" data-hr-active="${s.is_active}" title="${s.is_active ? 'غیرفعال کردن' : 'فعال کردن'}" class="w-7 h-7 rounded-lg flex items-center justify-center text-xs transition" style="background:var(--panel-bg);color:var(--text-muted);border:1px solid var(--border-subtle);">${s.is_active ? '⏸' : '▶'}</button>
             <button type="button" data-hr-delete-staff="${s.id}" title="حذف" class="w-7 h-7 rounded-lg flex items-center justify-center text-xs transition" style="background:rgba(248,113,113,.1);color:#f87171;border:1px solid rgba(248,113,113,.3);">🗑</button>
           </div>
@@ -884,6 +888,8 @@ document.getElementById('addHrStaffModal').addEventListener('click', function(e)
 });
 
 document.addEventListener('click', (e) => {
+    const scheduleBtn = e.target.closest('[data-hr-schedule-staff]');
+    if (scheduleBtn) { openHrSchedule(scheduleBtn.dataset.hrScheduleStaff); return; }
     const toggleBtn = e.target.closest('[data-hr-toggle-staff]');
     if (toggleBtn) {
         toggleHrStaffActive(toggleBtn.dataset.hrToggleStaff, toggleBtn.dataset.hrActive !== 'true');
@@ -913,6 +919,7 @@ async function deleteHrStaff(staffId) {
         });
         if (!res.ok) throw new Error();
         await loadHrStaff();
+        initializeHrReport();
     } catch (e) { /* no-op on failure -- row stays visible, translator can retry */ }
 }
 
@@ -945,7 +952,8 @@ async function addHrStaff() {
         status.textContent = `✅ ${data.full_name} با موفقیت اضافه شد.`;
         status.classList.remove('hidden');
         await loadHrStaff();
-        setTimeout(closeAddHrStaffModal, 700);
+        closeAddHrStaffModal();
+        openHrSchedule(data.id);
     } catch (e) {
         status.style.color = '#f87171';
         status.textContent = `❌ ${e.message || 'خطای نامشخص'}`;
@@ -981,6 +989,275 @@ async function loadHrAttendance() {
         renderHrPresentNow([]);
     }
 }
+
+const HR_WEEKDAYS = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه'];
+const HR_MONTHS = ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'];
+const HR_DAY_STATUS = {
+    not_configured: 'موظفی تعیین نشده', future: 'آینده', pending: 'روز جاری؛ موقت',
+    incomplete: 'رکورد ناقص؛ نیاز به بررسی', day_off: 'تعطیل / مرخصی',
+    absent: 'غیبت کامل', shortfall: 'کسری حضور', overtime: 'اضافه‌کاری', present: 'حضور کامل',
+};
+let hrMonthlyReport = null;
+let hrReportRequest = 0;
+let hrScheduleStaffId = null;
+let hrScheduleRequest = 0;
+
+function hrDuration(minutes) {
+    return `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}`;
+}
+
+async function hrRequest(path, method = 'GET', body) {
+    const res = await fetch(`${CORE}/hr${path}`, {
+        method,
+        headers: { 'Authorization': `Bearer ${getToken()}`, ...(body ? { 'Content-Type': 'application/json' } : {}) },
+        ...(body ? { body: JSON.stringify(body) } : {}),
+    });
+    if (!res.ok) {
+        if (res.status === 409) throw new Error('برای این تاریخ قبلاً ثبت شده است. برای اصلاح، ابتدا ورودی قبلی را حذف کنید.');
+        if (res.status === 401) throw new Error('لطفاً دوباره وارد حساب شوید.');
+        throw new Error('دریافت یا ذخیره اطلاعات حضور و غیاب ناموفق بود. اتصال و راه‌اندازی سرویس را بررسی کنید.');
+    }
+    return res.json();
+}
+
+function updateHrDateLabel(input, labelId) {
+    document.getElementById(labelId).textContent = input.value ? formatIsoAsJalaliDisplay(input.value) : '';
+}
+
+function initializeHrReport() {
+    const month = document.getElementById('hr-report-month');
+    if (!month.options.length) {
+        const parts = new Intl.DateTimeFormat('en-US-u-ca-persian', {
+            timeZone: HR_TIMEZONE, year: 'numeric', month: 'numeric',
+        }).formatToParts(new Date());
+        document.getElementById('hr-report-year').value = parts.find(p => p.type === 'year').value;
+        HR_MONTHS.forEach((name, i) => month.add(new Option(name, String(i + 1))));
+        month.value = parts.find(p => p.type === 'month').value;
+    }
+    const staffSelect = document.getElementById('hr-dayoff-staff');
+    const previous = staffSelect.value;
+    staffSelect.replaceChildren(new Option('تمام دفتر', ''));
+    hrStaffList.forEach(s => staffSelect.add(new Option(s.full_name, s.id)));
+    if ([...staffSelect.options].some(o => o.value === previous)) staffSelect.value = previous;
+    loadHrMonthlyReport();
+}
+
+async function loadHrMonthlyReport() {
+    const request = ++hrReportRequest;
+    const year = Number(document.getElementById('hr-report-year').value);
+    const month = Number(document.getElementById('hr-report-month').value);
+    const status = document.getElementById('hr-report-status');
+    hrMonthlyReport = null;
+    document.getElementById('hr-report-export').disabled = true;
+    document.getElementById('hr-monthly-report').replaceChildren();
+    document.getElementById('hr-days-off-list').replaceChildren();
+    if (!Number.isInteger(year) || year < 1300 || year > 1600 || !Number.isInteger(month) || month < 1 || month > 12) {
+        status.textContent = 'سال و ماه شمسی معتبر وارد کنید.';
+        return;
+    }
+    status.textContent = 'در حال محاسبه گزارش…';
+    try {
+        const report = await hrRequest(`/reports/monthly?year=${year}&month=${month}`);
+        const daysOff = await hrRequest(`/days-off?from=${report.from}&to=${report.to}`);
+        if (request !== hrReportRequest) return;
+        hrMonthlyReport = report;
+        status.textContent = `${HR_MONTHS[month - 1]} ${year} | به‌روزرسانی: ${_tehranTimeString(report.as_of)} | همه مدت‌ها ساعت:دقیقه`;
+        document.getElementById('hr-report-export').disabled = false;
+        renderHrMonthlyReport();
+        const list = document.getElementById('hr-days-off-list');
+        if (!daysOff.length) list.textContent = 'در این ماه تعطیلی یا مرخصی دستی ثبت نشده است.';
+        daysOff.forEach(entry => {
+            const row = document.createElement('div');
+            row.className = 'flex justify-between gap-2 items-center p-2 rounded-lg';
+            row.style.border = '1px solid var(--border-subtle)';
+            const name = entry.staff_id ? hrStaffList.find(s => s.id === entry.staff_id)?.full_name || 'کارمند' : 'تمام دفتر';
+            const text = document.createElement('span');
+            text.textContent = `${formatIsoAsJalaliDisplay(entry.date)} | ${name} | ${entry.reason}`;
+            const remove = document.createElement('button');
+            remove.type = 'button';
+            remove.textContent = 'حذف';
+            remove.style.color = '#f87171';
+            remove.onclick = async () => {
+                if (!confirm('این تعطیلی / مرخصی حذف شود؟ گزارش دوباره محاسبه خواهد شد.')) return;
+                remove.disabled = true;
+                try { await hrRequest(`/days-off/${encodeURIComponent(entry.id)}`, 'DELETE'); await loadHrMonthlyReport(); }
+                catch (e) { showToast(e.message); remove.disabled = false; }
+            };
+            row.append(text, remove);
+            list.append(row);
+        });
+    } catch (e) {
+        if (request === hrReportRequest) status.textContent = e.message;
+    }
+}
+
+function renderHrMonthlyReport() {
+    const container = document.getElementById('hr-monthly-report');
+    container.replaceChildren();
+    if (!hrMonthlyReport) return;
+    if (!hrMonthlyReport.staff.length) { container.textContent = 'هنوز کارمندی ثبت نشده است.'; return; }
+    const exceptionsOnly = document.getElementById('hr-report-exceptions-only').checked;
+    hrMonthlyReport.staff.forEach(person => {
+        const card = document.createElement('details');
+        card.className = 'rounded-xl p-3';
+        card.style.cssText = 'border:1px solid var(--border-subtle);background:var(--bg-main);';
+        const issues = person.incomplete_days;
+        const unconfigured = person.days.some(d => d.status === 'not_configured');
+        const days = person.days.filter(d => !exceptionsOnly || d.absence_minutes || d.overtime_minutes || d.status === 'incomplete');
+        card.innerHTML = `
+            <summary class="cursor-pointer text-sm font-bold">${escapeHtml(person.full_name)}${person.is_complete ? '' : ' | گزارش ناقص؛ جمع‌ها نهایی نیستند'}</summary>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 my-3 text-xs">
+                ${[['حضور ثبت‌شده', person.total_presence_minutes], ['موظفی نهایی', person.total_expected_minutes],
+                   ['کسری / غیبت', person.total_absence_minutes], ['اضافه‌کاری', person.total_overtime_minutes]]
+                    .map(([label, value]) => `<div class="rounded-lg p-2" style="background:var(--card-surface);"><span>${label}</span><strong class="block mt-1 en" dir="ltr">${hrDuration(value)}</strong></div>`).join('')}
+            </div>
+            ${issues ? `<p class="text-xs mb-2" style="color:#f87171;">${issues} روز دارای رکورد ناقص است؛ موظفی و کسری / اضافه‌کاری آن روزها در جمع نهایی لحاظ نشده است.</p>` : ''}
+            ${unconfigured ? '<p class="text-xs mb-2" style="color:var(--text-muted);">بعضی روزها برنامه موظفی ندارند؛ از دکمه «ساعات موظفی» برنامه را تنظیم کنید.</p>' : ''}
+            <div class="overflow-x-auto"><table class="w-full text-xs text-right" style="min-width:580px;">
+                <thead><tr>${['تاریخ شمسی', 'موظفی', 'حضور', 'کسری', 'اضافه‌کاری', 'وضعیت / علت'].map(h => `<th class="p-2">${h}</th>`).join('')}</tr></thead>
+                <tbody>${days.map(d => `<tr style="border-top:1px solid var(--border-subtle);">
+                    <td class="p-2 en" dir="ltr">${escapeHtml(d.jalali_date)}</td>
+                    <td class="p-2 en" dir="ltr">${hrDuration(d.expected_minutes)}</td>
+                    <td class="p-2 en" dir="ltr">${hrDuration(d.presence_minutes)}</td>
+                    <td class="p-2 en" dir="ltr" style="color:${d.absence_minutes ? '#f87171' : 'inherit'};">${['pending', 'future', 'incomplete', 'not_configured'].includes(d.status) ? '—' : hrDuration(d.absence_minutes)}</td>
+                    <td class="p-2 en" dir="ltr" style="color:${d.overtime_minutes ? 'var(--accent)' : 'inherit'};">${['pending', 'future', 'incomplete', 'not_configured'].includes(d.status) ? '—' : hrDuration(d.overtime_minutes)}</td>
+                    <td class="p-2">${escapeHtml(HR_DAY_STATUS[d.status] || d.status)}${d.reason ? ' / ' + escapeHtml(d.reason) : ''}</td>
+                </tr>`).join('')}</tbody>
+            </table></div>${!days.length ? '<p class="text-xs p-2">روزی مطابق این فیلتر وجود ندارد.</p>' : ''}`;
+        // Totals remain visible even when daily details are collapsed.
+        const totals = card.querySelector('summary');
+        totals.append(document.createTextNode(` | حضور ${hrDuration(person.total_presence_minutes)} | کسری ${hrDuration(person.total_absence_minutes)} | اضافه‌کاری ${hrDuration(person.total_overtime_minutes)}`));
+        container.append(card);
+    });
+}
+
+async function saveHrDayOff() {
+    const button = document.getElementById('hr-dayoff-save');
+    const date = document.getElementById('hr-dayoff-date').value;
+    const reason = document.getElementById('hr-dayoff-reason').value.trim();
+    if (!date || !reason) { showToast('تاریخ و علت را وارد کنید.'); return; }
+    button.disabled = true;
+    try {
+        await hrRequest('/days-off', 'POST', { date, reason, staff_id: document.getElementById('hr-dayoff-staff').value || null });
+        document.getElementById('hr-dayoff-reason').value = '';
+        showToast('تعطیلی / مرخصی ثبت شد. در گزارش ماه انتخاب‌شده نمایش داده می‌شود.');
+        await loadHrMonthlyReport();
+    } catch (e) { showToast(e.message); }
+    finally { button.disabled = false; }
+}
+
+async function openHrSchedule(staffId) {
+    const request = ++hrScheduleRequest;
+    hrScheduleStaffId = staffId;
+    const modal = document.getElementById('hrScheduleModal');
+    const status = document.getElementById('hr-schedule-status');
+    document.getElementById('hr-schedule-name').textContent = hrStaffList.find(s => s.id === staffId)?.full_name || '';
+    document.getElementById('hr-schedule-history').replaceChildren();
+    document.getElementById('hr-schedule-week').replaceChildren();
+    const from = document.getElementById('hr-schedule-from');
+    from.value = _tehranDateString(new Date());
+    updateHrDateLabel(from, 'hr-schedule-date-label');
+    status.textContent = 'در حال دریافت برنامه…';
+    document.getElementById('hr-schedule-save').disabled = true;
+    modal.classList.remove('hidden');
+    try {
+        const schedules = await hrRequest(`/staff/${encodeURIComponent(staffId)}/schedules`);
+        if (request !== hrScheduleRequest) return;
+        const current = schedules.filter(s => s.effective_from <= from.value).at(-1);
+        HR_WEEKDAYS.forEach((name, i) => {
+            const label = document.createElement('label');
+            label.className = 'flex items-center justify-between gap-3 text-xs';
+            label.innerHTML = `<span>${name}</span><span class="flex gap-2 items-center"><input id="hr-week-${i}" type="number" min="0" max="24" step="0.0166666667" class="auth-input en" dir="ltr" style="width:100px;" value="${(current?.weekly_minutes[i] || 0) / 60}"><span>ساعت</span></span>`;
+            document.getElementById('hr-schedule-week').append(label);
+        });
+        const history = document.getElementById('hr-schedule-history');
+        if (!schedules.length) history.textContent = 'برنامه‌ای تعیین نشده است. ساعات هر روز را وارد کنید.';
+        schedules.forEach(schedule => {
+            const row = document.createElement('div');
+            row.className = 'p-2 rounded-lg space-y-1';
+            row.style.border = '1px solid var(--border-subtle)';
+            const text = document.createElement('p');
+            text.textContent = `از ${formatIsoAsJalaliDisplay(schedule.effective_from)} | ${HR_WEEKDAYS.map((name, i) => `${name}: ${hrDuration(schedule.weekly_minutes[i])}`).join('، ')}`;
+            const remove = document.createElement('button');
+            remove.type = 'button';
+            remove.textContent = 'حذف برنامه اشتباه';
+            remove.style.color = '#f87171';
+            remove.onclick = async () => {
+                if (!confirm('این برنامه حذف شود؟ گزارش‌های این بازه دوباره محاسبه می‌شوند.')) return;
+                remove.disabled = true;
+                try {
+                    await hrRequest(`/staff/${encodeURIComponent(staffId)}/schedules/${encodeURIComponent(schedule.id)}`, 'DELETE');
+                    if (hrScheduleStaffId === staffId) await openHrSchedule(staffId);
+                    await loadHrMonthlyReport();
+                } catch (e) { showToast(e.message); remove.disabled = false; }
+            };
+            row.append(text, remove);
+            history.append(row);
+        });
+        status.textContent = 'تاریخ شروع اعتبار را دقیق انتخاب کنید. اعشار مجاز است؛ مثلاً ۷٫۵ یعنی ۷ ساعت و ۳۰ دقیقه.';
+        document.getElementById('hr-schedule-save').disabled = false;
+    } catch (e) { if (request === hrScheduleRequest) status.textContent = e.message; }
+}
+
+function closeHrSchedule() {
+    ++hrScheduleRequest;
+    hrScheduleStaffId = null;
+    document.getElementById('hrScheduleModal').classList.add('hidden');
+}
+
+async function saveHrSchedule() {
+    const staffId = hrScheduleStaffId;
+    if (!staffId) return;
+    const button = document.getElementById('hr-schedule-save');
+    const status = document.getElementById('hr-schedule-status');
+    const effective_from = document.getElementById('hr-schedule-from').value;
+    const hours = HR_WEEKDAYS.map((_, i) => document.getElementById(`hr-week-${i}`).value);
+    if (!effective_from || hours.some(h => h.trim() === '' || !Number.isFinite(Number(h)) || Number(h) < 0 || Number(h) > 24)) {
+        status.textContent = 'تاریخ و ساعات معتبر (صفر تا ۲۴) برای تمام روزها وارد کنید.';
+        return;
+    }
+    button.disabled = true;
+    try {
+        await hrRequest(`/staff/${encodeURIComponent(staffId)}/schedules`, 'POST', {
+            effective_from, weekly_minutes: hours.map(h => Math.round(Number(h) * 60)),
+        });
+        showToast('برنامه موظفی ثبت شد.');
+        if (hrScheduleStaffId === staffId) await openHrSchedule(staffId);
+        initializeHrReport();
+    } catch (e) {
+        if (hrScheduleStaffId === staffId) { status.textContent = e.message; button.disabled = false; }
+    }
+}
+
+function exportHrReport() {
+    if (!hrMonthlyReport) return;
+    const rows = [['کارمند', 'تاریخ شمسی', 'تاریخ میلادی', 'موظفی (ساعت:دقیقه)', 'حضور (ساعت:دقیقه)', 'کسری (ساعت:دقیقه)', 'اضافه‌کاری (ساعت:دقیقه)', 'وضعیت', 'علت']];
+    hrMonthlyReport.staff.forEach(s => {
+        rows.push([s.full_name, 'جمع ماه', '', hrDuration(s.total_expected_minutes), hrDuration(s.total_presence_minutes), hrDuration(s.total_absence_minutes), hrDuration(s.total_overtime_minutes), s.is_complete ? 'تا روزهای نهایی‌شده' : 'گزارش ناقص؛ جمع‌ها نهایی نیستند', '']);
+        s.days.forEach(d => {
+            const provisional = ['pending', 'future', 'incomplete', 'not_configured'].includes(d.status);
+            rows.push([s.full_name, d.jalali_date, d.date, hrDuration(d.expected_minutes), hrDuration(d.presence_minutes), provisional ? '' : hrDuration(d.absence_minutes), provisional ? '' : hrDuration(d.overtime_minutes), HR_DAY_STATUS[d.status] || d.status, d.reason || '']);
+        });
+    });
+    // Prevent spreadsheet formula execution in names and free-text reasons.
+    const csv = rows.map(row => row.map(value => {
+        const text = String(value);
+        return `"${(/^[\s]*[=+@-]/.test(text) ? "'" : '') + text.replace(/"/g, '""')}"`;
+    }).join(',')).join('\r\n');
+    const url = URL.createObjectURL(new Blob(['\uFEFF', csv], { type: 'text/csv;charset=utf-8;' }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `attendance-${hrMonthlyReport.year}-${String(hrMonthlyReport.month).padStart(2, '0')}.csv`;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+document.getElementById('hrScheduleModal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeHrSchedule();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeHrSchedule(); });
 
 function renderHrPresentNow(rows) {
     const list = document.getElementById('hr-present-now-list');
