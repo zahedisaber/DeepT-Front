@@ -8057,7 +8057,7 @@ async function uploadFileInChunks(file, onProgress) {
         let succeeded = false;
         for (let attempt = 1; attempt <= MAX_RETRIES_PER_CHUNK; attempt++) {
             try {
-                const res = await fetchWithTimeout('https://backend.deept.ir/upload/chunk', {
+                const res = await fetchWithTimeout(`${BACKEND}/upload/chunk`, {
                     method: 'POST',
                     body: fd,
                 }, 15000);
