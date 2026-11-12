@@ -126,12 +126,7 @@
             else if (off || !target) status = 'day_off';
             const working = !['not_configured', 'day_off'].includes(status);
             const expected = working ? target : 0;
-            let presence = !working || i === 4 ? 0 : Math.max(0, target + (i === 3 ? -60 : i === 5 ? 60 : i === 6 ? -120 : 0));
-            // Match the seeded calendar's daily totals, including the clipped overnight shift.
-            if (working && person.id === 'sample-sara' && i < 3) {
-                presence = [540, 120, 360][i];
-                status = presence > expected ? 'overtime' : presence < expected ? 'shortfall' : 'present';
-            }
+            const presence = !working || i === 4 ? 0 : Math.max(0, target + (i === 3 ? -60 : i === 5 ? 60 : i === 6 ? -120 : 0));
             const arrival = working && i !== 4 ? start == null ? null : start + (i === 1 ? 20 : i === 2 ? -20 : 0) : null;
             const departure = arrival == null || i === 6 ? null : arrival + presence;
             const provisional = ['incomplete', 'not_configured'].includes(status);
@@ -216,8 +211,8 @@
                 if (p === '/hr/reports/monthly' || p === '/hr/reports/monthly.xlsx') {
                     const person = staff.find(s => s.id === url.searchParams.get('staff_id'));
                     const year = Number(url.searchParams.get('year')), month = Number(url.searchParams.get('month'));
-                    if ((url.searchParams.has('staff_id') && !person) || (p.endsWith('.xlsx') && !person) || !Number.isInteger(year) || year < 1300 || year > 1600 || !Number.isInteger(month) || month < 1 || month > 12) return json({ detail: 'Select sample staff and a valid Shamsi period.' }, 400);
-                    const data = person ? report(person, year, month) : { year, month, sample_data: true, staff: staff.flatMap(s => report(s, year, month).staff) };
+                    if (!person || !Number.isInteger(year) || year < 1300 || year > 1600 || !Number.isInteger(month) || month < 1 || month > 12) return json({ detail: 'Select one sample staff member and a valid Shamsi period.' }, 400);
+                    const data = report(person, year, month);
                     if (p.endsWith('.xlsx')) {
                         const blob = workbook(data);
                         return new Response(blob, { headers: { 'Content-Type': blob.type, 'Content-Disposition': `attachment; filename="sample-${year}-${month}-${person.id}.xlsx"` } });

@@ -971,11 +971,9 @@ async function loadHrAttendance() {
     const params = new URLSearchParams({ from: range.from, to: range.to, overlap: 'true' });
     if (hrAttendance.staffId) params.set('staff_id', hrAttendance.staffId);
     hrAttendance.rows = [];
-    hrAttendance.statuses.clear();
-    hrAttendance.statusLookup = 'loading';
     hrAttendance.state = 'loading';
     renderHrAttendanceList([]);
-    await Promise.all([loadHrPresentNow(), loadHrAttendanceStatuses(range, version, token), (async () => {
+    await Promise.all([loadHrPresentNow(), (async () => {
     try {
         let res = await fetch(`${CORE}/hr/attendance?${params}`, { headers: { 'Authorization': `Bearer ${token}` } });
         if (version !== hrAttendance.version || token !== getToken()) return;
@@ -1059,45 +1057,7 @@ function renderHrPresentNow(rows, legacy = false) {
     });
 }
 
-const hrAttendance = { anchor: null, view: 'month', staffId: '', selected: null, rows: [], buckets: new Map(), statuses: new Map(), statusLookup: 'idle', version: 0, presentVersion: 0, staffVersion: 0, owner: null, legacy: false, state: 'ready' };
-async function loadHrAttendanceStatuses(range, version, token) {
-    const staffId = hrAttendance.staffId, months = new Map();
-    for (let day = range.from; day <= range.to; day = hrAttendanceAddDay(day, 1)) {
-        const j = gregorianToJalali(new Date(`${day}T12:00:00`));
-        months.set(`${j.y}-${j.m}`, j);
-    }
-    let failed = false;
-    await Promise.all([...months.values()].map(async j => {
-        try {
-            const params = new URLSearchParams({ year: j.y, month: j.m });
-            if (staffId) params.set('staff_id', staffId);
-            const res = await fetch(`${CORE}/hr/reports/monthly?${params}`, { headers: { Authorization: `Bearer ${token}` } });
-            if (!res.ok) throw new Error('status');
-            const data = await res.json();
-            if (Number(data.year) !== j.y || Number(data.month) !== j.m || !Array.isArray(data.staff)) throw new Error('status');
-            if (version !== hrAttendance.version || token !== getToken()) return;
-            const statuses = new Map();
-            for (const person of data.staff) {
-                if (staffId && String(person.staff_id) !== staffId) continue;
-                if (!Array.isArray(person.days)) { failed = true; continue; }
-                for (const d of person.days) {
-                    if (!hrDateDisplay(d.date) || d.date < range.from || d.date > range.to) continue;
-                    const dj = gregorianToJalali(new Date(`${d.date}T12:00:00`));
-                    if (dj.y === j.y && dj.m === j.m) statuses.set(`${d.date}|${person.staff_id}`, d);
-                }
-            }
-            for (const [key, d] of statuses) hrAttendance.statuses.set(key, d);
-        } catch (_) { failed = true; }
-    }));
-    if (version !== hrAttendance.version || token !== getToken()) return;
-    hrAttendance.statusLookup = failed ? 'error' : 'ready';
-    renderHrAttendanceList(hrAttendance.rows);
-}
-function hrAttendanceEntryStatus(day, entry) {
-    const entries = hrAttendance.buckets.get(day) || [];
-    if (entries.some(e => String(e.r.staff_id) === String(entry.r.staff_id) && (e.bad || e.open))) return '';
-    return hrDayStatus(hrAttendance.statuses.get(`${day}|${entry.r.staff_id}`));
-}
+const hrAttendance = { anchor: null, view: 'month', staffId: '', selected: null, rows: [], buckets: new Map(), version: 0, presentVersion: 0, staffVersion: 0, owner: null, legacy: false, state: 'ready' };
 function resetHrAttendanceSession(owner = null) {
     closeHrDialogs();
     hrAttendance.owner = owner;
@@ -1196,8 +1156,6 @@ function renderHrAttendanceList(rows) {
     document.getElementById('hr-attendance-coverage').classList.toggle('hidden', !hrAttendance.legacy);
     const incomplete = [...buckets.values()].some(entries => entries.some(e => e.open || e.bad));
     status.textContent = hrAttendance.state === 'loading' ? 'در حال دریافت کارکرد...' : hrAttendance.state === 'error' ? 'خطا در دریافت کارکرد. برای تلاش دوباره دوره را انتخاب کنید.' : `${invalid ? `${toPersianDigits(invalid)} رکورد با زمان نامعتبر؛ ` : ''}${incomplete ? 'داده ناقص یا شیفت باز؛ جمع مدت قطعی نیست.' : 'مدت بسته‌شده، بدون هم‌پوشانی برای هر کارمند.'}`;
-    status.textContent += hrAttendance.statusLookup === 'error' ? ' وضعیت رنگی محاسبه نشد؛ گزارش برخی ماه‌ها در دسترس نیست.' : hrAttendance.statusLookup === 'loading' ? ' در حال دریافت وضعیت روزانه...' : '';
-    if (!document.getElementById('hr-attendance-legend')) status.insertAdjacentHTML('afterend', `<div id="hr-attendance-legend">${hrStatusLegend()}<p class="hr-note">رنگ هر ثبت بر پایه مجموع روزانه کارمند در گزارش است، نه مدت یک شیفت؛ نامشخص و غیرقطعی بدون رنگ.</p></div>`);
     const list = document.getElementById('hr-attendance-list');
     list.className = `hr-timesheet-grid hr-timesheet-${hrAttendance.view}`;
     list.innerHTML = HR_WEEKDAYS.map(d => `<div class="hr-timesheet-weekday">${d}</div>`).join('');
@@ -1208,8 +1166,7 @@ function renderHrAttendanceList(rows) {
         button.type = 'button';
         button.className = `hr-timesheet-day${jd.m !== j.m || jd.y !== j.y ? ' is-outside' : ''}${day === hrToday() ? ' is-today' : ''}`;
         button.dataset.hrDay = day;
-        const labels = [...new Set(entries.map(e => `${e.r.staff_name || hrStaffName(e.r.staff_id)}: ${HR_STATUS_LABELS[hrAttendanceEntryStatus(day, e)] || 'وضعیت نامشخص / غیرقطعی'}`))];
-        button.setAttribute('aria-label', `${hrDateDisplay(day)}، ${toPersianDigits(entries.length)} رکورد${labels.length ? `، ${labels.join('، ')}` : ''}`);
+        button.setAttribute('aria-label', `${hrDateDisplay(day)}، ${toPersianDigits(entries.length)} رکورد`);
         button.setAttribute('aria-pressed', String(day === hrAttendance.selected));
         const shown = entries.slice(0, hrAttendance.view === 'month' ? 2 : 3);
         const duration = hrDuration(hrAttendanceMinutes(entries));
@@ -1220,8 +1177,7 @@ function renderHrAttendanceList(rows) {
                 const end = e.end === boundaries.get(hrAttendanceAddDay(day, 1)) ? '۲۴:۰۰' : clock(e.end ?? Date.parse(e.r.clock_out));
                 times = `<span class="hr-timesheet-time" dir="ltr">${clock(e.start ?? Date.parse(e.r.clock_in))} - ${end}</span>`;
             }
-            const state = hrAttendanceEntryStatus(day, e), label = HR_STATUS_LABELS[state] || 'وضعیت نامشخص / غیرقطعی';
-            return `<span class="hr-timesheet-event ${state ? `hr-status-${state}` : ''}" title="${label}"><span class="sr-only">${label}: </span>${escapeHtml(e.r.staff_name || hrStaffName(e.r.staff_id))}${times}<small>${e.bad ? 'زمان نامعتبر' : e.open ? 'باز / غیرقطعی' : hrDuration(Math.floor((e.end - e.start) / 60000))}${e.continuation ? ' · ادامه' : ''}${e.r.is_remote ? ' · دورکاری' : ''}</small></span>`;
+            return `<span class="hr-timesheet-event" style="--staff-color:${_hrAvatarColor(e.r.staff_id)}">${escapeHtml(e.r.staff_name || hrStaffName(e.r.staff_id))}${times}<small>${e.bad ? 'زمان نامعتبر' : e.open ? 'باز / غیرقطعی' : hrDuration(Math.floor((e.end - e.start) / 60000))}${e.continuation ? ' · ادامه' : ''}${e.r.is_remote ? ' · دورکاری' : ''}</small></span>`;
         }).join('') + (entries.length > shown.length ? `<span class="hr-timesheet-more">${toPersianDigits(entries.length - shown.length)} مورد بیشتر</span>` : '') + (entries.length ? `<span class="hr-timesheet-total">مدت بسته: ${duration}${pending}</span>` + (hrAttendance.view === 'month' ? `<span class="hr-timesheet-mobile-count">${toPersianDigits(entries.length)} ثبت</span><span class="hr-timesheet-mobile-duration"><span class="sr-only">مدت بسته: </span><bdi>${duration}</bdi>${pending}</span>` : '') : '');
         button.onclick = () => {
             hrAttendance.selected = day;
@@ -1254,33 +1210,16 @@ function renderHrAttendanceDetails() {
     const entries = hrAttendance.buckets.get(day) || [];
     const stamp = value => Number.isFinite(Date.parse(value)) ? `${hrDateDisplay(_tehranDateString(new Date(value)))}، ${new Date(value).toLocaleTimeString('fa-IR', { timeZone: HR_TIMEZONE, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}` : 'زمان نامعتبر';
     details.innerHTML = `<h5>${hrDateDisplay(day)}</h5>` + (entries.length ? entries.map(e => `<article class="hr-timesheet-shift"><strong>${escapeHtml(e.r.staff_name || hrStaffName(e.r.staff_id))}</strong> ${e.r.is_remote ? '<span class="hr-timesheet-badge">دورکاری</span>' : ''}<p>ورود: ${stamp(e.r.clock_in)} | خروج: ${e.open ? 'باز / نهایی نشده' : stamp(e.r.clock_out)}</p><p>${e.bad ? 'زمان نامعتبر یا خروج پیش از ورود؛ محاسبه نشده' : e.open ? 'شیفت باز؛ مدت محاسبه نشده' : `مدت بسته در این روز: ${hrDuration(Math.floor((e.end - e.start) / 60000))}${e.continuation ? ' · ادامه از / به روز دیگر' : ''}`}</p>${e.r.note ? `<p>${escapeHtml(String(e.r.note))}</p>` : ''}</article>`).join('') : '<p>رکوردی برای این روز ثبت نشده است؛ وضعیت غیبت از این تقویم تعیین نمی‌شود.</p>');
-    details.querySelectorAll('.hr-timesheet-shift').forEach((article, i) => {
-        const state = hrAttendanceEntryStatus(day, entries[i]);
-        article.insertAdjacentHTML('afterbegin', `<span class="hr-status-badge ${state ? `hr-status-${state}` : ''}">${HR_STATUS_LABELS[state] || 'وضعیت نامشخص / غیرقطعی'}</span>`);
-        const d = hrAttendance.statuses.get(`${day}|${entries[i].r.staff_id}`);
-        if (d?.late_minutes > 0 || d?.early_departure_minutes > 0) article.insertAdjacentHTML('beforeend', `<p class="hr-timing-alert">تأخیر: ${hrDuration(d.late_minutes)} · خروج زودهنگام: ${hrDuration(d.early_departure_minutes)}</p>`);
-    });
 }
 
 // ═══════════════════════════════════════════════════════════
 // HR STAFF REPORTS AND SCHEDULES
 // ═══════════════════════════════════════════════════════════
-// The report dialog remains employee-scoped; the calendar loads daily status independently.
+// HR reports are deliberately loaded only after choosing one employee.
 const hrReport = { staffId: null, version: 0, data: null, pending: false, exporting: false, opener: null };
 const hrSchedule = { staffId: null, version: 0, history: [], opener: null };
 const HR_WEEKDAYS = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه'];
 const HR_DAY_STATUS = { present: 'حاضر', absent: 'غایب', shortfall: 'کسری حضور', overtime: 'اضافه‌کار', pending: 'در جریان', incomplete: 'ناقص', future: 'آینده', not_configured: 'بدون برنامه', day_off: 'تعطیل / مرخصی' };
-const HR_STATUS_LABELS = { shortfall: 'کسری / غیبت', overtime: 'اضافه‌کار', within: 'در محدوده موظفی' };
-function hrDayStatus(d) {
-    if (!d || !['present', 'absent', 'shortfall', 'overtime', 'day_off'].includes(d.status) || d.is_complete === false || d.is_finalized === false || (d.date && d.date > hrToday())) return '';
-    if (d.status === 'absent' || d.status === 'shortfall' || d.absence_minutes > 0) return 'shortfall';
-    if (d.overtime_minutes > 0) return 'overtime';
-    if (d.status === 'present' && d.expected_minutes > 0 && d.absence_minutes === 0 && d.overtime_minutes === 0) return 'within';
-    return '';
-}
-function hrStatusLegend() {
-    return `<p class="hr-status-legend" aria-label="راهنمای رنگ وضعیت">${Object.entries(HR_STATUS_LABELS).map(([state, label]) => `<span class="hr-status-badge hr-status-${state}">${label}</span>`).join('')}<span>تأخیر / خروج زودهنگام: کهربایی، مستقل از مدت</span></p>`;
-}
 
 function hrDateDisplay(iso) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(iso || '')) return '';
@@ -1342,8 +1281,6 @@ function closeHrDialogs() {
     ++hrAttendance.presentVersion;
     hrAttendance.rows = [];
     hrAttendance.buckets.clear();
-    hrAttendance.statuses.clear();
-    hrAttendance.statusLookup = 'idle';
     hrAttendance.selected = null;
     document.getElementById('hr-attendance-list').replaceChildren();
     document.getElementById('hr-attendance-details').replaceChildren();
@@ -1401,16 +1338,12 @@ function hrReportMarkup(data) {
     const rows = s.days.map(d => {
         const provisional = ['pending', 'future', 'incomplete', 'not_configured'].includes(d.status);
         const values = [hrDateDisplay(d.date), d.scheduled_start || '—', d.scheduled_end || '—', d.first_arrival || '—', d.last_departure || '—', hrDuration(d.presence_minutes), hrDuration(d.expected_minutes), provisional ? '—' : hrDuration(d.absence_minutes), provisional ? '—' : hrDuration(d.overtime_minutes), hrDuration(d.late_minutes), hrDuration(d.early_departure_minutes)];
-        const state = hrDayStatus(d);
-        return `<tr>${values.map((value, i) => {
-            const cls = ((i === 9 && d.late_minutes > 0) || (i === 10 && d.early_departure_minutes > 0)) ? 'hr-timing-alert' : i === 7 && state && d.absence_minutes > 0 ? 'hr-status-shortfall' : i === 8 && state && d.overtime_minutes > 0 ? 'hr-status-overtime' : i === 5 && state === 'within' ? 'hr-status-within' : '';
-            return `<td${cls ? ` class="${cls}"` : ''}>${escapeHtml(String(value))}</td>`;
-        }).join('')}<td><span class="hr-status-badge ${state ? `hr-status-${state}` : ''}">${escapeHtml(HR_DAY_STATUS[d.status] || 'نامشخص')}${state === 'within' ? ' · در محدوده موظفی' : ''}</span>${d.reason ? `<details><summary>توضیح</summary>${escapeHtml(d.reason)}</details>` : ''}</td></tr>`;
+        return `<tr>${values.map((value, i) => `<td${((i === 9 && d.late_minutes > 0) || (i === 10 && d.early_departure_minutes > 0)) ? ' class="hr-timing-alert"' : ''}>${escapeHtml(String(value))}</td>`).join('')}<td>${escapeHtml(HR_DAY_STATUS[d.status] || 'نامشخص')}${d.reason ? `<details><summary>توضیح</summary>${escapeHtml(d.reason)}</details>` : ''}</td></tr>`;
     }).join('');
-    return `${hrStatusLegend()}<div class="hr-totals">${totals.map(([label, value], i) => `<div class="${i === 2 ? 'hr-status-shortfall' : i === 3 ? 'hr-status-overtime' : i === 0 && s.is_complete && s.days.some(d => hrDayStatus(d) === 'within') && s.days.every(d => hrDayStatus(d) === 'within' || (d.status === 'day_off' && d.presence_minutes === 0)) ? 'hr-status-within' : ''}"><span>${label}</span><strong>${hrDuration(value)}</strong></div>`).join('')}</div><div class="hr-table-scroll" tabindex="0" role="region" aria-label="جزئیات روزانه کارکرد"><table class="hr-report-table"><caption>کارکرد روزانه · ${escapeHtml(s.full_name)} · ${escapeHtml(PERSIAN_MONTHS_FA[data.month - 1])} ${toPersianDigits(data.year)}</caption><thead><tr>${['تاریخ شمسی', 'شروع مقرر', 'پایان مقرر', 'اولین ورود', 'آخرین خروج', 'حضور', 'موظفی', 'کسری', 'اضافه‌کار', 'تأخیر', 'خروج زودهنگام', 'وضعیت'].map(h => `<th scope="col">${h}</th>`).join('')}</tr></thead><tbody>${rows || '<tr><td colspan="12">رکوردی یافت نشد.</td></tr>'}</tbody></table></div>`;
+    return `<div class="hr-totals">${totals.map(([label, value]) => `<div><span>${label}</span><strong>${hrDuration(value)}</strong></div>`).join('')}</div><div class="hr-table-scroll" tabindex="0" role="region" aria-label="جزئیات روزانه کارکرد"><table class="hr-report-table"><caption>کارکرد روزانه · ${escapeHtml(s.full_name)} · ${escapeHtml(PERSIAN_MONTHS_FA[data.month - 1])} ${toPersianDigits(data.year)}</caption><thead><tr>${['تاریخ شمسی', 'شروع مقرر', 'پایان مقرر', 'اولین ورود', 'آخرین خروج', 'حضور', 'موظفی', 'کسری', 'اضافه‌کار', 'تأخیر', 'خروج زودهنگام', 'وضعیت'].map(h => `<th scope="col">${h}</th>`).join('')}</tr></thead><tbody>${rows || '<tr><td colspan="12">رکوردی یافت نشد.</td></tr>'}</tbody></table></div>`;
 }
 function hrReportDocument(data) {
-    const markup = `<style>.hr-status-shortfall{color:#b91c1c;background:rgba(185,28,28,.08)}.hr-status-overtime{color:#1d4ed8;background:rgba(29,78,216,.08)}.hr-status-within{color:#15803d;background:rgba(21,128,61,.08)}.hr-status-badge{display:inline-block;padding:3px 6px;border-radius:5px;font-weight:bold}.hr-status-legend{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:12px}</style>${hrReportMarkup(data).replaceAll('<details>', '<details open>')}`;
+    const markup = hrReportMarkup(data).replaceAll('<details>', '<details open>');
     return `<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(data.staff.full_name)} · گزارش کارکرد</title><style>body{font:14px Tahoma,sans-serif;color:#17202a;margin:24px}h1{font-size:20px}.hr-totals{display:flex;flex-wrap:wrap;gap:20px;margin:24px 0}.hr-totals strong{display:block}.hr-table-scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:12px}th,td{border:1px solid #bbb;padding:8px;text-align:right}.hr-timing-alert{background:#fff0dc;color:#9c3800;font-weight:bold}caption{text-align:right;padding:12px}summary{cursor:pointer}@media print{body{margin:0}table{font-size:9px}th,td{padding:4px}.hr-table-scroll{overflow:visible}thead{display:table-header-group}tr{break-inside:avoid}@page{size:A4 landscape;margin:12mm}</style></head><body><h1>گزارش کارکرد · ${escapeHtml(data.staff.full_name)}</h1><p>${escapeHtml(PERSIAN_MONTHS_FA[data.month - 1])} ${toPersianDigits(data.year)} · ${data.staff.is_complete ? 'گزارش کامل' : 'گزارش ناقص / موقت'}</p>${markup}<p>زمان‌ها به وقت تهران و مدت‌ها به صورت ساعت:دقیقه هستند. تأخیر و خروج زودهنگام جدا از کسری مدت حضور است. خط تیره: قابل محاسبه نیست.</p></body></html>`;
 }
 function downloadHrBlob(blob, filename) {
