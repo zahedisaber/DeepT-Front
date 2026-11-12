@@ -12,6 +12,39 @@ const mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 const response = data => ({ ok: true, headers: new Headers({ 'X-HR-Calendar': 'overlap-v1' }), json: async () => data });
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
 const staff = [{ id: 'one', full_name: '<img src=x onerror=alert(1)> سارا', is_active: true }, { id: 'two', full_name: 'رضا', is_active: true }];
+test('finalized daily classification never treats unknown, provisional or zero targets as within hours', t => {
+    const h = setup(t);
+    const base = { status: 'present', expected_minutes: 420, absence_minutes: 0, overtime_minutes: 0 };
+    const classify = d => h.run(`hrDayStatus(${JSON.stringify(d)})`);
+    assert.equal(classify(base), 'within');
+    for (const status of ['pending', 'incomplete', 'future', 'not_configured', 'unknown', 'day_off']) assert.equal(classify({ ...base, status }), '');
+    for (const patch of [{ expected_minutes: 0 }, { absence_minutes: null }, { overtime_minutes: null }, { is_complete: false }, { is_finalized: false }, { date: '2099-01-01' }]) assert.equal(classify({ ...base, ...patch }), '');
+    assert.equal(classify({ ...base, absence_minutes: 1 }), 'shortfall');
+    assert.equal(classify({ ...base, status: 'absent' }), 'shortfall');
+    assert.equal(classify({ ...base, status: 'shortfall' }), 'shortfall');
+    assert.equal(classify({ ...base, status: 'overtime', overtime_minutes: 1 }), 'overtime');
+    assert.equal(classify({ ...base, status: 'day_off', expected_minutes: 0, overtime_minutes: 60 }), 'overtime');
+});
+
+test('report and standalone HTML share semantic colors without coloring zero daily amounts', t => {
+    const h = setup(t), data = fixture(new URL('https://test/?year=1405&month=8'));
+    const s = data.staff[0];
+    s.days.push({ date: '2026-10-26', status: 'shortfall', absence_minutes: 60, overtime_minutes: 0 }, { date: '2026-10-27', status: 'overtime', absence_minutes: 0, overtime_minutes: 90 });
+    h.run(`hrReport.data=${JSON.stringify({ year: 1405, month: 8, staff: s })}`);
+    const printable = new JSDOM(h.run('hrReportDocument(hrReport.data)'));
+    t.after(() => printable.window.close());
+    const doc = printable.window.document, rows = doc.querySelectorAll('tbody tr');
+    assert.ok(rows[0].children[5].classList.contains('hr-status-within'));
+    assert.equal(rows[0].children[7].className, '');
+    assert.ok(rows[0].children[9].classList.contains('hr-timing-alert'));
+    assert.equal(rows[1].querySelector('[class*="hr-status-within"]'), null);
+    assert.ok(rows[2].children[7].classList.contains('hr-status-shortfall'));
+    assert.ok(rows[3].children[8].classList.contains('hr-status-overtime'));
+    assert.equal(doc.querySelector('.hr-totals > div').className, '');
+    for (const color of ['#b91c1c', '#1d4ed8', '#15803d']) assert.ok(doc.head.innerHTML.includes(color) || doc.body.innerHTML.includes(color));
+    assert.equal(doc.querySelector('script,img'), null);
+    assert.match(doc.querySelector('.hr-status-legend').textContent, /محدوده موظفی/);
+});
 function fixture(url) {
     return { year: Number(url.searchParams.get('year')), month: Number(url.searchParams.get('month')), staff: staff.map(s => ({
         staff_id: s.id, full_name: s.full_name, is_complete: false, incomplete_days: 1,
@@ -52,7 +85,7 @@ function setup(t) {
     return { w, run, requests, downloads, blobs, handler: fn => { handler = fn; }, tick: () => new Promise(r => setImmediate(r)) };
 }
 
-test('roster icons are beside each name, escaped, accessible; main page never fetches reports', async t => {
+test('roster icons are beside each name, escaped, accessible; calendar does not open a report dialog', async t => {
     const h = setup(t);
     await h.run('loadHrSettings()');
     assert.equal(h.w.document.querySelectorAll('[data-hr-report-staff]').length, 2);
@@ -61,7 +94,8 @@ test('roster icons are beside each name, escaped, accessible; main page never fe
     assert.ok(button.getAttribute('aria-label').includes(staff[0].full_name));
     assert.equal(button.title, button.getAttribute('aria-label'));
     assert.equal(h.w.document.querySelector('#hr-staff-list img'), null);
-    assert.equal(h.requests.some(r => r.url.pathname.includes('/reports/')), false);
+    assert.equal(h.w.document.querySelector('#hrReportModal').classList.contains('hidden'), true);
+    assert.equal(h.run('hrReport.data'), null);
     assert.equal(h.w.document.querySelector('#hr-days-off-admin').open, false);
     button.click();
     await h.tick();
@@ -349,7 +383,7 @@ test('clock action preserves its payload and refreshes only the relevant visible
         await h.run('submitHrClock()');
         await h.tick();
     };
-    const reportCount = () => h.requests.filter(r => r.url.pathname === '/hr/reports/monthly').length;
+    const reportCount = () => h.requests.filter(r => r.url.pathname === '/hr/reports/monthly' && r.url.searchParams.has('staff_id')).length;
     await clock();
     assert.equal(reportCount(), 1);
     const post = h.requests.find(r => r.url.pathname === '/hr/clock');
@@ -426,7 +460,7 @@ test('browser Back closes report and Forward to /hr preserves HR entry without r
     assert.equal(h.w.document.getElementById('hrReportModal').classList.contains('hidden'), true);
     assert.equal(h.run('hrReport.data'), null);
     assert.equal(h.w.document.getElementById('hr-report-html').disabled, true);
-    const count = h.requests.filter(r => r.url.pathname === '/hr/reports/monthly').length;
+    const count = h.requests.filter(r => r.url.pathname === '/hr/reports/monthly' && r.url.searchParams.has('staff_id')).length;
     const forward = new Promise(resolve => h.w.addEventListener('popstate', resolve, { once: true }));
     h.w.history.forward();
     await forward;
@@ -434,7 +468,7 @@ test('browser Back closes report and Forward to /hr preserves HR entry without r
     assert.equal(h.w.location.pathname, '/hr');
     assert.equal(h.w.document.getElementById('hrPage').classList.contains('hidden'), false);
     assert.equal(h.w.document.getElementById('hrReportModal').classList.contains('hidden'), true);
-    assert.equal(h.requests.filter(r => r.url.pathname === '/hr/reports/monthly').length, count);
+    assert.equal(h.requests.filter(r => r.url.pathname === '/hr/reports/monthly' && r.url.searchParams.has('staff_id')).length, count);
     await h.run("openHrReport('one')");
     assert.equal(h.w.document.getElementById('hr-report-excel').disabled, false);
 });

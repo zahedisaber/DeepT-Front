@@ -28,6 +28,60 @@ function setup(t) {
 const row = (staff, start, end, extra = {}) => ({ staff_id: staff, staff_name: staff, clock_in: start, clock_out: end, ...extra });
 const selectDay = (h, day) => h.w.document.querySelector(`[data-hr-day="${day}"]`).click();
 
+test('calendar uses monthly staff/day results for split and clipped shifts, not interval length', async t => {
+    const h = setup(t);
+    const rows = [row('one', '2026-10-24T08:00:00+03:30', '2026-10-24T12:00:00+03:30'), row('one', '2026-10-24T12:00:00+03:30', '2026-10-24T16:00:00+03:30'), row('one', '2026-10-25T22:00:00+03:30', '2026-10-26T06:00:00+03:30')];
+    h.handler(async u => u.pathname === '/hr/reports/monthly' ? response({ year: +u.searchParams.get('year'), month: +u.searchParams.get('month'), staff: [{ staff_id: 'one', days: [
+        { date: '2026-10-24', status: 'present', expected_minutes: 480, absence_minutes: 0, overtime_minutes: 0 },
+        { date: '2026-10-25', status: 'shortfall', expected_minutes: 480, absence_minutes: 360, overtime_minutes: 0 },
+        { date: '2026-10-26', status: 'overtime', expected_minutes: 300, absence_minutes: 0, overtime_minutes: 60 }
+    ] }] }) : response(u.searchParams.has('open_only') ? [] : rows));
+    await h.run('loadHrAttendance()');
+    const queries = h.requests.filter(u => u.pathname === '/hr/reports/monthly');
+    assert.ok(queries.length >= 2 && queries.length <= 3);
+    assert.equal(new Set(queries.map(u => u.search)).size, queries.length);
+    assert.ok(queries.every(u => !u.searchParams.has('staff_id')));
+    assert.equal(h.w.document.querySelectorAll('[data-hr-day="2026-10-24"] .hr-status-within').length, 2);
+    assert.ok(h.w.document.querySelector('[data-hr-day="2026-10-25"] .hr-status-shortfall'));
+    assert.ok(h.w.document.querySelector('[data-hr-day="2026-10-26"] .hr-status-overtime'));
+    selectDay(h, '2026-10-26');
+    assert.ok(h.w.document.querySelector('#hr-attendance-details .hr-status-overtime'));
+    assert.equal(h.run("hrAttendanceMinutes(hrAttendance.buckets.get('2026-10-24'))"), 480);
+    h.run(`hrAttendance.rows.push(${JSON.stringify(row('one', '2026-10-24T17:00:00+03:30', null))});renderHrAttendanceList(hrAttendance.rows)`);
+    assert.equal(h.w.document.querySelectorAll('[data-hr-day="2026-10-24"] .hr-status-within').length, 0);
+});
+
+test('optional status failure leaves attendance/present usable, neutral with warning', async t => {
+    const h = setup(t);
+    h.handler(async u => u.pathname === '/hr/reports/monthly' ? { ok: false } : response([row('one', '2026-10-24T08:00:00Z', u.searchParams.has('open_only') ? null : '2026-10-24T16:00:00Z')]));
+    await h.run('loadHrAttendance()');
+    assert.equal(h.run('hrAttendance.state'), 'ready');
+    assert.ok(h.w.document.querySelector('.hr-timesheet-event'));
+    assert.equal(h.w.document.querySelector('.hr-timesheet-event[class*="hr-status-"]'), null);
+    assert.match(h.w.document.getElementById('hr-attendance-status').textContent, /وضعیت رنگی محاسبه نشد/);
+    assert.match(h.w.document.getElementById('hr-present-now-list').textContent, /one/);
+});
+
+test('status requests are scoped and discard old generations, mismatched months and other staff', async t => {
+    const h = setup(t), old = deferred();
+    h.handler(u => u.pathname === '/hr/reports/monthly' ? old.promise : response([]));
+    const first = h.run('loadHrAttendance()');
+    h.handler(async u => u.pathname === '/hr/reports/monthly' ? response({ year: +u.searchParams.get('year'), month: +u.searchParams.get('month'), staff: [{ staff_id: 'other', days: [{ date: '2026-10-24', status: 'absent' }] }, { staff_id: 'two', days: [{ date: '2026-10-24', status: 'present', expected_minutes: 1, absence_minutes: 0, overtime_minutes: 0 }] }] }) : response([]));
+    h.run("hrAttendance.staffId='two'");
+    await h.run('loadHrAttendance()');
+    assert.ok(h.requests.filter(u => u.pathname === '/hr/reports/monthly').slice(-2).every(u => u.searchParams.get('staff_id') === 'two'));
+    const size = h.run('hrAttendance.statuses.size');
+    old.resolve(response({ year: 1405, month: 8, staff: [{ staff_id: 'old', days: [{ date: '2026-10-24', status: 'absent' }] }] }));
+    await first;
+    assert.equal(h.run('hrAttendance.statuses.size'), size);
+    assert.equal(h.run("hrAttendance.statuses.has('2026-10-24|other')"), false);
+    h.handler(async u => u.pathname === '/hr/reports/monthly' ? response({ year: 0, month: 0, staff: [] }) : response([]));
+    const next = h.run('navigateHrAttendance(1)');
+    assert.equal(h.run('hrAttendance.statuses.size'), 0);
+    await next;
+    assert.equal(h.run('hrAttendance.statusLookup'), 'error');
+});
+
 test('month queries every displayed Saturday..Friday cell, Shamsi labels and real leap/year navigation', async t => {
     const h = setup(t);
     await h.run('loadHrAttendance()');
@@ -194,7 +248,7 @@ test('legacy fallback uses widened absolute UTC bounds, includes final Tehran da
         return response(rows.filter(r => r.clock_in >= u.searchParams.get('from') && r.clock_in < u.searchParams.get('to')), true);
     });
     await h.run('loadHrAttendance()');
-    assert.equal(h.requests.length, 3);
+    assert.equal(h.requests.filter(u => u.pathname === '/hr/attendance').length, 3);
     assert.equal(h.run('hrAttendance.state'), 'ready');
     assert.equal(h.run("hrAttendance.buckets.get('2026-10-24').length"), 1);
     assert.equal(h.run("hrAttendance.buckets.get('2026-10-30').length"), 1);

@@ -150,9 +150,9 @@ test('selected-only monthly samples use queried Shamsi bounds and independent ti
         assert.equal(j.y, data.year); assert.equal(j.m, data.month);
         assert.match(d.reason, /SAMPLE DATA/);
     }
-    assert.deepEqual(days.slice(0, 6).map(d => d.status), ['present', 'present', 'present', 'shortfall', 'absent', 'overtime']);
-    assert.equal(days[1].late_minutes, 20); assert.equal(days[1].absence_minutes, 0); assert.equal(days[1].presence_minutes, 480);
-    assert.equal(days[2].early_departure_minutes, 20); assert.equal(days[2].absence_minutes, 0);
+    assert.deepEqual(days.slice(0, 6).map(d => d.status), ['overtime', 'shortfall', 'shortfall', 'shortfall', 'absent', 'overtime']);
+    assert.equal(days[1].late_minutes, 20); assert.equal(days[1].absence_minutes, 360); assert.equal(days[1].presence_minutes, 120);
+    assert.equal(days[2].early_departure_minutes, 140); assert.equal(days[2].absence_minutes, 120);
     assert.equal(days[3].absence_minutes, 60); assert.equal(days[4].absence_minutes, 480); assert.equal(days[5].overtime_minutes, 60);
     const second = await (await h.api('/hr/reports/monthly?' + query.replace('sample-sara', 'sample-reza'))).json();
     assert.equal(second.staff[0].days[0].expected_minutes, 420);
@@ -163,7 +163,7 @@ test('selected-only monthly samples use queried Shamsi bounds and independent ti
         for (const day of other.staff[0].days) assert.equal(h.run(`gregorianToJalali(new Date('${day.date}T12:00:00')).m`), month);
         assert.ok(!JSON.stringify(other).includes('سارا'));
     }
-    assert.equal((await h.api('/hr/reports/monthly?year=1405&month=8')).status, 400);
+    assert.equal((await (await h.api('/hr/reports/monthly?year=1405&month=8')).json()).staff.length, 2);
     assert.equal((await h.api('/hr/reports/monthly?year=1405&month=13&staff_id=sample-sara')).status, 400);
     h.unchanged();
 });
@@ -198,7 +198,7 @@ test('personal leave and office days off have safe scoped CRUD and affect report
     const other = await (await h.api('/hr/reports/monthly?' + query.replace('sample-sara', 'sample-reza'))).json();
     assert.equal(other.staff[0].days[0].status, 'present');
     assert.equal((await h.api(`/hr/days-off/${saved.id}`, 'DELETE')).status, 200);
-    assert.equal((await (await h.api('/hr/reports/monthly?' + query)).json()).staff[0].days[0].status, 'present');
+    assert.equal((await (await h.api('/hr/reports/monthly?' + query)).json()).staff[0].days[0].status, 'overtime');
     h.unchanged();
 });
 

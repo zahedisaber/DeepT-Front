@@ -33,7 +33,7 @@ deployment are changed here.
 
 ## Interface
 
-- Each roster name has a titled, labelled SVG report action (`data-hr-report-staff`). Reporting opens in `hrReportModal`, never in an all-office card. Opening the HR page does not request a report.
+- Each roster name has a titled, labelled SVG report action (`data-hr-report-staff`). Reporting opens in `hrReportModal`, never in an all-office card. Opening HR does not open or populate the report dialog; independent monthly lookups supply calendar statuses.
 - The selected employee panel has Shamsi year/month controls, six duration totals, and a daily table. The table scrolls horizontally inside the panel on mobile. Explanations and per-day reasons are collapsed.
 - Daily details show scheduled start/end, actual first/last attendance, duration/target/shortfall/overtime, and separate late/early values. Positive late/early cells are highlighted regardless of whether duration was completed. Backend null punctuality values remain unavailable, not zero; provisional shortfall/overtime cells are also unavailable.
 - A compact roster action opens the effective-dated schedule editor. Each Saturday-through-Friday row keeps the duration target and adds optional paired same-day start/end times. Legacy schedules retain durations without inferred timing. History is collapsed; mistaken versions can be deleted with confirmation and recreated.
@@ -81,7 +81,26 @@ warning in present-now. An empty legacy response means no open shifts in the
 received data, not a definitive empty office. Preview attendance responses
 advertise the capability header for both query modes.
 
-`GET /hr/reports/monthly?year=...&month=...&staff_id=...` is always employee-scoped, with `URLSearchParams` and Bearer authentication. The response must match the selected employee and month. Only that employee is retained even if a server accidentally returns more people. Report loading does not depend on the days-off endpoint.
+The report dialog's `GET /hr/reports/monthly?year=...&month=...&staff_id=...` is always employee-scoped, with `URLSearchParams` and Bearer authentication. The response must match the selected employee and month. Only that employee is retained even if a server accidentally returns more people. Report loading does not depend on the days-off endpoint.
+
+Calendar classification independently requests each distinct Shamsi month covered
+by the visible grid (usually two or three), using that endpoint with `staff_id`
+only when the calendar is filtered. Responses are checked against their requested
+year/month and locally filtered to the selected employee, visible dates and each
+response's month. The date/staff map clears before navigation/refresh and shares
+the attendance generation/token guards. Lookups do not delay attendance rendering
+or present-now rendering. Failed/malformed lookups leave affected dates neutral
+and show a small status-not-computed warning. No cache or per-shift duration
+threshold is used. The sample endpoint supports unfiltered calendar lookups while
+employee report dialogs/downloads still retain only their selected employee.
+
+## Status Colors
+
+- Finalized `absent`/`shortfall` or positive absence minutes: red. Positive finalized overtime (including worked days off): blue. Finalized `present` with positive expected minutes and exactly zero absence/overtime: green, labelled "within expected hours", never a punctuality claim.
+- Unknown, future, pending, incomplete, unconfigured, explicitly non-finalized and unworked nonworking days stay neutral. Zero daily amounts are not colored as deficits/overtime. Open/invalid attendance overrides the entire employee/day's calendar color to neutral. Empty calendar dates do not invent absences.
+- Chips and selected-day badges use report employee/day totals, not individual interval lengths. Overnight continuations use the clipped day's map key. Union-duration calculations, shift details and navigation are unchanged. Late/early warnings remain separately amber even when duration meets the target.
+- Report daily shortfall/overtime amounts and status badges share `hr-status-shortfall`, `hr-status-overtime`, `hr-status-within`. Category totals retain red/blue even at zero. Total presence is neutral unless the report is complete and every applicable working day is within expected hours.
+- Light text colors are `#b91c1c`, `#1d4ed8`, `#15803d`; dark colors are `#fca5a5`, `#93c5fd`, `#86efac`, on low-alpha backgrounds. Text labels, chip accessible descriptions and concise legends accompany colors. Downloaded HTML explicitly uses the light palette inline, independent of app theme, with escaped staff/reason content and no remote resources.
 
 `GET /hr/reports/monthly.xlsx` uses the same query and authentication, checks the XLSX MIME type, and downloads the response blob. It is not HTML/CSV renamed as Excel. The local filename is `attendance-Y-M-safeStaffId.xlsx`. The backend owns workbook content, Persian headings, Shamsi dates, authorization, and calculations.
 
@@ -118,15 +137,18 @@ Durable isolated tests use Node's test runner and `jsdom`, without a package/bui
 
 ```powershell
 $env:NODE_PATH = 'C:\Users\Lenovo\AppData\Local\Temp\opencode\node_modules'
-& 'C:\Users\Lenovo\AppData\Local\Temp\opencode\node-v22.16.0-win-x64\node.exe' --check app.js
+& 'C:\Users\Lenovo\AppData\Local\Temp\opencode\hr-status-runtime\node-v22.16.0-win-x64\node.exe' --check app.js
 $env:TZ = 'America/Toronto'
-& 'C:\Users\Lenovo\AppData\Local\Temp\opencode\node-v22.16.0-win-x64\node.exe' --test tests/hr-report.test.cjs tests/hr-preview.test.cjs tests/hr-calendar.test.cjs
+& 'C:\Users\Lenovo\AppData\Local\Temp\opencode\hr-status-runtime\node-v22.16.0-win-x64\node.exe' --test tests/hr-report.test.cjs tests/hr-preview.test.cjs tests/hr-calendar.test.cjs
 ```
 
-Coverage includes no main-page report fetch, accessible roster icons, selected-only/escaped reports, late/early with completed duration, null/provisional values, authenticated XLSX blob downloads and MIME rejection, stale loads/exports, picker selection/clear and work-order compatibility, legacy schedule timing arrays, schedule validation and POST arrays, independent days-off failures/personal scope, roster create/activation/deletion, scope-aware clock refreshes, report year boundaries, navigation/logout teardown, Back/Forward routing, and midflight response/blob invalidation.
+Coverage includes no automatic report dialog, accessible roster icons, selected-only/escaped reports, late/early with completed duration, null/provisional values, authenticated XLSX blob downloads and MIME rejection, stale loads/exports, picker selection/clear and work-order compatibility, legacy schedule timing arrays, schedule validation and POST arrays, independent days-off failures/personal scope, roster create/activation/deletion, scope-aware clock refreshes, report year boundaries, navigation/logout teardown, Back/Forward routing, and midflight response/blob invalidation.
 
-The complete suite passes 42 tests, including 14 calendar tests and 11 preview
-tests. Calendar coverage includes Canadian host timezone, Saturday alignment,
+The complete suite passes 47 tests, including 17 calendar tests and 11 preview
+tests. Status regressions cover provisional/zero/unknown neutrality, semantic
+report and standalone HTML colors, split/overnight employee/day mapping, optional
+lookup failures, staff scoping, month validation and stale generations.
+Calendar coverage includes Canadian host timezone, Saturday alignment,
 real Jalali leap/year bounds, year-straddling weeks, full-grid queries, period
 retention, delayed roster/filter selection, overnight clipping, overlap unions,
 open/invalid records, bounded multi-year open shifts, more/day details, escaping,
@@ -139,6 +161,11 @@ changes, and fractional-minute rounding per staff/day.
 Visual-polish regressions verify month summary counts/durations, accessible count
 labels, weekly clipped Tehran times including 24:00 and next-day 00:00, and
 unchanged explicit open/invalid states.
+
+The temporary `hr-status-browser.cjs` runner in the same opencode temp directory
+checks exact computed status colors, selected-day badges, report categories,
+independent amber timing and page overflow in Chrome at 1440 and 390 pixels in
+light/dark themes. Screenshots use `hr-status-{calendar|report}-{width}-{theme}.png`.
 
 The temporary `C:\Users\Lenovo\AppData\Local\Temp\opencode\hr-calendar-browser.cjs`
 runner checks actual Chrome in both light and dark at 1440, 390 and 320 pixels,
