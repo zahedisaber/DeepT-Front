@@ -7973,18 +7973,83 @@ function isPdfFile(file) {
     return file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
 }
 
-function handleDocFileSelection(file) {
-    if (!file) return;
-    if (!isPdfFile(file)) {
-        showToast('⚠️ فقط فایل PDF پذیرفته می‌شود. لطفاً سند را به‌صورت PDF بارگذاری کنید.');
-        document.getElementById('docFileInput').value = '';
-        return;
-    }
+function isImageFile(file) {
+    return /^image\/(jpeg|png)$/.test(file.type) || /\.(jpe?g|png)$/i.test(file.name || '');
+}
+
+function acceptDocFile(file, label) {
     docSelectedFile = file;
-    document.getElementById('docFileInfo').textContent = `📄 ${file.name} (${(file.size/1024).toFixed(0)} KB)`;
+    document.getElementById('docFileInfo').textContent = label;
     document.getElementById('docFileInfo').classList.remove('hidden');
     document.getElementById('docDropText').classList.add('hidden');
     document.getElementById('submitBtn').disabled = false;
+}
+
+// Pilot: a scanned document's pages are often several separate JPEG/PNG
+// files, not one PDF -- rather than teach every document type's Gemini
+// prompt (and the 3 hardcoded "application/pdf" media types in Back-End) to
+// handle multiple page images, we merge them into a single PDF right here
+// in the browser and hand that off exactly like a normal PDF upload. Zero
+// changes needed anywhere downstream of acceptDocFile().
+async function imagesToPdfFile(imageFiles) {
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+
+    for (let i = 0; i < imageFiles.length; i++) {
+        const file = imageFiles[i];
+        const dataUrl = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+        const img = await new Promise((resolve, reject) => {
+            const el = new Image();
+            el.onload = () => resolve(el);
+            el.onerror = reject;
+            el.src = dataUrl;
+        });
+
+        if (i > 0) pdf.addPage();
+        const scale = Math.min(pageW / img.width, pageH / img.height);
+        const w = img.width * scale;
+        const h = img.height * scale;
+        const format = /png/i.test(file.type) ? 'PNG' : 'JPEG';
+        pdf.addImage(dataUrl, format, (pageW - w) / 2, (pageH - h) / 2, w, h);
+    }
+
+    const blob = pdf.output('blob');
+    return new File([blob], 'scanned-document.pdf', { type: 'application/pdf' });
+}
+
+async function handleDocFilesSelected(fileList) {
+    const files = Array.from(fileList || []);
+    if (!files.length) return;
+
+    if (files.length === 1 && isPdfFile(files[0])) {
+        const file = files[0];
+        acceptDocFile(file, `📄 ${file.name} (${(file.size / 1024).toFixed(0)} KB)`);
+        return;
+    }
+
+    if (files.every(isImageFile)) {
+        document.getElementById('docDropText').classList.remove('hidden');
+        document.getElementById('docDropText').textContent = 'در حال تبدیل عکس‌ها به PDF...';
+        try {
+            const pdfFile = await imagesToPdfFile(files);
+            acceptDocFile(pdfFile, `📄 ${files.length} صفحه اسکن‌شده (${(pdfFile.size / 1024).toFixed(0)} KB)`);
+        } catch (e) {
+            showToast('⚠️ تبدیل عکس‌ها به PDF ناموفق بود. لطفاً دوباره تلاش کنید.');
+            document.getElementById('docDropText').textContent = 'فایل PDF سند، یا عکس (JPEG/PNG) صفحات آن، را اینجا بکشید یا کلیک کنید';
+            document.getElementById('docFileInput').value = '';
+        }
+        return;
+    }
+
+    showToast('⚠️ فقط فایل PDF، یا یک یا چند عکس JPEG/PNG از صفحات سند، پذیرفته می‌شود.');
+    document.getElementById('docFileInput').value = '';
 }
 
 // Drag and drop on document zone
@@ -7995,7 +8060,7 @@ if (docDropZoneEl) {
     docDropZoneEl.addEventListener('drop', e => {
         e.preventDefault();
         docDropZoneEl.classList.remove('drag-over');
-        if (e.dataTransfer.files.length) handleDocFileSelection(e.dataTransfer.files[0]);
+        if (e.dataTransfer.files.length) handleDocFilesSelected(e.dataTransfer.files);
     });
 }
 // fetch() has no built-in timeout -- on a connection that's being
