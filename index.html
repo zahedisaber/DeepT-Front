@@ -1684,17 +1684,11 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
 
         <div class="workspace-panel p-6">
             <h4 class="text-sm font-black mb-2 flex items-center gap-1.5" style="color:var(--text-main);">📋 کارکرد (تایم‌شیت)</h4>
-            <div class="hr-timesheet-toolbar">
-                <div class="hr-timesheet-nav"><button type="button" onclick="navigateHrAttendance(-1)" aria-label="دوره قبل">قبل</button><button type="button" onclick="navigateHrAttendance(0)">امروز</button><button type="button" onclick="navigateHrAttendance(1)" aria-label="دوره بعد">بعد</button></div>
-                <h5 id="hr-attendance-label"></h5>
-                <div class="hr-timesheet-modes" role="group" aria-label="نمای تقویم"><button type="button" data-hr-view="month" onclick="setHrAttendanceView('month')">ماهانه</button><button type="button" data-hr-view="week" onclick="setHrAttendanceView('week')">هفتگی</button></div>
-                <label class="hr-timesheet-filter">کارمند <select id="hr-attendance-staff" onchange="hrAttendance.staffId=this.value;loadHrAttendance()"><option value="">همه کارمندان</option></select></label>
+            <div class="flex items-center gap-2 flex-wrap mb-3">
+                <div class="relative hr-date"><label for="hr-attendance-from-display">از (شمسی)</label><input type="hidden" id="hr-attendance-from" onchange="loadHrAttendance()"><input type="text" readonly id="hr-attendance-from-display" class="auth-input" onclick="toggleJalaliCalendar('hr-attendance-from')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleJalaliCalendar('hr-attendance-from')}" aria-haspopup="dialog"><div id="hr-attendance-from-calendar" class="hidden hr-calendar" role="dialog" aria-label="انتخاب تاریخ شمسی"></div></div>
+                <div class="relative hr-date"><label for="hr-attendance-to-display">تا (شمسی)</label><input type="hidden" id="hr-attendance-to" onchange="loadHrAttendance()"><input type="text" readonly id="hr-attendance-to-display" class="auth-input" onclick="toggleJalaliCalendar('hr-attendance-to')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleJalaliCalendar('hr-attendance-to')}" aria-haspopup="dialog"><div id="hr-attendance-to-calendar" class="hidden hr-calendar" role="dialog" aria-label="انتخاب تاریخ شمسی"></div></div>
             </div>
-            <p id="hr-attendance-coverage" class="hr-note hr-timing-alert hidden" role="status">سرور فعلی قدیمی است؛ داده‌ها ممکن است کامل نباشند. شیفت‌های طولانی که پیش از بازه شروع شده‌اند یا رکوردهای صفحه‌بندی‌شده ممکن است نمایش داده نشوند.</p>
-            <p id="hr-attendance-status" class="hr-note" role="status" aria-live="polite"></p>
-            <div class="hr-timesheet-scroll"><div id="hr-attendance-list"></div></div>
-            <section id="hr-attendance-details" class="hr-timesheet-details" aria-label="جزئیات روز" aria-live="polite"></section>
-            <p class="hr-note">زمان‌ها به وقت تهران است. نبود رکورد به معنی غیبت نیست. فقط شیفت‌های بسته در جمع مدت محاسبه می‌شوند.</p>
+            <div id="hr-attendance-list" class="flex flex-col gap-2"></div>
         </div>
         <details id="hr-days-off-admin" class="workspace-panel p-6" ontoggle="if(this.open) loadHrDaysOff()">
             <summary class="text-sm font-bold">تعطیلی دفتر و مرخصی روزانه</summary>

@@ -9,7 +9,7 @@ const root = path.resolve(__dirname, '..');
 const source = fs.readFileSync(path.join(root, 'app.js'), 'utf8');
 const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-const response = data => ({ ok: true, headers: new Headers({ 'X-HR-Calendar': 'overlap-v1' }), json: async () => data });
+const response = data => ({ ok: true, json: async () => data });
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
 const staff = [{ id: 'one', full_name: '<img src=x onerror=alert(1)> سارا', is_active: true }, { id: 'two', full_name: 'رضا', is_active: true }];
 function fixture(url) {
@@ -167,9 +167,7 @@ test('all HR dates use interactive Shamsi selection/clear, ISO stays hidden; wor
     await h.run("openHrSchedule('one')");
     h.run('initHrDaysOff()');
     assert.equal(h.w.document.querySelectorAll('#hrPage input[type="date"], #hrScheduleModal input[type="date"]').length, 0);
-    assert.equal(h.w.document.getElementById('hr-attendance-from'), null);
-    assert.equal(h.w.document.getElementById('hr-attendance-to'), null);
-    for (const id of ['hr-schedule-from', 'hr-days-off-date']) {
+    for (const id of ['hr-attendance-from', 'hr-attendance-to', 'hr-schedule-from', 'hr-days-off-date']) {
         const hidden = h.w.document.getElementById(id);
         assert.equal(hidden.type, 'hidden');
         let changes = 0;

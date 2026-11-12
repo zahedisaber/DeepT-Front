@@ -73,7 +73,7 @@
     ];
     const schedules = new Map();
     const daysOff = [];
-    const json = (data, status = 200, headers = {}) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json', ...headers } });
+    const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'Content-Type': 'application/json' } });
     const denied = () => json({ detail: 'Sample data preview: این عملیات در پیش‌نمایش مجاز نیست؛ هیچ درخواستی به سرور ارسال نشد.' }, 403);
     const iso = date => window.fmtWeekISO(date);
     function scheduleList(person) {
@@ -87,29 +87,6 @@
         return schedules.get(person.id);
     }
     const time = minutes => minutes == null ? null : `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
-    function attendance(url) {
-        const current = window.hrCurrentMonth();
-        const first = iso(window.jalaliMonthBounds(current.y, current.m).firstDay);
-        const today = window.hrToday();
-        const add = (day, n) => new Date(Date.parse(`${day}T12:00:00Z`) + n * 86400000).toISOString().slice(0, 10);
-        const shift = (id, person, day, start, end, remote = false, next = false) => ({ id, staff_id: person.id, staff_name: person.full_name,
-            clock_in: new Date(`${day}T${start}:00+03:30`).toISOString(),
-            clock_out: end ? new Date(`${next ? add(day, 1) : day}T${end}:00+03:30`).toISOString() : null,
-            is_remote: remote, note: 'SAMPLE DATA - داده نمونه' });
-        const rows = [
-            shift('sample-boundary', staff[0], first, '00:15', '08:15'),
-            shift('sample-remote', staff[1], first, '09:00', '16:00', true),
-            shift('sample-night', staff[0], add(first, 1), '22:00', '06:00', false, true),
-            shift('sample-extra', staff[0], first, '17:00', '18:00'),
-            shift('sample-open', staff[1], today, '08:30', null, true)
-        ];
-        if (url.searchParams.get('open_only') === 'true') return rows.filter(r => r.clock_out == null);
-        const from = url.searchParams.get('from'), to = url.searchParams.get('to');
-        const lo = from ? Date.parse(`${from}T00:00:00+03:30`) : -Infinity;
-        const hi = to ? Date.parse(`${to}T23:59:59.999+03:30`) : Infinity;
-        return rows.filter(r => (!url.searchParams.get('staff_id') || r.staff_id === url.searchParams.get('staff_id')) &&
-            Date.parse(r.clock_in) <= hi && (url.searchParams.get('overlap') === 'true' && r.clock_out ? Date.parse(r.clock_out) > lo : Date.parse(r.clock_in) >= lo));
-    }
     function report(person, year, month) {
         const first = window.jalaliMonthBounds(year, month).firstDay;
         const history = scheduleList(person);
@@ -206,7 +183,7 @@
                 if (p === '/wallet/sample-office') return json({ balance_toman: 0 });
                 if (p === '/announcements/active') return json({ active: false });
                 if (p === '/hr/location') return json({ office_lat: 35.7, office_lng: 51.4 });
-                if (p === '/hr/attendance') return json(attendance(url), 200, { 'X-HR-Calendar': 'overlap-v1' });
+                if (p === '/hr/attendance') return json([]);
                 if (p === '/hr/staff') return json(staff);
                 if (p === '/hr/reports/monthly' || p === '/hr/reports/monthly.xlsx') {
                     const person = staff.find(s => s.id === url.searchParams.get('staff_id'));
