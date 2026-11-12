@@ -1,5 +1,54 @@
 @import url('https://fonts.googleapis.com/css2?family=Vazirmatn:wght@300;400;500;700;900&family=Inter:wght@400;500;600;700;900&display=swap');
 
+/* Staff-specific HR details use the existing workspace palette. */
+.hr-staff-name { display: flex; align-items: center; gap: .35rem; min-width: 0; }
+.hr-icon { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 1px solid var(--border-subtle); border-radius: 9px; background: var(--panel-bg); color: var(--accent); }
+.hr-schedule-action { font-size: 10px; color: var(--text-muted); text-decoration: underline; text-underline-offset: 3px; }
+.hr-overlay { position: fixed; inset: 0; z-index: 160; padding: 20px; background: rgba(0,0,0,.65); display: flex; align-items: center; justify-content: center; overscroll-behavior: contain; }
+.hr-overlay.hidden { display: none; }
+.hr-dialog { width: 660px; max-width: 100%; max-height: calc(100dvh - 40px); overflow-y: auto; overscroll-behavior: contain; border: 1px solid var(--border-subtle); border-radius: 20px; background: var(--card-surface-solid); color: var(--text-main); padding: 24px; direction: rtl; box-shadow: 0 24px 80px #0005; }
+.hr-report-dialog { width: 1180px; }
+.hr-dialog-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
+.hr-dialog-header h2 { font-size: 17px; font-weight: 900; }
+.hr-button { border: 1px solid var(--border-subtle); background: var(--bg-main); color: var(--text-main); border-radius: 9px; padding: 8px 12px; font-size: 12px; font-weight: 700; cursor: pointer; }
+.hr-button:disabled { opacity: .45; cursor: not-allowed; }
+.hr-icon:focus-visible, .hr-button:focus-visible, .hr-dialog :focus-visible, .hr-calendar :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.hr-controls { display: flex; align-items: end; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+.hr-controls label, .hr-date label, .hr-week-row label { display: block; font-size: 11px; color: var(--text-muted); }
+.hr-controls .auth-input { display: block; width: 145px; margin-top: 5px; }
+.hr-note { font-size: 12px; line-height: 1.9; color: var(--text-muted); margin: 14px 0; }
+.hr-note summary, #hr-days-off-admin > summary { cursor: pointer; }
+.hr-date { position: relative; max-width: 100%; width: 210px; }
+.hr-date .auth-input { width: 100%; cursor: pointer; }
+.hr-calendar { position: relative; z-index: 5; width: 280px; max-width: calc(100vw - 90px); padding: 12px; border: 1px solid var(--border-subtle); border-radius: 12px; background: var(--card-surface-solid); box-shadow: 0 8px 20px #0003; margin-top: 6px; }
+.hr-calendar button { min-height: 32px; }
+.hr-totals { display: grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap: 8px; margin: 18px 0; }
+.hr-totals > div { background: var(--bg-main); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 12px; }
+.hr-totals span { display: block; font-size: 11px; color: var(--text-muted); }
+.hr-totals strong { display: block; font-size: 19px; margin-top: 5px; }
+.hr-table-scroll { overflow-x: auto; max-width: 100%; border: 1px solid var(--border-subtle); border-radius: 12px; }
+.hr-report-table { border-collapse: collapse; width: 100%; font-size: 11px; white-space: nowrap; }
+.hr-report-table caption { text-align: right; padding: 12px; color: var(--text-muted); }
+.hr-report-table th, .hr-report-table td { padding: 10px; border-bottom: 1px solid var(--border-subtle); text-align: right; }
+.hr-report-table th { background: var(--bg-main); font-weight: 700; }
+.hr-report-table td details { white-space: normal; max-width: 200px; }
+.hr-timing-alert { background: rgba(245,158,11,.15); color: var(--text-main); font-weight: 900; box-shadow: inset 0 -2px #f59e0b; }
+.hr-week-row { display: grid; grid-template-columns: 70px repeat(3,minmax(0,1fr)); gap: 10px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--border-subtle); }
+.hr-week-row strong { font-size: 12px; }
+.hr-week-row input { width: 100%; min-width: 0; direction: ltr; margin-top: 5px; }
+.hr-day-off-row { display: flex; gap: 12px; justify-content: space-between; align-items: center; font-size: 12px; padding: 10px 0; border-bottom: 1px solid var(--border-subtle); }
+@media (max-width: 640px) {
+    .hr-overlay { padding: 8px; }
+    .hr-dialog { padding: 16px; max-height: calc(100dvh - 16px); border-radius: 16px; }
+    .hr-totals { grid-template-columns: repeat(3,minmax(0,1fr)); }
+    .hr-totals > div { padding: 8px; }
+    .hr-week-row { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 6px; }
+    .hr-week-row strong { grid-column: 1 / -1; }
+    .hr-controls > label { flex: 1 1 120px; }
+    .hr-controls .auth-input { width: 100%; }
+    #hr-staff-list > div { gap: 6px; padding: 8px; }
+}
+
 /* ==========================================================================
    DeepT frontend stylesheet
    --------------------------------------------------------------------------

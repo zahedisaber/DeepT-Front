@@ -610,6 +610,7 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeUserP
 function confirmLogout()   { document.getElementById('logoutOverlay').classList.remove('hidden'); }
 function closeLogoutConfirm() { document.getElementById('logoutOverlay').classList.add('hidden'); }
 function executeLogout() {
+    closeHrDialogs();
     currentUserSession = null;
     lastKnownJobStatuses = {};
     localStorage.removeItem('deept_mock_user');
@@ -750,6 +751,7 @@ async function submitHrClock() {
         // پرسنل now (see index.html) -- refresh its "present now" list so
         // this punch shows up without needing a manual reload.
         loadHrAttendance();
+        refreshVisibleHrReport(data.record?.staff_id);
     } catch (e) {
         status.style.color = '#f87171';
         status.textContent = `❌ ${e.message || 'خطای نامشخص'}`;
@@ -771,8 +773,8 @@ async function loadHrSettings() {
     if (!fromInput.value && !toInput.value) {
         const today = new Date();
         const twoWeeksAgo = new Date(today.getTime() - 13 * 24 * 60 * 60 * 1000);
-        toInput.value = _tehranDateString(today);
-        fromInput.value = _tehranDateString(twoWeeksAgo);
+        setHrDate('hr-attendance-to', _tehranDateString(today));
+        setHrDate('hr-attendance-from', _tehranDateString(twoWeeksAgo));
     }
     await Promise.all([loadHrLocation(), loadHrStaff(), loadHrAttendance()]);
 }
@@ -824,6 +826,7 @@ async function loadHrStaff() {
         hrStaffList = [];
     }
     renderHrStaffList();
+    if (document.getElementById('hr-days-off-admin').open) initHrDaysOff();
 }
 
 // Small fixed palette (not random) so a staff member's avatar color stays
@@ -853,10 +856,11 @@ function renderHrStaffList() {
         row.style.cssText = `background:var(--bg-main);border:1px solid var(--border-subtle);opacity:${s.is_active ? '1' : '.6'};`;
         const initial = (s.full_name || '؟').trim().charAt(0) || '؟';
         row.innerHTML = `
-          <div class="w-9 h-9 rounded-full flex items-center justify-center font-black text-sm shrink-0" style="background:${_hrAvatarColor(s.id)};color:#0a0a0a;">${initial}</div>
+          <div class="w-9 h-9 rounded-full flex items-center justify-center font-black text-sm shrink-0" style="background:${_hrAvatarColor(s.id)};color:#0a0a0a;">${escapeHtml(initial)}</div>
           <div style="flex:1;min-width:0;">
-            <div class="text-xs font-bold truncate" style="color:var(--text-main);">${s.full_name}</div>
-            <div class="text-[10px] truncate" style="color:var(--text-muted);">${s.role || 'بدون سمت مشخص'}</div>
+            <div class="hr-staff-name"><span class="text-xs font-bold truncate" style="color:var(--text-main);">${escapeHtml(s.full_name)}</span><button type="button" class="hr-icon" data-hr-report-staff="${escapeHtml(String(s.id))}" title="گزارش کارکرد ${escapeHtml(s.full_name)}" aria-label="گزارش کارکرد ${escapeHtml(s.full_name)}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M8 17v-3m4 3v-6m4 6v-4"/></svg></button></div>
+            <div class="text-[10px] truncate" style="color:var(--text-muted);">${escapeHtml(s.role || 'بدون سمت مشخص')}</div>
+            <button type="button" class="hr-schedule-action" data-hr-schedule-staff="${escapeHtml(String(s.id))}">برنامه کاری</button>
           </div>
           <span class="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0" style="background:${s.is_active ? 'rgba(52,199,89,.12);color:#34c759' : 'rgba(148,148,148,.15);color:#999'};">${s.is_active ? '● فعال' : '○ غیرفعال'}</span>
           <div class="flex items-center gap-1 shrink-0">
@@ -884,6 +888,10 @@ document.getElementById('addHrStaffModal').addEventListener('click', function(e)
 });
 
 document.addEventListener('click', (e) => {
+    const reportBtn = e.target.closest('[data-hr-report-staff]');
+    if (reportBtn) { openHrReport(reportBtn.dataset.hrReportStaff, reportBtn); return; }
+    const scheduleBtn = e.target.closest('[data-hr-schedule-staff]');
+    if (scheduleBtn) { openHrSchedule(scheduleBtn.dataset.hrScheduleStaff, scheduleBtn); return; }
     const toggleBtn = e.target.closest('[data-hr-toggle-staff]');
     if (toggleBtn) {
         toggleHrStaffActive(toggleBtn.dataset.hrToggleStaff, toggleBtn.dataset.hrActive !== 'true');
@@ -912,6 +920,8 @@ async function deleteHrStaff(staffId) {
             method: 'DELETE', headers: { 'Authorization': `Bearer ${getToken()}` }
         });
         if (!res.ok) throw new Error();
+        if (hrReport.staffId === String(staffId)) closeHrReport();
+        if (hrSchedule.staffId === String(staffId)) closeHrSchedule();
         await loadHrStaff();
     } catch (e) { /* no-op on failure -- row stays visible, translator can retry */ }
 }
@@ -1034,6 +1044,364 @@ function renderHrAttendanceList(rows) {
         list.appendChild(row);
     });
 }
+
+// ═══════════════════════════════════════════════════════════
+// HR STAFF REPORTS AND SCHEDULES
+// ═══════════════════════════════════════════════════════════
+// HR reports are deliberately loaded only after choosing one employee.
+const hrReport = { staffId: null, version: 0, data: null, pending: false, exporting: false, opener: null };
+const hrSchedule = { staffId: null, version: 0, history: [], opener: null };
+const HR_WEEKDAYS = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه'];
+const HR_DAY_STATUS = { present: 'حاضر', absent: 'غایب', shortfall: 'کسری حضور', overtime: 'اضافه‌کار', pending: 'در جریان', incomplete: 'ناقص', future: 'آینده', not_configured: 'بدون برنامه', day_off: 'تعطیل / مرخصی' };
+
+function hrDateDisplay(iso) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(iso || '')) return '';
+    const date = new Date(`${iso}T12:00:00`);
+    if (!Number.isFinite(date.getTime()) || fmtWeekISO(date) !== iso) return '';
+    return formatIsoAsJalaliDisplay(iso);
+}
+function setHrDate(id, iso) {
+    document.getElementById(id).value = hrDateDisplay(iso) ? iso : '';
+    document.getElementById(`${id}-display`).value = hrDateDisplay(iso);
+}
+function hrDatePicker(id, label) {
+    return `<div class="relative hr-date"><label for="${id}-display">${label} (شمسی)</label><input type="hidden" id="${id}"><input type="text" id="${id}-display" class="auth-input" readonly placeholder="انتخاب تاریخ" onclick="toggleJalaliCalendar('${id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleJalaliCalendar('${id}')}" aria-haspopup="dialog"><div id="${id}-calendar" class="hidden hr-calendar" role="dialog" aria-label="انتخاب تاریخ شمسی"></div></div>`;
+}
+function hrToday() { return _tehranDateString(new Date()); }
+function hrCurrentMonth() { return gregorianToJalali(new Date(`${hrToday()}T12:00:00`)); }
+function hrMonthOptions() { return PERSIAN_MONTHS_FA.map((m, i) => `<option value="${i + 1}">${m}</option>`).join(''); }
+function hrDuration(minutes) {
+    if (minutes == null || !Number.isFinite(Number(minutes))) return '—';
+    return `${toPersianDigits(Math.floor(minutes / 60))}:${toPersianDigits(String(minutes % 60).padStart(2, '0'))}`;
+}
+function hrStaffName(id) { return hrStaffList.find(s => String(s.id) === String(id))?.full_name || 'کارمند'; }
+function hrShowDialog(id) {
+    closeJalaliCalendar();
+    document.getElementById(id).classList.remove('hidden');
+    const dialog = document.querySelector(`#${id} .hr-dialog`);
+    dialog.scrollTop = 0;
+    dialog.focus();
+}
+function hrReportVisible() { return !document.getElementById('hrReportModal').classList.contains('hidden'); }
+function syncHrExportButtons() {
+    const disabled = !hrReportVisible() || !hrReport.data || hrReport.pending || hrReport.exporting;
+    ['hr-report-html', 'hr-report-excel'].forEach(id => { document.getElementById(id).disabled = disabled; });
+}
+function openHrReport(staffId, opener) {
+    hrReport.staffId = String(staffId);
+    hrReport.opener = opener;
+    document.getElementById('hr-report-title').textContent = `گزارش کارکرد · ${hrStaffName(staffId)}`;
+    const current = hrCurrentMonth();
+    document.getElementById('hr-report-year').value = current.y;
+    document.getElementById('hr-report-month').innerHTML = hrMonthOptions();
+    document.getElementById('hr-report-month').value = current.m;
+    hrShowDialog('hrReportModal');
+    return loadHrReport();
+}
+function closeHrReport(restoreFocus = true) {
+    hrReport.version++;
+    hrReport.data = null;
+    hrReport.staffId = null;
+    hrReport.pending = false;
+    hrReport.exporting = false;
+    closeJalaliCalendar();
+    document.getElementById('hrReportModal').classList.add('hidden');
+    syncHrExportButtons();
+    if (restoreFocus && !document.getElementById('hrPage').classList.contains('hidden')) hrReport.opener?.focus();
+}
+function closeHrDialogs() {
+    // These overlays live outside hrPage, so hiding a view alone is not enough.
+    closeHrReport(false);
+    closeHrSchedule(false);
+}
+function hrReportParams() {
+    const year = Number(document.getElementById('hr-report-year').value);
+    const month = Number(document.getElementById('hr-report-month').value);
+    if (!Number.isInteger(year) || year < 1300 || year > 1600 || !Number.isInteger(month) || month < 1 || month > 12) throw new Error('سال و ماه شمسی معتبر وارد کنید.');
+    return new URLSearchParams({ year, month, staff_id: hrReport.staffId });
+}
+document.getElementById('hr-report-year').addEventListener('input', () => {
+    hrReport.version++;
+    hrReport.data = null;
+    hrReport.pending = false;
+    hrReport.exporting = false;
+    document.getElementById('hr-report-content').innerHTML = '';
+    document.getElementById('hr-report-status').textContent = 'برای دریافت گزارش، سال را تکمیل و تأیید کنید.';
+    syncHrExportButtons();
+});
+async function loadHrReport() {
+    if (!hrReportVisible() || !hrReport.staffId) return;
+    const version = ++hrReport.version;
+    hrReport.data = null;
+    hrReport.pending = true;
+    hrReport.exporting = false;
+    syncHrExportButtons();
+    document.getElementById('hr-report-content').innerHTML = '';
+    const status = document.getElementById('hr-report-status');
+    status.textContent = 'در حال دریافت گزارش…';
+    try {
+        const params = hrReportParams();
+        const res = await fetch(`${CORE}/hr/reports/monthly?${params}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+        if (!res.ok) throw new Error('دریافت گزارش ناموفق بود. دوباره تلاش کنید.');
+        const data = await res.json();
+        if (version !== hrReport.version || !hrReportVisible()) return;
+        const staff = data.staff?.find(s => String(s.staff_id) === hrReport.staffId);
+        if (!staff || !Array.isArray(staff.days) || Number(data.year) !== Number(params.get('year')) || Number(data.month) !== Number(params.get('month'))) throw new Error('پاسخ گزارش با کارمند یا ماه انتخاب‌شده مطابقت ندارد.');
+        // Never retain any other staff returned by a misconfigured server.
+        hrReport.data = { year: data.year, month: data.month, staff, params: params.toString() };
+        document.getElementById('hr-report-content').innerHTML = hrReportMarkup(hrReport.data);
+        status.textContent = staff.is_complete ? 'گزارش آماده است.' : `گزارش ناقص / موقت · روزهای ناقص: ${toPersianDigits(staff.incomplete_days || 0)}`;
+    } catch (error) {
+        if (version === hrReport.version) { hrReport.data = null; status.textContent = error.message; }
+    } finally {
+        if (version === hrReport.version) { hrReport.pending = false; syncHrExportButtons(); }
+    }
+}
+function hrReportMarkup(data) {
+    const s = data.staff;
+    const totals = [['حضور', s.total_presence_minutes], ['موظفی', s.total_expected_minutes], ['کسری / غیبت', s.total_absence_minutes], ['اضافه‌کار', s.total_overtime_minutes], ['تأخیر ورود', s.total_late_minutes], ['خروج زودهنگام', s.total_early_departure_minutes]];
+    const rows = s.days.map(d => {
+        const provisional = ['pending', 'future', 'incomplete', 'not_configured'].includes(d.status);
+        const values = [hrDateDisplay(d.date), d.scheduled_start || '—', d.scheduled_end || '—', d.first_arrival || '—', d.last_departure || '—', hrDuration(d.presence_minutes), hrDuration(d.expected_minutes), provisional ? '—' : hrDuration(d.absence_minutes), provisional ? '—' : hrDuration(d.overtime_minutes), hrDuration(d.late_minutes), hrDuration(d.early_departure_minutes)];
+        return `<tr>${values.map((value, i) => `<td${((i === 9 && d.late_minutes > 0) || (i === 10 && d.early_departure_minutes > 0)) ? ' class="hr-timing-alert"' : ''}>${escapeHtml(String(value))}</td>`).join('')}<td>${escapeHtml(HR_DAY_STATUS[d.status] || 'نامشخص')}${d.reason ? `<details><summary>توضیح</summary>${escapeHtml(d.reason)}</details>` : ''}</td></tr>`;
+    }).join('');
+    return `<div class="hr-totals">${totals.map(([label, value]) => `<div><span>${label}</span><strong>${hrDuration(value)}</strong></div>`).join('')}</div><div class="hr-table-scroll" tabindex="0" role="region" aria-label="جزئیات روزانه کارکرد"><table class="hr-report-table"><caption>کارکرد روزانه · ${escapeHtml(s.full_name)} · ${escapeHtml(PERSIAN_MONTHS_FA[data.month - 1])} ${toPersianDigits(data.year)}</caption><thead><tr>${['تاریخ شمسی', 'شروع مقرر', 'پایان مقرر', 'اولین ورود', 'آخرین خروج', 'حضور', 'موظفی', 'کسری', 'اضافه‌کار', 'تأخیر', 'خروج زودهنگام', 'وضعیت'].map(h => `<th scope="col">${h}</th>`).join('')}</tr></thead><tbody>${rows || '<tr><td colspan="12">رکوردی یافت نشد.</td></tr>'}</tbody></table></div>`;
+}
+function hrReportDocument(data) {
+    const markup = hrReportMarkup(data).replaceAll('<details>', '<details open>');
+    return `<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(data.staff.full_name)} · گزارش کارکرد</title><style>body{font:14px Tahoma,sans-serif;color:#17202a;margin:24px}h1{font-size:20px}.hr-totals{display:flex;flex-wrap:wrap;gap:20px;margin:24px 0}.hr-totals strong{display:block}.hr-table-scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:12px}th,td{border:1px solid #bbb;padding:8px;text-align:right}.hr-timing-alert{background:#fff0dc;color:#9c3800;font-weight:bold}caption{text-align:right;padding:12px}summary{cursor:pointer}@media print{body{margin:0}table{font-size:9px}th,td{padding:4px}.hr-table-scroll{overflow:visible}thead{display:table-header-group}tr{break-inside:avoid}@page{size:A4 landscape;margin:12mm}</style></head><body><h1>گزارش کارکرد · ${escapeHtml(data.staff.full_name)}</h1><p>${escapeHtml(PERSIAN_MONTHS_FA[data.month - 1])} ${toPersianDigits(data.year)} · ${data.staff.is_complete ? 'گزارش کامل' : 'گزارش ناقص / موقت'}</p>${markup}<p>زمان‌ها به وقت تهران و مدت‌ها به صورت ساعت:دقیقه هستند. تأخیر و خروج زودهنگام جدا از کسری مدت حضور است. خط تیره: قابل محاسبه نیست.</p></body></html>`;
+}
+function downloadHrBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+async function exportHrReport(format) {
+    if (!hrReportVisible() || !hrReport.data || hrReport.pending || hrReport.exporting) return;
+    const data = hrReport.data;
+    // An edited year may not have blurred yet when a download is requested.
+    try { if (hrReportParams().toString() !== data.params) return; } catch { return; }
+    const version = hrReport.version;
+    hrReport.exporting = true;
+    syncHrExportButtons();
+    try {
+        let blob;
+        if (format === 'xlsx') {
+            const res = await fetch(`${CORE}/hr/reports/monthly.xlsx?${data.params}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+            if (!res.ok || !res.headers.get('content-type')?.includes('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')) throw new Error('دریافت فایل Excel ناموفق بود. دوباره تلاش کنید.');
+            blob = await res.blob();
+        } else {
+            blob = new Blob([hrReportDocument(data)], { type: 'text/html;charset=utf-8' });
+        }
+        if (version !== hrReport.version || !hrReportVisible() || hrReport.data !== data || hrReportParams().toString() !== data.params) return;
+        const safeId = hrReport.staffId.replace(/[^a-zA-Z0-9_-]/g, '_');
+        downloadHrBlob(blob, `attendance-${data.year}-${data.month}-${safeId}.${format === 'xlsx' ? 'xlsx' : 'html'}`);
+    } catch (error) {
+        if (version === hrReport.version) {
+            document.getElementById('hr-report-status').textContent = error.message;
+            hrReport.data = null;
+        }
+    } finally {
+        if (version === hrReport.version) { hrReport.exporting = false; syncHrExportButtons(); }
+    }
+}
+function refreshVisibleHrReport(staffId = null) {
+    if (hrReportVisible() && (!staffId || String(staffId) === hrReport.staffId)) return loadHrReport();
+}
+function closeHrSchedule(restoreFocus = true) {
+    hrSchedule.version++;
+    hrSchedule.staffId = null;
+    closeJalaliCalendar();
+    document.getElementById('hrScheduleModal').classList.add('hidden');
+    if (restoreFocus && !document.getElementById('hrPage').classList.contains('hidden')) hrSchedule.opener?.focus();
+}
+function hrMinutesTime(value) { return value == null ? '' : `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`; }
+function hrTimeMinutes(value) {
+    if (!value) return null;
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) throw new Error('ساعت معتبر بین ۰۰:۰۰ تا ۲۳:۵۹ وارد کنید.');
+    const [h, m] = value.split(':').map(Number);
+    return h * 60 + m;
+}
+function renderHrScheduleWeek(schedule = {}) {
+    document.getElementById('hr-schedule-week').innerHTML = HR_WEEKDAYS.map((day, i) => `<div class="hr-week-row"><strong>${day}</strong><label>مدت هدف (ساعت)<input id="hr-week-${i}" class="auth-input" type="number" min="0" max="24" step="0.0166666667" value="${(schedule.weekly_minutes?.[i] || 0) / 60}" oninput="if(Number(this.value)===0){document.getElementById('hr-start-${i}').value='';document.getElementById('hr-end-${i}').value=''}"></label><label>شروع (اختیاری)<input id="hr-start-${i}" class="auth-input" type="time" value="${hrMinutesTime(schedule.weekly_minutes?.[i] ? schedule.weekly_start_minutes?.[i] : null)}"></label><label>پایان (اختیاری)<input id="hr-end-${i}" class="auth-input" type="time" value="${hrMinutesTime(schedule.weekly_minutes?.[i] ? schedule.weekly_end_minutes?.[i] : null)}"></label></div>`).join('');
+}
+async function openHrSchedule(staffId, opener) {
+    hrSchedule.staffId = String(staffId);
+    hrSchedule.opener = opener;
+    hrSchedule.history = [];
+    const version = ++hrSchedule.version;
+    document.getElementById('hr-schedule-title').textContent = `برنامه کاری · ${hrStaffName(staffId)}`;
+    document.getElementById('hr-schedule-date').innerHTML = hrDatePicker('hr-schedule-from', 'شروع اعتبار');
+    setHrDate('hr-schedule-from', hrToday());
+    renderHrScheduleWeek();
+    document.getElementById('hr-schedule-history').innerHTML = '';
+    document.getElementById('hr-schedule-save').disabled = true;
+    const status = document.getElementById('hr-schedule-status');
+    status.textContent = 'در حال دریافت…';
+    hrShowDialog('hrScheduleModal');
+    try {
+        const res = await fetch(`${CORE}/hr/staff/${encodeURIComponent(staffId)}/schedules`, { headers: { Authorization: `Bearer ${getToken()}` } });
+        if (!res.ok) throw new Error('دریافت برنامه ناموفق بود.');
+        const history = await res.json();
+        if (version !== hrSchedule.version) return;
+        if (!Array.isArray(history)) throw new Error('پاسخ برنامه معتبر نیست.');
+        hrSchedule.history = history.sort((a, b) => b.effective_from.localeCompare(a.effective_from));
+        applyHrScheduleForDate();
+        document.getElementById('hr-schedule-from').onchange = applyHrScheduleForDate;
+        document.getElementById('hr-schedule-history').innerHTML = history.map(s => `<p>${escapeHtml(hrDateDisplay(s.effective_from))} · ${s.weekly_minutes.map(hrDuration).join(' / ')} <button type="button" class="hr-button" data-hr-delete-schedule="${escapeHtml(String(s.id))}">حذف</button></p>`).join('') || 'هنوز برنامه‌ای ثبت نشده است.';
+        status.textContent = '';
+        document.getElementById('hr-schedule-save').disabled = false;
+        return true;
+    } catch (error) { if (version === hrSchedule.version) status.textContent = error.message; }
+}
+function applyHrScheduleForDate() {
+    const date = document.getElementById('hr-schedule-from').value;
+    renderHrScheduleWeek(hrSchedule.history.find(s => s.effective_from <= date) || {});
+}
+function hrSchedulePayload() {
+    const effective_from = document.getElementById('hr-schedule-from').value;
+    if (!hrDateDisplay(effective_from)) throw new Error('تاریخ شروع اعتبار را انتخاب کنید.');
+    const weekly_minutes = [], weekly_start_minutes = [], weekly_end_minutes = [];
+    for (let i = 0; i < 7; i++) {
+        const raw = document.getElementById(`hr-week-${i}`).value;
+        const hours = Number(raw);
+        if (!raw || !Number.isFinite(hours) || hours < 0 || hours > 24) throw new Error(`${HR_WEEKDAYS[i]}: مدت هدف باید بین صفر و ۲۴ ساعت باشد.`);
+        const minutes = Math.round(hours * 60);
+        const start = hrTimeMinutes(document.getElementById(`hr-start-${i}`).value);
+        const end = hrTimeMinutes(document.getElementById(`hr-end-${i}`).value);
+        if ((start == null) !== (end == null)) throw new Error(`${HR_WEEKDAYS[i]}: شروع و پایان را هر دو وارد کنید یا هر دو را خالی بگذارید.`);
+        if (minutes === 0 && start != null) throw new Error(`${HR_WEEKDAYS[i]}: روز با مدت صفر نباید ساعت شروع و پایان داشته باشد.`);
+        if (start != null && (end <= start || minutes > end - start)) throw new Error(`${HR_WEEKDAYS[i]}: پایان باید بعد از شروع در همان روز و فاصله آن‌ها حداقل به اندازه مدت هدف باشد.`);
+        weekly_minutes.push(minutes); weekly_start_minutes.push(start); weekly_end_minutes.push(end);
+    }
+    return { effective_from, weekly_minutes, weekly_start_minutes, weekly_end_minutes };
+}
+async function saveHrSchedule() {
+    const version = hrSchedule.version, staffId = hrSchedule.staffId;
+    if (!staffId || document.getElementById('hr-schedule-save').disabled) return;
+    const status = document.getElementById('hr-schedule-status');
+    try {
+        const payload = hrSchedulePayload();
+        document.getElementById('hr-schedule-save').disabled = true;
+        const res = await fetch(`${CORE}/hr/staff/${encodeURIComponent(staffId)}/schedules`, { method: 'POST', headers: { Authorization: `Bearer ${getToken()}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        if (res.status === 409) {
+            if (version !== hrSchedule.version) return;
+            document.getElementById('hr-schedule-history').closest('details').open = true;
+            throw new Error('برای تاریخ انتخاب‌شده قبلاً برنامه‌ای ثبت شده است. اگر نسخه قبلی اشتباه است، آن را از تاریخچه حذف کنید و سپس برنامه را دوباره ذخیره کنید. برای برنامه جدید، تاریخ شروع دیگری انتخاب کنید.');
+        }
+        if (!res.ok) throw new Error('ذخیره برنامه ناموفق بود.');
+        refreshVisibleHrReport(staffId);
+        if (version !== hrSchedule.version) return;
+        if (await openHrSchedule(staffId, hrSchedule.opener)) document.getElementById('hr-schedule-status').textContent = 'برنامه ذخیره شد.';
+    } catch (error) { if (version === hrSchedule.version) status.textContent = error.message; }
+    finally { if (version === hrSchedule.version) document.getElementById('hr-schedule-save').disabled = false; }
+}
+
+let hrDaysOffVersion = 0;
+function initHrDaysOff() {
+    const controls = document.getElementById('hr-days-off-controls');
+    if (!controls.innerHTML) {
+        controls.innerHTML = `${hrDatePicker('hr-days-off-date', 'روز تعطیل / مرخصی')}<label>برای<select id="hr-days-off-staff" class="auth-input" onchange="loadHrDaysOff()"></select></label><label>دلیل<input id="hr-days-off-reason" class="auth-input" maxlength="200"></label><button type="button" id="hr-days-off-save" class="hr-button" onclick="saveHrDayOff()">ثبت روز کامل</button><label>سال شمسی<input id="hr-days-off-year" class="auth-input" type="number" min="1200" max="1600" onchange="loadHrDaysOff()"></label><label>ماه شمسی<select id="hr-days-off-month" class="auth-input" onchange="loadHrDaysOff()">${hrMonthOptions()}</select></label>`;
+        const j = hrCurrentMonth();
+        document.getElementById('hr-days-off-year').value = j.y;
+        document.getElementById('hr-days-off-month').value = j.m;
+        setHrDate('hr-days-off-date', hrToday());
+    }
+    const select = document.getElementById('hr-days-off-staff');
+    const selected = select.value;
+    select.innerHTML = '<option value="">کل دفتر (تعطیلی)</option>' + hrStaffList.map(s => `<option value="${escapeHtml(String(s.id))}">${escapeHtml(s.full_name)} (مرخصی)</option>`).join('');
+    if ([...select.options].some(o => o.value === selected)) select.value = selected;
+}
+async function loadHrDaysOff() {
+    initHrDaysOff();
+    const version = ++hrDaysOffVersion;
+    const status = document.getElementById('hr-days-off-status');
+    const list = document.getElementById('hr-days-off-list');
+    list.innerHTML = '';
+    status.textContent = 'در حال دریافت…';
+    try {
+        const year = Number(document.getElementById('hr-days-off-year').value), month = Number(document.getElementById('hr-days-off-month').value);
+        if (!Number.isInteger(year) || year < 1200 || year > 1600 || !Number.isInteger(month) || month < 1 || month > 12) throw new Error('سال و ماه شمسی معتبر انتخاب کنید.');
+        const { firstDay, lastDay } = jalaliMonthBounds(year, month);
+        const staffId = document.getElementById('hr-days-off-staff').value;
+        const params = new URLSearchParams({ from: fmtWeekISO(firstDay), to: fmtWeekISO(lastDay) });
+        const res = await fetch(`${CORE}/hr/days-off?${params}`, { headers: { Authorization: `Bearer ${getToken()}` } });
+        if (!res.ok) throw new Error('دریافت تعطیلی‌ها ناموفق بود.');
+        const days = await res.json();
+        if (version !== hrDaysOffVersion) return;
+        list.innerHTML = days.filter(d => String(d.staff_id || '') === staffId).map(d => `<div class="hr-day-off-row"><span>${escapeHtml(hrDateDisplay(d.date))} · ${escapeHtml(d.reason || 'روز کامل')}</span><button type="button" class="hr-button" data-hr-delete-day-off="${escapeHtml(String(d.id))}" data-hr-day-off-staff="${escapeHtml(String(d.staff_id || ''))}">حذف</button></div>`).join('');
+        status.textContent = list.innerHTML ? '' : 'در این ماه موردی ثبت نشده است.';
+    } catch (error) { if (version === hrDaysOffVersion) status.textContent = error.message; }
+}
+async function saveHrDayOff() {
+    const status = document.getElementById('hr-days-off-status');
+    const button = document.getElementById('hr-days-off-save');
+    if (button.disabled) return;
+    const date = document.getElementById('hr-days-off-date').value;
+    const staff_id = document.getElementById('hr-days-off-staff').value || null;
+    if (!hrDateDisplay(date)) { status.textContent = 'تاریخ شمسی را انتخاب کنید.'; return; }
+    const reason = document.getElementById('hr-days-off-reason').value.trim();
+    if (!reason) { status.textContent = 'دلیل تعطیلی / مرخصی را وارد کنید.'; return; }
+    button.disabled = true;
+    try {
+        const res = await fetch(`${CORE}/hr/days-off`, { method: 'POST', headers: { Authorization: `Bearer ${getToken()}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ date, staff_id, reason }) });
+        if (!res.ok) throw new Error('ثبت تعطیلی / مرخصی ناموفق بود.');
+        refreshVisibleHrReport(staff_id);
+        const j = gregorianToJalali(new Date(`${date}T12:00:00`));
+        document.getElementById('hr-days-off-year').value = j.y;
+        document.getElementById('hr-days-off-month').value = j.m;
+        await loadHrDaysOff();
+    } catch (error) { status.textContent = error.message; }
+    finally { button.disabled = false; }
+}
+document.addEventListener('click', async e => {
+    const scheduleButton = e.target.closest('[data-hr-delete-schedule]');
+    if (scheduleButton && !scheduleButton.disabled && hrSchedule.staffId && confirm('این نسخه برنامه حذف شود؟ محاسبه کارکرد از تاریخ اعتبار آن تغییر خواهد کرد.')) {
+        const staffId = hrSchedule.staffId, version = hrSchedule.version;
+        scheduleButton.disabled = true;
+        try {
+            const res = await fetch(`${CORE}/hr/staff/${encodeURIComponent(staffId)}/schedules/${encodeURIComponent(scheduleButton.dataset.hrDeleteSchedule)}`, { method: 'DELETE', headers: { Authorization: `Bearer ${getToken()}` } });
+            if (!res.ok) throw new Error('حذف برنامه ناموفق بود.');
+            refreshVisibleHrReport(staffId);
+            if (version === hrSchedule.version) await openHrSchedule(staffId, hrSchedule.opener);
+        } catch (error) { if (version === hrSchedule.version) document.getElementById('hr-schedule-status').textContent = error.message; scheduleButton.disabled = false; }
+        return;
+    }
+    const button = e.target.closest('[data-hr-delete-day-off]');
+    if (!button || button.disabled || !confirm('این تعطیلی / مرخصی حذف شود؟')) return;
+    button.disabled = true;
+    try {
+        const res = await fetch(`${CORE}/hr/days-off/${encodeURIComponent(button.dataset.hrDeleteDayOff)}`, { method: 'DELETE', headers: { Authorization: `Bearer ${getToken()}` } });
+        if (!res.ok) throw new Error('حذف ناموفق بود.');
+        refreshVisibleHrReport(button.dataset.hrDayOffStaff || null);
+        await loadHrDaysOff();
+    } catch (error) { document.getElementById('hr-days-off-status').textContent = error.message; button.disabled = false; }
+});
+['hrReportModal', 'hrScheduleModal'].forEach(id => {
+    document.getElementById(id).addEventListener('click', e => {
+        if (e.target.id === id) id === 'hrReportModal' ? closeHrReport() : closeHrSchedule();
+    });
+});
+document.addEventListener('keydown', e => {
+    const modal = ['hrScheduleModal', 'hrReportModal'].map(id => document.getElementById(id)).find(el => !el.classList.contains('hidden'));
+    if (!modal) return;
+    if (e.key === 'Escape') {
+        if (jalaliCalendarOpenFor) closeJalaliCalendar();
+        else modal.id === 'hrReportModal' ? closeHrReport() : closeHrSchedule();
+        e.preventDefault();
+    }
+    if (e.key === 'Tab') {
+        const items = [...modal.querySelectorAll('button:not(:disabled), input:not([type="hidden"]):not(:disabled), select:not(:disabled), summary, [tabindex="0"]')].filter(el => el.getClientRects().length);
+        const first = items[0], last = items.at(-1);
+        if (e.shiftKey && (document.activeElement === first || !items.includes(document.activeElement))) { e.preventDefault(); last?.focus(); }
+        else if (!e.shiftKey && (document.activeElement === last || !items.includes(document.activeElement))) { e.preventDefault(); first?.focus(); }
+    }
+});
 
 // ═══════════════════════════════════════════════════════════
 // PROFILE
@@ -3144,6 +3512,7 @@ function closeClientsWorkspace(pushHistory = true) {
 }
 
 function showLandingView() {
+    closeHrDialogs();
     const lp = document.getElementById('landingPage');
     if (lp) lp.style.display = '';
     const hb = document.querySelector('.header-bar');
@@ -4562,22 +4931,24 @@ let jalaliCalendarViewMonth = null;
 
 function toggleJalaliCalendar(baseId) {
     if (jalaliCalendarOpenFor === baseId) { closeJalaliCalendar(); return; }
+    closeJalaliCalendar();
     const popup = document.getElementById(baseId + '-calendar');
     const hidden = document.getElementById(baseId);
     if (!popup || !hidden) return;
 
     jalaliCalendarOpenFor = baseId;
     let j;
-    if (hidden.value) {
+    if (hidden.value && hrDateDisplay(hidden.value)) {
         const [gy, gm, gd] = hidden.value.split('-').map(Number);
         j = gregorianToJalali(new Date(gy, gm - 1, gd));
     } else {
-        j = gregorianToJalali(new Date());
+        j = baseId.startsWith('hr-') ? hrCurrentMonth() : gregorianToJalali(new Date());
     }
     jalaliCalendarViewYear = j.y;
     jalaliCalendarViewMonth = j.m;
     renderJalaliCalendar();
     popup.classList.remove('hidden');
+    popup.querySelector('button')?.focus();
 }
 
 function closeJalaliCalendar() {
@@ -4590,7 +4961,9 @@ function jalaliCalendarShiftMonth(n) {
     jalaliCalendarViewMonth += n;
     if (jalaliCalendarViewMonth > 12) { jalaliCalendarViewMonth = 1; jalaliCalendarViewYear++; }
     if (jalaliCalendarViewMonth < 1) { jalaliCalendarViewMonth = 12; jalaliCalendarViewYear--; }
+    if (jalaliCalendarOpenFor?.startsWith('hr-')) jalaliCalendarViewYear = Math.max(1200, Math.min(1600, jalaliCalendarViewYear));
     renderJalaliCalendar();
+    document.getElementById(jalaliCalendarOpenFor + '-calendar')?.querySelectorAll('button')[n < 0 ? 0 : 1]?.focus();
 }
 
 function renderJalaliCalendar() {
@@ -4602,11 +4975,11 @@ function renderJalaliCalendar() {
 
     const jy = jalaliCalendarViewYear, jm = jalaliCalendarViewMonth;
     let selJ = null;
-    if (hidden.value) {
+    if (hidden.value && hrDateDisplay(hidden.value)) {
         const [gy, gm, gd] = hidden.value.split('-').map(Number);
         selJ = gregorianToJalali(new Date(gy, gm - 1, gd));
     }
-    const t = gregorianToJalali(new Date());
+    const t = baseId.startsWith('hr-') ? hrCurrentMonth() : gregorianToJalali(new Date());
 
     const gDate1 = jalaliToGregorian(jy, jm, 1);
     const jsWeekday = gDate1.getDay(); // JS: 0=Sun..6=Sat
@@ -4629,9 +5002,9 @@ function renderJalaliCalendar() {
 
     popup.innerHTML = `
         <div class="flex items-center justify-between mb-2">
-            <button type="button" onclick="jalaliCalendarShiftMonth(-1)" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:.95rem;padding:0 .4rem;">‹</button>
+            <button type="button" aria-label="ماه قبل" onclick="jalaliCalendarShiftMonth(-1)" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:.95rem;padding:0 .4rem;">‹</button>
             <span class="text-xs font-black" style="color:var(--text-main);">${PERSIAN_MONTHS_FA[jm - 1]} ${toPersianDigits(jy)}</span>
-            <button type="button" onclick="jalaliCalendarShiftMonth(1)" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:.95rem;padding:0 .4rem;">›</button>
+            <button type="button" aria-label="ماه بعد" onclick="jalaliCalendarShiftMonth(1)" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:.95rem;padding:0 .4rem;">›</button>
         </div>
         <div class="grid grid-cols-7 gap-0.5 mb-1">
             ${PERSIAN_WEEKDAYS_FA.map(w => `<div class="text-[10px] text-center font-bold" style="color:var(--text-muted);">${w}</div>`).join('')}
@@ -4644,12 +5017,16 @@ function renderJalaliCalendar() {
 }
 
 function selectJalaliDate(baseId, jy, jm, jd) {
+    if (![jy, jm, jd].every(Number.isInteger) || jy < 1 || jy > 2999 || jm < 1 || jm > 12 || jd < 1 || jd > jalaliMonthLength(jy, jm)) return;
+    if (baseId.startsWith('hr-') && (jy < 1200 || jy > 1600)) return;
     const iso = fmtWeekISO(jalaliToGregorian(jy, jm, jd));
     const hidden = document.getElementById(baseId);
     const display = document.getElementById(baseId + '-display');
     if (hidden) hidden.value = iso;
     if (display) display.value = formatIsoAsJalaliDisplay(iso);
     closeJalaliCalendar();
+    if (baseId.startsWith('hr-')) hidden?.dispatchEvent(new Event('change', { bubbles: true }));
+    display?.focus();
 }
 
 function clearJalaliDate(baseId) {
@@ -4658,10 +5035,12 @@ function clearJalaliDate(baseId) {
     if (hidden) hidden.value = '';
     if (display) display.value = '';
     closeJalaliCalendar();
+    if (baseId.startsWith('hr-')) hidden?.dispatchEvent(new Event('change', { bubbles: true }));
+    display?.focus();
 }
 
 function jalaliCalendarGoToday(baseId) {
-    const j = gregorianToJalali(new Date());
+    const j = baseId.startsWith('hr-') ? hrCurrentMonth() : gregorianToJalali(new Date());
     selectJalaliDate(baseId, j.y, j.m, j.d);
 }
 
@@ -4873,9 +5252,12 @@ function gregorianToJalali(date) {
 }
 
 function jalaliToGregorian(jy, jm, jd) {
+    if (![jy, jm, jd].every(Number.isInteger) || jy < 1 || jy > 3000 || jm < 1 || jm > 12 || jd < 1 || jd > 31) throw new RangeError('Invalid Jalali date');
     const guess = new Date(jy + 621, 2, 15); // mid-March of the estimated Gregorian year -- always within ~2 weeks of Nowruz
     let g = gregorianToJalali(guess);
+    let attempts = 0;
     while (g.y !== jy || g.m !== jm || g.d !== jd) {
+        if (++attempts > 370) throw new RangeError('Invalid Jalali date');
         const cmp = (g.y - jy) || (g.m - jm) || (g.d - jd);
         guess.setDate(guess.getDate() + (cmp < 0 ? 1 : -1));
         g = gregorianToJalali(guess);
@@ -5173,6 +5555,7 @@ async function deleteWorkOrder(orderId) {
 /* ============ SECTION: VIEW SHOW/HIDE + FULL-WINDOW VIEWS ============
    showFullView toggles the fixed overlay screens; hideWorkspaceViews resets. ============ */
 function hideWorkspaceViews() {
+    closeHrDialogs();
     // landingPage defaults to visible and is only ever explicitly hidden
     // by showDashboardView()/showAdminDashboard() -- any authenticated
     // view reached directly (a reload, or a deep link via
@@ -5612,6 +5995,7 @@ function openHrPage(pushHistory = true) {
 }
 
 function closeHrPage() {
+    closeHrDialogs();
     document.getElementById('hrPage').classList.add('hidden');
     document.body.style.overflow = 'auto';
     openWorkspaceDashboard(false);
@@ -6705,6 +7089,7 @@ setInterval(async () => {
    applyRouteForPath reads location.pathname; popstate + 404 redirect hook in.
    (The 404.html stash + this handler together drive the dashboard route.) ============ */
 function navigateTo(path, pushHistory = true) {
+    if (path !== '/hr') closeHrDialogs();
     if (pushHistory && location.pathname !== path) {
         history.pushState({ path }, '', path);
     }
@@ -8529,6 +8914,7 @@ function showDashboardView() {
 }
 
 function showAdminDashboard() {
+    closeHrDialogs();
     const lp = document.getElementById('landingPage');
     if (lp) lp.style.display = 'none';
     const hb = document.querySelector('.header-bar');
@@ -8556,6 +8942,7 @@ function showAdminDashboard() {
 }
 
 function adminLogout() {
+    closeHrDialogs();
     currentUserSession = null;
 
     localStorage.removeItem('deept_mock_user');

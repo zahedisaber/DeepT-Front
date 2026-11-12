@@ -1685,15 +1685,46 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
         <div class="workspace-panel p-6">
             <h4 class="text-sm font-black mb-2 flex items-center gap-1.5" style="color:var(--text-main);">📋 کارکرد (تایم‌شیت)</h4>
             <div class="flex items-center gap-2 flex-wrap mb-3">
-                <label class="text-[11px]" style="color:var(--text-muted);">از:</label>
-                <input type="date" id="hr-attendance-from" class="auth-input" style="width:auto;" onchange="loadHrAttendance()">
-                <label class="text-[11px]" style="color:var(--text-muted);">تا:</label>
-                <input type="date" id="hr-attendance-to" class="auth-input" style="width:auto;" onchange="loadHrAttendance()">
+                <div class="relative hr-date"><label for="hr-attendance-from-display">از (شمسی)</label><input type="hidden" id="hr-attendance-from" onchange="loadHrAttendance()"><input type="text" readonly id="hr-attendance-from-display" class="auth-input" onclick="toggleJalaliCalendar('hr-attendance-from')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleJalaliCalendar('hr-attendance-from')}" aria-haspopup="dialog"><div id="hr-attendance-from-calendar" class="hidden hr-calendar" role="dialog" aria-label="انتخاب تاریخ شمسی"></div></div>
+                <div class="relative hr-date"><label for="hr-attendance-to-display">تا (شمسی)</label><input type="hidden" id="hr-attendance-to" onchange="loadHrAttendance()"><input type="text" readonly id="hr-attendance-to-display" class="auth-input" onclick="toggleJalaliCalendar('hr-attendance-to')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleJalaliCalendar('hr-attendance-to')}" aria-haspopup="dialog"><div id="hr-attendance-to-calendar" class="hidden hr-calendar" role="dialog" aria-label="انتخاب تاریخ شمسی"></div></div>
             </div>
             <div id="hr-attendance-list" class="flex flex-col gap-2"></div>
         </div>
+        <details id="hr-days-off-admin" class="workspace-panel p-6" ontoggle="if(this.open) loadHrDaysOff()">
+            <summary class="text-sm font-bold">تعطیلی دفتر و مرخصی روزانه</summary>
+            <div id="hr-days-off-controls" class="hr-controls"></div>
+            <p id="hr-days-off-status" role="status" class="hr-note"></p>
+            <div id="hr-days-off-list"></div>
+        </details>
     </div>
 </section>
+
+<div id="hrReportModal" class="hidden hr-overlay" role="dialog" aria-modal="true" aria-labelledby="hr-report-title">
+    <div class="hr-dialog hr-report-dialog" tabindex="-1">
+        <div class="hr-dialog-header"><h2 id="hr-report-title">گزارش کارکرد</h2><button type="button" class="hr-button" onclick="closeHrReport()" aria-label="بستن گزارش">بستن</button></div>
+        <div class="hr-controls">
+            <label>سال شمسی<input id="hr-report-year" type="number" min="1300" max="1600" class="auth-input" onchange="loadHrReport()"></label>
+            <label>ماه شمسی<select id="hr-report-month" class="auth-input" onchange="loadHrReport()"></select></label>
+            <button type="button" class="hr-button" onclick="loadHrReport()">تازه‌سازی</button>
+            <button type="button" id="hr-report-html" class="hr-button" disabled onclick="exportHrReport('html')">دانلود گزارش</button>
+            <button type="button" id="hr-report-excel" class="hr-button" disabled onclick="exportHrReport('xlsx')">دانلود Excel</button>
+        </div>
+        <p id="hr-report-status" class="hr-note" role="status" aria-live="polite"></p>
+        <div id="hr-report-content"></div>
+        <details class="hr-note"><summary>راهنمای محاسبه و دانلود</summary><p>کسری مدت حضور با تأخیر ورود و خروج زودهنگام متفاوت است و با آن جمع نمی‌شود. حتی با تکمیل مدت حضور، تأخیر یا خروج زودهنگام مشخص می‌شود. خط تیره یعنی قابل محاسبه نیست. روزهای باز، آینده و داده‌های ناقص قطعی نیستند.</p><p>گزارش دانلودی مستقل و قابل چاپ است؛ برای PDF آن را در مرورگر باز کرده و از چاپ، ذخیره PDF را انتخاب کنید. فایل Excel مستقیماً از سرور دریافت می‌شود.</p></details>
+    </div>
+</div>
+<div id="hrScheduleModal" class="hidden hr-overlay" role="dialog" aria-modal="true" aria-labelledby="hr-schedule-title">
+    <div class="hr-dialog" tabindex="-1">
+        <div class="hr-dialog-header"><h2 id="hr-schedule-title">برنامه کاری</h2><button type="button" class="hr-button" onclick="closeHrSchedule()">بستن</button></div>
+        <div id="hr-schedule-date"></div>
+        <p class="hr-note">ساعت شروع و پایان اختیاری و فقط در یک روز هستند؛ شیفت شب پشتیبانی نمی‌شود. مدت هدف نباید از فاصله شروع تا پایان بیشتر باشد. روز بدون کار: مدت صفر.</p>
+        <div id="hr-schedule-week"></div>
+        <p id="hr-schedule-status" class="hr-note" role="status"></p>
+        <button type="button" id="hr-schedule-save" class="hr-button" onclick="saveHrSchedule()" disabled>ذخیره برنامه</button>
+        <details class="hr-note"><summary>تاریخچه برنامه‌ها</summary><div id="hr-schedule-history"></div></details>
+    </div>
+</div>
 
 <!-- ── VIEW · نرخنامه من (My Price List) ── a translator's own price
      overrides for every row of the official tariff catalog
@@ -2587,6 +2618,7 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
 </div>
 
 <script src="/price-catalog.js"></script>
+<script src="/hr-preview.js"></script>
 <script src="/app.js"></script>
 </body>
 </html>
