@@ -7973,18 +7973,116 @@ function isPdfFile(file) {
     return file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
 }
 
-function handleDocFileSelection(file) {
-    if (!file) return;
-    if (!isPdfFile(file)) {
-        showToast('⚠️ فقط فایل PDF پذیرفته می‌شود. لطفاً سند را به‌صورت PDF بارگذاری کنید.');
-        document.getElementById('docFileInput').value = '';
-        return;
-    }
+function isImageFile(file) {
+    return /^image\/(jpeg|png)$/.test(file.type) || /\.(jpe?g|png)$/i.test(file.name || '');
+}
+
+function acceptDocFile(file, label) {
     docSelectedFile = file;
-    document.getElementById('docFileInfo').textContent = `📄 ${file.name} (${(file.size/1024).toFixed(0)} KB)`;
+    document.getElementById('docFileInfo').textContent = label;
     document.getElementById('docFileInfo').classList.remove('hidden');
     document.getElementById('docDropText').classList.add('hidden');
     document.getElementById('submitBtn').disabled = false;
+}
+
+// Pilot: a scanned document's pages are often several separate JPEG/PNG
+// files, not one PDF -- rather than teach every document type's Gemini
+// prompt (and the 3 hardcoded "application/pdf" media types in Back-End) to
+// handle multiple page images, we merge them into a single PDF right here
+// in the browser and hand that off exactly like a normal PDF upload. Zero
+// changes needed anywhere downstream of acceptDocFile().
+// A phone camera's JPEG is routinely several MB at full resolution -- way
+// more detail than OCR needs, and far larger than the scanner-produced PDFs
+// this upload path was sized/timed around. Downscaling to at most
+// MAX_SCAN_DIMENSION_PX on the long edge and re-encoding through a canvas
+// keeps a 3-page scan in the hundreds-of-KB range instead of several MB,
+// well within what the existing upload timeouts/retry logic expects.
+const MAX_SCAN_DIMENSION_PX = 2000;
+const SCAN_JPEG_QUALITY = 0.82;
+
+async function _loadImage(dataUrl) {
+    return new Promise((resolve, reject) => {
+        const el = new Image();
+        el.onload = () => resolve(el);
+        el.onerror = reject;
+        el.src = dataUrl;
+    });
+}
+
+async function _fileToDataUrl(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+async function imagesToPdfFile(imageFiles) {
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+
+    for (let i = 0; i < imageFiles.length; i++) {
+        const file = imageFiles[i];
+        const rawDataUrl = await _fileToDataUrl(file);
+        const rawImg = await _loadImage(rawDataUrl);
+
+        const shrink = Math.min(1, MAX_SCAN_DIMENSION_PX / Math.max(rawImg.width, rawImg.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(rawImg.width * shrink);
+        canvas.height = Math.round(rawImg.height * shrink);
+        canvas.getContext('2d').drawImage(rawImg, 0, 0, canvas.width, canvas.height);
+        // Always JPEG regardless of the source format -- a lossless PNG of
+        // a photographed page is exactly the large-file case this is meant
+        // to avoid, and OCR has no need for PNG's exact-pixel fidelity here.
+        const dataUrl = canvas.toDataURL('image/jpeg', SCAN_JPEG_QUALITY);
+
+        if (i > 0) pdf.addPage();
+        const scale = Math.min(pageW / canvas.width, pageH / canvas.height);
+        const w = canvas.width * scale;
+        const h = canvas.height * scale;
+        pdf.addImage(dataUrl, 'JPEG', (pageW - w) / 2, (pageH - h) / 2, w, h);
+    }
+
+    const blob = pdf.output('blob');
+    return new File([blob], 'scanned-document.pdf', { type: 'application/pdf' });
+}
+
+async function handleDocFilesSelected(fileList) {
+    const files = Array.from(fileList || []);
+    if (!files.length) return;
+
+    if (files.length === 1 && isPdfFile(files[0])) {
+        const file = files[0];
+        acceptDocFile(file, `📄 ${file.name} (${(file.size / 1024).toFixed(0)} KB)`);
+        return;
+    }
+
+    if (files.every(isImageFile)) {
+        document.getElementById('docDropText').classList.remove('hidden');
+        document.getElementById('docDropText').textContent = 'در حال تبدیل عکس‌ها به PDF...';
+        // The browser's own file-selection order isn't reliable (varies by
+        // OS/picker), so sort by filename -- "numeric" so page2 sorts
+        // before page10, not after -- to get a predictable page order
+        // (name scans page1/page2/page3 or IMG_001/IMG_002/... for a
+        // guaranteed correct order).
+        const orderedFiles = [...files].sort((a, b) =>
+            a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+        try {
+            const pdfFile = await imagesToPdfFile(orderedFiles);
+            acceptDocFile(pdfFile, `📄 ${files.length} صفحه اسکن‌شده (${(pdfFile.size / 1024).toFixed(0)} KB)`);
+        } catch (e) {
+            showToast('⚠️ تبدیل عکس‌ها به PDF ناموفق بود. لطفاً دوباره تلاش کنید.');
+            document.getElementById('docDropText').textContent = 'فایل PDF سند، یا عکس (JPEG/PNG) صفحات آن، را اینجا بکشید یا کلیک کنید';
+            document.getElementById('docFileInput').value = '';
+        }
+        return;
+    }
+
+    showToast('⚠️ فقط فایل PDF، یا یک یا چند عکس JPEG/PNG از صفحات سند، پذیرفته می‌شود.');
+    document.getElementById('docFileInput').value = '';
 }
 
 // Drag and drop on document zone
@@ -7995,7 +8093,7 @@ if (docDropZoneEl) {
     docDropZoneEl.addEventListener('drop', e => {
         e.preventDefault();
         docDropZoneEl.classList.remove('drag-over');
-        if (e.dataTransfer.files.length) handleDocFileSelection(e.dataTransfer.files[0]);
+        if (e.dataTransfer.files.length) handleDocFilesSelected(e.dataTransfer.files);
     });
 }
 // fetch() has no built-in timeout -- on a connection that's being
