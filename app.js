@@ -8037,8 +8037,15 @@ async function handleDocFilesSelected(fileList) {
     if (files.every(isImageFile)) {
         document.getElementById('docDropText').classList.remove('hidden');
         document.getElementById('docDropText').textContent = 'در حال تبدیل عکس‌ها به PDF...';
+        // The browser's own file-selection order isn't reliable (varies by
+        // OS/picker), so sort by filename -- "numeric" so page2 sorts
+        // before page10, not after -- to get a predictable page order
+        // (name scans page1/page2/page3 or IMG_001/IMG_002/... for a
+        // guaranteed correct order).
+        const orderedFiles = [...files].sort((a, b) =>
+            a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
         try {
-            const pdfFile = await imagesToPdfFile(files);
+            const pdfFile = await imagesToPdfFile(orderedFiles);
             acceptDocFile(pdfFile, `📄 ${files.length} صفحه اسکن‌شده (${(pdfFile.size / 1024).toFixed(0)} KB)`);
         } catch (e) {
             showToast('⚠️ تبدیل عکس‌ها به PDF ناموفق بود. لطفاً دوباره تلاش کنید.');
