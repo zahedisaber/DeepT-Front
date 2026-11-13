@@ -7991,6 +7991,33 @@ function acceptDocFile(file, label) {
 // handle multiple page images, we merge them into a single PDF right here
 // in the browser and hand that off exactly like a normal PDF upload. Zero
 // changes needed anywhere downstream of acceptDocFile().
+// A phone camera's JPEG is routinely several MB at full resolution -- way
+// more detail than OCR needs, and far larger than the scanner-produced PDFs
+// this upload path was sized/timed around. Downscaling to at most
+// MAX_SCAN_DIMENSION_PX on the long edge and re-encoding through a canvas
+// keeps a 3-page scan in the hundreds-of-KB range instead of several MB,
+// well within what the existing upload timeouts/retry logic expects.
+const MAX_SCAN_DIMENSION_PX = 2000;
+const SCAN_JPEG_QUALITY = 0.82;
+
+async function _loadImage(dataUrl) {
+    return new Promise((resolve, reject) => {
+        const el = new Image();
+        el.onload = () => resolve(el);
+        el.onerror = reject;
+        el.src = dataUrl;
+    });
+}
+
+async function _fileToDataUrl(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
 async function imagesToPdfFile(imageFiles) {
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
@@ -7999,25 +8026,24 @@ async function imagesToPdfFile(imageFiles) {
 
     for (let i = 0; i < imageFiles.length; i++) {
         const file = imageFiles[i];
-        const dataUrl = await new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-        });
-        const img = await new Promise((resolve, reject) => {
-            const el = new Image();
-            el.onload = () => resolve(el);
-            el.onerror = reject;
-            el.src = dataUrl;
-        });
+        const rawDataUrl = await _fileToDataUrl(file);
+        const rawImg = await _loadImage(rawDataUrl);
+
+        const shrink = Math.min(1, MAX_SCAN_DIMENSION_PX / Math.max(rawImg.width, rawImg.height));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(rawImg.width * shrink);
+        canvas.height = Math.round(rawImg.height * shrink);
+        canvas.getContext('2d').drawImage(rawImg, 0, 0, canvas.width, canvas.height);
+        // Always JPEG regardless of the source format -- a lossless PNG of
+        // a photographed page is exactly the large-file case this is meant
+        // to avoid, and OCR has no need for PNG's exact-pixel fidelity here.
+        const dataUrl = canvas.toDataURL('image/jpeg', SCAN_JPEG_QUALITY);
 
         if (i > 0) pdf.addPage();
-        const scale = Math.min(pageW / img.width, pageH / img.height);
-        const w = img.width * scale;
-        const h = img.height * scale;
-        const format = /png/i.test(file.type) ? 'PNG' : 'JPEG';
-        pdf.addImage(dataUrl, format, (pageW - w) / 2, (pageH - h) / 2, w, h);
+        const scale = Math.min(pageW / canvas.width, pageH / canvas.height);
+        const w = canvas.width * scale;
+        const h = canvas.height * scale;
+        pdf.addImage(dataUrl, 'JPEG', (pageW - w) / 2, (pageH - h) / 2, w, h);
     }
 
     const blob = pdf.output('blob');
