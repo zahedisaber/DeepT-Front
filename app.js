@@ -9392,7 +9392,7 @@ async function loadAdminFailedDocs(silent = false) {
     // Silent refresh (used while a retranslate is running) must not flash the
     // loading placeholder or re-render unchanged rows -- same quiet behavior as
     // the normal dashboard's periodic poll.
-    if (tbody && !silent) tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>`;
+    if (tbody && !silent) tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>`;
     try {
         const res = await fetch(`${CORE}/jobs/admin/failed`, {
             headers: { 'Authorization': `Bearer ${token}` }
@@ -9445,7 +9445,7 @@ function renderAdminFailedDocs(jobs) {
     const tbody = document.getElementById('adminFailedDocsRowsBlock');
     if (!tbody) return;
     if (!jobs.length) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">سند ناموفقی وجود ندارد.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-sm" style="color:var(--text-muted);">سند ناموفقی وجود ندارد.</td></tr>`;
         return;
     }
     const typeLabel = (t) => DOCUMENT_REGISTRY[t]?.label || escapeHtml(t);
@@ -9490,6 +9490,7 @@ function renderAdminFailedDocs(jobs) {
             <td class="py-2 px-3">
                 <a href="javascript:void(0)" onclick="downloadJobOriginal('${j.id}')" class="hover:underline" style="color:var(--accent);" title="دانلود فایل">${typeLabel(j.document_type)}</a>
             </td>
+            <td class="py-2 px-3 en" style="color:var(--text-muted);" dir="ltr">${j.user_email ? escapeHtml(j.user_email) : '—'}</td>
             <td class="py-2 px-3 text-center" style="color:var(--text-muted);">${dateStr}</td>
             <td class="py-2 px-3 text-center">${ops}</td>
             <td class="py-2 px-3 text-center">${downloadCell}</td>
