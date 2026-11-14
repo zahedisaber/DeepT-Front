@@ -3152,15 +3152,26 @@ async function renderDashboardActiveProjects() {
         support_retry_failed: { text: 'در انتظار ترجمه توسط پشتیبانی', color: '#60a5fa' },
         failed:     { text: 'ناموفق',     color: '#f87171' },
     };
+    // A job the system auto-escalated to support (job.support_deadline_at
+    // set -- see DeepT-Core's update_job()) never showed the client a raw
+    // "failed" or a "we sent this to support" message it never asked for;
+    // it just needs a little longer. Only a job the client sent themselves
+    // (the "ارسال به پشتیبانی" button, no deadline) gets the support-queue
+    // wording below.
+    const AUTO_ESCALATED_LABEL = { text: 'در حال پردازش...', color: '#fb923c' };
 
     jobs.forEach((job) => {
         const typeLabel = DOCUMENT_REGISTRY[job.document_type]?.label || escapeHtml(job.document_type);
         const dateStr = new Date(job.created_at).toLocaleDateString('fa-IR');
-        const st = STATUS_LABELS[job.status] || { text: escapeHtml(job.status), color: 'var(--text-muted)' };
+        const autoEscalated = job.status === 'pending_support' && !!job.support_deadline_at;
+        const st = autoEscalated ? AUTO_ESCALATED_LABEL
+                 : (STATUS_LABELS[job.status] || { text: escapeHtml(job.status), color: 'var(--text-muted)' });
 
         let actionsHtml;
         if (job.status === 'completed' || job.status === 'support_translated') {
             actionsHtml = `<button onclick="downloadJobResult('${job.id}')" class="font-bold hover:underline" style="color:var(--accent);">دانلود DOCX</button>`;
+        } else if (autoEscalated) {
+                        actionsHtml = `<span style="color:var(--text-muted);font-size:11px;">این سند کمی زمان بیشتری نیاز دارد</span>`;
         } else if (job.status === 'pending_support' || job.status === 'support_retry_failed') {
                         actionsHtml = `<span style="color:var(--text-muted);font-size:11px;">در انتظار ترجمه توسط پشتیبانی</span>`;
         } else if (job.status === 'failed') {
@@ -8732,7 +8743,7 @@ async function loadAdminFailedDocs(silent = false) {
     // Silent refresh (used while a retranslate is running) must not flash the
     // loading placeholder or re-render unchanged rows -- same quiet behavior as
     // the normal dashboard's periodic poll.
-    if (tbody && !silent) tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>`;
+    if (tbody && !silent) tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>`;
     try {
         const res = await fetch(`${CORE}/jobs/admin/failed`, {
             headers: { 'Authorization': `Bearer ${token}` }
@@ -8758,7 +8769,7 @@ function renderAdminFailedDocs(jobs) {
     const tbody = document.getElementById('adminFailedDocsRowsBlock');
     if (!tbody) return;
     if (!jobs.length) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">سند ناموفقی وجود ندارد.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-sm" style="color:var(--text-muted);">سند ناموفقی وجود ندارد.</td></tr>`;
         return;
     }
     const typeLabel = (t) => DOCUMENT_REGISTRY[t]?.label || escapeHtml(t);
@@ -8803,6 +8814,7 @@ function renderAdminFailedDocs(jobs) {
             <td class="py-2 px-3">
                 <a href="javascript:void(0)" onclick="downloadJobOriginal('${j.id}')" class="hover:underline" style="color:var(--accent);" title="دانلود فایل">${typeLabel(j.document_type)}</a>
             </td>
+            <td class="py-2 px-3 en" style="color:var(--text-muted);" dir="ltr">${j.user_email ? escapeHtml(j.user_email) : '—'}</td>
             <td class="py-2 px-3 text-center" style="color:var(--text-muted);">${dateStr}</td>
             <td class="py-2 px-3 text-center">${ops}</td>
             <td class="py-2 px-3 text-center">${downloadCell}</td>
