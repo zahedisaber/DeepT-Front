@@ -3713,15 +3713,26 @@ async function renderDashboardActiveProjects() {
         support_retry_failed: { text: 'در انتظار ترجمه توسط پشتیبانی', color: '#60a5fa' },
         failed:     { text: 'ناموفق',     color: '#f87171' },
     };
+    // A job the system auto-escalated to support (job.support_deadline_at
+    // set -- see DeepT-Core's update_job()) never showed the client a raw
+    // "failed" or a "we sent this to support" message it never asked for;
+    // it just needs a little longer. Only a job the client sent themselves
+    // (the "ارسال به پشتیبانی" button, no deadline) gets the support-queue
+    // wording below.
+    const AUTO_ESCALATED_LABEL = { text: 'در حال پردازش...', color: '#fb923c' };
 
     jobs.forEach((job) => {
         const typeLabel = DOCUMENT_REGISTRY[job.document_type]?.label || escapeHtml(job.document_type);
         const dateStr = new Date(job.created_at).toLocaleDateString('fa-IR');
-        const st = STATUS_LABELS[job.status] || { text: escapeHtml(job.status), color: 'var(--text-muted)' };
+        const autoEscalated = job.status === 'pending_support' && !!job.support_deadline_at;
+        const st = autoEscalated ? AUTO_ESCALATED_LABEL
+                 : (STATUS_LABELS[job.status] || { text: escapeHtml(job.status), color: 'var(--text-muted)' });
 
         let actionsHtml;
         if (job.status === 'completed' || job.status === 'support_translated') {
             actionsHtml = `<button onclick="downloadJobResult('${job.id}')" class="font-bold hover:underline" style="color:var(--accent);">دانلود DOCX</button>`;
+        } else if (autoEscalated) {
+                        actionsHtml = `<span style="color:var(--text-muted);font-size:11px;">این سند کمی زمان بیشتری نیاز دارد</span>`;
         } else if (job.status === 'pending_support' || job.status === 'support_retry_failed') {
                         actionsHtml = `<span style="color:var(--text-muted);font-size:11px;">در انتظار ترجمه توسط پشتیبانی</span>`;
         } else if (job.status === 'failed') {
