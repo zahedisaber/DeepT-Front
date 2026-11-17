@@ -804,9 +804,11 @@ footer {
     display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;
 }
 .copy { font-size: .8rem; color: var(--muted); }
-.footer-links { display: flex; gap: 1.5rem; }
+.footer-contact { display: flex; flex-direction: column; gap: .5rem; }
+.footer-links { display: flex; gap: 1.5rem; flex-wrap: wrap; }
 .footer-links a { font-size: .8rem; color: var(--muted); text-decoration: none; transition: color .2s; }
 .footer-links a:hover { color: var(--text); }
+.footer-address { font-size: .75rem; color: var(--muted); line-height: 1.7; max-width: 34rem; }
 .enamad-seal { display: flex; align-items: center; }
 .enamad-seal img { height: 55px; width: auto; display: block; }
 
@@ -1085,6 +1087,7 @@ footer {
     header { padding: 0 1rem; }
     .nav-links { display: none; }
     footer { flex-direction: column; text-align: center; }
+    .footer-contact { align-items: center; }
     .footer-links { justify-content: center; }
 }
 
