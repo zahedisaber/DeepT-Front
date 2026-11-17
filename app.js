@@ -36,6 +36,8 @@ const BACKEND_RELAY = 'https://deept-backend-relay.zahedi-saber.workers.dev';
 //   endpoint → full backend URL for this document type
 //   active   → false shows as "به زودی" and is disabled
 //   usePassportSession → true means session_id is sent with the request
+//   onlyFor  → list of account e-mails; when set, only those accounts see
+//              the entry (the backend refuses everyone else as well)
 // ═══════════════════════════════════════════════════════════
 const DOCUMENT_REGISTRY = {
     'police-certificate': {
@@ -164,7 +166,32 @@ const DOCUMENT_REGISTRY = {
         active:              true,
         usePassportSession:  true,
     },
+    // Birth certificate: DeepT's test account only while the general format
+    // is being finished (DeepT-Back-End refuses other accounts with 403).
+    'birth-certificate-over-15': {
+        label:               'شناسنامه بالای ۱۵ سال',
+        endpoint: `${BACKEND}/api/translate/birth-certificate-over-15`,
+        active:              true,
+        usePassportSession:  true,
+        onlyFor:             ['deepttest@outlook.com'],
+    },
+    'birth-certificate-under-15': {
+        label:               'شناسنامه زیر ۱۵ سال',
+        endpoint: `${BACKEND}/api/translate/birth-certificate-under-15`,
+        active:              true,
+        usePassportSession:  true,
+        onlyFor:             ['deepttest@outlook.com'],
+    },
 };
+
+let lastDocQuery = '';   // the dropdown's last search text (before buildDocDropdown, which uses it)
+
+// Whether the signed-in account may see this entry (see onlyFor above).
+function docVisibleToUser(doc) {
+    if (!doc.onlyFor) return true;
+    const email = (localStorage.getItem('deept_user_email') || '').trim().toLowerCase();
+    return doc.onlyFor.includes(email);
+}
 
 // Populate the hidden native select (kept so every other part of the app
 // can keep reading docTemplate.value unchanged) AND the searchable list.
@@ -195,12 +222,14 @@ const DOCUMENT_REGISTRY = {
    Searchable <input> + hidden <select> (id: docTemplate*) so old flowing
    markup still works with handleDocTypeSelected(). ============ */
 function renderDocDropdownList(query) {
+    lastDocQuery = query || '';
     const list = document.getElementById('docTemplateOptions');
     if (!list) return;
     list.innerHTML = '';
 
     const q = (query || '').trim().toLowerCase();
     const entries = Object.entries(DOCUMENT_REGISTRY).filter(([key, doc]) => {
+        if (!docVisibleToUser(doc)) return false;
         if (!q) return true;
         return doc.label.toLowerCase().includes(q);
     });
@@ -243,6 +272,7 @@ function filterDocDropdown() {
 }
 
 function openDocDropdownList() {
+    renderDocDropdownList(lastDocQuery);   // rebuilt on open: entries with onlyFor follow the signed-in account
     const input = document.getElementById('docTemplateSearch');
     const list = document.getElementById('docTemplateOptions');
     const rect = input.getBoundingClientRect();
@@ -5891,6 +5921,7 @@ function renderDocSamplesGallery(query) {
 
     const entries = Object.entries(DOCUMENT_REGISTRY).filter(([key, doc]) => {
         if (!DOC_SAMPLE_IMAGES[key]) return false; // no sample image yet -- skip rather than show a broken card
+        if (!docVisibleToUser(doc)) return false;
         if (!q) return true;
         return doc.label.toLowerCase().includes(q);
     });
