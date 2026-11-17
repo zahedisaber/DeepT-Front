@@ -807,6 +807,8 @@ footer {
 .footer-links { display: flex; gap: 1.5rem; }
 .footer-links a { font-size: .8rem; color: var(--muted); text-decoration: none; transition: color .2s; }
 .footer-links a:hover { color: var(--text); }
+.enamad-seal { display: flex; align-items: center; }
+.enamad-seal img { height: 55px; width: auto; display: block; }
 
 /* ── 9. CARDS & PANELS ──────────────────────────────────────────────────── */
 .feature {
