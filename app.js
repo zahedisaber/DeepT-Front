@@ -6460,7 +6460,7 @@ async function renderScheduleMonth() {
 // exactly like any other order.
 let dayTaskDraftType = 'TASK';
 let dayTaskDraftDate = null;      // ISO date of the clicked cell
-let dayTaskNationalIdDebounce = null;
+let dayTaskClientSearchDebounce = null;
 
 function openDayTaskModal(iso) {
     if (!currentUserSession) { openAuthModal(); return; }
@@ -6473,6 +6473,8 @@ function openDayTaskModal(iso) {
     document.getElementById('dt-client-first-name').value = '';
     document.getElementById('dt-client-last-name').value = '';
     document.getElementById('dt-client-match-note').classList.add('hidden');
+    const nameResultsEl = document.getElementById('dt-client-name-results');
+    if (nameResultsEl) { nameResultsEl.classList.add('hidden'); nameResultsEl.innerHTML = ''; }
     refreshDayTaskTypeBtns();
     document.getElementById('dayTaskModal').classList.remove('hidden');
 }
@@ -6509,40 +6511,98 @@ function refreshDayTaskTypeBtns() {
     }
 }
 
-// Typing a national ID looks the client up as-you-type (debounced) so an
-// already-registered client auto-fills their name instead of the
-// translator re-typing it -- but either way (match found or not) the 3
-// fields themselves are what gets submitted; work_orders.py's own
-// find-or-create (same upsert_client_by_national_id() every other
-// client-creation path already uses) is the real source of truth, this is
-// purely UX sugar for the common "it's probably someone already on file"
-// case.
-function dtNationalIdChanged(value) {
+// Typing into ANY of the 3 fields (national ID, first name, last name)
+// searches as-you-type (debounced) on whatever partial text is there --
+// a translator may only remember part of a returning client's national ID
+// or name, so a full exact value was too strict a bar to search on. Every
+// non-empty field is required to match (AND'd client-side, since GET
+// /clients?q= only matches a single needle against each field separately),
+// so filling in more fields narrows the results rather than conflicting
+// with them. Either way (match found or not) the 3 fields themselves are
+// what gets submitted; work_orders.py's own find-or-create (same
+// upsert_client_by_national_id() every other client-creation path already
+// uses) is the real source of truth -- this is purely UX sugar for finding
+// someone already on file instead of re-typing them as a new client.
+function dtClientFieldChanged() {
     document.getElementById('dt-client-match-note').classList.add('hidden');
-    clearTimeout(dayTaskNationalIdDebounce);
-    const nationalId = value.trim();
-    if (nationalId.length !== 10) return;
-    dayTaskNationalIdDebounce = setTimeout(() => dtLookupNationalId(nationalId), 300);
+    clearTimeout(dayTaskClientSearchDebounce);
+    const nationalId = document.getElementById('dt-client-national-id').value.trim();
+    const firstName = document.getElementById('dt-client-first-name').value.trim();
+    const lastName = document.getElementById('dt-client-last-name').value.trim();
+    // Require at least 2 characters somewhere before searching -- a single
+    // character would return too broad/noisy a result set to be useful.
+    if (nationalId.length < 2 && firstName.length < 2 && lastName.length < 2) {
+        dtHideNameResults();
+        return;
+    }
+    dayTaskClientSearchDebounce = setTimeout(() => dtSearchClients(nationalId, firstName, lastName), 300);
 }
 
-async function dtLookupNationalId(nationalId) {
+function dtHideNameResults() {
+    const el = document.getElementById('dt-client-name-results');
+    if (!el) return;
+    el.classList.add('hidden');
+    el.innerHTML = '';
+}
+
+async function dtSearchClients(nationalId, firstName, lastName) {
     try {
         const url = new URL(`${CORE}/clients`);
-        url.searchParams.set('q', nationalId);
+        url.searchParams.set('q', nationalId || firstName || lastName);
         const res = await fetch(url, { headers: { 'Authorization': `Bearer ${getToken()}` } });
         if (!res.ok) throw new Error();
         const clients = await res.json();
-        // GET /clients?q= is a substring match across several fields -- only
-        // trust an EXACT national_id match, never the first/closest result.
-        const match = clients.find(c => c.national_id === nationalId);
-        if (!match) return;
-        document.getElementById('dt-client-first-name').value = match.first_name || '';
-        document.getElementById('dt-client-last-name').value = match.last_name || '';
-        document.getElementById('dt-client-match-note').classList.remove('hidden');
+        const nid = nationalId.toLowerCase();
+        const fn = firstName.toLowerCase();
+        const ln = lastName.toLowerCase();
+        const matches = clients.filter(c => {
+            const cid = (c.national_id || '').toLowerCase();
+            const cf = (c.first_name || '').toLowerCase();
+            const cl = (c.last_name || '').toLowerCase();
+            return (!nid || cid.includes(nid)) && (!fn || cf.includes(fn)) && (!ln || cl.includes(ln));
+        }).slice(0, 6);
+        // A single, exact, full (10-digit) national-id match with no name
+        // typed is unambiguous enough to auto-fill directly instead of
+        // making the translator click their own only option.
+        if (matches.length === 1 && nationalId.length === 10 && matches[0].national_id === nationalId
+            && !firstName && !lastName) {
+            dtPickClientMatch(matches[0].id, matches);
+            return;
+        }
+        dtRenderNameResults(matches);
     } catch (e) {
-        // Best-effort auto-fill -- a failed lookup just means no auto-fill,
-        // the translator can still type the name in by hand.
+        dtHideNameResults();
     }
+}
+
+function dtRenderNameResults(matches) {
+    const el = document.getElementById('dt-client-name-results');
+    if (!el) return;
+    if (!matches.length) { dtHideNameResults(); return; }
+    el.innerHTML = matches.map(c => `
+        <button type="button" onclick="dtPickNameMatch('${c.id}')" class="block w-full text-right px-2 py-1.5 text-[11px]" style="border-bottom:1px solid var(--border-color);">
+            ${escapeHtml(`${c.first_name || ''} ${c.last_name || ''}`.trim())}
+            <span style="color:var(--text-secondary);font-size:10px;"> — کد ملی: ${escapeHtml(c.national_id || '—')}</span>
+        </button>
+    `).join('');
+    el.dataset.clients = JSON.stringify(matches);
+    el.classList.remove('hidden');
+}
+
+function dtPickNameMatch(clientId) {
+    const el = document.getElementById('dt-client-name-results');
+    const matches = JSON.parse(el?.dataset.clients || '[]');
+    dtPickClientMatch(clientId, matches);
+}
+
+function dtPickClientMatch(clientId, matches) {
+    const match = matches.find(c => c.id === clientId);
+    if (!match) return;
+    document.getElementById('dt-client-national-id').value = match.national_id || '';
+    document.getElementById('dt-client-first-name').value = match.first_name || '';
+    document.getElementById('dt-client-last-name').value = match.last_name || '';
+    document.getElementById('dt-client-match-note').classList.remove('hidden');
+    dtHideNameResults();
 }
 
 async function submitDayTask() {

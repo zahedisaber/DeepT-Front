@@ -569,12 +569,13 @@
       </div>
       <div>
         <label class="auth-label" id="dt-client-label">مشتری (اختیاری — برای یک پروژه ترجمه)</label>
-        <div class="space-y-1.5">
-          <input type="text" id="dt-client-national-id" class="auth-input en" dir="ltr" placeholder="کد ملی" oninput="dtNationalIdChanged(this.value)" maxlength="10">
-          <input type="text" id="dt-client-first-name" class="auth-input" placeholder="نام">
-          <input type="text" id="dt-client-last-name" class="auth-input" placeholder="نام خانوادگی">
+        <div class="space-y-1.5 relative">
+          <input type="text" id="dt-client-national-id" class="auth-input en" dir="ltr" placeholder="کد ملی" oninput="dtClientFieldChanged()" maxlength="10">
+          <input type="text" id="dt-client-first-name" class="auth-input" placeholder="نام" oninput="dtClientFieldChanged()">
+          <input type="text" id="dt-client-last-name" class="auth-input" placeholder="نام خانوادگی" oninput="dtClientFieldChanged()">
+          <div id="dt-client-name-results" class="hidden rounded-lg overflow-hidden" style="background:var(--card-surface);border:1px solid var(--border-color);"></div>
         </div>
-        <div id="dt-client-match-note" class="hidden text-[10px] font-bold mt-1.5" style="color:#4ade80;">✓ مشتری موجود پیدا شد — نام تکمیل شد.</div>
+        <div id="dt-client-match-note" class="hidden text-[10px] font-bold mt-1.5" style="color:#4ade80;">✓ مشتری موجود پیدا شد — نام/کد ملی تکمیل شد.</div>
       </div>
       <div>
         <label class="auth-label" for="dt-notes">یادداشت</label>
