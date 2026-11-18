@@ -6498,6 +6498,16 @@ function refreshDayTaskTypeBtns() {
         el.style.borderColor = color;
         el.style.fontWeight = active ? '900' : '700';
     });
+    // Only a freeform یادداشت (TASK) can go client-less -- see
+    // submitDayTask()/create_work_order's matching validation. Label reflects
+    // whichever rule currently applies so it's never shown as "optional"
+    // right before the submit rejects it for being empty.
+    const label = document.getElementById('dt-client-label');
+    if (label) {
+        label.textContent = dayTaskDraftType === 'TASK'
+            ? 'مشتری (اختیاری — برای یک پروژه ترجمه)'
+            : 'مشتری (الزامی)';
+    }
 }
 
 function dtSearchClients(q) {
@@ -6548,6 +6558,13 @@ async function submitDayTask() {
     const title = document.getElementById('dt-title').value.trim();
     const notes = document.getElementById('dt-notes').value.trim();
     if (!title && !notes) { showToast('عنوان یا یادداشتی وارد کنید.'); return; }
+    // A real job (not a freeform یادداشت) always needs a client -- same
+    // rule create_work_order enforces server-side; checked here too so the
+    // translator sees it immediately instead of waiting on a round trip.
+    if (dayTaskDraftType !== 'TASK' && !dayTaskSelectedClient) {
+        showToast('⚠️ برای ثبت سفارش، ابتدا مشتری را از لیست جستجو انتخاب کنید.');
+        return;
+    }
 
     const payload = {
         title,
