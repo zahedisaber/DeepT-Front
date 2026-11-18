@@ -9167,6 +9167,8 @@ function renderAdminUsersRows(users) {
                     ${_crmUsageBadge('مشتریان', u.client_count || 0)}
                     ${_crmUsageBadge('تقویم کاری', u.work_order_count || 0)}
                     ${_crmUsageBadge('فاکتورها', u.invoice_count || 0)}
+                    ${_crmUsageBadge('حضور و غیاب', u.attendance_count || 0)}
+                    ${_crmUsageBadge('نرخنامه', u.price_list_count || 0)}
                 </div>
             </td>
         </tr>
