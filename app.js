@@ -6460,20 +6460,19 @@ async function renderScheduleMonth() {
 // exactly like any other order.
 let dayTaskDraftType = 'TASK';
 let dayTaskDraftDate = null;      // ISO date of the clicked cell
-let dayTaskSelectedClient = null; // { id, name } | null
-let dayTaskClientSearchDebounce = null;
+let dayTaskNationalIdDebounce = null;
 
 function openDayTaskModal(iso) {
     if (!currentUserSession) { openAuthModal(); return; }
     dayTaskDraftType = 'TASK';
     dayTaskDraftDate = iso;
-    dayTaskSelectedClient = null;
     document.getElementById('dt-date-label').textContent = formatIsoAsJalaliDisplay(iso);
     document.getElementById('dt-title').value = '';
     document.getElementById('dt-notes').value = '';
-    document.getElementById('dt-client-search').value = '';
-    document.getElementById('dt-client-results').innerHTML = '';
-    document.getElementById('dt-client-chip').classList.add('hidden');
+    document.getElementById('dt-client-national-id').value = '';
+    document.getElementById('dt-client-first-name').value = '';
+    document.getElementById('dt-client-last-name').value = '';
+    document.getElementById('dt-client-match-note').classList.add('hidden');
     refreshDayTaskTypeBtns();
     document.getElementById('dayTaskModal').classList.remove('hidden');
 }
@@ -6510,60 +6509,63 @@ function refreshDayTaskTypeBtns() {
     }
 }
 
-function dtSearchClients(q) {
-    clearTimeout(dayTaskClientSearchDebounce);
-    dayTaskClientSearchDebounce = setTimeout(() => dtFetchClients(q.trim()), 250);
+// Typing a national ID looks the client up as-you-type (debounced) so an
+// already-registered client auto-fills their name instead of the
+// translator re-typing it -- but either way (match found or not) the 3
+// fields themselves are what gets submitted; work_orders.py's own
+// find-or-create (same upsert_client_by_national_id() every other
+// client-creation path already uses) is the real source of truth, this is
+// purely UX sugar for the common "it's probably someone already on file"
+// case.
+function dtNationalIdChanged(value) {
+    document.getElementById('dt-client-match-note').classList.add('hidden');
+    clearTimeout(dayTaskNationalIdDebounce);
+    const nationalId = value.trim();
+    if (nationalId.length !== 10) return;
+    dayTaskNationalIdDebounce = setTimeout(() => dtLookupNationalId(nationalId), 300);
 }
 
-async function dtFetchClients(q) {
-    const box = document.getElementById('dt-client-results');
-    if (!q) { box.innerHTML = ''; return; }
-    box.innerHTML = `<div class="text-[11px] text-center py-2" style="color:var(--text-muted);">در حال جستجو...</div>`;
+async function dtLookupNationalId(nationalId) {
     try {
         const url = new URL(`${CORE}/clients`);
-        url.searchParams.set('q', q);
+        url.searchParams.set('q', nationalId);
         const res = await fetch(url, { headers: { 'Authorization': `Bearer ${getToken()}` } });
         if (!res.ok) throw new Error();
         const clients = await res.json();
-        if (!clients.length) {
-            box.innerHTML = `<div class="text-[11px] text-center py-2" style="color:var(--text-muted);">موردی یافت نشد.</div>`;
-            return;
-        }
-        box.innerHTML = clients.slice(0, 8).map(c => {
-            const name = `${c.first_name || ''} ${c.last_name || ''}`.trim();
-            return `<button type="button" onclick="dtSelectClient('${c.id}','${name.replace(/'/g, "")}')" class="w-full flex items-center justify-between p-2 rounded-lg text-right text-xs transition" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
-                <span class="font-bold en" style="color:var(--text-main);">${escapeHtml(name)}</span>
-                <span style="color:var(--accent);font-size:.65rem;font-weight:700;">انتخاب ←</span>
-            </button>`;
-        }).join('');
+        // GET /clients?q= is a substring match across several fields -- only
+        // trust an EXACT national_id match, never the first/closest result.
+        const match = clients.find(c => c.national_id === nationalId);
+        if (!match) return;
+        document.getElementById('dt-client-first-name').value = match.first_name || '';
+        document.getElementById('dt-client-last-name').value = match.last_name || '';
+        document.getElementById('dt-client-match-note').classList.remove('hidden');
     } catch (e) {
-        box.innerHTML = `<div class="text-[11px] text-center py-2" style="color:#f87171;">خطا در جستجوی مشتری.</div>`;
+        // Best-effort auto-fill -- a failed lookup just means no auto-fill,
+        // the translator can still type the name in by hand.
     }
-}
-
-function dtSelectClient(id, name) {
-    dayTaskSelectedClient = { id, name };
-    document.getElementById('dt-client-chip-name').textContent = name;
-    document.getElementById('dt-client-chip').classList.remove('hidden');
-    document.getElementById('dt-client-search').value = '';
-    document.getElementById('dt-client-results').innerHTML = '';
-}
-
-function dtClearClient() {
-    dayTaskSelectedClient = null;
-    document.getElementById('dt-client-chip').classList.add('hidden');
 }
 
 async function submitDayTask() {
     const title = document.getElementById('dt-title').value.trim();
     const notes = document.getElementById('dt-notes').value.trim();
     if (!title && !notes) { showToast('عنوان یا یادداشتی وارد کنید.'); return; }
+
+    const clientNationalId = document.getElementById('dt-client-national-id').value.trim();
+    const clientFirstName = document.getElementById('dt-client-first-name').value.trim();
+    const clientLastName = document.getElementById('dt-client-last-name').value.trim();
     // A real job (not a freeform یادداشت) always needs a client -- same
-    // rule create_work_order enforces server-side; checked here too so the
-    // translator sees it immediately instead of waiting on a round trip.
-    if (dayTaskDraftType !== 'TASK' && !dayTaskSelectedClient) {
-        showToast('⚠️ برای ثبت سفارش، ابتدا مشتری را از لیست جستجو انتخاب کنید.');
-        return;
+    // rule create_work_order enforces server-side (national_id + at least
+    // one of first/last name); checked here too so the translator sees it
+    // immediately instead of waiting on a round trip.
+    if (dayTaskDraftType !== 'TASK') {
+        if (clientNationalId.length !== 10) {
+            showToast('⚠️ برای ثبت سفارش، کد ملی ۱۰ رقمی مشتری را وارد کنید.');
+            return;
+        }
+        if (!clientFirstName && !clientLastName) {
+            showToast('⚠️ برای ثبت سفارش، نام یا نام خانوادگی مشتری را وارد کنید.');
+            return;
+        }
     }
 
     const payload = {
@@ -6572,7 +6574,11 @@ async function submitDayTask() {
         due_date: dayTaskDraftDate,
         notes: notes || null,
     };
-    if (dayTaskSelectedClient) payload.client_id = dayTaskSelectedClient.id;
+    if (dayTaskDraftType !== 'TASK') {
+        payload.client_national_id = clientNationalId;
+        payload.client_first_name = clientFirstName || null;
+        payload.client_last_name = clientLastName || null;
+    }
 
     const btn = document.getElementById('dt-submit-btn');
     const originalLabel = btn.textContent;

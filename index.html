@@ -569,12 +569,12 @@
       </div>
       <div>
         <label class="auth-label" id="dt-client-label">مشتری (اختیاری — برای یک پروژه ترجمه)</label>
-        <div id="dt-client-chip" class="hidden flex items-center justify-between p-2 rounded-lg text-xs mb-1.5" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
-          <span class="font-bold en" id="dt-client-chip-name" style="color:var(--text-main);">—</span>
-          <button type="button" onclick="dtClearClient()" style="color:#f87171;background:none;border:none;cursor:pointer;font-weight:700;">حذف ✕</button>
+        <div class="space-y-1.5">
+          <input type="text" id="dt-client-national-id" class="auth-input en" dir="ltr" placeholder="کد ملی" oninput="dtNationalIdChanged(this.value)" maxlength="10">
+          <input type="text" id="dt-client-first-name" class="auth-input" placeholder="نام">
+          <input type="text" id="dt-client-last-name" class="auth-input" placeholder="نام خانوادگی">
         </div>
-        <input type="text" id="dt-client-search" class="auth-input" placeholder="جستجوی نام یا کد ملی..." oninput="dtSearchClients(this.value)">
-        <div id="dt-client-results" class="space-y-1 mt-1.5" style="max-height:120px;overflow-y:auto;"></div>
+        <div id="dt-client-match-note" class="hidden text-[10px] font-bold mt-1.5" style="color:#4ade80;">✓ مشتری موجود پیدا شد — نام تکمیل شد.</div>
       </div>
       <div>
         <label class="auth-label" for="dt-notes">یادداشت</label>
