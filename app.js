@@ -6461,6 +6461,7 @@ async function renderScheduleMonth() {
 let dayTaskDraftType = 'TASK';
 let dayTaskDraftDate = null;      // ISO date of the clicked cell
 let dayTaskNationalIdDebounce = null;
+let dayTaskNameDebounce = null;
 
 function openDayTaskModal(iso) {
     if (!currentUserSession) { openAuthModal(); return; }
@@ -6473,6 +6474,8 @@ function openDayTaskModal(iso) {
     document.getElementById('dt-client-first-name').value = '';
     document.getElementById('dt-client-last-name').value = '';
     document.getElementById('dt-client-match-note').classList.add('hidden');
+    const nameResultsEl = document.getElementById('dt-client-name-results');
+    if (nameResultsEl) { nameResultsEl.classList.add('hidden'); nameResultsEl.innerHTML = ''; }
     refreshDayTaskTypeBtns();
     document.getElementById('dayTaskModal').classList.remove('hidden');
 }
@@ -6539,10 +6542,84 @@ async function dtLookupNationalId(nationalId) {
         document.getElementById('dt-client-first-name').value = match.first_name || '';
         document.getElementById('dt-client-last-name').value = match.last_name || '';
         document.getElementById('dt-client-match-note').classList.remove('hidden');
+        dtHideNameResults();
     } catch (e) {
         // Best-effort auto-fill -- a failed lookup just means no auto-fill,
         // the translator can still type the name in by hand.
     }
+}
+
+// Typing a name (first and/or last) also searches as-you-type, same as the
+// national-id field -- national ID alone isn't always what a translator
+// remembers about a returning client, so a name match needs its own path
+// too. Unlike national ID (unique, so a single exact match auto-fills
+// silently), a name can match several clients, so this shows a small
+// pick-list instead of guessing; choosing one fills all 3 fields including
+// the national ID. Pure UX sugar either way -- work_orders.py's own
+// national-id find-or-create is still what actually runs on submit.
+function dtNameChanged() {
+    clearTimeout(dayTaskNameDebounce);
+    const firstName = document.getElementById('dt-client-first-name').value.trim();
+    const lastName = document.getElementById('dt-client-last-name').value.trim();
+    if (!firstName && !lastName) { dtHideNameResults(); return; }
+    dayTaskNameDebounce = setTimeout(() => dtSearchByName(firstName, lastName), 300);
+}
+
+function dtHideNameResults() {
+    const el = document.getElementById('dt-client-name-results');
+    if (!el) return;
+    el.classList.add('hidden');
+    el.innerHTML = '';
+}
+
+async function dtSearchByName(firstName, lastName) {
+    try {
+        const url = new URL(`${CORE}/clients`);
+        // GET /clients?q= matches a single needle against each field
+        // separately -- query by whichever name field has content, then
+        // require BOTH typed fields to match client-side (a plain "q" would
+        // miss a full-name needle since first/last are stored separately).
+        url.searchParams.set('q', firstName || lastName);
+        const res = await fetch(url, { headers: { 'Authorization': `Bearer ${getToken()}` } });
+        if (!res.ok) throw new Error();
+        const clients = await res.json();
+        const fn = firstName.toLowerCase();
+        const ln = lastName.toLowerCase();
+        const matches = clients.filter(c => {
+            const cf = (c.first_name || '').toLowerCase();
+            const cl = (c.last_name || '').toLowerCase();
+            return (!fn || cf.includes(fn)) && (!ln || cl.includes(ln));
+        }).slice(0, 6);
+        dtRenderNameResults(matches);
+    } catch (e) {
+        dtHideNameResults();
+    }
+}
+
+function dtRenderNameResults(matches) {
+    const el = document.getElementById('dt-client-name-results');
+    if (!el) return;
+    if (!matches.length) { dtHideNameResults(); return; }
+    el.innerHTML = matches.map(c => `
+        <button type="button" onclick="dtPickNameMatch('${c.id}')" class="block w-full text-right px-2 py-1.5 text-[11px]" style="border-bottom:1px solid var(--border-color);">
+            ${escapeHtml(`${c.first_name || ''} ${c.last_name || ''}`.trim())}
+            <span style="color:var(--text-secondary);font-size:10px;"> — کد ملی: ${escapeHtml(c.national_id || '—')}</span>
+        </button>
+    `).join('');
+    el.dataset.clients = JSON.stringify(matches);
+    el.classList.remove('hidden');
+}
+
+function dtPickNameMatch(clientId) {
+    const el = document.getElementById('dt-client-name-results');
+    const matches = JSON.parse(el?.dataset.clients || '[]');
+    const match = matches.find(c => c.id === clientId);
+    if (!match) return;
+    document.getElementById('dt-client-national-id').value = match.national_id || '';
+    document.getElementById('dt-client-first-name').value = match.first_name || '';
+    document.getElementById('dt-client-last-name').value = match.last_name || '';
+    document.getElementById('dt-client-match-note').classList.remove('hidden');
+    dtHideNameResults();
 }
 
 async function submitDayTask() {
