@@ -9113,10 +9113,18 @@ function adminLogout() {
 
 var adminUsersCache = [];
     
+// A muted badge reads as "not using this section"; an accent badge with a
+// non-zero count reads as "is" -- lets the admin scan the whole list for
+// CRM adoption at a glance instead of opening each user's own drill-down.
+function _crmUsageBadge(label, count) {
+    const used = count > 0;
+    return `<span class="inline-block text-[10px] font-bold px-2 py-1 rounded-md" style="background:${used ? 'var(--accent)' : 'var(--bg-main)'};color:${used ? 'var(--btn-text-on-accent)' : 'var(--text-muted)'};border:1px solid ${used ? 'var(--accent)' : 'var(--border-subtle)'};">${label}: ${count}</span>`;
+}
+
 function renderAdminUsersRows(users) {
     const tbody = document.getElementById('adminUsersRowsBlock');
     if (!users.length) {
-        tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-sm" style="color:var(--text-muted);">کاربری یافت نشد.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="10" class="text-center py-8 text-sm" style="color:var(--text-muted);">کاربری یافت نشد.</td></tr>`;
         return;
     }
     tbody.innerHTML = users.map(u => `
@@ -9153,6 +9161,13 @@ function renderAdminUsersRows(users) {
             </td>
             <td class="py-3 px-3">
                 <button onclick="adminViewUserClients('${u.user_id}', '${(u.email||'').replace(/'/g,"")}')" class="text-sm font-bold px-3 py-2 rounded-lg" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">مشاهده</button>
+            </td>
+            <td class="py-3 px-3">
+                <div class="flex flex-col gap-1 items-start">
+                    ${_crmUsageBadge('مشتریان', u.client_count || 0)}
+                    ${_crmUsageBadge('تقویم کاری', u.work_order_count || 0)}
+                    ${_crmUsageBadge('فاکتورها', u.invoice_count || 0)}
+                </div>
             </td>
         </tr>
     `).join('');
