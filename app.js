@@ -4427,6 +4427,15 @@ async function renderClientInvoices(clientId) {
                 : '';
             const actions = `<button onclick="event.stopPropagation();openInvoiceView('${inv.id}', true)" class="text-[10px] font-bold px-2 py-1 rounded-md shrink-0" style="background:var(--card-surface);color:var(--accent);border:1px solid var(--border-color);">✏️ ویرایش</button>
                 <button onclick="event.stopPropagation();deleteInvoice('${inv.id}','${clientId}')" class="text-[10px] font-bold px-2 py-1 rounded-md shrink-0" style="background:var(--card-surface);color:#f87171;border:1px solid var(--border-color);">🗑 حذف</button>`;
+            // payment_status only ever exists on a real فاکتور -- a
+            // پیش‌فاکتور isn't a bill yet (see invoices.py's create_invoice/
+            // update_payment_status), so it shows no payment badge/button at
+            // all rather than a misleading "unpaid".
+            const paymentBadge = inv.invoice_type === 'invoice'
+                ? (inv.payment_status === 'paid'
+                    ? `<button onclick="event.stopPropagation();toggleInvoicePaymentStatus('${inv.id}','${clientId}',false)" class="text-[10px] font-bold px-2 py-1 rounded-md shrink-0" style="background:#4ade8022;color:#4ade80;border:1px solid #4ade8055;" title="علامت‌گذاری به‌عنوان پرداخت‌نشده">✓ پرداخت‌شده</button>`
+                    : `<button onclick="event.stopPropagation();toggleInvoicePaymentStatus('${inv.id}','${clientId}',true)" class="text-[10px] font-bold px-2 py-1 rounded-md shrink-0" style="background:#f8717122;color:#f87171;border:1px solid #f8717155;" title="علامت‌گذاری به‌عنوان پرداخت‌شده">پرداخت‌نشده</button>`)
+                : '';
             return `
             <div onclick="openInvoiceView('${inv.id}')" class="p-2.5 rounded-lg text-xs cursor-pointer transition hover:opacity-80" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
                 <div class="flex items-center justify-between gap-2">
@@ -4437,6 +4446,7 @@ async function renderClientInvoices(clientId) {
                     <span class="flex items-center gap-2">
                         <span class="font-bold en" style="color:var(--accent);">${(inv.total_toman || 0).toLocaleString()} تومان</span>
                         ${sentBadge}
+                        ${paymentBadge}
                         ${actions}
                     </span>
                 </div>
@@ -4473,6 +4483,22 @@ async function deleteInvoice(invoiceId, clientId) {
         _refetchClientActivity(clientId);
     } catch (e) {
         showToast('❌ حذف فاکتور ناموفق بود.');
+    }
+}
+
+async function toggleInvoicePaymentStatus(invoiceId, clientId, markPaid) {
+    const token = localStorage.getItem('deept_token');
+    try {
+        const res = await fetch(`${CORE}/invoices/${invoiceId}/payment-status`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ paid: markPaid })
+        });
+        if (!res.ok) throw new Error();
+        showToast(markPaid ? '✅ فاکتور پرداخت‌شده علامت‌گذاری شد.' : 'وضعیت فاکتور به پرداخت‌نشده تغییر کرد.');
+        renderClientInvoices(clientId);
+    } catch (e) {
+        showToast('❌ تغییر وضعیت پرداخت ناموفق بود.');
     }
 }
 
