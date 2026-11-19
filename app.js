@@ -9112,7 +9112,7 @@ function adminLogout() {
 }
 
 var adminUsersCache = [];
-    
+
 function renderAdminUsersRows(users) {
     const tbody = document.getElementById('adminUsersRowsBlock');
     if (!users.length) {
@@ -9185,6 +9185,48 @@ async function loadAdminUsers() {
     } catch (e) {
         tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در اتصال.</td></tr>`;
     }
+}
+
+// ── CRM-section usage tab (پنل مدیریت → "استفاده از CRM") ────────────────
+// A dedicated tab instead of stacking badges inside the main users table --
+// same per-user counts GET /wallet/admin/users already returns
+// (client_count/work_order_count/invoice_count/attendance_count/
+// price_list_count), just laid out as one plain numeric column per CRM
+// section so it reads as an ordinary data table instead of clutter.
+function _crmUsageCountCell(count) {
+    const used = count > 0;
+    return `<td class="py-3 px-3 text-center font-mono font-bold" style="color:${used ? 'var(--accent)' : 'var(--text-muted)'};">${count}</td>`;
+}
+
+function renderAdminCrmUsageRows(users) {
+    const tbody = document.getElementById('adminCrmUsageRowsBlock');
+    if (!tbody) return;
+    if (!users.length) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-sm" style="color:var(--text-muted);">کاربری یافت نشد.</td></tr>`;
+        return;
+    }
+    tbody.innerHTML = users.map(u => `
+        <tr style="border-bottom:1px solid var(--divider);">
+            <td class="py-3 px-3 en" style="color:var(--text-main);">${escapeHtml(u.email)}</td>
+            <td class="py-3 px-3" style="color:var(--text-main);">${escapeHtml(u.full_name)}</td>
+            ${_crmUsageCountCell(u.client_count || 0)}
+            ${_crmUsageCountCell(u.work_order_count || 0)}
+            ${_crmUsageCountCell(u.invoice_count || 0)}
+            ${_crmUsageCountCell(u.attendance_count || 0)}
+            ${_crmUsageCountCell(u.price_list_count || 0)}
+        </tr>
+    `).join('');
+}
+
+// adminUsersCache is already populated by loadAdminUsers() on dashboard
+// open (it runs before any tab switch) -- reuse it instead of a second
+// fetch, and only hit the network if it's somehow still empty (e.g. the
+// first load failed).
+async function loadAdminCrmUsageTab() {
+    if (!adminUsersCache.length) {
+        await loadAdminUsers();
+    }
+    renderAdminCrmUsageRows(adminUsersCache);
 }
 
 // ── Office-signup bonus review (پنل مدیریت) ─────────────────────────────────
@@ -9473,9 +9515,11 @@ function switchAdminTab(tab) {
     const usersPanel = document.getElementById('adminUsersPanel');
     const crmPanel = document.getElementById('adminCrmPanel');
     const failedPanel = document.getElementById('adminFailedDocsPanel');
+    const crmUsagePanel = document.getElementById('adminCrmUsagePanel');
     const tabUsersBtn = document.getElementById('adminTabUsers');
     const tabCrmBtn = document.getElementById('adminTabCrm');
     const tabFailedBtn = document.getElementById('adminTabFailed');
+    const tabCrmUsageBtn = document.getElementById('adminTabCrmUsage');
 
     const jobsPanel = document.getElementById('adminUserJobsPanel');
     if (jobsPanel) jobsPanel.classList.add('hidden');
@@ -9486,6 +9530,7 @@ function switchAdminTab(tab) {
         ['users', usersPanel, tabUsersBtn],
         ['crm', crmPanel, tabCrmBtn],
         ['failed', failedPanel, tabFailedBtn],
+        ['crm-usage', crmUsagePanel, tabCrmUsageBtn],
     ];
 
     for (const [key, panel, btn] of tabs) {
@@ -9509,6 +9554,8 @@ function switchAdminTab(tab) {
         loadAdminCrmData();
     } else if (tab === 'failed') {
         loadAdminFailedDocs();
+    } else if (tab === 'crm-usage') {
+        loadAdminCrmUsageTab();
     }
 }
 
