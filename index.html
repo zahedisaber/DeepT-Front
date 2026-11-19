@@ -1983,6 +1983,9 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
             <button type="button" onclick="switchAdminTab('failed')" id="adminTabFailed" class="px-4 py-2 text-sm font-bold border-b-2 border-transparent transition-all duration-200" style="color: var(--text-muted); background: transparent;">
                 اسناد ناموفق
             </button>
+            <button type="button" onclick="switchAdminTab('crm-usage')" id="adminTabCrmUsage" class="px-4 py-2 text-sm font-bold border-b-2 border-transparent transition-all duration-200" style="color: var(--text-muted); background: transparent;">
+                استفاده از CRM
+            </button>
         </div>
         <div class="flex gap-2 border-b mb-6" style="border-color: var(--divider);">
 
@@ -2017,11 +2020,10 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                             <th class="py-3 px-3 font-bold">وضعیت حساب</th>
                             <th class="py-3 px-3 font-bold">پروژه‌ها</th>
                             <th class="py-3 px-3 font-bold">مشتریان</th>
-                            <th class="py-3 px-3 font-bold">استفاده از CRM</th>
                         </tr>
                     </thead>
                     <tbody id="adminUsersRowsBlock">
-                        <tr><td colspan="10" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>
+                        <tr><td colspan="9" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -2206,6 +2208,34 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
             </div>
             <!-- Hidden file input used by the "آپلود فایل ترجمه" fallback button -->
             <input type="file" id="translationUploadInput" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" class="hidden" onchange="onTranslationFileChosen(this)" oncancel="onTranslationUploadCancelled()">
+        </div>
+
+        <!-- CRM-section usage, per user: a plain numeric column per section
+             (مشتریان/تقویم کاری/فاکتورها/حضور و غیاب/نرخنامه) instead of
+             stacking badges inside one cell of the main users table. -->
+        <div id="adminCrmUsagePanel" class="workspace-panel p-6 mb-6 hidden">
+            <div class="flex items-center justify-between mb-4 gap-3 flex-wrap">
+                <h3 class="text-base font-black" style="color:var(--text-main);">استفاده هر کاربر از بخش‌های CRM</h3>
+                <button type="button" onclick="loadAdminCrmUsageTab()" class="text-sm font-bold px-4 py-2 rounded-lg" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">بروزرسانی</button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-right">
+                    <thead>
+                        <tr style="border-bottom:1px solid var(--divider);color:var(--text-muted);">
+                            <th class="py-3 px-3 font-bold">ایمیل</th>
+                            <th class="py-3 px-3 font-bold">نام</th>
+                            <th class="py-3 px-3 font-bold text-center">مشتریان</th>
+                            <th class="py-3 px-3 font-bold text-center">تقویم کاری</th>
+                            <th class="py-3 px-3 font-bold text-center">فاکتورها</th>
+                            <th class="py-3 px-3 font-bold text-center">حضور و غیاب</th>
+                            <th class="py-3 px-3 font-bold text-center">نرخنامه</th>
+                        </tr>
+                    </thead>
+                    <tbody id="adminCrmUsageRowsBlock">
+                        <tr><td colspan="7" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <div id="adminUserJobsPanel" class="workspace-panel p-6 hidden">
