@@ -5893,6 +5893,9 @@ function openAccountSettingsPage(pushHistory = true) {
         const el = document.getElementById(id);
         if (el) el.classList.add('hidden');
     });
+    document.getElementById('sanam-cookies-input').value = '';
+    document.getElementById('sanam-session-save-status').classList.add('hidden');
+    loadSanamSessionStatus();
 }
 
 function closeAccountSettingsPage() {
@@ -5990,6 +5993,102 @@ function showAccountStatus(id, msg, ok) {
     el.textContent = msg;
     el.style.color = ok ? '#34d399' : '#f87171';
     el.classList.remove('hidden');
+}
+
+// ── Automatic Sanam monitoring (پایش خودکار سنام) ───────────────────────
+// See DeepT-Core's sanam_sync.py -- cookies are pasted here once, stored
+// encrypted server-side, and never sent back by GET; this page only ever
+// shows status (configured/ok/needs_relogin), never the cookies themselves.
+async function loadSanamSessionStatus() {
+    const statusText = document.getElementById('sanam-session-status-text');
+    const toggleRow = document.getElementById('sanam-session-toggle-row');
+    const toggle = document.getElementById('sanam-sync-enabled-toggle');
+    const deleteBtn = document.getElementById('sanam-session-delete-btn');
+    try {
+        const res = await fetch(`${CORE}/users/me/sanam-session`, {
+            headers: { 'Authorization': `Bearer ${getToken()}` }
+        });
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        if (!data.configured) {
+            statusText.textContent = '⚪ هنوز نشست سنامی ثبت نشده است.';
+            statusText.style.color = 'var(--text-muted)';
+            toggleRow.classList.add('hidden');
+            deleteBtn.classList.add('hidden');
+            return;
+        }
+        deleteBtn.classList.remove('hidden');
+        toggleRow.classList.remove('hidden');
+        toggle.checked = !!data.sync_enabled;
+        const lastSync = data.last_sync_at ? `${data.last_sync_at.slice(0, 10)} ${data.last_sync_at.slice(11, 16)}` : 'هنوز انجام نشده';
+        if (data.status === 'needs_relogin') {
+            statusText.innerHTML = `⚠️ نشست سنام منقضی شده — لطفاً دوباره وارد سنام شوید و نشست جدید را در کادر زیر بچسبانید.`;
+            statusText.style.color = '#f87171';
+        } else {
+            statusText.innerHTML = `✅ متصل — آخرین دریافت خودکار: <span class="en">${lastSync}</span>`;
+            statusText.style.color = '#34d399';
+        }
+    } catch (e) {
+        statusText.textContent = '❌ خطا در دریافت وضعیت نشست سنام.';
+        statusText.style.color = '#f87171';
+        toggleRow.classList.add('hidden');
+        deleteBtn.classList.add('hidden');
+    }
+}
+
+async function saveSanamSession() {
+    const cookiesJson = document.getElementById('sanam-cookies-input').value.trim();
+    const btn = document.getElementById('sanam-session-save-btn');
+    if (!cookiesJson) { showAccountStatus('sanam-session-save-status', 'لطفاً JSON کوکی‌ها را وارد کنید.', false); return; }
+
+    const originalLabel = btn.textContent;
+    btn.disabled = true; btn.textContent = 'در حال ذخیره...';
+    try {
+        const res = await fetch(`${CORE}/users/me/sanam-session`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
+            body: JSON.stringify({ cookies_json: cookiesJson }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || 'خطای سرور');
+        showAccountStatus('sanam-session-save-status', '✅ نشست سنام ذخیره شد و پایش خودکار فعال شد.', true);
+        document.getElementById('sanam-cookies-input').value = '';
+        await loadSanamSessionStatus();
+    } catch (e) {
+        showAccountStatus('sanam-session-save-status', '❌ ' + e.message, false);
+    } finally {
+        btn.disabled = false; btn.textContent = originalLabel;
+    }
+}
+
+async function toggleSanamSyncEnabled(enabled) {
+    try {
+        const res = await fetch(`${CORE}/users/me/sanam-session/settings`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
+            body: JSON.stringify({ sync_enabled: enabled }),
+        });
+        if (!res.ok) throw new Error();
+        showToast(enabled ? 'پایش خودکار سنام فعال شد.' : 'پایش خودکار سنام متوقف شد.');
+    } catch (e) {
+        showToast('❌ تغییر وضعیت پایش خودکار ناموفق بود.');
+        await loadSanamSessionStatus();  // revert the toggle's visual state
+    }
+}
+
+async function deleteSanamSession() {
+    if (!confirm('نشست سنام حذف و پایش خودکار متوقف شود؟ برای فعال‌سازی دوباره باید نشست جدیدی بچسبانید.')) return;
+    try {
+        const res = await fetch(`${CORE}/users/me/sanam-session`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${getToken()}` },
+        });
+        if (!res.ok) throw new Error();
+        showToast('نشست سنام حذف شد.');
+        await loadSanamSessionStatus();
+    } catch (e) {
+        showToast('❌ حذف نشست سنام ناموفق بود.');
+    }
 }
 
 async function changeAccountPassword() {
