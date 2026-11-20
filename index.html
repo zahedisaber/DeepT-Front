@@ -1600,6 +1600,48 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                 <p id="acct-email-status" class="text-[11px] mt-2 hidden"></p>
             </div>
         </div>
+
+        <!-- ─── Automatic Sanam monitoring (see DeepT-Core's sanam_sync.py):
+             سنام has no public API, and its login has a CAPTCHA/OTP step
+             that can't be automated -- so the translator logs into Sanam
+             normally ONCE (solving that step themselves) and pastes the
+             resulting session cookies here. DeepT then reuses that same
+             session on a schedule to pull new work items and auto-draft
+             invoices, only asking for a fresh paste again once Sanam
+             actually invalidates it. ─────────────────────────────────── -->
+        <div class="workspace-panel p-6">
+            <h4 class="text-sm font-black mb-1 flex items-center gap-1.5" style="color:var(--text-main);">🔄 پایش خودکار سامانه سنام</h4>
+            <p class="text-[11px] mb-3" style="color:var(--text-muted);">با ثبت نشست سنام، دیپ‌تی به‌صورت خودکار و دوره‌ای کارهای ثبت‌شده جدید شما را از سنام دریافت کرده و برای هر مشتری یک پیش‌فاکتور تهیه می‌کند تا شما فقط آن را بررسی و نهایی کنید.</p>
+
+            <div id="sanam-session-status" class="flex items-center gap-2 p-3 rounded-lg mb-3" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
+                <span id="sanam-session-status-text" class="text-xs font-bold" style="color:var(--text-muted);">در حال بررسی وضعیت...</span>
+            </div>
+
+            <div id="sanam-session-toggle-row" class="flex items-center justify-between gap-3 mb-4 hidden">
+                <span class="text-xs font-bold" style="color:var(--text-main);">پایش خودکار فعال باشد</span>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="sanam-sync-enabled-toggle" class="sr-only peer" onchange="toggleSanamSyncEnabled(this.checked)">
+                    <div class="w-10 h-5 rounded-full transition peer-checked:bg-[var(--accent)]" style="background:var(--border-subtle);"></div>
+                </label>
+            </div>
+
+            <details class="mb-3">
+                <summary class="text-xs font-bold cursor-pointer" style="color:var(--accent);">راهنما: چگونه نشست سنام را کپی کنم؟</summary>
+                <ol class="text-[11px] mt-2 space-y-1 pr-4" style="color:var(--text-muted);list-style:decimal;">
+                    <li>در مرورگر خود وارد سامانه سنام شوید (مانند همیشه، با رمز عبور و تایید کپچا/پیامک خودتان).</li>
+                    <li>ابزار توسعه‌دهنده مرورگر را باز کنید (کلید F12 یا راست‌کلیک ← Inspect) و به بخش Application (در کروم) یا Storage (در فایرفاکس) ← Cookies بروید.</li>
+                    <li>دامنه سنام را انتخاب کرده و کوکی‌های آن را به‌صورت یک آرایه JSON کپی کنید (برخی افزونه‌های رایگان مرورگر مانند "Cookie-Editor" این کار را با یک کلیک انجام می‌دهند و خروجی JSON می‌دهند).</li>
+                    <li>متن JSON را در کادر زیر بچسبانید و «ذخیره نشست» را بزنید.</li>
+                </ol>
+                <p class="text-[11px] mt-2" style="color:var(--text-muted);">⚠️ این اطلاعات فقط به‌صورت رمزنگاری‌شده روی سرور دیپ‌تی ذخیره می‌شود و هیچ‌گاه نمایش داده نمی‌شود. تا زمانی که سنام این نشست را باطل نکند، نیازی به تکرار این مراحل نیست.</p>
+            </details>
+
+            <label for="sanam-cookies-input" class="auth-label">JSON کوکی‌های سنام</label>
+            <textarea id="sanam-cookies-input" class="auth-input en" dir="ltr" rows="4" placeholder='[{"name": "...", "value": "...", "domain": "..."}]'></textarea>
+            <button type="button" onclick="saveSanamSession()" id="sanam-session-save-btn" class="w-full font-black py-1.5 rounded-lg mt-2 transition text-xs" style="background:var(--accent);color:var(--btn-text-on-accent);">ذخیره نشست</button>
+            <button type="button" onclick="deleteSanamSession()" id="sanam-session-delete-btn" class="w-full font-black py-1.5 rounded-lg mt-2 transition text-xs hidden" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">قطع اتصال و حذف نشست</button>
+            <p id="sanam-session-save-status" class="text-[11px] mt-2 hidden"></p>
+        </div>
     </div>
 </section>
 
