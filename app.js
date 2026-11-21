@@ -9452,7 +9452,7 @@ async function adminViewUserJobs(userId, email) {
         // Not every document type tracks api_cost_usd yet, and a job
         // predating that field has none -- shown as "—" rather than $0.00.
         const costCell = (j) => j.api_cost_usd != null
-            ? `$${j.api_cost_usd.toFixed(4)}`
+            ? `$${Number(j.api_cost_usd).toFixed(4)}`
             : '<span style="color:var(--text-muted);">—</span>';
         tbody.innerHTML = jobs.map(j => `
             <tr style="border-bottom:1px solid var(--divider);">
@@ -10049,7 +10049,7 @@ function updateCrmDashboard() {
     // finishes -- see DeepT-Core's PATCH /jobs/{job_id}); a job predating
     // this field, or whose document type doesn't track cost yet, is null
     // and contributes 0 rather than breaking the sum.
-    const apiCostMonthly = filteredForStats.reduce((sum, j) => sum + (j.api_cost_usd || 0), 0);
+    const apiCostMonthly = filteredForStats.reduce((sum, j) => sum + (Number(j.api_cost_usd) || 0), 0);
 
     // Dynamic labels — beside همهٔ زمان‌ها concept
     const profitLabelEl = document.getElementById('crmStatProfitLabel');
@@ -10064,6 +10064,8 @@ function updateCrmDashboard() {
     if (failureLabelEl) failureLabelEl.textContent = label === 'همهٔ زمان‌ها' ? 'نرخ ناموفق' : `نرخ ناموفق ${label}`;
     if (apiCostLabelEl) apiCostLabelEl.textContent = label === 'همهٔ زمان‌ها' ? 'هزینه API (دلار)' : `هزینه API ${label} (دلار)`;
     if (apiCostSubEl) apiCostSubEl.textContent = label === 'همهٔ زمان‌ها' ? 'مجموع هزینهٔ واقعی Gemini — همهٔ زمان‌ها' : `مجموع هزینهٔ واقعی Gemini — ${label}`;
+    const apiCostEl = document.getElementById('crmStatApiCost');
+    if (apiCostEl) apiCostEl.textContent = `$${apiCostMonthly.toFixed(apiCostMonthly < 1 ? 4 : 2)}`;
 
     document.getElementById('crmStatProfit').textContent = profitMonthly.toLocaleString();
     document.getElementById('crmStatWorkCount').textContent = totalMonthly.toLocaleString();
@@ -10081,7 +10083,11 @@ function updateCrmDashboard() {
     const newUsersSubEl = document.getElementById('crmStatNewUsersSub');
     if (newUsersLabelEl) newUsersLabelEl.textContent = label === 'همهٔ زمان‌ها' ? 'کاربران جدید (کل)' : `کاربران جدید ${label}`;
     if (newUsersSubEl) newUsersSubEl.textContent = label === 'همهٔ زمان‌ها' ? `مجموع کل کاربران: ${totalUsers.toLocaleString()}` : `از مجموع ${totalUsers.toLocaleString()} کاربر`;
-    document.getElementById('crmStatNewUsers').textContent = usersInFrame.length.toLocaleString();
+    // The new-users card was taken out of the page (the API cost card took
+    // its place) -- without this guard the line threw and nothing below it
+    // (new-users table, per-type table, chart) was ever drawn.
+    const newUsersEl = document.getElementById('crmStatNewUsers');
+    if (newUsersEl) newUsersEl.textContent = usersInFrame.length.toLocaleString();
 
     // ── New Users Table (email / name / type / exact signup date-time) ──
     const signupsTbody = document.getElementById('crmNewUsersTableBody');
@@ -10116,7 +10122,7 @@ function updateCrmDashboard() {
             docTypeStats[t] = { label: t, total: 0, completed: 0, failed: 0, revenue: 0, apiCost: 0 };
         }
         docTypeStats[t].total++;
-        docTypeStats[t].apiCost += (j.api_cost_usd || 0);
+        docTypeStats[t].apiCost += (Number(j.api_cost_usd) || 0);
         if (j.status === 'completed') {
             docTypeStats[t].completed++;
             docTypeStats[t].revenue += (j.price_toman || 0);
@@ -10269,7 +10275,7 @@ function applyCrmFilters() {
     // Not every document type tracks api_cost_usd yet, and a job predating
     // that field has none -- shown as "—" rather than $0.0000.
     const apiCostCell = (j) => j.api_cost_usd != null
-        ? `$${j.api_cost_usd.toFixed(4)}`
+        ? `$${Number(j.api_cost_usd).toFixed(4)}`
         : '<span style="color:var(--text-muted);">—</span>';
 
     tbody.innerHTML = filtered.map(j => {
