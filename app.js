@@ -3600,6 +3600,144 @@ function closeDateConverterPage() {
     openHomePanels(false);
 }
 
+// ── امور مالی دفتر (office financial affairs) -- operating expenses ────────
+// See DeepT-Core's office_finance.py. Money going OUT of the office
+// (rent/salary/utilities/software/other) -- the one kind of money nothing
+// else in the app tracks (invoices/wallet only cover money FROM clients).
+const OFFICE_EXPENSE_CATEGORY_FA = {
+    rent: 'اجاره', salary: 'حقوق و دستمزد', utilities: 'قبوض',
+    software: 'نرم‌افزار', other: 'سایر',
+};
+
+function openOfficeFinancePage(pushHistory = true) {
+    if (!currentUserSession) { openAuthModal(); return; }
+    showFullView('officeFinancePage');
+    if (pushHistory) navigateTo('/home/office-finance');
+    document.getElementById('of-description').value = '';
+    document.getElementById('of-amount').value = '';
+    document.getElementById('of-notes').value = '';
+    document.getElementById('of-date').value = new Date().toISOString().slice(0, 10);
+    loadOfficeExpenses();
+}
+
+function closeOfficeFinancePage() {
+    document.getElementById('officeFinancePage').classList.add('hidden');
+    document.body.style.overflow = 'auto';
+    openHomePanels(false);
+}
+
+async function submitOfficeExpense() {
+    const category = document.getElementById('of-category').value;
+    const description = document.getElementById('of-description').value.trim();
+    const amount = parseInt(document.getElementById('of-amount').value, 10);
+    const expenseDate = document.getElementById('of-date').value;
+    const notes = document.getElementById('of-notes').value.trim();
+
+    if (!description) { showToast('⚠️ شرح هزینه را وارد کنید.'); return; }
+    if (!amount || amount <= 0) { showToast('⚠️ مبلغ باید بیشتر از صفر باشد.'); return; }
+    if (!expenseDate) { showToast('⚠️ تاریخ هزینه را انتخاب کنید.'); return; }
+
+    const btn = document.getElementById('of-submit-btn');
+    const originalLabel = btn.textContent;
+    btn.disabled = true; btn.textContent = 'در حال ثبت...';
+    try {
+        const res = await fetch(`${CORE}/office-finance/expenses`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
+            body: JSON.stringify({
+                category, description, amount_toman: amount,
+                expense_date: expenseDate, notes: notes || null,
+            }),
+        });
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.detail || `خطای سرور (${res.status})`);
+        }
+        showToast('✅ هزینه ثبت شد.');
+        document.getElementById('of-description').value = '';
+        document.getElementById('of-amount').value = '';
+        document.getElementById('of-notes').value = '';
+        await loadOfficeExpenses();
+    } catch (e) {
+        showToast('❌ ' + (e.message || 'خطا در ثبت هزینه.'));
+    } finally {
+        btn.disabled = false; btn.textContent = originalLabel;
+    }
+}
+
+async function loadOfficeExpenses() {
+    const from = document.getElementById('of-filter-from').value;
+    const to = document.getElementById('of-filter-to').value;
+    const category = document.getElementById('of-filter-category').value;
+    const qs = new URLSearchParams();
+    if (from) qs.set('from', from);
+    if (to) qs.set('to', to);
+    if (category) qs.set('category', category);
+
+    const tbody = document.getElementById('of-expenses-rows');
+    try {
+        const [listRes, summaryRes] = await Promise.all([
+            fetch(`${CORE}/office-finance/expenses?${qs.toString()}`, {
+                headers: { 'Authorization': `Bearer ${getToken()}` }
+            }),
+            fetch(`${CORE}/office-finance/expenses/summary?${qs.toString()}`, {
+                headers: { 'Authorization': `Bearer ${getToken()}` }
+            }),
+        ]);
+        if (!listRes.ok || !summaryRes.ok) throw new Error();
+        const rows = await listRes.json();
+        const summary = await summaryRes.json();
+        renderOfficeExpenseRows(rows);
+        renderOfficeExpenseSummary(summary);
+    } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در دریافت هزینه‌ها.</td></tr>`;
+    }
+}
+
+function renderOfficeExpenseSummary(summary) {
+    document.getElementById('of-summary-total').textContent = `${(summary.total_toman || 0).toLocaleString()} تومان`;
+    const breakdownEl = document.getElementById('of-summary-breakdown');
+    breakdownEl.innerHTML = Object.entries(summary.by_category || {}).map(([cat, amount]) => `
+        <span class="text-[11px] font-bold px-2.5 py-1.5 rounded-md" style="background:var(--bg-main);border:1px solid var(--border-subtle);color:${amount > 0 ? 'var(--text-main)' : 'var(--text-muted)'};">
+            ${OFFICE_EXPENSE_CATEGORY_FA[cat] || cat}: ${amount.toLocaleString()}
+        </span>
+    `).join('');
+}
+
+function renderOfficeExpenseRows(rows) {
+    const tbody = document.getElementById('of-expenses-rows');
+    if (!rows.length) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">هزینه‌ای ثبت نشده است.</td></tr>`;
+        return;
+    }
+    tbody.innerHTML = rows.map(r => `
+        <tr style="border-bottom:1px solid var(--divider);">
+            <td class="py-2 px-2 en" style="color:var(--text-muted);">${escapeHtml(r.expense_date || '')}</td>
+            <td class="py-2 px-2" style="color:var(--text-main);">${escapeHtml(OFFICE_EXPENSE_CATEGORY_FA[r.category] || r.category)}</td>
+            <td class="py-2 px-2" style="color:var(--text-main);">${escapeHtml(r.description)}</td>
+            <td class="py-2 px-2 font-mono font-bold en" style="color:var(--accent);">${r.amount_toman.toLocaleString()}</td>
+            <td class="py-2 px-2 text-left">
+                <button type="button" onclick="deleteOfficeExpense('${r.id}')" class="text-xs font-bold px-2 py-1 rounded-lg" style="background:#7f1d1d;color:#fff;">حذف</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+async function deleteOfficeExpense(expenseId) {
+    if (!confirm('این هزینه حذف شود؟')) return;
+    try {
+        const res = await fetch(`${CORE}/office-finance/expenses/${expenseId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${getToken()}` },
+        });
+        if (!res.ok) throw new Error();
+        showToast('هزینه حذف شد.');
+        await loadOfficeExpenses();
+    } catch (e) {
+        showToast('❌ حذف هزینه ناموفق بود.');
+    }
+}
+
 // صفحه نخست -- the header-bar's own "home" nav button. This button is only
 // ever visible to a logged-in user (same toggle(id, !loggedIn) pattern as
 // every other nav icon), so there's no real scenario where the public
@@ -5632,7 +5770,7 @@ function hideWorkspaceViews() {
     const lp = document.getElementById('landingPage');
     if (lp) lp.style.display = 'none';
     ['workspaceDashboard', 'clientsWorkspace', 'adminDashboard',
-     'clientProfilePage', 'workSchedulePage', 'settingsPage', 'accountSettingsPage', 'docSamplesPage', 'myPriceListPage', 'hrPage', 'homePanelsPage', 'dateConverterPage'].forEach(id => {
+     'clientProfilePage', 'workSchedulePage', 'settingsPage', 'accountSettingsPage', 'docSamplesPage', 'myPriceListPage', 'hrPage', 'homePanelsPage', 'dateConverterPage', 'officeFinancePage'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.classList.add('hidden');
     });
@@ -7444,6 +7582,17 @@ function applyRouteForPath(path) {
 
         if (currentUserSession) {
             openDateConverterPage(false);
+        } else {
+            navigateTo('/', false);
+            showLandingView();
+            openLogin();
+            showToast('برای دسترسی به این بخش، ابتدا وارد شوید.');
+        }
+
+    } else if (path === '/home/office-finance') {
+
+        if (currentUserSession) {
+            openOfficeFinancePage(false);
         } else {
             navigateTo('/', false);
             showLandingView();
