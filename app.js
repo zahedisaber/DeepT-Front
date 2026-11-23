@@ -36,9 +36,15 @@ const BACKEND_RELAY = 'https://deept-backend-relay.zahedi-saber.workers.dev';
 //   endpoint → full backend URL for this document type
 //   active   → false shows as "به زودی" and is disabled
 //   usePassportSession → true means session_id is sent with the request
-//   onlyFor  → list of account e-mails; when set, only those accounts see
-//              the entry (the backend refuses everyone else as well)
+//   onlyFor  → SHA-256 of the account e-mails (trimmed, lowercased); when set,
+//              only those accounts see the entry (the backend refuses everyone
+//              else as well). The addresses themselves aren't written here.
 // ═══════════════════════════════════════════════════════════
+// DeepT's test account and Javan translation office.
+const BIRTH_CERTIFICATE_ACCOUNTS = [
+    '1353340436f743fddd5f99790252f982a51c74de57bb631f6434208a7ff81b98',
+    'c9cb233c82fe991737942db44b6cd022af7403361450f51d66d89f673ef91409',
+];
 const DOCUMENT_REGISTRY = {
     'police-certificate': {
         label:               'گواهی عدم سوء پیشینه',
@@ -173,24 +179,42 @@ const DOCUMENT_REGISTRY = {
         endpoint: `${BACKEND}/api/translate/birth-certificate-over-15`,
         active:              true,
         usePassportSession:  true,
-        onlyFor:             ['deepttest@outlook.com'],
+        onlyFor:             BIRTH_CERTIFICATE_ACCOUNTS,
     },
     'birth-certificate-under-15': {
         label:               'شناسنامه زیر ۱۵ سال',
         endpoint: `${BACKEND}/api/translate/birth-certificate-under-15`,
         active:              true,
         usePassportSession:  true,
-        onlyFor:             ['deepttest@outlook.com'],
+        onlyFor:             BIRTH_CERTIFICATE_ACCOUNTS,
     },
 };
 
 let lastDocQuery = '';   // the dropdown's last search text (before buildDocDropdown, which uses it)
 
+// The signed-in account's e-mail as SHA-256 hex (see onlyFor above). Hashing
+// is asynchronous: until it is done the restricted entries stay hidden, and
+// the dropdown is drawn again once it is.
+const emailHashes = {};
+function emailHashFor(email) {
+    if (!email) return '';
+    if (email in emailHashes) return emailHashes[email];
+    emailHashes[email] = null;                                   // being worked out
+    try {
+        crypto.subtle.digest('SHA-256', new TextEncoder().encode(email)).then(buf => {
+            emailHashes[email] = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+            try { renderDocDropdownList(lastDocQuery); } catch (e) { /* not drawn yet */ }
+        }).catch(() => { emailHashes[email] = ''; });
+    } catch (e) { emailHashes[email] = ''; }
+    return null;
+}
+
 // Whether the signed-in account may see this entry (see onlyFor above).
 function docVisibleToUser(doc) {
     if (!doc.onlyFor) return true;
     const email = (localStorage.getItem('deept_user_email') || '').trim().toLowerCase();
-    return doc.onlyFor.includes(email);
+    const hash = emailHashFor(email);
+    return !!hash && doc.onlyFor.includes(hash);
 }
 
 // Populate the hidden native select (kept so every other part of the app
