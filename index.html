@@ -1145,6 +1145,31 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
 
       <!-- ─── Summary + list ───────────────────────────────────────── -->
       <div class="lg:col-span-2 space-y-5">
+        <!-- Income: sum of real invoices (not پیش‌فاکتور) in the same
+             period the expense filters below select, split into
+             paid/pending -- see DeepT-Core's GET /office-finance/income/summary. -->
+        <div class="workspace-panel p-6">
+          <h4 class="text-sm font-black mb-3" style="color:var(--text-main);">💰 خلاصه درآمد (فاکتورها)</h4>
+          <div class="grid grid-cols-3 gap-3 text-center">
+            <div>
+              <div class="text-[10px] font-bold mb-1" style="color:var(--text-muted);">کل درآمد</div>
+              <div id="of-income-total" class="text-lg font-black en" style="color:var(--text-main);">—</div>
+            </div>
+            <div>
+              <div class="text-[10px] font-bold mb-1" style="color:var(--text-muted);">دریافت‌شده</div>
+              <div id="of-income-paid" class="text-lg font-black en" style="color:#4ade80;">—</div>
+            </div>
+            <div>
+              <div class="text-[10px] font-bold mb-1" style="color:var(--text-muted);">در انتظار دریافت</div>
+              <div id="of-income-pending" class="text-lg font-black en" style="color:#f87171;">—</div>
+            </div>
+          </div>
+          <div class="flex items-center justify-between gap-2 mt-4 pt-3" style="border-top:1px solid var(--border-subtle);">
+            <span class="text-xs font-bold" style="color:var(--text-muted);">خالص (درآمد − هزینه)</span>
+            <span id="of-net-total" class="text-base font-black en" style="color:var(--accent);">—</span>
+          </div>
+        </div>
+
         <div class="workspace-panel p-6">
           <div class="flex items-center justify-between gap-3 flex-wrap mb-3">
             <h4 class="text-sm font-black" style="color:var(--text-main);">📊 خلاصه هزینه‌ها</h4>
