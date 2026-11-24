@@ -1114,7 +1114,22 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
       <button type="button" onclick="closeOfficeFinancePage()" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--card-surface);color:var(--text-main);border:1px solid var(--border-subtle);">صفحه نخست ←</button>
     </div>
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
+    <!-- ─── PIN lock screen (شown instead of of-content whenever a pin is
+         configured and this browser tab hasn't unlocked it yet) -- see
+         DeepT-Core's office_finance.py PIN-gate docstring for why this
+         exists: HR staff clock in/out under the SAME logged-in session
+         as the office owner, so the normal login alone can't keep them
+         out of just this one section. ─────────────────────────────── -->
+    <div id="of-lock-screen" class="workspace-panel p-8 max-w-sm mx-auto text-center hidden">
+      <div class="text-3xl mb-3">🔒</div>
+      <h4 class="text-sm font-black mb-2" style="color:var(--text-main);">امور مالی دفتر قفل است</h4>
+      <p class="text-[11px] mb-4" style="color:var(--text-muted);">برای مشاهده این بخش، کد محرمانه را وارد کنید.</p>
+      <input type="password" id="of-pin-input" class="auth-input en text-center mb-3" dir="ltr" placeholder="کد محرمانه" maxlength="6" onkeydown="if(event.key==='Enter') unlockOfficeFinance()">
+      <button type="button" onclick="unlockOfficeFinance()" id="of-unlock-btn" class="w-full font-black py-2 rounded-lg transition text-xs" style="background:var(--accent);color:var(--btn-text-on-accent);">باز کردن قفل</button>
+      <p id="of-unlock-status" class="text-[11px] mt-2 hidden" style="color:#f87171;"></p>
+    </div>
+
+    <div id="of-content" class="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start hidden">
       <!-- ─── Add expense form ─────────────────────────────────────── -->
       <div class="workspace-panel p-6 lg:col-span-1">
         <h4 class="text-sm font-black mb-3" style="color:var(--text-main);">➕ ثبت هزینه جدید</h4>
@@ -1758,6 +1773,27 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
             <button type="button" onclick="saveSanamSession()" id="sanam-session-save-btn" class="w-full font-black py-1.5 rounded-lg mt-2 transition text-xs" style="background:var(--accent);color:var(--btn-text-on-accent);">ذخیره نشست</button>
             <button type="button" onclick="deleteSanamSession()" id="sanam-session-delete-btn" class="w-full font-black py-1.5 rounded-lg mt-2 transition text-xs hidden" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">قطع اتصال و حذف نشست</button>
             <p id="sanam-session-save-status" class="text-[11px] mt-2 hidden"></p>
+        </div>
+
+        <!-- ─── امور مالی دفتر PIN (see DeepT-Core's office_finance.py) --
+             HR staff clock in/out under the SAME logged-in browser session
+             as the office owner, so the normal login alone can't keep them
+             out of just this one section. Optional: unset by default. ── -->
+        <div class="workspace-panel p-6">
+            <h4 class="text-sm font-black mb-1 flex items-center gap-1.5" style="color:var(--text-main);">🔒 کد محرمانه امور مالی دفتر</h4>
+            <p class="text-[11px] mb-3" style="color:var(--text-muted);">اگر کارمندانی با همین حساب وارد سیستم حضور و غیاب می‌شوند، با تنظیم یک کد محرمانه، بخش «امور مالی دفتر» را فقط برای خودتان قابل‌مشاهده کنید.</p>
+            <div id="fin-pin-status" class="text-xs font-bold mb-3" style="color:var(--text-muted);">در حال بررسی...</div>
+
+            <div id="fin-pin-current-row" class="hidden">
+                <label for="fin-pin-current" class="auth-label">کد فعلی</label>
+                <input type="password" id="fin-pin-current" class="auth-input en mb-3" dir="ltr" maxlength="6" placeholder="کد فعلی">
+            </div>
+            <label for="fin-pin-new" class="auth-label">کد جدید (۴ تا ۶ رقم)</label>
+            <input type="password" id="fin-pin-new" class="auth-input en mb-3" dir="ltr" maxlength="6" placeholder="کد جدید">
+
+            <button type="button" onclick="saveFinancePin()" id="fin-pin-save-btn" class="w-full font-black py-1.5 rounded-lg mt-1 transition text-xs" style="background:var(--accent);color:var(--btn-text-on-accent);">ذخیره کد</button>
+            <button type="button" onclick="clearFinancePin()" id="fin-pin-clear-btn" class="w-full font-black py-1.5 rounded-lg mt-2 transition text-xs hidden" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">حذف کد (غیرفعال کردن قفل)</button>
+            <p id="fin-pin-status-msg" class="text-[11px] mt-2 hidden"></p>
         </div>
     </div>
 </section>

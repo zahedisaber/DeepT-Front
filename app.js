@@ -3633,7 +3633,32 @@ const OFFICE_EXPENSE_CATEGORY_FA = {
     software: 'نرم‌افزار', other: 'سایر',
 };
 
-function openOfficeFinancePage(pushHistory = true) {
+// امور مالی دفتر can be PIN-gated (see DeepT-Core's office_finance.py) --
+// HR staff clock in/out under the SAME logged-in browser session as the
+// office owner, so the normal login alone can't keep them out of just
+// this one section. Cached in sessionStorage (not localStorage) so a
+// fresh tab/window asks again, but the owner isn't re-prompted on every
+// navigation within one working session.
+const FINANCE_PIN_STORAGE_KEY = 'deept_finance_pin';
+
+function _officeFinanceHeaders(extra = {}) {
+    const headers = { 'Authorization': `Bearer ${getToken()}`, ...extra };
+    const pin = sessionStorage.getItem(FINANCE_PIN_STORAGE_KEY);
+    if (pin) headers['X-Finance-Pin'] = pin;
+    return headers;
+}
+
+function _showOfficeFinanceLockScreen() {
+    document.getElementById('of-lock-screen').classList.remove('hidden');
+    document.getElementById('of-content').classList.add('hidden');
+}
+
+function _showOfficeFinanceContent() {
+    document.getElementById('of-lock-screen').classList.add('hidden');
+    document.getElementById('of-content').classList.remove('hidden');
+}
+
+async function openOfficeFinancePage(pushHistory = true) {
     if (!currentUserSession) { openAuthModal(); return; }
     showFullView('officeFinancePage');
     if (pushHistory) navigateTo('/home/office-finance');
@@ -3641,7 +3666,49 @@ function openOfficeFinancePage(pushHistory = true) {
     document.getElementById('of-amount').value = '';
     document.getElementById('of-notes').value = '';
     document.getElementById('of-date').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('of-pin-input').value = '';
+    document.getElementById('of-unlock-status').classList.add('hidden');
+
+    try {
+        const res = await fetch(`${CORE}/office-finance/pin-status`, {
+            headers: { 'Authorization': `Bearer ${getToken()}` }
+        });
+        const data = await res.json();
+        if (data.configured && !sessionStorage.getItem(FINANCE_PIN_STORAGE_KEY)) {
+            _showOfficeFinanceLockScreen();
+            return;
+        }
+    } catch (e) {
+        // Best-effort status check -- fall through and let loadOfficeExpenses
+        // itself surface a 403 (re-locking) if something's actually wrong.
+    }
+    _showOfficeFinanceContent();
     loadOfficeExpenses();
+}
+
+async function unlockOfficeFinance() {
+    const pin = document.getElementById('of-pin-input').value.trim();
+    const statusEl = document.getElementById('of-unlock-status');
+    if (!pin) { return; }
+    const btn = document.getElementById('of-unlock-btn');
+    const originalLabel = btn.textContent;
+    btn.disabled = true; btn.textContent = 'در حال بررسی...';
+    try {
+        const res = await fetch(`${CORE}/office-finance/expenses/summary`, {
+            headers: { 'Authorization': `Bearer ${getToken()}`, 'X-Finance-Pin': pin }
+        });
+        if (!res.ok) throw new Error();
+        sessionStorage.setItem(FINANCE_PIN_STORAGE_KEY, pin);
+        document.getElementById('of-pin-input').value = '';
+        statusEl.classList.add('hidden');
+        _showOfficeFinanceContent();
+        loadOfficeExpenses();
+    } catch (e) {
+        statusEl.textContent = '❌ کد محرمانه نادرست است.';
+        statusEl.classList.remove('hidden');
+    } finally {
+        btn.disabled = false; btn.textContent = originalLabel;
+    }
 }
 
 function closeOfficeFinancePage() {
@@ -3667,12 +3734,13 @@ async function submitOfficeExpense() {
     try {
         const res = await fetch(`${CORE}/office-finance/expenses`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
+            headers: _officeFinanceHeaders({ 'Content-Type': 'application/json' }),
             body: JSON.stringify({
                 category, description, amount_toman: amount,
                 expense_date: expenseDate, notes: notes || null,
             }),
         });
+        if (res.status === 403) { sessionStorage.removeItem(FINANCE_PIN_STORAGE_KEY); _showOfficeFinanceLockScreen(); return; }
         if (!res.ok) {
             const data = await res.json().catch(() => ({}));
             throw new Error(data.detail || `خطای سرور (${res.status})`);
@@ -3706,16 +3774,17 @@ async function loadOfficeExpenses() {
     let expenseTotal = 0, incomeTotal = 0;
     try {
         const [listRes, summaryRes, incomeRes] = await Promise.all([
-            fetch(`${CORE}/office-finance/expenses?${qs.toString()}`, {
-                headers: { 'Authorization': `Bearer ${getToken()}` }
-            }),
-            fetch(`${CORE}/office-finance/expenses/summary?${qs.toString()}`, {
-                headers: { 'Authorization': `Bearer ${getToken()}` }
-            }),
-            fetch(`${CORE}/office-finance/income/summary?${incomeQs.toString()}`, {
-                headers: { 'Authorization': `Bearer ${getToken()}` }
-            }),
+            fetch(`${CORE}/office-finance/expenses?${qs.toString()}`, { headers: _officeFinanceHeaders() }),
+            fetch(`${CORE}/office-finance/expenses/summary?${qs.toString()}`, { headers: _officeFinanceHeaders() }),
+            fetch(`${CORE}/office-finance/income/summary?${incomeQs.toString()}`, { headers: _officeFinanceHeaders() }),
         ]);
+        if (listRes.status === 403 || summaryRes.status === 403 || incomeRes.status === 403) {
+            // A stale/changed pin cached from an earlier session -- drop it
+            // and re-lock instead of showing a confusing generic error.
+            sessionStorage.removeItem(FINANCE_PIN_STORAGE_KEY);
+            _showOfficeFinanceLockScreen();
+            return;
+        }
         if (!listRes.ok || !summaryRes.ok || !incomeRes.ok) throw new Error();
         const rows = await listRes.json();
         const summary = await summaryRes.json();
@@ -3771,13 +3840,98 @@ async function deleteOfficeExpense(expenseId) {
     try {
         const res = await fetch(`${CORE}/office-finance/expenses/${expenseId}`, {
             method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${getToken()}` },
+            headers: _officeFinanceHeaders(),
         });
+        if (res.status === 403) { sessionStorage.removeItem(FINANCE_PIN_STORAGE_KEY); _showOfficeFinanceLockScreen(); return; }
         if (!res.ok) throw new Error();
         showToast('هزینه حذف شد.');
         await loadOfficeExpenses();
     } catch (e) {
         showToast('❌ حذف هزینه ناموفق بود.');
+    }
+}
+
+// ── کد محرمانه امور مالی دفتر (تنظیمات حساب) ────────────────────────────
+async function loadFinancePinStatus() {
+    const statusEl = document.getElementById('fin-pin-status');
+    const currentRow = document.getElementById('fin-pin-current-row');
+    const clearBtn = document.getElementById('fin-pin-clear-btn');
+    try {
+        const res = await fetch(`${CORE}/office-finance/pin-status`, {
+            headers: { 'Authorization': `Bearer ${getToken()}` }
+        });
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        if (data.configured) {
+            statusEl.textContent = '🔒 کد محرمانه فعال است.';
+            statusEl.style.color = '#4ade80';
+            currentRow.classList.remove('hidden');
+            clearBtn.classList.remove('hidden');
+        } else {
+            statusEl.textContent = '⚪ کد محرمانه تنظیم نشده — امور مالی دفتر برای هر کسی که با این حساب وارد شده قابل‌مشاهده است.';
+            statusEl.style.color = 'var(--text-muted)';
+            currentRow.classList.add('hidden');
+            clearBtn.classList.add('hidden');
+        }
+    } catch (e) {
+        statusEl.textContent = '❌ خطا در دریافت وضعیت.';
+        statusEl.style.color = '#f87171';
+    }
+}
+
+async function saveFinancePin() {
+    const newPin = document.getElementById('fin-pin-new').value.trim();
+    const currentPin = document.getElementById('fin-pin-current').value.trim();
+    if (!/^\d{4,6}$/.test(newPin)) {
+        showAccountStatus('fin-pin-status-msg', 'کد باید بین ۴ تا ۶ رقم باشد.', false);
+        return;
+    }
+    const btn = document.getElementById('fin-pin-save-btn');
+    const originalLabel = btn.textContent;
+    btn.disabled = true; btn.textContent = 'در حال ذخیره...';
+    try {
+        const res = await fetch(`${CORE}/office-finance/pin`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getToken()}` },
+            body: JSON.stringify({ pin: newPin, current_pin: currentPin || null }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || 'خطای سرور');
+        showAccountStatus('fin-pin-status-msg', '✅ کد محرمانه ذخیره شد.', true);
+        document.getElementById('fin-pin-new').value = '';
+        document.getElementById('fin-pin-current').value = '';
+        // A changed/cleared pin invalidates whatever this tab had cached
+        // for امور مالی دفتر -- drop it so the next visit asks fresh
+        // instead of silently failing with a 403.
+        sessionStorage.removeItem(FINANCE_PIN_STORAGE_KEY);
+        await loadFinancePinStatus();
+    } catch (e) {
+        showAccountStatus('fin-pin-status-msg', '❌ ' + e.message, false);
+    } finally {
+        btn.disabled = false; btn.textContent = originalLabel;
+    }
+}
+
+async function clearFinancePin() {
+    const currentPin = document.getElementById('fin-pin-current').value.trim();
+    if (!currentPin) {
+        showAccountStatus('fin-pin-status-msg', 'برای حذف، کد فعلی را وارد کنید.', false);
+        return;
+    }
+    if (!confirm('کد محرمانه حذف شود؟ پس از آن، امور مالی دفتر بدون نیاز به کد برای هر کسی که با این حساب وارد شده قابل‌مشاهده خواهد بود.')) return;
+    try {
+        const res = await fetch(`${CORE}/office-finance/pin?current_pin=${encodeURIComponent(currentPin)}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${getToken()}` },
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.detail || 'خطای سرور');
+        showAccountStatus('fin-pin-status-msg', 'کد محرمانه حذف شد.', true);
+        document.getElementById('fin-pin-current').value = '';
+        sessionStorage.removeItem(FINANCE_PIN_STORAGE_KEY);
+        await loadFinancePinStatus();
+    } catch (e) {
+        showAccountStatus('fin-pin-status-msg', '❌ ' + e.message, false);
     }
 }
 
@@ -6077,6 +6231,10 @@ function openAccountSettingsPage(pushHistory = true) {
     document.getElementById('sanam-cookies-input').value = '';
     document.getElementById('sanam-session-save-status').classList.add('hidden');
     loadSanamSessionStatus();
+    document.getElementById('fin-pin-new').value = '';
+    document.getElementById('fin-pin-current').value = '';
+    document.getElementById('fin-pin-status-msg').classList.add('hidden');
+    loadFinancePinStatus();
 }
 
 function closeAccountSettingsPage() {
