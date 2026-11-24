@@ -3697,25 +3697,44 @@ async function loadOfficeExpenses() {
     if (from) qs.set('from', from);
     if (to) qs.set('to', to);
     if (category) qs.set('category', category);
+    // Income has no category filter -- same date range, dropping category.
+    const incomeQs = new URLSearchParams();
+    if (from) incomeQs.set('from', from);
+    if (to) incomeQs.set('to', to);
 
     const tbody = document.getElementById('of-expenses-rows');
+    let expenseTotal = 0, incomeTotal = 0;
     try {
-        const [listRes, summaryRes] = await Promise.all([
+        const [listRes, summaryRes, incomeRes] = await Promise.all([
             fetch(`${CORE}/office-finance/expenses?${qs.toString()}`, {
                 headers: { 'Authorization': `Bearer ${getToken()}` }
             }),
             fetch(`${CORE}/office-finance/expenses/summary?${qs.toString()}`, {
                 headers: { 'Authorization': `Bearer ${getToken()}` }
             }),
+            fetch(`${CORE}/office-finance/income/summary?${incomeQs.toString()}`, {
+                headers: { 'Authorization': `Bearer ${getToken()}` }
+            }),
         ]);
-        if (!listRes.ok || !summaryRes.ok) throw new Error();
+        if (!listRes.ok || !summaryRes.ok || !incomeRes.ok) throw new Error();
         const rows = await listRes.json();
         const summary = await summaryRes.json();
+        const income = await incomeRes.json();
         renderOfficeExpenseRows(rows);
         renderOfficeExpenseSummary(summary);
+        renderOfficeIncomeSummary(income);
+        expenseTotal = summary.total_toman || 0;
+        incomeTotal = income.total_toman || 0;
+        document.getElementById('of-net-total').textContent = `${(incomeTotal - expenseTotal).toLocaleString()} تومان`;
     } catch (e) {
         tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در دریافت هزینه‌ها.</td></tr>`;
     }
+}
+
+function renderOfficeIncomeSummary(income) {
+    document.getElementById('of-income-total').textContent = `${(income.total_toman || 0).toLocaleString()}`;
+    document.getElementById('of-income-paid').textContent = `${(income.paid_toman || 0).toLocaleString()}`;
+    document.getElementById('of-income-pending').textContent = `${(income.pending_toman || 0).toLocaleString()}`;
 }
 
 function renderOfficeExpenseSummary(summary) {
