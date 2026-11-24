@@ -3684,6 +3684,7 @@ async function openOfficeFinancePage(pushHistory = true) {
     }
     _showOfficeFinanceContent();
     loadOfficeExpenses();
+    loadOfficeIncome();
 }
 
 async function unlockOfficeFinance() {
@@ -3703,6 +3704,7 @@ async function unlockOfficeFinance() {
         statusEl.classList.add('hidden');
         _showOfficeFinanceContent();
         loadOfficeExpenses();
+        loadOfficeIncome();
     } catch (e) {
         statusEl.textContent = '❌ کد محرمانه نادرست است.';
         statusEl.classList.remove('hidden');
@@ -3757,6 +3759,18 @@ async function submitOfficeExpense() {
     }
 }
 
+// Income and expenses each keep their own last-seen total (independent
+// date filters -- see loadOfficeIncome/loadOfficeExpenses) so خالص (net)
+// can be recomputed from whichever one just changed without re-fetching
+// the other.
+let _officeLastExpenseTotal = 0;
+let _officeLastIncomeTotal = 0;
+
+function _updateOfficeNetTotal() {
+    const el = document.getElementById('of-net-total');
+    if (el) el.textContent = `${(_officeLastIncomeTotal - _officeLastExpenseTotal).toLocaleString()} تومان`;
+}
+
 async function loadOfficeExpenses() {
     const from = document.getElementById('of-filter-from').value;
     const to = document.getElementById('of-filter-to').value;
@@ -3765,38 +3779,60 @@ async function loadOfficeExpenses() {
     if (from) qs.set('from', from);
     if (to) qs.set('to', to);
     if (category) qs.set('category', category);
-    // Income has no category filter -- same date range, dropping category.
-    const incomeQs = new URLSearchParams();
-    if (from) incomeQs.set('from', from);
-    if (to) incomeQs.set('to', to);
 
     const tbody = document.getElementById('of-expenses-rows');
-    let expenseTotal = 0, incomeTotal = 0;
     try {
-        const [listRes, summaryRes, incomeRes] = await Promise.all([
+        const [listRes, summaryRes] = await Promise.all([
             fetch(`${CORE}/office-finance/expenses?${qs.toString()}`, { headers: _officeFinanceHeaders() }),
             fetch(`${CORE}/office-finance/expenses/summary?${qs.toString()}`, { headers: _officeFinanceHeaders() }),
-            fetch(`${CORE}/office-finance/income/summary?${incomeQs.toString()}`, { headers: _officeFinanceHeaders() }),
         ]);
-        if (listRes.status === 403 || summaryRes.status === 403 || incomeRes.status === 403) {
+        if (listRes.status === 403 || summaryRes.status === 403) {
             // A stale/changed pin cached from an earlier session -- drop it
             // and re-lock instead of showing a confusing generic error.
             sessionStorage.removeItem(FINANCE_PIN_STORAGE_KEY);
             _showOfficeFinanceLockScreen();
             return;
         }
-        if (!listRes.ok || !summaryRes.ok || !incomeRes.ok) throw new Error();
+        if (!listRes.ok || !summaryRes.ok) throw new Error();
         const rows = await listRes.json();
         const summary = await summaryRes.json();
-        const income = await incomeRes.json();
         renderOfficeExpenseRows(rows);
         renderOfficeExpenseSummary(summary);
-        renderOfficeIncomeSummary(income);
-        expenseTotal = summary.total_toman || 0;
-        incomeTotal = income.total_toman || 0;
-        document.getElementById('of-net-total').textContent = `${(incomeTotal - expenseTotal).toLocaleString()} تومان`;
+        _officeLastExpenseTotal = summary.total_toman || 0;
+        _updateOfficeNetTotal();
     } catch (e) {
         tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در دریافت هزینه‌ها.</td></tr>`;
+    }
+}
+
+// Independent of loadOfficeExpenses's own date filter -- income for one
+// period and expenses for another is a normal thing to want to compare,
+// so each gets its own from/to controls.
+async function loadOfficeIncome() {
+    const from = document.getElementById('of-income-filter-from').value;
+    const to = document.getElementById('of-income-filter-to').value;
+    const qs = new URLSearchParams();
+    if (from) qs.set('from', from);
+    if (to) qs.set('to', to);
+
+    try {
+        const res = await fetch(`${CORE}/office-finance/income/summary?${qs.toString()}`, {
+            headers: _officeFinanceHeaders()
+        });
+        if (res.status === 403) {
+            sessionStorage.removeItem(FINANCE_PIN_STORAGE_KEY);
+            _showOfficeFinanceLockScreen();
+            return;
+        }
+        if (!res.ok) throw new Error();
+        const income = await res.json();
+        renderOfficeIncomeSummary(income);
+        _officeLastIncomeTotal = income.total_toman || 0;
+        _updateOfficeNetTotal();
+    } catch (e) {
+        ['of-income-total', 'of-income-paid', 'of-income-pending'].forEach(id => {
+            document.getElementById(id).textContent = '—';
+        });
     }
 }
 
