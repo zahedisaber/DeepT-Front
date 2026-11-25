@@ -697,6 +697,9 @@ document.getElementById('myplRepriceModal').addEventListener('click', function(e
 document.getElementById('editWorkRecordModal').addEventListener('click', function(e) {
     if (e.target === this) closeEditWorkRecordModal();
 });
+document.getElementById('officeJobModal').addEventListener('click', function(e) {
+    if (e.target === this) closeOfficeJobModal();
+});
 
 // ═══════════════════════════════════════════════════════════
 // HR CLOCK IN / CLOCK OUT -- office accounts only (see hr.py). No login of
@@ -3774,6 +3777,22 @@ function _initOfficeFinanceDatePickers() {
     if (!dateWrap.innerHTML) dateWrap.innerHTML = hrDatePicker('of-date', 'تاریخ');
     officeRangePicker('of-filter-range', 'of-filter-from', 'of-filter-to', loadOfficeExpenses);
     officeRangePicker('of-income-filter-range', 'of-income-filter-from', 'of-income-filter-to', loadOfficeIncome);
+    officeRangePicker('oj-filter-range', 'oj-filter-from', 'oj-filter-to', loadOfficeJobsStats);
+}
+
+// ─── مالی / عملکرد tabs ────────────────────────────────────────────────
+function switchOfficeFinanceTab(tab) {
+    const isFinancial = tab === 'financial';
+    document.getElementById('of-tab-financial').classList.toggle('hidden', !isFinancial);
+    document.getElementById('of-tab-performance').classList.toggle('hidden', isFinancial);
+    const setActive = (btnId, active) => {
+        const el = document.getElementById(btnId);
+        el.style.borderBottomColor = active ? 'var(--accent)' : 'transparent';
+        el.style.color = active ? 'var(--accent)' : 'var(--text-muted)';
+    };
+    setActive('of-tab-btn-financial', isFinancial);
+    setActive('of-tab-btn-performance', !isFinancial);
+    if (!isFinancial) loadOfficeJobsStats();
 }
 
 function officeRangePicker(containerId, fromId, toId, onChange) {
@@ -4072,6 +4091,83 @@ async function deleteOfficeExpense(expenseId) {
         await loadOfficeExpenses();
     } catch (e) {
         showToast('❌ حذف هزینه ناموفق بود.');
+    }
+}
+
+// ── عملکرد دفتر (امور مالی دفتر's "عملکرد" tab) ─────────────────────────
+// Read-only aggregated view across every client -- jobs are logged from a
+// client's own profile page ("📋 ثبت ترجمه", see openOfficeJobModal). No
+// finance-PIN headers needed here (see DeepT-Core's office_jobs.py --
+// job counts aren't the sensitive-money concern the PIN protects), only
+// the normal bearer token.
+const OFFICE_JOB_TYPE_FA = { tayidi: 'تاییدی', gheyr_tayidi: 'غیرتاییدی' };
+let _officeJobsCache = [];
+
+async function loadOfficeJobsStats() {
+    const from = document.getElementById('oj-filter-from').value;
+    const to = document.getElementById('oj-filter-to').value;
+    const qs = new URLSearchParams();
+    if (from) qs.set('from', from);
+    if (to) qs.set('to', to);
+
+    const tbody = document.getElementById('oj-rows');
+    try {
+        const [listRes, summaryRes] = await Promise.all([
+            fetch(`${CORE}/office-jobs?${qs.toString()}`, { headers: { 'Authorization': `Bearer ${getToken()}` } }),
+            fetch(`${CORE}/office-jobs/summary?${qs.toString()}`, { headers: { 'Authorization': `Bearer ${getToken()}` } }),
+        ]);
+        if (!listRes.ok || !summaryRes.ok) throw new Error();
+        const rows = await listRes.json();
+        const summary = await summaryRes.json();
+        renderOfficeJobRows(rows);
+        renderOfficeJobSummary(summary);
+    } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در دریافت اطلاعات.</td></tr>`;
+    }
+}
+
+function renderOfficeJobSummary(summary) {
+    document.getElementById('oj-stat-count').textContent = summary.count ?? 0;
+    document.getElementById('oj-stat-tayidi').textContent = (summary.by_type && summary.by_type.tayidi) || 0;
+    document.getElementById('oj-stat-gheyr-tayidi').textContent = (summary.by_type && summary.by_type.gheyr_tayidi) || 0;
+    document.getElementById('oj-stat-pages').textContent = summary.total_pages ?? 0;
+    document.getElementById('oj-stat-lines').textContent = summary.total_lines ?? 0;
+}
+
+function renderOfficeJobRows(rows) {
+    _officeJobsCache = rows;
+    const tbody = document.getElementById('oj-rows');
+    if (!rows.length) {
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-sm" style="color:var(--text-muted);">کاری ثبت نشده است.</td></tr>`;
+        return;
+    }
+    tbody.innerHTML = rows.map(r => `
+        <tr style="border-bottom:1px solid var(--divider);">
+            <td class="py-2 px-2" style="color:var(--text-muted);">${escapeHtml(formatIsoAsJalaliDisplay(r.job_date) || '')}</td>
+            <td class="py-2 px-2" style="color:var(--text-main);">${escapeHtml(r.client_name || '—')}</td>
+            <td class="py-2 px-2" style="color:var(--text-main);">${escapeHtml(OFFICE_JOB_TYPE_FA[r.job_type] || r.job_type)}</td>
+            <td class="py-2 px-2" style="color:var(--text-main);">${escapeHtml(r.description || '—')}</td>
+            <td class="py-2 px-2 en" style="color:var(--text-main);">${r.pages ?? '—'}</td>
+            <td class="py-2 px-2 en" style="color:var(--text-main);">${r.lines ?? '—'}</td>
+            <td class="py-2 px-2 text-left">
+                <button type="button" onclick="deleteOfficeJob('${r.id}')" class="text-xs font-bold px-2 py-1 rounded-lg" style="background:#7f1d1d;color:#fff;">حذف</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+async function deleteOfficeJob(jobId) {
+    if (!confirm('این رکورد حذف شود؟')) return;
+    try {
+        const res = await fetch(`${CORE}/office-jobs/${jobId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${getToken()}` },
+        });
+        if (!res.ok) throw new Error();
+        showToast('رکورد حذف شد.');
+        await loadOfficeJobsStats();
+    } catch (e) {
+        showToast('❌ حذف ناموفق بود.');
     }
 }
 
@@ -6265,6 +6361,7 @@ async function openClientProfile(clientId) {
         document.getElementById('cp-notes').value = c.notes || '';
         // cp-job-count's header was replaced by the combined activity
         // list's own count (cp-activity-count, set in renderClientActivityList).
+        await loadClientOfficeJobs(clientId);
 
         const related = c.related_persons || [];
         const relatedBox = document.getElementById('cp-related-list');
@@ -7753,6 +7850,130 @@ async function saveClientNotes() {
         showToast('✅ یادداشت ذخیره شد.');
     } catch (e) {
         showToast('خطا در ذخیره یادداشت.');
+    }
+}
+
+// ── ثبت ترجمه (عملکرد دفتر) ────────────────────────────────────────────
+// A lightweight per-client job-performance record -- document stats only,
+// deliberately no price field (see DeepT-Core's office_jobs.py). Opened
+// from the client profile page; aggregated totals show up in امور مالی
+// دفتر's own "عملکرد" tab (loadOfficeJobsStats below).
+function openOfficeJobModal() {
+    if (!currentClientDetailId) return;
+    closeJalaliCalendar();
+    document.getElementById('oj-type').value = 'tayidi';
+    document.getElementById('oj-description').value = '';
+    document.getElementById('oj-source-lang').value = '';
+    document.getElementById('oj-target-lang').value = '';
+    document.getElementById('oj-pages').value = '';
+    document.getElementById('oj-lines').value = '';
+    document.getElementById('oj-notes').value = '';
+    const dateWrap = document.getElementById('oj-date-wrap');
+    if (!dateWrap.innerHTML) dateWrap.innerHTML = hrDatePicker('oj-date', 'تاریخ انجام');
+    setHrDate('oj-date', hrToday());
+    document.getElementById('officeJobModal').classList.remove('hidden');
+}
+
+function closeOfficeJobModal() {
+    closeJalaliCalendar();
+    document.getElementById('officeJobModal').classList.add('hidden');
+}
+
+async function submitOfficeJob() {
+    if (!currentClientDetailId) return;
+    const jobDate = document.getElementById('oj-date').value;
+    if (!jobDate) { showToast('⚠️ تاریخ انجام را انتخاب کنید.'); return; }
+    const toIntOrNull = (id) => {
+        const v = document.getElementById(id).value;
+        return v === '' ? null : parseInt(v, 10);
+    };
+    const payload = {
+        client_id: currentClientDetailId,
+        job_type: document.getElementById('oj-type').value,
+        description: document.getElementById('oj-description').value.trim() || null,
+        source_language: document.getElementById('oj-source-lang').value.trim() || null,
+        target_language: document.getElementById('oj-target-lang').value.trim() || null,
+        pages: toIntOrNull('oj-pages'),
+        lines: toIntOrNull('oj-lines'),
+        job_date: jobDate,
+        notes: document.getElementById('oj-notes').value.trim() || null,
+    };
+    const btn = document.getElementById('oj-submit-btn');
+    const originalLabel = btn.textContent;
+    btn.disabled = true; btn.textContent = 'در حال ثبت...';
+    try {
+        const res = await fetch(`${CORE}/office-jobs`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.detail || `خطای سرور (${res.status})`);
+        }
+        showToast('✅ ترجمه ثبت شد.');
+        closeOfficeJobModal();
+        if (isProfilePageOpen()) await loadClientOfficeJobs(currentClientDetailId);
+    } catch (e) {
+        showToast('❌ ' + (e.message || 'خطا در ثبت ترجمه.'));
+    } finally {
+        btn.disabled = false; btn.textContent = originalLabel;
+    }
+}
+
+// This client's own logged jobs -- shown directly on their profile page
+// (same idea as سابقه پروژه‌ها و اسناد above, but kept as its own simple
+// list since these rows have no price and can never become an invoice
+// line, unlike that table's job/Sanam rows).
+async function loadClientOfficeJobs(clientId) {
+    const tbody = document.getElementById('cp-oj-rows');
+    if (!tbody || !clientId) return;
+    try {
+        const res = await fetch(`${CORE}/office-jobs?client_id=${clientId}`, {
+            headers: { 'Authorization': `Bearer ${getToken()}` },
+        });
+        if (!res.ok) throw new Error();
+        const rows = await res.json();
+        renderClientOfficeJobRows(rows);
+    } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-sm" style="color:var(--text-muted);">خطا در دریافت کارها.</td></tr>`;
+    }
+}
+
+function renderClientOfficeJobRows(rows) {
+    const tbody = document.getElementById('cp-oj-rows');
+    const countEl = document.getElementById('cp-oj-count');
+    if (countEl) countEl.textContent = rows.length;
+    if (!rows.length) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-sm" style="color:var(--text-muted);">کاری برای این مشتری ثبت نشده است.</td></tr>`;
+        return;
+    }
+    tbody.innerHTML = rows.map(r => `
+        <tr style="border-bottom:1px solid var(--divider);">
+            <td class="py-2 px-2" style="color:var(--text-muted);">${escapeHtml(formatIsoAsJalaliDisplay(r.job_date) || '')}</td>
+            <td class="py-2 px-2" style="color:var(--text-main);">${escapeHtml(OFFICE_JOB_TYPE_FA[r.job_type] || r.job_type)}</td>
+            <td class="py-2 px-2" style="color:var(--text-main);">${escapeHtml(r.description || '—')}</td>
+            <td class="py-2 px-2 en" style="color:var(--text-main);">${r.pages ?? '—'}</td>
+            <td class="py-2 px-2 en" style="color:var(--text-main);">${r.lines ?? '—'}</td>
+            <td class="py-2 px-2 text-left">
+                <button type="button" onclick="deleteClientOfficeJob('${r.id}')" class="text-xs font-bold px-2 py-1 rounded-lg" style="background:#7f1d1d;color:#fff;">حذف</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+async function deleteClientOfficeJob(jobId) {
+    if (!confirm('این رکورد حذف شود؟')) return;
+    try {
+        const res = await fetch(`${CORE}/office-jobs/${jobId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${getToken()}` },
+        });
+        if (!res.ok) throw new Error();
+        showToast('رکورد حذف شد.');
+        await loadClientOfficeJobs(currentClientDetailId);
+    } catch (e) {
+        showToast('❌ حذف ناموفق بود.');
     }
 }
 

@@ -302,6 +302,62 @@
   </div>
 </div>
 
+<!-- ── ثبت ترجمه (عملکرد دفتر) -- a lightweight per-client job-performance
+     record: document stats (pages/lines, تاییدی/غیرتاییدی, language pair),
+     deliberately NOT an invoice line item (no price field at all) -- see
+     DeepT-Core's office_jobs.py. Opened from the client profile page's own
+     "📋 ثبت ترجمه" button; aggregated totals show up in امور مالی دفتر's
+     own "عملکرد" tab. ── -->
+<div role="dialog" aria-modal="true" id="officeJobModal" class="modal-overlay fixed inset-0 z-[75] hidden flex items-center justify-center p-4">
+  <div class="w-full max-w-md p-6" style="background:var(--card-surface);border:1px solid var(--border-color);border-radius:1rem;max-height:85vh;overflow-y:auto;">
+    <div class="flex items-center justify-between mb-3">
+      <h3 class="text-base font-black" style="color:var(--text-main);">📋 ثبت ترجمه</h3>
+      <button type="button" onclick="closeOfficeJobModal()" style="color:var(--text-muted);background:none;border:none;cursor:pointer;font-size:1.1rem;">✕</button>
+    </div>
+
+    <label class="auth-label">نوع کار</label>
+    <select id="oj-type" class="auth-input mb-3">
+      <option value="tayidi">تاییدی</option>
+      <option value="gheyr_tayidi">غیرتاییدی</option>
+    </select>
+
+    <label for="oj-description" class="auth-label">شرح سند (اختیاری)</label>
+    <input type="text" id="oj-description" class="auth-input mb-3" placeholder="مثلاً گواهی عدم سوء پیشینه">
+
+    <div class="grid grid-cols-2 gap-2 mb-3">
+      <div>
+        <label for="oj-source-lang" class="auth-label">زبان مبدا (اختیاری)</label>
+        <input type="text" id="oj-source-lang" class="auth-input" placeholder="فارسی">
+      </div>
+      <div>
+        <label for="oj-target-lang" class="auth-label">زبان مقصد (اختیاری)</label>
+        <input type="text" id="oj-target-lang" class="auth-input" placeholder="انگلیسی">
+      </div>
+    </div>
+
+    <div class="grid grid-cols-2 gap-2 mb-3">
+      <div>
+        <label for="oj-pages" class="auth-label">تعداد صفحات (اختیاری)</label>
+        <input type="number" id="oj-pages" class="auth-input en" dir="ltr" min="0" placeholder="0">
+      </div>
+      <div>
+        <label for="oj-lines" class="auth-label">تعداد خطوط (اختیاری)</label>
+        <input type="number" id="oj-lines" class="auth-input en" dir="ltr" min="0" placeholder="0">
+      </div>
+    </div>
+
+    <div id="oj-date-wrap" class="mb-3"></div>
+
+    <label for="oj-notes" class="auth-label">یادداشت (اختیاری)</label>
+    <textarea id="oj-notes" class="auth-input mb-3" rows="2"></textarea>
+
+    <div class="flex items-center gap-2 mt-2">
+      <button type="button" onclick="submitOfficeJob()" id="oj-submit-btn" class="flex-1 font-black py-2 rounded-lg text-xs transition" style="background:var(--accent);color:var(--btn-text-on-accent);">ثبت</button>
+      <button type="button" onclick="closeOfficeJobModal()" class="text-xs font-bold px-3 py-2 rounded-lg transition shrink-0" style="background:var(--bg-main);color:var(--text-muted);border:1px solid var(--border-subtle);">انصراف</button>
+    </div>
+  </div>
+</div>
+
 <!-- ── VIEW 03b · نرخنامه bulk percentage increase (inflation adjustment) --
      applies to every catalog item's current effective price (default or
      already-overridden alike) via myplCommit(); see applyMyplBulkIncrease()
@@ -1139,7 +1195,17 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
       <p id="of-unlock-status" class="text-[11px] mt-2 hidden" style="color:#f87171;"></p>
     </div>
 
-    <div id="of-content" class="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start hidden">
+    <div id="of-content" class="hidden">
+      <!-- ─── مالی / عملکرد tabs -- عملکرد added alongside the original
+           expense/income ledger so an office can also see how many jobs
+           it's had, not just its money. Both tabs share this same
+           PIN-gated wrapper, so عملکرد needs no gating of its own. ─── -->
+      <div class="flex items-center gap-6 mb-5" style="border-bottom:1px solid var(--border-subtle);">
+        <button type="button" onclick="switchOfficeFinanceTab('financial')" id="of-tab-btn-financial" class="text-sm font-black pb-3" style="background:none;border:none;border-bottom:3px solid var(--accent);color:var(--accent);cursor:pointer;">💰 مالی</button>
+        <button type="button" onclick="switchOfficeFinanceTab('performance')" id="of-tab-btn-performance" class="text-sm font-black pb-3" style="background:none;border:none;border-bottom:3px solid transparent;color:var(--text-muted);cursor:pointer;">📋 عملکرد</button>
+      </div>
+
+      <div id="of-tab-financial" class="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
       <!-- ─── Add expense form ─────────────────────────────────────── -->
       <div class="workspace-panel p-6 lg:col-span-1">
         <h4 class="text-sm font-black mb-3" id="of-form-title" style="color:var(--text-main);">➕ ثبت هزینه جدید</h4>
@@ -1249,6 +1315,62 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
               </thead>
               <tbody id="of-expenses-rows">
                 <tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      </div>
+
+      <!-- ─── عملکرد tab -- how many jobs (not money), per DeepT-Core's
+           office_jobs.py. Jobs themselves are logged from a client's own
+           profile page ("📋 ثبت ترجمه"); this tab is a read-only
+           aggregated view across every client, with its own ماهانه/دقیق
+           range filter (same officeRangePicker component as the مالی
+           tab's filters). ─────────────────────────────────────────── -->
+      <div id="of-tab-performance" class="hidden space-y-5">
+        <div class="workspace-panel p-6">
+          <div class="flex items-center justify-between gap-3 flex-wrap mb-3">
+            <h4 class="text-sm font-black" style="color:var(--text-main);">📋 خلاصه عملکرد</h4>
+            <div id="oj-filter-range"></div>
+          </div>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+            <div>
+              <div class="text-[10px] font-bold mb-1" style="color:var(--text-muted);">کل کارها</div>
+              <div id="oj-stat-count" class="text-lg font-black en" style="color:var(--text-main);">—</div>
+            </div>
+            <div>
+              <div class="text-[10px] font-bold mb-1" style="color:var(--text-muted);">تاییدی</div>
+              <div id="oj-stat-tayidi" class="text-lg font-black en" style="color:var(--accent);">—</div>
+            </div>
+            <div>
+              <div class="text-[10px] font-bold mb-1" style="color:var(--text-muted);">غیرتاییدی</div>
+              <div id="oj-stat-gheyr-tayidi" class="text-lg font-black en" style="color:var(--text-main);">—</div>
+            </div>
+            <div>
+              <div class="text-[10px] font-bold mb-1" style="color:var(--text-muted);">صفحات / خطوط</div>
+              <div class="text-lg font-black en" style="color:var(--text-main);"><span id="oj-stat-pages">—</span> / <span id="oj-stat-lines">—</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="workspace-panel p-6">
+          <h4 class="text-sm font-black mb-3" style="color:var(--text-main);">فهرست کارها</h4>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm text-right">
+              <thead>
+                <tr style="border-bottom:1px solid var(--divider);color:var(--text-muted);">
+                  <th class="py-2 px-2 font-bold">تاریخ</th>
+                  <th class="py-2 px-2 font-bold">مشتری</th>
+                  <th class="py-2 px-2 font-bold">نوع</th>
+                  <th class="py-2 px-2 font-bold">شرح</th>
+                  <th class="py-2 px-2 font-bold">صفحات</th>
+                  <th class="py-2 px-2 font-bold">خطوط</th>
+                  <th class="py-2 px-2 font-bold"></th>
+                </tr>
+              </thead>
+              <tbody id="oj-rows">
+                <tr><td colspan="7" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>
               </tbody>
             </table>
           </div>
@@ -2013,6 +2135,7 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
             </div>
             <div class="flex items-center gap-2">
                 <button type="button" onclick="openChatForClient()" class="text-xs font-black px-4 py-2 rounded-xl transition" style="background:var(--accent);color:var(--btn-text-on-accent);">🚀 شروع پروژه جدید</button>
+                <button type="button" onclick="openOfficeJobModal()" class="text-xs font-bold px-4 py-2 rounded-xl transition" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">📋 ثبت ترجمه</button>
                 <button type="button" onclick="deleteClient(currentClientDetailId)" class="text-xs font-bold px-3 py-2 rounded-xl transition" style="background:var(--bg-main);color:#f87171;border:1px solid var(--border-subtle);">🗑 حذف مشتری</button>
             </div>
         </div>
@@ -2160,6 +2283,35 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                         </div>
                     </div>
                     <div id="cp-invoices-list" class="space-y-2"></div>
+                </div>
+            </div>
+
+            <!-- عملکرد (office_jobs.py) -- a pure performance log, never an
+                 invoice line item, so kept as its own simple list rather
+                 than mixed into "سابقه پروژه‌ها و اسناد" above (that table's
+                 checkbox/edit/billing logic assumes every row has a price
+                 and can become an invoice line; these never do). ─────── -->
+            <div class="workspace-panel p-5">
+                <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+                    <h3 class="text-sm font-black flex items-center gap-1.5" style="color:var(--text-main);">📋 کارهای ثبت‌شده (عملکرد) <span class="en" style="color:var(--text-muted);">(<span id="cp-oj-count">۰</span>)</span></h3>
+                    <button type="button" onclick="openOfficeJobModal()" class="text-[11px] font-black px-3 py-1.5 rounded-lg transition" style="background:var(--accent);color:var(--btn-text-on-accent);">+ ثبت ترجمه</button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-right">
+                        <thead>
+                            <tr style="border-bottom:1px solid var(--divider);color:var(--text-muted);">
+                                <th class="py-2 px-2 font-bold">تاریخ</th>
+                                <th class="py-2 px-2 font-bold">نوع</th>
+                                <th class="py-2 px-2 font-bold">شرح</th>
+                                <th class="py-2 px-2 font-bold">صفحات</th>
+                                <th class="py-2 px-2 font-bold">خطوط</th>
+                                <th class="py-2 px-2 font-bold"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="cp-oj-rows">
+                            <tr><td colspan="6" class="text-center py-6 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
