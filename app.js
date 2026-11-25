@@ -463,7 +463,8 @@ function reflowOpenViewHeaderPadding() {
     if (!headerEl || headerEl.classList.contains('hidden')) return;
     const openViewId = ['workspaceDashboard', 'clientsWorkspace', 'adminDashboard',
         'clientProfilePage', 'workSchedulePage', 'settingsPage', 'accountSettingsPage',
-        'docSamplesPage', 'myPriceListPage', 'hrPage', 'homePanelsPage', 'dateConverterPage']
+        'docSamplesPage', 'myPriceListPage', 'hrPage', 'homePanelsPage', 'dateConverterPage',
+        'officeFinancePage']
         .find(id => {
             const el = document.getElementById(id);
             return el && !el.classList.contains('hidden');
@@ -3541,6 +3542,7 @@ async function openWorkspaceDashboard(pushHistory = true) {
     document.getElementById('homePanelsPage').classList.add('hidden');
     document.getElementById('dateConverterPage').classList.add('hidden');
     document.getElementById('hrPage').classList.add('hidden');
+    document.getElementById('officeFinancePage').classList.add('hidden');
 
     // Reserve exactly as much top space as the header actually needs,
     // measured live -- more reliable than a fixed padding guess, since it
@@ -3581,6 +3583,7 @@ async function openClientsWorkspace(pushHistory = true) {
     document.getElementById('homePanelsPage').classList.add('hidden');
     document.getElementById('dateConverterPage').classList.add('hidden');
     document.getElementById('hrPage').classList.add('hidden');
+    document.getElementById('officeFinancePage').classList.add('hidden');
 
     const headerEl = document.querySelector('.header-bar');
     if (headerEl) {
@@ -3629,6 +3632,8 @@ function showLandingView() {
     if (dc) dc.classList.add('hidden');
     const hrp = document.getElementById('hrPage');
     if (hrp) hrp.classList.add('hidden');
+    const ofp = document.getElementById('officeFinancePage');
+    if (ofp) ofp.classList.add('hidden');
     document.body.style.overflow = 'auto';
 }
 
@@ -9754,6 +9759,7 @@ function showAdminDashboard() {
     document.getElementById('homePanelsPage').classList.add('hidden');
     document.getElementById('dateConverterPage').classList.add('hidden');
     document.getElementById('hrPage').classList.add('hidden');
+    document.getElementById('officeFinancePage').classList.add('hidden');
     document.getElementById('adminDashboard').classList.remove('hidden');
     switchAdminTab('users');
     loadAdminUsers();
