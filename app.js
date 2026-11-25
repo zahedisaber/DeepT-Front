@@ -1976,7 +1976,40 @@ const DP_DOCS = [
     ]},
     { id:"high_school_transcript", label:"ریزنمرات دبیرستان", full:true, fields:[
         { key:"document_title", label:"عنوان مدرک", kind:"simple", def:"Score Report Sheet" },
-    ]},    // Keys/defaults must match national_id_card.py on DeepT-Back-End.
+    ],
+      // This document's own glossary -- the exact built-in defaults of
+      // DeepT-Back-End's high_school_transcript.py DEFAULT_TERM_GLOSSARY
+      // (keep the two in step); saved as term_glossary["high_school_transcript"]
+      // and used for this document type only.
+      glossary: { defaults: {
+          "پایه": "Grade",
+          "نمره": "Grade",
+          "تک ماده": "Grace Pass",
+          "دوره متوسطه دوم": "Senior secondary education",
+          "آمادگی دفاعی": "Civil Defense Preparation",
+          "نمرات کتبی نهایی": "Written Final Scores",
+          "غیرانتفاعی": "Non-Profit (Private)",
+          "غ موجه": "Justified Absence",
+          "غ غیر موجه": "Unjustified Absence",
+          "غ غ موجه": "Unjustified Absence",
+          "مازاد": "Surplus",
+          "انتخابی": "Elective",
+      } },
+    },
+    // The building permit's glossary -- the exact built-in defaults of
+    // DeepT-Back-End's building_permit.py DEFAULT_TERM_GLOSSARY (keep the
+    // two in step); saved as term_glossary["building_permit"].
+    { id:"building_permit", label:"پروانه های ساختمانی", full:true, fields:[],
+      glossary: { defaults: {
+          "پخ": "Bevel",
+          "پخی": "Bevel",
+          "برآمدگی": "Protrusion",
+          "قطعه فرعی": "Auxiliary Plot",
+          "بخش ثبتی": "Registration Department",
+          "بر و کف": "Front and Ground",
+          "بروکف": "Front and Ground",
+      } },
+    },    // Keys/defaults must match national_id_card.py on DeepT-Back-End.
     { id:"national_id_card", label:"کارت ملی", full:true, fields:[
         { key:"emblem_line", label:"سطر آرم", kind:"simple", def:"IRI Emblem" },
         { key:"country_line", label:"جمهوری اسلامی ایران", kind:"simple", def:"Islamic Republic of Iran" },
