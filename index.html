@@ -2285,6 +2285,35 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                     <div id="cp-invoices-list" class="space-y-2"></div>
                 </div>
             </div>
+
+            <!-- عملکرد (office_jobs.py) -- a pure performance log, never an
+                 invoice line item, so kept as its own simple list rather
+                 than mixed into "سابقه پروژه‌ها و اسناد" above (that table's
+                 checkbox/edit/billing logic assumes every row has a price
+                 and can become an invoice line; these never do). ─────── -->
+            <div class="workspace-panel p-5">
+                <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+                    <h3 class="text-sm font-black flex items-center gap-1.5" style="color:var(--text-main);">📋 کارهای ثبت‌شده (عملکرد) <span class="en" style="color:var(--text-muted);">(<span id="cp-oj-count">۰</span>)</span></h3>
+                    <button type="button" onclick="openOfficeJobModal()" class="text-[11px] font-black px-3 py-1.5 rounded-lg transition" style="background:var(--accent);color:var(--btn-text-on-accent);">+ ثبت ترجمه</button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-right">
+                        <thead>
+                            <tr style="border-bottom:1px solid var(--divider);color:var(--text-muted);">
+                                <th class="py-2 px-2 font-bold">تاریخ</th>
+                                <th class="py-2 px-2 font-bold">نوع</th>
+                                <th class="py-2 px-2 font-bold">شرح</th>
+                                <th class="py-2 px-2 font-bold">صفحات</th>
+                                <th class="py-2 px-2 font-bold">خطوط</th>
+                                <th class="py-2 px-2 font-bold"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="cp-oj-rows">
+                            <tr><td colspan="6" class="text-center py-6 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
 
         <!-- TAB: تقویم کاری -->

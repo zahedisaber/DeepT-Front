@@ -6361,6 +6361,7 @@ async function openClientProfile(clientId) {
         document.getElementById('cp-notes').value = c.notes || '';
         // cp-job-count's header was replaced by the combined activity
         // list's own count (cp-activity-count, set in renderClientActivityList).
+        await loadClientOfficeJobs(clientId);
 
         const related = c.related_persons || [];
         const relatedBox = document.getElementById('cp-related-list');
@@ -7912,10 +7913,67 @@ async function submitOfficeJob() {
         }
         showToast('✅ ترجمه ثبت شد.');
         closeOfficeJobModal();
+        if (isProfilePageOpen()) await loadClientOfficeJobs(currentClientDetailId);
     } catch (e) {
         showToast('❌ ' + (e.message || 'خطا در ثبت ترجمه.'));
     } finally {
         btn.disabled = false; btn.textContent = originalLabel;
+    }
+}
+
+// This client's own logged jobs -- shown directly on their profile page
+// (same idea as سابقه پروژه‌ها و اسناد above, but kept as its own simple
+// list since these rows have no price and can never become an invoice
+// line, unlike that table's job/Sanam rows).
+async function loadClientOfficeJobs(clientId) {
+    const tbody = document.getElementById('cp-oj-rows');
+    if (!tbody || !clientId) return;
+    try {
+        const res = await fetch(`${CORE}/office-jobs?client_id=${clientId}`, {
+            headers: { 'Authorization': `Bearer ${getToken()}` },
+        });
+        if (!res.ok) throw new Error();
+        const rows = await res.json();
+        renderClientOfficeJobRows(rows);
+    } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-sm" style="color:var(--text-muted);">خطا در دریافت کارها.</td></tr>`;
+    }
+}
+
+function renderClientOfficeJobRows(rows) {
+    const tbody = document.getElementById('cp-oj-rows');
+    const countEl = document.getElementById('cp-oj-count');
+    if (countEl) countEl.textContent = rows.length;
+    if (!rows.length) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-sm" style="color:var(--text-muted);">کاری برای این مشتری ثبت نشده است.</td></tr>`;
+        return;
+    }
+    tbody.innerHTML = rows.map(r => `
+        <tr style="border-bottom:1px solid var(--divider);">
+            <td class="py-2 px-2" style="color:var(--text-muted);">${escapeHtml(formatIsoAsJalaliDisplay(r.job_date) || '')}</td>
+            <td class="py-2 px-2" style="color:var(--text-main);">${escapeHtml(OFFICE_JOB_TYPE_FA[r.job_type] || r.job_type)}</td>
+            <td class="py-2 px-2" style="color:var(--text-main);">${escapeHtml(r.description || '—')}</td>
+            <td class="py-2 px-2 en" style="color:var(--text-main);">${r.pages ?? '—'}</td>
+            <td class="py-2 px-2 en" style="color:var(--text-main);">${r.lines ?? '—'}</td>
+            <td class="py-2 px-2 text-left">
+                <button type="button" onclick="deleteClientOfficeJob('${r.id}')" class="text-xs font-bold px-2 py-1 rounded-lg" style="background:#7f1d1d;color:#fff;">حذف</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+async function deleteClientOfficeJob(jobId) {
+    if (!confirm('این رکورد حذف شود؟')) return;
+    try {
+        const res = await fetch(`${CORE}/office-jobs/${jobId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${getToken()}` },
+        });
+        if (!res.ok) throw new Error();
+        showToast('رکورد حذف شد.');
+        await loadClientOfficeJobs(currentClientDetailId);
+    } catch (e) {
+        showToast('❌ حذف ناموفق بود.');
     }
 }
 
