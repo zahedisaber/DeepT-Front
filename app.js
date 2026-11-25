@@ -4599,7 +4599,7 @@ async function openClientDetail(clientId) {
                     </span>
                 </div>`).join('');
 
-        renderClientActivityList(c.jobs || [], c.sanam_documents || []);
+        renderClientActivityList(c.jobs || [], c.sanam_documents || [], c.office_jobs || []);
 
         renderDraftRows();
         await renderClientInvoices(clientId);
@@ -4624,7 +4624,7 @@ const ACTIVITY_STATUS_LABELS = {
     completed:  { text: 'آماده',        color: '#4ade80' },
     failed:     { text: 'ناموفق',       color: '#f87171' },
 };
-const ACTIVITY_CATEGORY_COLORS = { job: '#4ade80', sanam: '#38bdf8', manual: '#fbbf24' };
+const ACTIVITY_CATEGORY_COLORS = { job: '#4ade80', sanam: '#38bdf8', manual: '#fbbf24', office_job: '#a78bfa' };
 
 function activityRowKey(type, id) { return `${type}:${id}`; }
 
@@ -4754,7 +4754,7 @@ async function _refetchClientActivity(clientId) {
         const res = await fetch(`${CORE}/clients/${clientId}`, { headers: { 'Authorization': `Bearer ${token}` } });
         if (!res.ok) throw new Error();
         const c = await res.json();
-        renderClientActivityList(c.jobs || [], c.sanam_documents || []);
+        renderClientActivityList(c.jobs || [], c.sanam_documents || [], c.office_jobs || []);
     } catch (e) {
         showToast('خطا در به‌روزرسانی سابقهٔ مشتری.');
     }
@@ -4879,7 +4879,7 @@ const ACTIVITY_PAGE_SIZE = 25;
 let activityListQuery = '';
 let activityListPage = 1;
 
-function renderClientActivityList(jobs, sanamDocs) {
+function renderClientActivityList(jobs, sanamDocs, officeJobs) {
     const prefix = isProfilePageOpen() ? 'cp' : 'cd';
     const box = document.getElementById(prefix + '-activity-list');
     const countEl = document.getElementById(prefix + '-activity-count');
@@ -4902,6 +4902,17 @@ function renderClientActivityList(jobs, sanamDocs) {
             price: d.price_toman || 0, trackingCode: d.tracking_code,
             // Already attached to an invoice -- don't offer it for a second one.
             checkable: !d.invoice_id, billed: !!d.invoice_id,
+        });
+    });
+    // عملکرد دفتر (office_jobs.py) -- a pure performance log, never an
+    // invoice line item (no price field exists on it at all), so unlike
+    // the two above this is never checkable/billable -- renderActivityListPage
+    // gives it a 🗑 button in that column instead of a checkbox.
+    (officeJobs || []).forEach(j => {
+        rows.push({
+            type: 'office_job', id: j.id, date: j.job_date,
+            title: j.description || OFFICE_JOB_TYPE_FA[j.job_type] || 'ترجمه',
+            jobKind: j.job_type, price: 0, checkable: false,
         });
     });
     rows.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
@@ -4958,13 +4969,27 @@ function renderActivityListPage() {
             : (r.billed ? { text: 'فاکتور شده', color: '#4ade80' } : null);
         const idBadge = r.type === 'job'
             ? `<span class="en" style="color:var(--text-muted);font-size:.65rem;" title="شناسه کار">#${escapeHtml(String(r.id).slice(0, 8))}</span>`
+            : r.type === 'office_job'
+            ? `<span style="color:var(--text-muted);font-size:.65rem;">${escapeHtml(OFFICE_JOB_TYPE_FA[r.jobKind] || r.jobKind)}</span>`
             : (r.trackingCode ? `<span class="en" style="color:var(--text-muted);font-size:.65rem;">کد پیگیری ${escapeHtml(r.trackingCode)}</span>` : '');
         const dateStr = r.date ? escapeHtml(String(r.date).slice(0, 10)) : '—';
-        const dotTitle = r.type === 'job' ? 'ترجمه ماشینی' : (r.type === 'sanam' ? 'وارد شده از سنام' : 'ردیف دستی');
-        const checkbox = `<input type="checkbox" ${checked ? 'checked' : ''} ${r.checkable ? '' : 'disabled'}
+        const dotTitle = r.type === 'job' ? 'ترجمه ماشینی' : (r.type === 'sanam' ? 'وارد شده از سنام' : (r.type === 'office_job' ? 'ثبت ترجمه (عملکرد)' : 'ردیف دستی'));
+        // عملکرد رows have no price/invoice tie-in (see office_jobs.py) --
+        // a 🗑 button here instead of the checkbox the other two types get,
+        // rather than threading a third type through the bulk-select/
+        // invoice-draft/bulk-delete machinery built only for billable rows.
+        const deleteBtn = `<button type="button" onclick="deleteClientOfficeJob('${r.id}')" class="text-[11px] font-bold px-2 py-1 rounded-lg" style="background:#7f1d1d;color:#fff;">حذف</button>`;
+        const checkboxEl = `<input type="checkbox" ${checked ? 'checked' : ''} ${r.checkable ? '' : 'disabled'}
             data-activity-key="${escapeHtml(rowKey)}"
             onchange='toggleActivitySelection(${JSON.stringify(r.type)}, ${JSON.stringify(r.id)}, this.checked)'
             style="width:15px;height:15px;accent-color:${color};flex-shrink:0;cursor:${r.checkable ? 'pointer' : 'not-allowed'};">`;
+        const pillEl = st ? `<span class="status-pill" style="color:${st.color};background:${st.color}1f;">${st.text}</span>` : '';
+        // cp's single merged cell picks exactly one of delete/pill/checkbox;
+        // cd's narrow layout instead shows delete-or-checkbox AND the pill
+        // as two separate elements (its own pre-existing layout), so it
+        // must not also get the pill folded into this one.
+        const cpActionCell = r.type === 'office_job' ? deleteBtn : (r.billed ? pillEl : checkboxEl);
+        const checkboxOrDelete = r.type === 'office_job' ? deleteBtn : checkboxEl;
 
         if (prefix === 'cp') {
             return `<tr>
@@ -4973,17 +4998,17 @@ function renderActivityListPage() {
                 <td class="en" style="padding:.6rem;color:var(--text-muted);">${idBadge || '—'}</td>
                 <td class="en" style="padding:.6rem;color:var(--text-muted);">${dateStr}</td>
                 <td class="en font-bold" style="padding:.6rem;color:var(--accent);">${r.price ? r.price.toLocaleString() + ' ت' : '—'}</td>
-                <td style="padding:.6rem;text-align:center;">${r.billed ? `<span class="status-pill" style="color:${st.color};background:${st.color}1f;">${st.text}</span>` : checkbox}</td>
+                <td style="padding:.6rem;text-align:center;">${cpActionCell}</td>
             </tr>`;
         }
         return `<div class="flex items-center gap-2.5 p-2.5 rounded-lg text-xs" style="background:var(--bg-main);border:1px solid var(--border-subtle);border-inline-start:3px solid ${color};">
             <span title="${dotTitle}" style="width:9px;height:9px;border-radius:50%;background:${color};display:inline-block;flex-shrink:0;"></span>
-            ${checkbox}
+            ${checkboxOrDelete}
             <span class="flex-1" style="color:var(--text-main);">${escapeHtml(r.title)}</span>
             ${idBadge}
             <span class="en shrink-0" style="color:var(--text-muted);">${dateStr}</span>
             <span class="en font-bold shrink-0" style="color:var(--accent);width:80px;text-align:left;">${r.price ? r.price.toLocaleString() + ' ت' : '—'}</span>
-            ${st ? `<span class="status-pill" style="color:${st.color};background:${st.color}1f;">${st.text}</span>` : ''}
+            ${pillEl}
         </div>`;
     }).join('');
     renderActivityListPagination(prefix, activityListPage, totalPages);
@@ -6361,7 +6386,6 @@ async function openClientProfile(clientId) {
         document.getElementById('cp-notes').value = c.notes || '';
         // cp-job-count's header was replaced by the combined activity
         // list's own count (cp-activity-count, set in renderClientActivityList).
-        await loadClientOfficeJobs(clientId);
 
         const related = c.related_persons || [];
         const relatedBox = document.getElementById('cp-related-list');
@@ -6376,7 +6400,7 @@ async function openClientProfile(clientId) {
                     </span>
                 </div>`).join('');
 
-        renderClientActivityList(c.jobs || [], c.sanam_documents || []);
+        renderClientActivityList(c.jobs || [], c.sanam_documents || [], c.office_jobs || []);
 
         renderDraftRows();
         await renderClientInvoices(clientId);
@@ -7876,8 +7900,45 @@ function openOfficeJobModal() {
 
 function closeOfficeJobModal() {
     closeJalaliCalendar();
+    closeOfficeJobDocDropdown();
     document.getElementById('officeJobModal').classList.add('hidden');
 }
+
+// شرح سند search -- same catalog نرخنامه/فاکتور already search
+// (priceCatalogWithCustom/renderMyPriceListMatches, see app.js's نرخنامه
+// section), reused here just to fill the description text, never to add
+// a priced invoice row. Typing something the catalog doesn't have (a
+// سایر/custom description) is always still a valid, unrestricted value --
+// this only ever offers a shortcut, never a constraint.
+function filterOfficeJobDocDropdown() {
+    const input = document.getElementById('oj-description');
+    const list = document.getElementById('oj-description-options');
+    if (!input || !list) return;
+    const rect = input.getBoundingClientRect();
+    const availableBelow = window.innerHeight - rect.bottom - 12;
+    const maxHeight = Math.max(160, Math.min(280, availableBelow));
+    list.style.position = 'fixed';
+    list.style.top = (rect.bottom + 4) + 'px';
+    list.style.left = rect.left + 'px';
+    list.style.width = Math.max(rect.width, 260) + 'px';
+    list.style.maxHeight = maxHeight + 'px';
+    list.style.overflowY = 'auto';
+    list.classList.remove('hidden');
+    renderMyPriceListMatches(list, input.value, (itemId) => {
+        input.value = PRICE_CATALOG_BY_ID[itemId].label;
+        closeOfficeJobDocDropdown();
+    });
+}
+
+function closeOfficeJobDocDropdown() {
+    document.getElementById('oj-description-options')?.classList.add('hidden');
+}
+
+document.addEventListener('click', (e) => {
+    const wrapper = document.getElementById('oj-description')?.closest('.relative');
+    const list = document.getElementById('oj-description-options');
+    if (wrapper && list && !wrapper.contains(e.target) && !list.contains(e.target)) closeOfficeJobDocDropdown();
+});
 
 async function submitOfficeJob() {
     if (!currentClientDetailId) return;
@@ -7913,7 +7974,7 @@ async function submitOfficeJob() {
         }
         showToast('✅ ترجمه ثبت شد.');
         closeOfficeJobModal();
-        if (isProfilePageOpen()) await loadClientOfficeJobs(currentClientDetailId);
+        if (isProfilePageOpen()) await _refetchClientActivity(currentClientDetailId);
     } catch (e) {
         showToast('❌ ' + (e.message || 'خطا در ثبت ترجمه.'));
     } finally {
@@ -7921,47 +7982,13 @@ async function submitOfficeJob() {
     }
 }
 
-// This client's own logged jobs -- shown directly on their profile page
-// (same idea as سابقه پروژه‌ها و اسناد above, but kept as its own simple
-// list since these rows have no price and can never become an invoice
-// line, unlike that table's job/Sanam rows).
-async function loadClientOfficeJobs(clientId) {
-    const tbody = document.getElementById('cp-oj-rows');
-    if (!tbody || !clientId) return;
-    try {
-        const res = await fetch(`${CORE}/office-jobs?client_id=${clientId}`, {
-            headers: { 'Authorization': `Bearer ${getToken()}` },
-        });
-        if (!res.ok) throw new Error();
-        const rows = await res.json();
-        renderClientOfficeJobRows(rows);
-    } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-sm" style="color:var(--text-muted);">خطا در دریافت کارها.</td></tr>`;
-    }
-}
-
-function renderClientOfficeJobRows(rows) {
-    const tbody = document.getElementById('cp-oj-rows');
-    const countEl = document.getElementById('cp-oj-count');
-    if (countEl) countEl.textContent = rows.length;
-    if (!rows.length) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-6 text-sm" style="color:var(--text-muted);">کاری برای این مشتری ثبت نشده است.</td></tr>`;
-        return;
-    }
-    tbody.innerHTML = rows.map(r => `
-        <tr style="border-bottom:1px solid var(--divider);">
-            <td class="py-2 px-2" style="color:var(--text-muted);">${escapeHtml(formatIsoAsJalaliDisplay(r.job_date) || '')}</td>
-            <td class="py-2 px-2" style="color:var(--text-main);">${escapeHtml(OFFICE_JOB_TYPE_FA[r.job_type] || r.job_type)}</td>
-            <td class="py-2 px-2" style="color:var(--text-main);">${escapeHtml(r.description || '—')}</td>
-            <td class="py-2 px-2 en" style="color:var(--text-main);">${r.pages ?? '—'}</td>
-            <td class="py-2 px-2 en" style="color:var(--text-main);">${r.lines ?? '—'}</td>
-            <td class="py-2 px-2 text-left">
-                <button type="button" onclick="deleteClientOfficeJob('${r.id}')" class="text-xs font-bold px-2 py-1 rounded-lg" style="background:#7f1d1d;color:#fff;">حذف</button>
-            </td>
-        </tr>
-    `).join('');
-}
-
+// This client's own logged jobs now render as rows directly inside
+// سابقه پروژه‌ها و اسناد above (renderClientActivityList's 'office_job'
+// rows) rather than a separate list -- deleteClientOfficeJob is reused by
+// that table's own 🗑 button for an office_job row (see
+// renderActivityListPage), since these rows carry no price/invoice_id and
+// so sit outside the checkbox/bulk-delete machinery the rest of that
+// table uses.
 async function deleteClientOfficeJob(jobId) {
     if (!confirm('این رکورد حذف شود؟')) return;
     try {
@@ -7971,7 +7998,7 @@ async function deleteClientOfficeJob(jobId) {
         });
         if (!res.ok) throw new Error();
         showToast('رکورد حذف شد.');
-        await loadClientOfficeJobs(currentClientDetailId);
+        await _refetchClientActivity(currentClientDetailId);
     } catch (e) {
         showToast('❌ حذف ناموفق بود.');
     }

@@ -322,7 +322,15 @@
     </select>
 
     <label for="oj-description" class="auth-label">شرح سند (اختیاری)</label>
-    <input type="text" id="oj-description" class="auth-input mb-3" placeholder="مثلاً گواهی عدم سوء پیشینه">
+    <!-- Searches the SAME catalog نرخنامه/فاکتور use (price-catalog.js +
+         this account's own موارد شخصی) -- picking a match fills this field
+         with its official label; typing anything else (a سایر/custom
+         description not in the catalog) stays exactly as typed, since this
+         never restricts to catalog-only values. See filterOfficeJobDocDropdown(). -->
+    <div class="relative mb-3">
+      <input type="text" id="oj-description" class="auth-input" placeholder="جستجو در نرخنامه یا تایپ آزاد (سایر)..." autocomplete="off" oninput="filterOfficeJobDocDropdown()" onfocus="filterOfficeJobDocDropdown()">
+      <div id="oj-description-options" class="hidden z-50 rounded-lg" style="background:var(--card-surface); border:1px solid var(--border-color);"></div>
+    </div>
 
     <div class="grid grid-cols-2 gap-2 mb-3">
       <div>
@@ -504,6 +512,7 @@
         <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:50%;background:#4ade80;display:inline-block;"></span>ترجمه ماشینی</span>
         <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:50%;background:#38bdf8;display:inline-block;"></span>وارد شده از سنام</span>
         <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:50%;background:#fbbf24;display:inline-block;"></span>ردیف دستی (پیش‌نویس فاکتور)</span>
+                        <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:50%;background:#a78bfa;display:inline-block;"></span>ثبت ترجمه (عملکرد)</span>
     </div>
     <p class="text-[11px] mb-2" style="color:var(--text-muted);">تیک هر مورد را بزنید، سپس «ثبت پیش‌نویس فاکتور» را بزنید تا به پیش‌نویس فاکتور پایین اضافه شود و در آنجا قابل ویرایش باشد.</p>
     <div id="cd-activity-bulk-bar" class="hidden flex items-center gap-2 flex-wrap p-2 rounded-lg mb-2" style="background:var(--bg-main);border:1px solid var(--accent);">
@@ -2207,6 +2216,7 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                         <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:50%;background:#4ade80;display:inline-block;"></span>ترجمه ماشینی</span>
                         <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:50%;background:#38bdf8;display:inline-block;"></span>وارد شده از سنام</span>
                         <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:50%;background:#fbbf24;display:inline-block;"></span>ردیف دستی (پیش‌نویس فاکتور)</span>
+                        <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:50%;background:#a78bfa;display:inline-block;"></span>ثبت ترجمه (عملکرد)</span>
                     </div>
                     <p class="text-[11px] mb-2" style="color:var(--text-muted);">تیک هر مورد را بزنید، سپس «ثبت پیش‌نویس فاکتور» را بزنید تا به پیش‌نویس فاکتور اضافه شود و در آنجا قابل ویرایش باشد.</p>
                     <div id="cp-activity-bulk-bar" class="hidden flex items-center gap-2 flex-wrap p-2 rounded-lg mb-2" style="background:var(--bg-main);border:1px solid var(--accent);">
@@ -2283,35 +2293,6 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                         </div>
                     </div>
                     <div id="cp-invoices-list" class="space-y-2"></div>
-                </div>
-            </div>
-
-            <!-- عملکرد (office_jobs.py) -- a pure performance log, never an
-                 invoice line item, so kept as its own simple list rather
-                 than mixed into "سابقه پروژه‌ها و اسناد" above (that table's
-                 checkbox/edit/billing logic assumes every row has a price
-                 and can become an invoice line; these never do). ─────── -->
-            <div class="workspace-panel p-5">
-                <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
-                    <h3 class="text-sm font-black flex items-center gap-1.5" style="color:var(--text-main);">📋 کارهای ثبت‌شده (عملکرد) <span class="en" style="color:var(--text-muted);">(<span id="cp-oj-count">۰</span>)</span></h3>
-                    <button type="button" onclick="openOfficeJobModal()" class="text-[11px] font-black px-3 py-1.5 rounded-lg transition" style="background:var(--accent);color:var(--btn-text-on-accent);">+ ثبت ترجمه</button>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-sm text-right">
-                        <thead>
-                            <tr style="border-bottom:1px solid var(--divider);color:var(--text-muted);">
-                                <th class="py-2 px-2 font-bold">تاریخ</th>
-                                <th class="py-2 px-2 font-bold">نوع</th>
-                                <th class="py-2 px-2 font-bold">شرح</th>
-                                <th class="py-2 px-2 font-bold">صفحات</th>
-                                <th class="py-2 px-2 font-bold">خطوط</th>
-                                <th class="py-2 px-2 font-bold"></th>
-                            </tr>
-                        </thead>
-                        <tbody id="cp-oj-rows">
-                            <tr><td colspan="6" class="text-center py-6 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>
-                        </tbody>
-                    </table>
                 </div>
             </div>
         </div>
