@@ -3662,10 +3662,7 @@ async function openOfficeFinancePage(pushHistory = true) {
     if (!currentUserSession) { openAuthModal(); return; }
     showFullView('officeFinancePage');
     if (pushHistory) navigateTo('/home/office-finance');
-    document.getElementById('of-description').value = '';
-    document.getElementById('of-amount').value = '';
-    document.getElementById('of-notes').value = '';
-    document.getElementById('of-date').value = new Date().toISOString().slice(0, 10);
+    _resetOfficeExpenseForm();
     document.getElementById('of-pin-input').value = '';
     document.getElementById('of-unlock-status').classList.add('hidden');
 
@@ -3719,38 +3716,94 @@ function closeOfficeFinancePage() {
     openHomePanels(false);
 }
 
+// Clicking ✏️ on a real (non-projected) row switches this one form into
+// edit mode instead of opening a separate dialog -- simplest way to reuse
+// the exact same validation/recurring-interval UI for both. Populated
+// from the last-rendered rows cache (editOfficeExpense), not a refetch.
+let _officeEditingExpenseId = null;
+let _officeExpensesCache = [];
+
+function _resetOfficeExpenseForm() {
+    _officeEditingExpenseId = null;
+    document.getElementById('of-form-title').textContent = '➕ ثبت هزینه جدید';
+    document.getElementById('of-submit-btn').textContent = 'ثبت هزینه';
+    document.getElementById('of-cancel-edit-btn').classList.add('hidden');
+    document.getElementById('of-description').value = '';
+    document.getElementById('of-amount').value = '';
+    document.getElementById('of-notes').value = '';
+    document.getElementById('of-date').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('of-is-recurring').checked = false;
+    document.getElementById('of-recurring-interval-row').classList.add('hidden');
+    document.getElementById('of-recurring-interval').value = '30';
+}
+
+function editOfficeExpense(expenseId) {
+    const row = _officeExpensesCache.find(r => r.id === expenseId);
+    if (!row) return;
+    _officeEditingExpenseId = expenseId;
+    document.getElementById('of-form-title').textContent = '✏️ ویرایش هزینه';
+    document.getElementById('of-submit-btn').textContent = 'ذخیره تغییرات';
+    document.getElementById('of-cancel-edit-btn').classList.remove('hidden');
+    document.getElementById('of-category').value = row.category;
+    document.getElementById('of-description').value = row.description;
+    document.getElementById('of-amount').value = row.amount_toman;
+    document.getElementById('of-date').value = row.expense_date;
+    document.getElementById('of-notes').value = row.notes || '';
+    document.getElementById('of-is-recurring').checked = !!row.is_recurring;
+    document.getElementById('of-recurring-interval-row').classList.toggle('hidden', !row.is_recurring);
+    document.getElementById('of-recurring-interval').value = row.recurring_interval_days || 30;
+    document.getElementById('of-description').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function cancelEditOfficeExpense() {
+    _resetOfficeExpenseForm();
+}
+
 async function submitOfficeExpense() {
     const category = document.getElementById('of-category').value;
     const description = document.getElementById('of-description').value.trim();
     const amount = parseInt(document.getElementById('of-amount').value, 10);
     const expenseDate = document.getElementById('of-date').value;
     const notes = document.getElementById('of-notes').value.trim();
+    const isRecurring = document.getElementById('of-is-recurring').checked;
+    const recurringInterval = parseInt(document.getElementById('of-recurring-interval').value, 10);
 
     if (!description) { showToast('⚠️ شرح هزینه را وارد کنید.'); return; }
     if (!amount || amount <= 0) { showToast('⚠️ مبلغ باید بیشتر از صفر باشد.'); return; }
     if (!expenseDate) { showToast('⚠️ تاریخ هزینه را انتخاب کنید.'); return; }
+    if (isRecurring && (!recurringInterval || recurringInterval <= 0)) {
+        showToast('⚠️ فاصله تکرار (به روز) را به‌درستی وارد کنید.');
+        return;
+    }
 
+    const isEditing = !!_officeEditingExpenseId;
     const btn = document.getElementById('of-submit-btn');
     const originalLabel = btn.textContent;
-    btn.disabled = true; btn.textContent = 'در حال ثبت...';
+    btn.disabled = true; btn.textContent = isEditing ? 'در حال ذخیره...' : 'در حال ثبت...';
     try {
-        const res = await fetch(`${CORE}/office-finance/expenses`, {
-            method: 'POST',
-            headers: _officeFinanceHeaders({ 'Content-Type': 'application/json' }),
-            body: JSON.stringify({
-                category, description, amount_toman: amount,
-                expense_date: expenseDate, notes: notes || null,
-            }),
-        });
+        const payload = {
+            category, description, amount_toman: amount,
+            expense_date: expenseDate, notes: notes || null,
+            is_recurring: isRecurring,
+            recurring_interval_days: isRecurring ? recurringInterval : null,
+        };
+        const res = await fetch(
+            isEditing ? `${CORE}/office-finance/expenses/${_officeEditingExpenseId}` : `${CORE}/office-finance/expenses`,
+            {
+                method: isEditing ? 'PATCH' : 'POST',
+                headers: _officeFinanceHeaders({ 'Content-Type': 'application/json' }),
+                body: JSON.stringify(payload),
+            }
+        );
         if (res.status === 403) { sessionStorage.removeItem(FINANCE_PIN_STORAGE_KEY); _showOfficeFinanceLockScreen(); return; }
         if (!res.ok) {
             const data = await res.json().catch(() => ({}));
             throw new Error(data.detail || `خطای سرور (${res.status})`);
         }
-        showToast('✅ هزینه ثبت شد.');
-        document.getElementById('of-description').value = '';
-        document.getElementById('of-amount').value = '';
-        document.getElementById('of-notes').value = '';
+        showToast(isEditing
+            ? '✅ هزینه ویرایش شد (تغییرات فقط از این پس اعمال می‌شود).'
+            : '✅ هزینه ثبت شد.');
+        _resetOfficeExpenseForm();
         await loadOfficeExpenses();
     } catch (e) {
         showToast('❌ ' + (e.message || 'خطا در ثبت هزینه.'));
@@ -3853,22 +3906,37 @@ function renderOfficeExpenseSummary(summary) {
 }
 
 function renderOfficeExpenseRows(rows) {
+    _officeExpensesCache = rows;
     const tbody = document.getElementById('of-expenses-rows');
     if (!rows.length) {
         tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">هزینه‌ای ثبت نشده است.</td></tr>`;
         return;
     }
-    tbody.innerHTML = rows.map(r => `
-        <tr style="border-bottom:1px solid var(--divider);">
+    tbody.innerHTML = rows.map(r => {
+        // A projected occurrence of a recurring expense (see DeepT-Core's
+        // _project_recurring_occurrences) carries a synthetic id --
+        // "{real-id}::occurrence::N" -- never a real row, so there's
+        // nothing to individually edit/delete; only the template (the
+        // real row) is. Edit the template instead to change terms going
+        // forward.
+        const isProjected = typeof r.id === 'string' && r.id.includes('::occurrence::');
+        const recurringBadge = r.is_recurring ? ' <span title="تکرارشونده">🔁</span>' : '';
+        const actionCell = isProjected
+            ? `<span class="text-[10px]" style="color:var(--text-muted);">پیش‌بینی‌شده</span>`
+            : `<div class="flex items-center gap-1 justify-end">
+                   <button type="button" onclick="editOfficeExpense('${r.id}')" class="text-xs font-bold px-2 py-1 rounded-lg" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">ویرایش</button>
+                   <button type="button" onclick="deleteOfficeExpense('${r.id}')" class="text-xs font-bold px-2 py-1 rounded-lg" style="background:#7f1d1d;color:#fff;">حذف</button>
+               </div>`;
+        return `
+        <tr style="border-bottom:1px solid var(--divider);${isProjected ? 'opacity:0.75;' : ''}">
             <td class="py-2 px-2 en" style="color:var(--text-muted);">${escapeHtml(r.expense_date || '')}</td>
             <td class="py-2 px-2" style="color:var(--text-main);">${escapeHtml(OFFICE_EXPENSE_CATEGORY_FA[r.category] || r.category)}</td>
-            <td class="py-2 px-2" style="color:var(--text-main);">${escapeHtml(r.description)}</td>
+            <td class="py-2 px-2" style="color:var(--text-main);">${escapeHtml(r.description)}${recurringBadge}</td>
             <td class="py-2 px-2 font-mono font-bold en" style="color:var(--accent);">${r.amount_toman.toLocaleString()}</td>
-            <td class="py-2 px-2 text-left">
-                <button type="button" onclick="deleteOfficeExpense('${r.id}')" class="text-xs font-bold px-2 py-1 rounded-lg" style="background:#7f1d1d;color:#fff;">حذف</button>
-            </td>
+            <td class="py-2 px-2 text-left">${actionCell}</td>
         </tr>
-    `).join('');
+        `;
+    }).join('');
 }
 
 async function deleteOfficeExpense(expenseId) {
