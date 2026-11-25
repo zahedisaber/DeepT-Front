@@ -1138,7 +1138,7 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
     <div id="of-content" class="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start hidden">
       <!-- ─── Add expense form ─────────────────────────────────────── -->
       <div class="workspace-panel p-6 lg:col-span-1">
-        <h4 class="text-sm font-black mb-3" style="color:var(--text-main);">➕ ثبت هزینه جدید</h4>
+        <h4 class="text-sm font-black mb-3" id="of-form-title" style="color:var(--text-main);">➕ ثبت هزینه جدید</h4>
 
         <label for="of-category" class="auth-label">دسته‌بندی</label>
         <select id="of-category" class="auth-input mb-3">
@@ -1161,7 +1161,23 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
         <label for="of-notes" class="auth-label">توضیحات (اختیاری)</label>
         <textarea id="of-notes" class="auth-input mb-3" rows="2"></textarea>
 
+        <!-- Recurring (rent, a monthly marketing retainer, ...) -- no
+             separate rule to manage, just this one row: set once, future
+             occurrences show up automatically (computed on the fly, see
+             DeepT-Core's _project_recurring_occurrences), edit later if
+             the amount/terms change (past months keep their old amount
+             -- see office_finance.py's update_expense docstring). -->
+        <label class="flex items-center gap-2 mb-3 cursor-pointer">
+          <input type="checkbox" id="of-is-recurring" onchange="document.getElementById('of-recurring-interval-row').classList.toggle('hidden', !this.checked)">
+          <span class="text-xs font-bold" style="color:var(--text-main);">🔁 تکرارشونده</span>
+        </label>
+        <div id="of-recurring-interval-row" class="hidden mb-3">
+          <label for="of-recurring-interval" class="auth-label">تکرار هر چند روز؟</label>
+          <input type="number" id="of-recurring-interval" class="auth-input en" dir="ltr" placeholder="مثلاً ۳۰" min="1" value="30">
+        </div>
+
         <button type="button" onclick="submitOfficeExpense()" id="of-submit-btn" class="w-full font-black py-2 rounded-lg transition text-xs" style="background:var(--accent);color:var(--btn-text-on-accent);">ثبت هزینه</button>
+        <button type="button" onclick="cancelEditOfficeExpense()" id="of-cancel-edit-btn" class="w-full font-black py-1.5 rounded-lg mt-2 transition text-xs hidden" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">لغو ویرایش</button>
       </div>
 
       <!-- ─── Summary + list ───────────────────────────────────────── -->
