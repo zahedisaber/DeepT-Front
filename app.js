@@ -3662,6 +3662,7 @@ async function openOfficeFinancePage(pushHistory = true) {
     if (!currentUserSession) { openAuthModal(); return; }
     showFullView('officeFinancePage');
     if (pushHistory) navigateTo('/home/office-finance');
+    _initOfficeFinanceDatePickers();
     _resetOfficeExpenseForm();
     document.getElementById('of-pin-input').value = '';
     document.getElementById('of-unlock-status').classList.add('hidden');
@@ -3723,6 +3724,91 @@ function closeOfficeFinancePage() {
 let _officeEditingExpenseId = null;
 let _officeExpensesCache = [];
 
+// ─── Shared "ماهانه / تاریخ دقیق" Shamsi date controls ────────────────
+// Reuses the Jalali calendar widget already built for HR (hrDatePicker,
+// selectJalaliDate, jalaliMonthBounds, ...) rather than new date-handling
+// logic. Each of امور مالی دفتر's two independent range filters (expenses,
+// income) defaults to a quick month+year picker -- most users think in
+// terms of a working month -- with a "تاریخ دقیق" toggle for anyone who
+// wants exact from/to dates instead. Both modes write into the SAME
+// underlying hidden from/to input ids that loadOfficeExpenses/
+// loadOfficeIncome already read, so those two functions need no changes.
+const _officeRangeState = {};
+
+function _initOfficeFinanceDatePickers() {
+    const dateWrap = document.getElementById('of-date-wrap');
+    if (!dateWrap.innerHTML) dateWrap.innerHTML = hrDatePicker('of-date', 'تاریخ');
+    officeRangePicker('of-filter-range', 'of-filter-from', 'of-filter-to', loadOfficeExpenses);
+    officeRangePicker('of-income-filter-range', 'of-income-filter-from', 'of-income-filter-to', loadOfficeIncome);
+}
+
+function officeRangePicker(containerId, fromId, toId, onChange) {
+    if (_officeRangeState[containerId]) return; // already set up -- keep the user's current filter choice
+    const current = hrCurrentMonth();
+    _officeRangeState[containerId] = { mode: 'monthly', jy: current.y, jm: current.m, fromId, toId, onChange };
+    _renderOfficeRange(containerId);
+    _applyOfficeRangeMonth(containerId, false); // populate from/to only -- the caller fires the page's own initial load
+}
+
+function _renderOfficeRange(containerId) {
+    const st = _officeRangeState[containerId];
+    const tabBtn = (mode, label) => `<button type="button" onclick="_setOfficeRangeMode('${containerId}','${mode}')"
+        class="text-[10px] font-bold" style="padding:2px 9px;border-radius:999px;border:1px solid var(--border-subtle);cursor:pointer;
+            background:${st.mode === mode ? 'var(--accent)' : 'var(--bg-main)'};
+            color:${st.mode === mode ? 'var(--btn-text-on-accent)' : 'var(--text-muted)'};">${label}</button>`;
+    document.getElementById(containerId).innerHTML = `
+        <div class="flex items-center gap-2 flex-wrap">
+          <div class="flex items-center gap-1">${tabBtn('monthly', 'ماهانه')}${tabBtn('exact', 'تاریخ دقیق')}</div>
+          <div id="${containerId}-body" class="flex items-center gap-2 flex-wrap"></div>
+        </div>`;
+    const body = document.getElementById(`${containerId}-body`);
+    if (st.mode === 'monthly') {
+        body.innerHTML = `
+            <input type="hidden" id="${st.fromId}"><input type="hidden" id="${st.toId}">
+            <select id="${containerId}-month" class="auth-input text-xs w-24 py-1.5">${hrMonthOptions()}</select>
+            <input type="number" id="${containerId}-year" class="auth-input en text-xs w-20 py-1.5" dir="ltr" min="1300" max="1600" value="${st.jy}">`;
+        document.getElementById(`${containerId}-month`).value = st.jm;
+        document.getElementById(`${containerId}-month`).addEventListener('change', () => _onOfficeRangeMonthChange(containerId));
+        document.getElementById(`${containerId}-year`).addEventListener('change', () => _onOfficeRangeMonthChange(containerId));
+    } else {
+        body.innerHTML = `${hrDatePicker(st.fromId, 'از')}<span class="text-xs" style="color:var(--text-muted);">تا</span>${hrDatePicker(st.toId, 'تا')}`;
+        document.getElementById(st.fromId).addEventListener('change', st.onChange);
+        document.getElementById(st.toId).addEventListener('change', st.onChange);
+    }
+}
+
+function _setOfficeRangeMode(containerId, mode) {
+    const st = _officeRangeState[containerId];
+    if (st.mode === mode) return;
+    const prevFrom = document.getElementById(st.fromId)?.value || '';
+    const prevTo = document.getElementById(st.toId)?.value || '';
+    st.mode = mode;
+    _renderOfficeRange(containerId);
+    if (mode === 'exact') {
+        if (prevFrom) setHrDate(st.fromId, prevFrom);
+        if (prevTo) setHrDate(st.toId, prevTo);
+    } else {
+        _applyOfficeRangeMonth(containerId);
+    }
+}
+
+function _onOfficeRangeMonthChange(containerId) {
+    const st = _officeRangeState[containerId];
+    const jm = parseInt(document.getElementById(`${containerId}-month`).value, 10);
+    const jy = parseInt(document.getElementById(`${containerId}-year`).value, 10);
+    if (!Number.isInteger(jy) || jy < 1300 || jy > 1600 || !Number.isInteger(jm) || jm < 1 || jm > 12) return;
+    st.jy = jy; st.jm = jm;
+    _applyOfficeRangeMonth(containerId);
+}
+
+function _applyOfficeRangeMonth(containerId, fire = true) {
+    const st = _officeRangeState[containerId];
+    const { firstDay, lastDay } = jalaliMonthBounds(st.jy, st.jm);
+    document.getElementById(st.fromId).value = fmtWeekISO(firstDay);
+    document.getElementById(st.toId).value = fmtWeekISO(lastDay);
+    if (fire) st.onChange();
+}
+
 function _resetOfficeExpenseForm() {
     _officeEditingExpenseId = null;
     document.getElementById('of-form-title').textContent = '➕ ثبت هزینه جدید';
@@ -3731,7 +3817,7 @@ function _resetOfficeExpenseForm() {
     document.getElementById('of-description').value = '';
     document.getElementById('of-amount').value = '';
     document.getElementById('of-notes').value = '';
-    document.getElementById('of-date').value = new Date().toISOString().slice(0, 10);
+    setHrDate('of-date', hrToday());
     document.getElementById('of-is-recurring').checked = false;
     document.getElementById('of-recurring-interval-row').classList.add('hidden');
     document.getElementById('of-recurring-interval').value = '30';
@@ -3747,7 +3833,7 @@ function editOfficeExpense(expenseId) {
     document.getElementById('of-category').value = row.category;
     document.getElementById('of-description').value = row.description;
     document.getElementById('of-amount').value = row.amount_toman;
-    document.getElementById('of-date').value = row.expense_date;
+    setHrDate('of-date', row.expense_date);
     document.getElementById('of-notes').value = row.notes || '';
     document.getElementById('of-is-recurring').checked = !!row.is_recurring;
     document.getElementById('of-recurring-interval-row').classList.toggle('hidden', !row.is_recurring);
@@ -3929,7 +4015,7 @@ function renderOfficeExpenseRows(rows) {
                </div>`;
         return `
         <tr style="border-bottom:1px solid var(--divider);${isProjected ? 'opacity:0.75;' : ''}">
-            <td class="py-2 px-2 en" style="color:var(--text-muted);">${escapeHtml(r.expense_date || '')}</td>
+            <td class="py-2 px-2" style="color:var(--text-muted);">${escapeHtml(formatIsoAsJalaliDisplay(r.expense_date) || '')}</td>
             <td class="py-2 px-2" style="color:var(--text-main);">${escapeHtml(OFFICE_EXPENSE_CATEGORY_FA[r.category] || r.category)}</td>
             <td class="py-2 px-2" style="color:var(--text-main);">${escapeHtml(r.description)}${recurringBadge}</td>
             <td class="py-2 px-2 font-mono font-bold en" style="color:var(--accent);">${r.amount_toman.toLocaleString()}</td>
@@ -5531,7 +5617,7 @@ function selectJalaliDate(baseId, jy, jm, jd) {
     if (hidden) hidden.value = iso;
     if (display) display.value = formatIsoAsJalaliDisplay(iso);
     closeJalaliCalendar();
-    if (baseId.startsWith('hr-')) hidden?.dispatchEvent(new Event('change', { bubbles: true }));
+    hidden?.dispatchEvent(new Event('change', { bubbles: true }));
     display?.focus();
 }
 
@@ -5541,7 +5627,7 @@ function clearJalaliDate(baseId) {
     if (hidden) hidden.value = '';
     if (display) display.value = '';
     closeJalaliCalendar();
-    if (baseId.startsWith('hr-')) hidden?.dispatchEvent(new Event('change', { bubbles: true }));
+    hidden?.dispatchEvent(new Event('change', { bubbles: true }));
     display?.focus();
 }
 
