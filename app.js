@@ -577,6 +577,7 @@ function syncUserSessionDOM() {
     toggle('railClientsBtn',     !loggedIn);
     toggle('railScheduleBtn',    !loggedIn);
     toggle('railPriceListBtn',   !loggedIn);
+    toggle('railOfficeFinanceBtn', !loggedIn);
     toggle('railSettingsBtn',    !loggedIn);
     toggle('railAccountSettingsBtn', !loggedIn);
     toggle('railDocSamplesBtn',  !loggedIn);
