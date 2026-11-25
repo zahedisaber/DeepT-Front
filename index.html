@@ -322,7 +322,15 @@
     </select>
 
     <label for="oj-description" class="auth-label">شرح سند (اختیاری)</label>
-    <input type="text" id="oj-description" class="auth-input mb-3" placeholder="مثلاً گواهی عدم سوء پیشینه">
+    <!-- Searches the SAME catalog نرخنامه/فاکتور use (price-catalog.js +
+         this account's own موارد شخصی) -- picking a match fills this field
+         with its official label; typing anything else (a سایر/custom
+         description not in the catalog) stays exactly as typed, since this
+         never restricts to catalog-only values. See filterOfficeJobDocDropdown(). -->
+    <div class="relative mb-3">
+      <input type="text" id="oj-description" class="auth-input" placeholder="جستجو در نرخنامه یا تایپ آزاد (سایر)..." autocomplete="off" oninput="filterOfficeJobDocDropdown()" onfocus="filterOfficeJobDocDropdown()">
+      <div id="oj-description-options" class="hidden z-50 rounded-lg" style="background:var(--card-surface); border:1px solid var(--border-color);"></div>
+    </div>
 
     <div class="grid grid-cols-2 gap-2 mb-3">
       <div>

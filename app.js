@@ -7876,8 +7876,45 @@ function openOfficeJobModal() {
 
 function closeOfficeJobModal() {
     closeJalaliCalendar();
+    closeOfficeJobDocDropdown();
     document.getElementById('officeJobModal').classList.add('hidden');
 }
+
+// شرح سند search -- same catalog نرخنامه/فاکتور already search
+// (priceCatalogWithCustom/renderMyPriceListMatches, see app.js's نرخنامه
+// section), reused here just to fill the description text, never to add
+// a priced invoice row. Typing something the catalog doesn't have (a
+// سایر/custom description) is always still a valid, unrestricted value --
+// this only ever offers a shortcut, never a constraint.
+function filterOfficeJobDocDropdown() {
+    const input = document.getElementById('oj-description');
+    const list = document.getElementById('oj-description-options');
+    if (!input || !list) return;
+    const rect = input.getBoundingClientRect();
+    const availableBelow = window.innerHeight - rect.bottom - 12;
+    const maxHeight = Math.max(160, Math.min(280, availableBelow));
+    list.style.position = 'fixed';
+    list.style.top = (rect.bottom + 4) + 'px';
+    list.style.left = rect.left + 'px';
+    list.style.width = Math.max(rect.width, 260) + 'px';
+    list.style.maxHeight = maxHeight + 'px';
+    list.style.overflowY = 'auto';
+    list.classList.remove('hidden');
+    renderMyPriceListMatches(list, input.value, (itemId) => {
+        input.value = PRICE_CATALOG_BY_ID[itemId].label;
+        closeOfficeJobDocDropdown();
+    });
+}
+
+function closeOfficeJobDocDropdown() {
+    document.getElementById('oj-description-options')?.classList.add('hidden');
+}
+
+document.addEventListener('click', (e) => {
+    const wrapper = document.getElementById('oj-description')?.closest('.relative');
+    const list = document.getElementById('oj-description-options');
+    if (wrapper && list && !wrapper.contains(e.target) && !list.contains(e.target)) closeOfficeJobDocDropdown();
+});
 
 async function submitOfficeJob() {
     if (!currentClientDetailId) return;
