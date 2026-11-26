@@ -4122,7 +4122,7 @@ async function loadOfficeJobsStats() {
         renderOfficeJobRows(rows);
         renderOfficeJobSummary(summary);
     } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در دریافت اطلاعات.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در دریافت اطلاعات.</td></tr>`;
     }
 }
 
@@ -4130,15 +4130,32 @@ function renderOfficeJobSummary(summary) {
     document.getElementById('oj-stat-count').textContent = summary.count ?? 0;
     document.getElementById('oj-stat-tayidi').textContent = (summary.by_type && summary.by_type.tayidi) || 0;
     document.getElementById('oj-stat-gheyr-tayidi').textContent = (summary.by_type && summary.by_type.gheyr_tayidi) || 0;
-    document.getElementById('oj-stat-pages').textContent = summary.total_pages ?? 0;
-    document.getElementById('oj-stat-lines').textContent = summary.total_lines ?? 0;
+}
+
+// "جزئیات" column -- نرخنامه-shaped quantities (base_quantity/
+// extra_quantities/mohr_quantity, see DeepT-Core's office_jobs.py) are too
+// heterogeneous across document types (تعداد ترم vs تعداد صفحه vs ...) for
+// fixed columns, so this renders whichever ones a row actually has, using
+// price-catalog.js's own unit labels for the matched item. '—' for a
+// سایر row (no price_catalog_item_id) or one with no quantities at all.
+function formatOfficeJobQuantities(r) {
+    const item = r.price_catalog_item_id ? PRICE_CATALOG_BY_ID[r.price_catalog_item_id] : null;
+    if (!item) return '—';
+    const parts = [];
+    if (item.baseUnit && r.base_quantity) parts.push(`${r.base_quantity} ${item.baseUnit}`);
+    const extras = myplEffectiveExtras(r.price_catalog_item_id);
+    (r.extra_quantities || []).forEach((qty, i) => {
+        if (qty) parts.push(`${qty} ${(extras[i] && extras[i].unit) || ''}`.trim());
+    });
+    if (r.mohr_quantity) parts.push(`${r.mohr_quantity} صفحه مهر`);
+    return parts.length ? parts.join('، ') : '—';
 }
 
 function renderOfficeJobRows(rows) {
     _officeJobsCache = rows;
     const tbody = document.getElementById('oj-rows');
     if (!rows.length) {
-        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-sm" style="color:var(--text-muted);">کاری ثبت نشده است.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-sm" style="color:var(--text-muted);">کاری ثبت نشده است.</td></tr>`;
         return;
     }
     tbody.innerHTML = rows.map(r => `
@@ -4147,8 +4164,7 @@ function renderOfficeJobRows(rows) {
             <td class="py-2 px-2" style="color:var(--text-main);">${escapeHtml(r.client_name || '—')}</td>
             <td class="py-2 px-2" style="color:var(--text-main);">${escapeHtml(OFFICE_JOB_TYPE_FA[r.job_type] || r.job_type)}</td>
             <td class="py-2 px-2" style="color:var(--text-main);">${escapeHtml(r.description || '—')}</td>
-            <td class="py-2 px-2 en" style="color:var(--text-main);">${r.pages ?? '—'}</td>
-            <td class="py-2 px-2 en" style="color:var(--text-main);">${r.lines ?? '—'}</td>
+            <td class="py-2 px-2" style="color:var(--text-muted);">${escapeHtml(formatOfficeJobQuantities(r))}</td>
             <td class="py-2 px-2 text-left">
                 <button type="button" onclick="deleteOfficeJob('${r.id}')" class="text-xs font-bold px-2 py-1 rounded-lg" style="background:#7f1d1d;color:#fff;">حذف</button>
             </td>
@@ -7882,6 +7898,18 @@ async function saveClientNotes() {
 // deliberately no price field (see DeepT-Core's office_jobs.py). Opened
 // from the client profile page; aggregated totals show up in امور مالی
 // دفتر's own "عملکرد" tab (loadOfficeJobsStats below).
+//
+// Quantities mirror نرخنامه's own per-item shape exactly (see
+// myplRowQtyControlsHtml/myplEffectiveExtras) rather than generic pages/
+// lines -- _ojSelectedItemId tracks which catalog/custom item شرح سند was
+// last matched to (null for a free-form سایر description, in which case
+// renderOfficeJobQuantities shows nothing), and _ojQty holds whatever
+// counts the user has entered for THAT item so far. Only one of these
+// modals is ever open at a time, so plain module-level state (no row
+// object, no index) is enough -- unlike invoiceDraft's rows.
+let _ojSelectedItemId = null;
+let _ojQty = { base: 0, extras: [], mohr: 0 };
+
 function openOfficeJobModal() {
     if (!currentClientDetailId) return;
     closeJalaliCalendar();
@@ -7889,9 +7917,10 @@ function openOfficeJobModal() {
     document.getElementById('oj-description').value = '';
     document.getElementById('oj-source-lang').value = '';
     document.getElementById('oj-target-lang').value = '';
-    document.getElementById('oj-pages').value = '';
-    document.getElementById('oj-lines').value = '';
     document.getElementById('oj-notes').value = '';
+    _ojSelectedItemId = null;
+    _ojQty = { base: 0, extras: [], mohr: 0 };
+    renderOfficeJobQuantities();
     const dateWrap = document.getElementById('oj-date-wrap');
     if (!dateWrap.innerHTML) dateWrap.innerHTML = hrDatePicker('oj-date', 'تاریخ انجام');
     setHrDate('oj-date', hrToday());
@@ -7909,7 +7938,10 @@ function closeOfficeJobModal() {
 // section), reused here just to fill the description text, never to add
 // a priced invoice row. Typing something the catalog doesn't have (a
 // سایر/custom description) is always still a valid, unrestricted value --
-// this only ever offers a shortcut, never a constraint.
+// this only ever offers a shortcut, never a constraint. Picking a match
+// (a click, never a plain keystroke) is the only thing that sets
+// _ojSelectedItemId and shows its quantity controls; see
+// onOfficeJobDescriptionInput for why further typing clears it again.
 function filterOfficeJobDocDropdown() {
     const input = document.getElementById('oj-description');
     const list = document.getElementById('oj-description-options');
@@ -7926,8 +7958,23 @@ function filterOfficeJobDocDropdown() {
     list.classList.remove('hidden');
     renderMyPriceListMatches(list, input.value, (itemId) => {
         input.value = PRICE_CATALOG_BY_ID[itemId].label;
+        _ojSelectedItemId = itemId;
+        _ojQty = { base: 0, extras: [], mohr: 0 };
+        renderOfficeJobQuantities();
         closeOfficeJobDocDropdown();
     });
+}
+
+// Any actual keystroke in شرح سند (not the programmatic input.value= a
+// dropdown pick does, which fires no 'input' event) invalidates whatever
+// was previously matched -- the text no longer necessarily names that
+// catalog item, so its quantity controls would be stale/misleading.
+// Picking a fresh match re-sets _ojSelectedItemId immediately after.
+function onOfficeJobDescriptionInput() {
+    _ojSelectedItemId = null;
+    _ojQty = { base: 0, extras: [], mohr: 0 };
+    renderOfficeJobQuantities();
+    filterOfficeJobDocDropdown();
 }
 
 function closeOfficeJobDocDropdown() {
@@ -7940,22 +7987,55 @@ document.addEventListener('click', (e) => {
     if (wrapper && list && !wrapper.contains(e.target) && !list.contains(e.target)) closeOfficeJobDocDropdown();
 });
 
+// The "تعداد ..." inputs for whichever catalog item _ojSelectedItemId
+// names -- exactly نرخنامه's own per-item shape (see
+// myplRowQtyControlsHtml), just writing into _ojQty instead of a priced
+// invoice row's quantities. Empty for a سایر description (no matched
+// item) or an item with no variable component at all (a flat one-off fee).
+function renderOfficeJobQuantities() {
+    const box = document.getElementById('oj-quantities');
+    if (!box) return;
+    const item = _ojSelectedItemId ? PRICE_CATALOG_BY_ID[_ojSelectedItemId] : null;
+    if (!item) { box.innerHTML = ''; return; }
+    const extras = myplEffectiveExtras(_ojSelectedItemId);
+    const showMohr = !PINNED_ITEM_IDS.has(_ojSelectedItemId);
+    if (!item.baseUnit && !extras.length && !showMohr) { box.innerHTML = ''; return; }
+    if (_ojQty.extras.length !== extras.length) _ojQty.extras = new Array(extras.length).fill(0);
+
+    let html = '<div class="flex items-center gap-3 flex-wrap p-2.5 rounded-lg" style="background:var(--bg-main);border:1px solid var(--border-subtle);">';
+    if (item.baseUnit) {
+        html += `<label class="text-[11px] flex items-center gap-1.5" style="color:var(--text-muted);">تعداد ${escapeHtml(item.baseUnit)}
+            <input type="number" min="0" value="${_ojQty.base}" oninput="_ojQty.base=Math.max(0,parseInt(this.value,10)||0)" class="auth-input en" dir="ltr" style="width:60px;padding:.3rem .4rem;font-size:.75rem;text-align:center;">
+        </label>`;
+    }
+    extras.forEach((ex, i) => {
+        html += `<label class="text-[11px] flex items-center gap-1.5" style="color:var(--text-muted);">تعداد (${escapeHtml(ex.unit || '')})
+            <input type="number" min="0" value="${_ojQty.extras[i] || 0}" oninput="_ojQty.extras[${i}]=Math.max(0,parseInt(this.value,10)||0)" class="auth-input en" dir="ltr" style="width:60px;padding:.3rem .4rem;font-size:.75rem;text-align:center;">
+        </label>`;
+    });
+    if (showMohr) {
+        html += `<label class="text-[11px] flex items-center gap-1.5" style="color:var(--text-muted);">تعداد صفحه (مهر برابر با اصل)
+            <input type="number" min="0" value="${_ojQty.mohr}" oninput="_ojQty.mohr=Math.max(0,parseInt(this.value,10)||0)" class="auth-input en" dir="ltr" style="width:60px;padding:.3rem .4rem;font-size:.75rem;text-align:center;">
+        </label>`;
+    }
+    html += '</div>';
+    box.innerHTML = html;
+}
+
 async function submitOfficeJob() {
     if (!currentClientDetailId) return;
     const jobDate = document.getElementById('oj-date').value;
     if (!jobDate) { showToast('⚠️ تاریخ انجام را انتخاب کنید.'); return; }
-    const toIntOrNull = (id) => {
-        const v = document.getElementById(id).value;
-        return v === '' ? null : parseInt(v, 10);
-    };
     const payload = {
         client_id: currentClientDetailId,
         job_type: document.getElementById('oj-type').value,
         description: document.getElementById('oj-description').value.trim() || null,
         source_language: document.getElementById('oj-source-lang').value.trim() || null,
         target_language: document.getElementById('oj-target-lang').value.trim() || null,
-        pages: toIntOrNull('oj-pages'),
-        lines: toIntOrNull('oj-lines'),
+        price_catalog_item_id: _ojSelectedItemId,
+        base_quantity: _ojSelectedItemId ? _ojQty.base : null,
+        extra_quantities: _ojSelectedItemId ? _ojQty.extras : null,
+        mohr_quantity: _ojSelectedItemId ? _ojQty.mohr : null,
         job_date: jobDate,
         notes: document.getElementById('oj-notes').value.trim() || null,
     };

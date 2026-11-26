@@ -328,7 +328,7 @@
          description not in the catalog) stays exactly as typed, since this
          never restricts to catalog-only values. See filterOfficeJobDocDropdown(). -->
     <div class="relative mb-3">
-      <input type="text" id="oj-description" class="auth-input" placeholder="جستجو در نرخنامه یا تایپ آزاد (سایر)..." autocomplete="off" oninput="filterOfficeJobDocDropdown()" onfocus="filterOfficeJobDocDropdown()">
+      <input type="text" id="oj-description" class="auth-input" placeholder="جستجو در نرخنامه یا تایپ آزاد (سایر)..." autocomplete="off" oninput="onOfficeJobDescriptionInput()" onfocus="filterOfficeJobDocDropdown()">
       <div id="oj-description-options" class="hidden z-50 rounded-lg" style="background:var(--card-surface); border:1px solid var(--border-color);"></div>
     </div>
 
@@ -343,16 +343,13 @@
       </div>
     </div>
 
-    <div class="grid grid-cols-2 gap-2 mb-3">
-      <div>
-        <label for="oj-pages" class="auth-label">تعداد صفحات (اختیاری)</label>
-        <input type="number" id="oj-pages" class="auth-input en" dir="ltr" min="0" placeholder="0">
-      </div>
-      <div>
-        <label for="oj-lines" class="auth-label">تعداد خطوط (اختیاری)</label>
-        <input type="number" id="oj-lines" class="auth-input en" dir="ltr" min="0" placeholder="0">
-      </div>
-    </div>
+    <!-- Exactly نرخنامه's own quantity shape for whatever شرح سند item was
+         matched (تعداد {baseUnit}, تعداد per extra, تعداد صفحه مهر برابر
+         با اصل) -- e.g. ریزنمرات دانشگاه shows تعداد ترم + تعداد درس,
+         most documents show nothing at all. Empty/hidden until a catalog
+         match is picked. See renderOfficeJobQuantities() in app.js --
+         never any price here, just the same counts نرخنامه would ask for. -->
+    <div id="oj-quantities" class="mb-3"></div>
 
     <div id="oj-date-wrap" class="mb-3"></div>
 
@@ -1343,7 +1340,7 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
             <h4 class="text-sm font-black" style="color:var(--text-main);">📋 خلاصه عملکرد</h4>
             <div id="oj-filter-range"></div>
           </div>
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+          <div class="grid grid-cols-3 gap-3 text-center">
             <div>
               <div class="text-[10px] font-bold mb-1" style="color:var(--text-muted);">کل کارها</div>
               <div id="oj-stat-count" class="text-lg font-black en" style="color:var(--text-main);">—</div>
@@ -1356,15 +1353,15 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
               <div class="text-[10px] font-bold mb-1" style="color:var(--text-muted);">غیرتاییدی</div>
               <div id="oj-stat-gheyr-tayidi" class="text-lg font-black en" style="color:var(--text-main);">—</div>
             </div>
-            <div>
-              <div class="text-[10px] font-bold mb-1" style="color:var(--text-muted);">صفحات / خطوط</div>
-              <div class="text-lg font-black en" style="color:var(--text-main);"><span id="oj-stat-pages">—</span> / <span id="oj-stat-lines">—</span></div>
-            </div>
           </div>
         </div>
 
         <div class="workspace-panel p-6">
           <h4 class="text-sm font-black mb-3" style="color:var(--text-main);">فهرست کارها</h4>
+          <!-- "جزئیات" replaces separate صفحات/خطوط columns -- quantities
+               are now شاپهe نرخنامه's own per-item shape (تعداد ترم، تعداد
+               درس، ...), too heterogeneous across document types for fixed
+               columns. See formatOfficeJobQuantities() in app.js. -->
           <div class="overflow-x-auto">
             <table class="w-full text-sm text-right">
               <thead>
@@ -1373,13 +1370,12 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                   <th class="py-2 px-2 font-bold">مشتری</th>
                   <th class="py-2 px-2 font-bold">نوع</th>
                   <th class="py-2 px-2 font-bold">شرح</th>
-                  <th class="py-2 px-2 font-bold">صفحات</th>
-                  <th class="py-2 px-2 font-bold">خطوط</th>
+                  <th class="py-2 px-2 font-bold">جزئیات</th>
                   <th class="py-2 px-2 font-bold"></th>
                 </tr>
               </thead>
               <tbody id="oj-rows">
-                <tr><td colspan="7" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>
+                <tr><td colspan="6" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>
               </tbody>
             </table>
           </div>
