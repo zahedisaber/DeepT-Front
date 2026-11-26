@@ -4100,7 +4100,73 @@ async function deleteOfficeExpense(expenseId) {
 // finance-PIN headers needed here (see DeepT-Core's office_jobs.py --
 // job counts aren't the sensitive-money concern the PIN protects), only
 // the normal bearer token.
-const OFFICE_JOB_TYPE_FA = { tayidi: 'تاییدی', gheyr_tayidi: 'غیرتاییدی' };
+const OFFICE_JOB_TYPE_FA = { tayidi: 'تاییدی', gheyr_tayidi: 'غیرتاییدی', motafarreghe: 'متفرقه' };
+
+// A translator's own color choice for each عملکرد نوع کار -- same
+// client-side-only (localStorage) convention as WORK_ORDER_TYPE_FA's
+// schedule colors above. Read live by renderActivityListPage()'s dot and
+// the legend spans (see refreshOfficeJobColorUI()).
+const OFFICE_JOB_TYPE_DEFAULT_COLORS = { tayidi: '#a78bfa', gheyr_tayidi: '#2dd4bf', motafarreghe: '#f59e0b' };
+let OFFICE_JOB_TYPE_COLORS = { ...OFFICE_JOB_TYPE_DEFAULT_COLORS };
+const OFFICE_JOB_TYPE_COLORS_STORAGE_KEY = 'deept_office_job_type_colors';
+
+function loadOfficeJobTypeColorOverrides() {
+    try {
+        const saved = JSON.parse(localStorage.getItem(OFFICE_JOB_TYPE_COLORS_STORAGE_KEY) || '{}');
+        Object.keys(saved).forEach(type => {
+            if (OFFICE_JOB_TYPE_DEFAULT_COLORS[type] && /^#[0-9a-fA-F]{6}$/.test(saved[type])) {
+                OFFICE_JOB_TYPE_COLORS[type] = saved[type];
+            }
+        });
+    } catch (e) { /* corrupt/blocked storage -- just keep the defaults */ }
+}
+loadOfficeJobTypeColorOverrides();
+
+function refreshOfficeJobColorUI() {
+    document.querySelectorAll('[data-oj-type]').forEach(el => {
+        el.style.background = OFFICE_JOB_TYPE_COLORS[el.dataset.ojType] || el.style.background;
+    });
+    if (isProfilePageOpen()) renderActivityListPage();
+}
+
+function setOfficeJobTypeColor(type, color) {
+    if (!OFFICE_JOB_TYPE_DEFAULT_COLORS[type]) return;
+    OFFICE_JOB_TYPE_COLORS[type] = color;
+    let saved = {};
+    try { saved = JSON.parse(localStorage.getItem(OFFICE_JOB_TYPE_COLORS_STORAGE_KEY) || '{}'); } catch (e) { /* start fresh */ }
+    saved[type] = color;
+    try { localStorage.setItem(OFFICE_JOB_TYPE_COLORS_STORAGE_KEY, JSON.stringify(saved)); } catch (e) { /* private window etc -- color still applies this session */ }
+    refreshOfficeJobColorUI();
+}
+
+function resetOfficeJobTypeColors() {
+    Object.keys(OFFICE_JOB_TYPE_DEFAULT_COLORS).forEach(type => {
+        OFFICE_JOB_TYPE_COLORS[type] = OFFICE_JOB_TYPE_DEFAULT_COLORS[type];
+        const input = document.getElementById('oj-color-' + type);
+        if (input) input.value = OFFICE_JOB_TYPE_DEFAULT_COLORS[type];
+    });
+    try { localStorage.removeItem(OFFICE_JOB_TYPE_COLORS_STORAGE_KEY); } catch (e) { /* ignore */ }
+    refreshOfficeJobColorUI();
+}
+
+function toggleOfficeJobColorPicker() {
+    const popover = document.getElementById('officeJobColorPickerPopover');
+    if (!popover) return;
+    const opening = popover.classList.contains('hidden');
+    if (opening) {
+        Object.keys(OFFICE_JOB_TYPE_COLORS).forEach(type => {
+            const input = document.getElementById('oj-color-' + type);
+            if (input) input.value = OFFICE_JOB_TYPE_COLORS[type];
+        });
+    }
+    popover.classList.toggle('hidden');
+}
+document.addEventListener('click', (e) => {
+    const popover = document.getElementById('officeJobColorPickerPopover');
+    if (!popover || popover.classList.contains('hidden')) return;
+    if (!popover.parentElement.contains(e.target)) popover.classList.add('hidden');
+});
+refreshOfficeJobColorUI();
 let _officeJobsCache = [];
 
 async function loadOfficeJobsStats() {
@@ -4130,6 +4196,7 @@ function renderOfficeJobSummary(summary) {
     document.getElementById('oj-stat-count').textContent = summary.count ?? 0;
     document.getElementById('oj-stat-tayidi').textContent = (summary.by_type && summary.by_type.tayidi) || 0;
     document.getElementById('oj-stat-gheyr-tayidi').textContent = (summary.by_type && summary.by_type.gheyr_tayidi) || 0;
+    document.getElementById('oj-stat-motafarreghe').textContent = (summary.by_type && summary.by_type.motafarreghe) || 0;
 }
 
 // "جزئیات" column -- نرخنامه-shaped quantities (base_quantity/
@@ -4158,18 +4225,25 @@ function renderOfficeJobRows(rows) {
         tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-sm" style="color:var(--text-muted);">کاری ثبت نشده است.</td></tr>`;
         return;
     }
-    tbody.innerHTML = rows.map(r => `
+    tbody.innerHTML = rows.map(r => {
+        // Billed (invoice_id set, see invoices.py's _link_office_jobs) --
+        // office_jobs.py's own DELETE refuses it directly now, so show the
+        // same "فاکتور شده" status pill سابقه پروژه‌ها و اسناد uses instead
+        // of offering a button that'll just 400.
+        const actionCell = r.invoice_id
+            ? `<span class="status-pill" style="color:#4ade80;background:#4ade801f;">فاکتور شده</span>`
+            : `<button type="button" onclick="deleteOfficeJob('${r.id}')" class="text-xs font-bold px-2 py-1 rounded-lg" style="background:#7f1d1d;color:#fff;">حذف</button>`;
+        return `
         <tr style="border-bottom:1px solid var(--divider);">
             <td class="py-2 px-2" style="color:var(--text-muted);">${escapeHtml(formatIsoAsJalaliDisplay(r.job_date) || '')}</td>
             <td class="py-2 px-2" style="color:var(--text-main);">${escapeHtml(r.client_name || '—')}</td>
             <td class="py-2 px-2" style="color:var(--text-main);">${escapeHtml(OFFICE_JOB_TYPE_FA[r.job_type] || r.job_type)}</td>
             <td class="py-2 px-2" style="color:var(--text-main);">${escapeHtml(r.description || '—')}</td>
             <td class="py-2 px-2" style="color:var(--text-muted);">${escapeHtml(formatOfficeJobQuantities(r))}</td>
-            <td class="py-2 px-2 text-left">
-                <button type="button" onclick="deleteOfficeJob('${r.id}')" class="text-xs font-bold px-2 py-1 rounded-lg" style="background:#7f1d1d;color:#fff;">حذف</button>
-            </td>
+            <td class="py-2 px-2 text-left">${actionCell}</td>
         </tr>
-    `).join('');
+        `;
+    }).join('');
 }
 
 async function deleteOfficeJob(jobId) {
@@ -4179,11 +4253,14 @@ async function deleteOfficeJob(jobId) {
             method: 'DELETE',
             headers: { 'Authorization': `Bearer ${getToken()}` },
         });
-        if (!res.ok) throw new Error();
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.detail || 'حذف ناموفق بود.');
+        }
         showToast('رکورد حذف شد.');
         await loadOfficeJobsStats();
     } catch (e) {
-        showToast('❌ حذف ناموفق بود.');
+        showToast('❌ ' + (e.message || 'حذف ناموفق بود.'));
     }
 }
 
@@ -4615,7 +4692,7 @@ async function openClientDetail(clientId) {
                     </span>
                 </div>`).join('');
 
-        renderClientActivityList(c.jobs || [], c.sanam_documents || [], c.office_jobs || []);
+        renderClientActivityList(c.sanam_documents || [], c.office_jobs || []);
 
         renderDraftRows();
         await renderClientInvoices(clientId);
@@ -4626,21 +4703,15 @@ async function openClientDetail(clientId) {
     }
 }
 
-// ── Combined activity list: DeepT jobs + Sanam-imported documents ────────
+// ── Combined activity list: Sanam-imported documents + عملکرد دفتر jobs ──
 // One merged, chronological, color-coded list a translator can check items
-// in directly onto the invoice draft below -- replaces the two separate
-// lists (jobs / Sanam docs) and the jobs list's old one-at-a-time "+
-// افزودن" button. Same isProfilePageOpen() prefix convention as
-// renderClientInvoices()/updateDraftTotal(), since this renders into
-// whichever of the two client-detail views (full-window profile page, or
-// the older modal) is actually open.
-const ACTIVITY_STATUS_LABELS = {
-    queued:     { text: 'در صف',        color: '#94a3b8' },
-    processing: { text: 'در حال پردازش', color: '#fb923c' },
-    completed:  { text: 'آماده',        color: '#4ade80' },
-    failed:     { text: 'ناموفق',       color: '#f87171' },
-};
-const ACTIVITY_CATEGORY_COLORS = { job: '#4ade80', sanam: '#38bdf8', manual: '#fbbf24', office_job: '#a78bfa' };
+// in directly onto the invoice draft below. Same isProfilePageOpen() prefix
+// convention as renderClientInvoices()/updateDraftTotal(), since this
+// renders into whichever of the two client-detail views (full-window
+// profile page, or the older modal) is actually open. AI-pipeline jobs
+// (ترجمه ماشینی) are deliberately never included here -- they interfere
+// with the Sanam billing workflow.
+const ACTIVITY_CATEGORY_COLORS = { sanam: '#38bdf8', manual: '#fbbf24', office_job: '#a78bfa' };
 
 function activityRowKey(type, id) { return `${type}:${id}`; }
 
@@ -4693,17 +4764,30 @@ function commitCheckedActivityToDraft() {
         if (isActivityInDraft(key)) return;  // already committed from an earlier click
         const row = lastActivityRows.find(r => activityRowKey(r.type, r.id) === key);
         if (!row) return;
-        // job_id links back to a completed DeepT job; sanam_document_id
-        // links back to an imported-but-unbilled Sanam work item (see
-        // clients.py's _get_sanam_documents) -- the backend marks it billed
-        // (invoice_id) once the invoice is actually created, so it won't be
-        // offered again for a second invoice.
-        invoiceDraft.push({
+        // sanam_document_id links back to an imported-but-unbilled Sanam
+        // work item (see clients.py's _get_sanam_documents); office_job_id
+        // links back to a logged عملکرد دفتر item (office_jobs.py) -- both
+        // get marked billed (invoice_id) once the invoice is actually
+        // created, so neither is offered again for a second invoice.
+        const draftRow = {
             description: row.title, quantity: 1, unit_price_toman: row.price || 0,
-            job_id: row.type === 'job' ? row.id : null,
+            job_id: null,
             sanam_document_id: row.type === 'sanam' ? row.id : null,
+            office_job_id: row.type === 'office_job' ? row.id : null,
             _source_key: key,
-        });
+        };
+        // When the عملکرد دفتر item was itself logged against a نرخنامه
+        // catalog item, carry its exact quantity breakdown over so the
+        // resulting invoice row is a live نرخنامه-linked row (quantity
+        // controls + auto-recompute) instead of a frozen manual price.
+        if (row.type === 'office_job' && row.priceCatalogItemId) {
+            draftRow._mypl_item_id = row.priceCatalogItemId;
+            draftRow._mypl_base_qty = row.baseQuantity || 0;
+            draftRow._mypl_extra_qtys = (row.extraQuantities || []).slice();
+            draftRow._mypl_mohr_qty = row.mohrQuantity || 0;
+            myplRecomputeRowPrice(draftRow);
+        }
+        invoiceDraft.push(draftRow);
         committedAny = true;
     });
     checkedActivityKeys.clear();
@@ -4732,28 +4816,20 @@ function updateActivityBulkBar() {
         const countEl = document.getElementById(`${prefix}-activity-bulk-count`);
         if (countEl) countEl.textContent = `${checked.length.toLocaleString()} مورد انتخاب شده`;
 
-        // A DeepT job is never deletable (it's the record of real
-        // translation work performed) -- only Sanam-imported rows are.
-        // Styled as disabled but never given the actual `disabled`
-        // attribute -- a real disabled button swallows the click before it
-        // ever reaches bulkDeleteCheckedActivityRows()/
-        // openEditWorkRecordModalForSelection() below, so their own toast
-        // explaining *why* never fires and the button just looks broken.
-        const hasJob = checked.some(r => r.type === 'job');
-        const deleteBtn = document.getElementById(`${prefix}-activity-bulk-delete`);
-        if (deleteBtn) {
-            deleteBtn.style.opacity = hasJob ? '.45' : '1';
-            deleteBtn.style.cursor = hasJob ? 'not-allowed' : 'pointer';
-            deleteBtn.title = hasJob ? 'رکوردهای ترجمه قابل حذف نیستند -- فقط رکوردهای سنام حذف‌شدنی‌اند.' : '';
-        }
+        // Every checkable row (sanam or unbilled office_job -- see
+        // `checkable` in renderClientActivityList()) is deletable via this
+        // bulk flow, so the delete button never needs disabling here.
         // Editing multiple different rows' fields in one form doesn't make
-        // sense -- only enabled for exactly one checked row.
+        // sense -- only enabled for exactly one checked row -- and office_job
+        // rows have no field-editor UI built for this modal (their fields
+        // come from نرخنامه's own catalog shape, not free-text), so edit
+        // stays disabled whenever one is selected.
         const editBtn = document.getElementById(`${prefix}-activity-bulk-edit`);
         if (editBtn) {
-            const single = checked.length === 1;
+            const single = checked.length === 1 && checked[0].type !== 'office_job';
             editBtn.style.opacity = single ? '1' : '.45';
             editBtn.style.cursor = single ? 'pointer' : 'not-allowed';
-            editBtn.title = single ? '' : 'برای ویرایش، فقط یک مورد را انتخاب کنید.';
+            editBtn.title = single ? '' : (checked.length === 1 ? 'این مورد از اینجا قابل ویرایش نیست.' : 'برای ویرایش، فقط یک مورد را انتخاب کنید.');
         }
     });
 }
@@ -4770,7 +4846,7 @@ async function _refetchClientActivity(clientId) {
         const res = await fetch(`${CORE}/clients/${clientId}`, { headers: { 'Authorization': `Bearer ${token}` } });
         if (!res.ok) throw new Error();
         const c = await res.json();
-        renderClientActivityList(c.jobs || [], c.sanam_documents || [], c.office_jobs || []);
+        renderClientActivityList(c.sanam_documents || [], c.office_jobs || []);
     } catch (e) {
         showToast('خطا در به‌روزرسانی سابقهٔ مشتری.');
     }
@@ -4779,17 +4855,16 @@ async function _refetchClientActivity(clientId) {
 async function bulkDeleteCheckedActivityRows() {
     const checked = checkedActivityRows();
     if (!checked.length) return;
-    if (checked.some(r => r.type === 'job')) {
-        showToast('⚠️ رکوردهای ترجمه قابل حذف نیستند.');
-        return;
-    }
     if (!confirm(`${checked.length} رکورد برای همیشه حذف شود؟ این کار قابل بازگشت نیست.`)) return;
 
     const token = localStorage.getItem('deept_token');
     let failed = 0;
     for (const row of checked) {
         try {
-            const res = await fetch(`${CORE}/invoices/sanam-documents/${row.id}`, {
+            const url = row.type === 'office_job'
+                ? `${CORE}/office-jobs/${row.id}`
+                : `${CORE}/invoices/sanam-documents/${row.id}`;
+            const res = await fetch(url, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Bearer ${token}` },
             });
@@ -4808,6 +4883,10 @@ function openEditWorkRecordModalForSelection() {
     const checked = checkedActivityRows();
     if (checked.length !== 1) {
         showToast(checked.length ? '⚠️ برای ویرایش، فقط یک مورد را انتخاب کنید.' : '⚠️ ابتدا یک مورد را انتخاب کنید.');
+        return;
+    }
+    if (checked[0].type === 'office_job') {
+        showToast('⚠️ این مورد از اینجا قابل ویرایش نیست.');
         return;
     }
     openEditWorkRecordModal(checked[0].type, checked[0].id);
@@ -4895,22 +4974,36 @@ const ACTIVITY_PAGE_SIZE = 25;
 let activityListQuery = '';
 let activityListPage = 1;
 
-function renderClientActivityList(jobs, sanamDocs, officeJobs) {
+// Office jobs have no stored price of their own (office_jobs.py never had
+// one, by design) -- this mirrors myplRecomputeRowPrice's formula exactly,
+// just reading straight off the row's own catalog link/quantities instead
+// of a draft row, so the activity list and عملکرد tab can show a live
+// estimate of what it would currently bill at نرخنامه's rates. A سایر row
+// (no price_catalog_item_id) has nothing to estimate from -- 0, same as
+// an untouched manual row.
+function estimateOfficeJobPrice(j) {
+    const itemId = j.price_catalog_item_id;
+    if (!itemId || !PRICE_CATALOG_BY_ID[itemId]) return 0;
+    let total = (j.base_quantity || 0) * myplEffective(itemId, 'base');
+    myplEffectiveExtras(itemId).forEach((ex, i) => {
+        total += ((j.extra_quantities || [])[i] || 0) * ex.price;
+    });
+    if (!PINNED_ITEM_IDS.has(itemId)) {
+        total += (j.mohr_quantity || 0) * myplEffective(MOHR_BARABAR_ASL_ITEM_ID, 'base');
+    }
+    return total;
+}
+
+// "ترجمه ماشینی" (AI-pipeline translation_jobs) rows no longer show up
+// here at all -- mixing them in was interfering with the Sanam billing
+// workflow. This function now only ever receives sanamDocs/officeJobs.
+function renderClientActivityList(sanamDocs, officeJobs) {
     const prefix = isProfilePageOpen() ? 'cp' : 'cd';
     const box = document.getElementById(prefix + '-activity-list');
     const countEl = document.getElementById(prefix + '-activity-count');
     if (!box) return;
 
     const rows = [];
-    (jobs || []).forEach(j => {
-        rows.push({
-            type: 'job', id: j.id, date: j.created_at,
-            title: DOCUMENT_REGISTRY[j.document_type]?.label || j.document_type,
-            price: j.price_toman || 0, status: j.status,
-            // Only a completed job has a settled price worth invoicing.
-            checkable: j.status === 'completed',
-        });
-    });
     (sanamDocs || []).forEach(d => {
         rows.push({
             type: 'sanam', id: d.id, date: d.request_date || d.created_at,
@@ -4920,15 +5013,20 @@ function renderClientActivityList(jobs, sanamDocs, officeJobs) {
             checkable: !d.invoice_id, billed: !!d.invoice_id,
         });
     });
-    // عملکرد دفتر (office_jobs.py) -- a pure performance log, never an
-    // invoice line item (no price field exists on it at all), so unlike
-    // the two above this is never checkable/billable -- renderActivityListPage
-    // gives it a 🗑 button in that column instead of a checkbox.
+    // عملکرد دفتر (office_jobs.py) -- CAN become an invoice line item now
+    // (see invoices.py's _link_office_jobs), same checkbox/billing
+    // treatment as سنام above. Carries its own catalog link/quantities so
+    // commitCheckedActivityToDraft can build a full نرخنامه-linked draft
+    // row from it (live price, quantity controls) rather than a flat
+    // manual one.
     (officeJobs || []).forEach(j => {
         rows.push({
             type: 'office_job', id: j.id, date: j.job_date,
             title: j.description || OFFICE_JOB_TYPE_FA[j.job_type] || 'ترجمه',
-            jobKind: j.job_type, price: 0, checkable: false,
+            jobKind: j.job_type, price: estimateOfficeJobPrice(j),
+            checkable: !j.invoice_id, billed: !!j.invoice_id,
+            priceCatalogItemId: j.price_catalog_item_id, baseQuantity: j.base_quantity,
+            extraQuantities: j.extra_quantities, mohrQuantity: j.mohr_quantity,
         });
     });
     rows.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
@@ -4978,34 +5076,25 @@ function renderActivityListPage() {
     const pageRows = filtered.slice(start, start + ACTIVITY_PAGE_SIZE);
 
     box.innerHTML = pageRows.map(r => {
-        const color = ACTIVITY_CATEGORY_COLORS[r.type];
+        const color = r.type === 'office_job' ? (OFFICE_JOB_TYPE_COLORS[r.jobKind] || ACTIVITY_CATEGORY_COLORS.office_job) : ACTIVITY_CATEGORY_COLORS[r.type];
         const rowKey = activityRowKey(r.type, r.id);
         const checked = checkedActivityKeys.has(rowKey) || isActivityInDraft(rowKey);
-        const st = r.type === 'job' ? (ACTIVITY_STATUS_LABELS[r.status] || { text: escapeHtml(r.status), color: 'var(--text-muted)' })
-            : (r.billed ? { text: 'فاکتور شده', color: '#4ade80' } : null);
-        const idBadge = r.type === 'job'
-            ? `<span class="en" style="color:var(--text-muted);font-size:.65rem;" title="شناسه کار">#${escapeHtml(String(r.id).slice(0, 8))}</span>`
-            : r.type === 'office_job'
+        const st = r.billed ? { text: 'فاکتور شده', color: '#4ade80' } : null;
+        const idBadge = r.type === 'office_job'
             ? `<span style="color:var(--text-muted);font-size:.65rem;">${escapeHtml(OFFICE_JOB_TYPE_FA[r.jobKind] || r.jobKind)}</span>`
             : (r.trackingCode ? `<span class="en" style="color:var(--text-muted);font-size:.65rem;">کد پیگیری ${escapeHtml(r.trackingCode)}</span>` : '');
         const dateStr = r.date ? escapeHtml(String(r.date).slice(0, 10)) : '—';
-        const dotTitle = r.type === 'job' ? 'ترجمه ماشینی' : (r.type === 'sanam' ? 'وارد شده از سنام' : (r.type === 'office_job' ? 'ثبت ترجمه (عملکرد)' : 'ردیف دستی'));
-        // عملکرد رows have no price/invoice tie-in (see office_jobs.py) --
-        // a 🗑 button here instead of the checkbox the other two types get,
-        // rather than threading a third type through the bulk-select/
-        // invoice-draft/bulk-delete machinery built only for billable rows.
-        const deleteBtn = `<button type="button" onclick="deleteClientOfficeJob('${r.id}')" class="text-[11px] font-bold px-2 py-1 rounded-lg" style="background:#7f1d1d;color:#fff;">حذف</button>`;
+        const dotTitle = r.type === 'sanam' ? 'وارد شده از سنام' : (r.type === 'office_job' ? (OFFICE_JOB_TYPE_FA[r.jobKind] || 'عملکرد') : 'ردیف دستی');
         const checkboxEl = `<input type="checkbox" ${checked ? 'checked' : ''} ${r.checkable ? '' : 'disabled'}
             data-activity-key="${escapeHtml(rowKey)}"
             onchange='toggleActivitySelection(${JSON.stringify(r.type)}, ${JSON.stringify(r.id)}, this.checked)'
             style="width:15px;height:15px;accent-color:${color};flex-shrink:0;cursor:${r.checkable ? 'pointer' : 'not-allowed'};">`;
         const pillEl = st ? `<span class="status-pill" style="color:${st.color};background:${st.color}1f;">${st.text}</span>` : '';
-        // cp's single merged cell picks exactly one of delete/pill/checkbox;
-        // cd's narrow layout instead shows delete-or-checkbox AND the pill
-        // as two separate elements (its own pre-existing layout), so it
-        // must not also get the pill folded into this one.
-        const cpActionCell = r.type === 'office_job' ? deleteBtn : (r.billed ? pillEl : checkboxEl);
-        const checkboxOrDelete = r.type === 'office_job' ? deleteBtn : checkboxEl;
+        // cp's single merged cell picks exactly one of pill/checkbox; cd's
+        // narrow layout instead shows the checkbox AND the pill as two
+        // separate elements (its own pre-existing layout), so it must not
+        // also get the pill folded into this one.
+        const cpActionCell = r.billed ? pillEl : checkboxEl;
 
         if (prefix === 'cp') {
             return `<tr>
@@ -5019,7 +5108,7 @@ function renderActivityListPage() {
         }
         return `<div class="flex items-center gap-2.5 p-2.5 rounded-lg text-xs" style="background:var(--bg-main);border:1px solid var(--border-subtle);border-inline-start:3px solid ${color};">
             <span title="${dotTitle}" style="width:9px;height:9px;border-radius:50%;background:${color};display:inline-block;flex-shrink:0;"></span>
-            ${checkboxOrDelete}
+            ${checkboxEl}
             <span class="flex-1" style="color:var(--text-main);">${escapeHtml(r.title)}</span>
             ${idBadge}
             <span class="en shrink-0" style="color:var(--text-muted);">${dateStr}</span>
@@ -5053,10 +5142,7 @@ function filterActivityList(prefix) {
     renderActivityListPage();
 }
 
-// Quick-glance numbers above the profile's activity table -- a failed job
-// never actually charged the client (see the wallet-refund-on-failure
-// fix), so it's excluded from "مجموع درآمد" same as it would be from a
-// real invoice.
+// Quick-glance numbers above the profile's activity table.
 function renderClientStats(rows) {
     const countEl = document.getElementById('cp-stat-count');
     const revenueEl = document.getElementById('cp-stat-revenue');
@@ -5064,13 +5150,15 @@ function renderClientStats(rows) {
     const lastEl = document.getElementById('cp-stat-last');
     if (!countEl) return;
 
-    const revenue = rows.reduce((sum, r) => sum + (r.status === 'failed' ? 0 : (r.price || 0)), 0);
-    const pending = rows.filter(r => r.status === 'processing' || r.status === 'queued').length;
+    const revenue = rows.reduce((sum, r) => sum + (r.price || 0), 0);
     const last = rows.length ? (rows[0].date || '').slice(0, 10) : '';
 
     countEl.textContent = rows.length;
     revenueEl.textContent = revenue.toLocaleString();
-    pendingEl.textContent = pending;
+    // "در حال پردازش" was the AI-pipeline job queue state; this list no
+    // longer carries any job rows (see renderClientActivityList), so
+    // there's nothing left that can be "in progress" here.
+    pendingEl.textContent = '0';
     lastEl.textContent = last || '—';
 }
 
@@ -5590,6 +5678,7 @@ async function submitDraftInvoice(invoiceType) {
             line_total_toman: rowLineTotal(row),
             job_id: row.job_id,
             sanam_document_id: row.sanam_document_id,
+            office_job_id: row.office_job_id || null,
         };
     });
 
@@ -5603,6 +5692,7 @@ async function submitDraftInvoice(invoiceType) {
                 line_total_toman: surcharge,
                 job_id: null,
                 sanam_document_id: null,
+                office_job_id: null,
             });
         }
     }
@@ -6416,7 +6506,7 @@ async function openClientProfile(clientId) {
                     </span>
                 </div>`).join('');
 
-        renderClientActivityList(c.jobs || [], c.sanam_documents || [], c.office_jobs || []);
+        renderClientActivityList(c.sanam_documents || [], c.office_jobs || []);
 
         renderDraftRows();
         await renderClientInvoices(clientId);
@@ -8059,28 +8149,6 @@ async function submitOfficeJob() {
         showToast('❌ ' + (e.message || 'خطا در ثبت ترجمه.'));
     } finally {
         btn.disabled = false; btn.textContent = originalLabel;
-    }
-}
-
-// This client's own logged jobs now render as rows directly inside
-// سابقه پروژه‌ها و اسناد above (renderClientActivityList's 'office_job'
-// rows) rather than a separate list -- deleteClientOfficeJob is reused by
-// that table's own 🗑 button for an office_job row (see
-// renderActivityListPage), since these rows carry no price/invoice_id and
-// so sit outside the checkbox/bulk-delete machinery the rest of that
-// table uses.
-async function deleteClientOfficeJob(jobId) {
-    if (!confirm('این رکورد حذف شود؟')) return;
-    try {
-        const res = await fetch(`${CORE}/office-jobs/${jobId}`, {
-            method: 'DELETE',
-            headers: { 'Authorization': `Bearer ${getToken()}` },
-        });
-        if (!res.ok) throw new Error();
-        showToast('رکورد حذف شد.');
-        await _refetchClientActivity(currentClientDetailId);
-    } catch (e) {
-        showToast('❌ حذف ناموفق بود.');
     }
 }
 
