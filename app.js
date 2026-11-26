@@ -8049,7 +8049,11 @@ function filterOfficeJobDocDropdown() {
     renderMyPriceListMatches(list, input.value, (itemId) => {
         input.value = PRICE_CATALOG_BY_ID[itemId].label;
         _ojSelectedItemId = itemId;
-        _ojQty = { base: 0, extras: [], mohr: 0 };
+        // Default base quantity to 1, same as نرخنامه's own
+        // selectMyPriceListItem -- a flat-fee item with no baseUnit shows
+        // no quantity control at all, so a 0 default would leave it
+        // permanently priced at zero with no way to fix it from the UI.
+        _ojQty = { base: 1, extras: [], mohr: 0 };
         renderOfficeJobQuantities();
         closeOfficeJobDocDropdown();
     });
