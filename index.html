@@ -1211,6 +1211,7 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
       <div class="flex items-center gap-6 mb-5" style="border-bottom:1px solid var(--border-subtle);">
         <button type="button" onclick="switchOfficeFinanceTab('financial')" id="of-tab-btn-financial" class="text-sm font-black pb-3" style="background:none;border:none;border-bottom:3px solid var(--accent);color:var(--accent);cursor:pointer;">💰 مالی</button>
         <button type="button" onclick="switchOfficeFinanceTab('performance')" id="of-tab-btn-performance" class="text-sm font-black pb-3" style="background:none;border:none;border-bottom:3px solid transparent;color:var(--text-muted);cursor:pointer;">📋 عملکرد</button>
+        <button type="button" onclick="switchOfficeFinanceTab('invoices')" id="of-tab-btn-invoices" class="text-sm font-black pb-3" style="background:none;border:none;border-bottom:3px solid transparent;color:var(--text-muted);cursor:pointer;">🧾 فاکتورها</button>
       </div>
 
       <div id="of-tab-financial" class="grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
@@ -1382,6 +1383,47 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
               </thead>
               <tbody id="oj-rows">
                 <tr><td colspan="6" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ─── فاکتورها tab -- every invoice across every client, filterable
+           (تاریخ/وضعیت پرداخت/نوع), with a direct link to each client's own
+           profile -- see DeepT-Core's GET /invoices (client_id omitted). ── -->
+      <div id="of-tab-invoices" class="hidden space-y-5">
+        <div class="workspace-panel p-6">
+          <div class="flex items-center justify-between gap-3 flex-wrap mb-3">
+            <h4 class="text-sm font-black" style="color:var(--text-main);">🧾 فهرست فاکتورها</h4>
+            <div id="of-invoices-filter-range"></div>
+          </div>
+          <div class="flex flex-wrap items-center gap-2 mb-4">
+            <input type="text" id="of-invoices-filter-search" class="auth-input text-xs w-40 py-1.5" placeholder="🔍 جستجوی مشتری..." oninput="renderAllInvoicesRows()">
+            <select id="of-invoices-filter-type" class="auth-input text-xs w-28 py-1.5" onchange="loadAllInvoices()">
+              <option value="">همه انواع</option>
+              <option value="invoice">فاکتور</option>
+              <option value="proforma">پیش‌فاکتور</option>
+            </select>
+            <select id="of-invoices-filter-payment" class="auth-input text-xs w-32 py-1.5" onchange="loadAllInvoices()">
+              <option value="">همه وضعیت‌ها</option>
+              <option value="paid">پرداخت‌شده</option>
+              <option value="unpaid">پرداخت‌نشده</option>
+            </select>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm text-right">
+              <thead>
+                <tr style="border-bottom:1px solid var(--divider);color:var(--text-muted);">
+                  <th class="py-2 px-2 font-bold">تاریخ</th>
+                  <th class="py-2 px-2 font-bold">مشتری</th>
+                  <th class="py-2 px-2 font-bold">نوع</th>
+                  <th class="py-2 px-2 font-bold">مبلغ (تومان)</th>
+                  <th class="py-2 px-2 font-bold">وضعیت پرداخت</th>
+                </tr>
+              </thead>
+              <tbody id="of-invoices-rows">
+                <tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>
               </tbody>
             </table>
           </div>

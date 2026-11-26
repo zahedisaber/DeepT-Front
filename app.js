@@ -3778,21 +3778,24 @@ function _initOfficeFinanceDatePickers() {
     officeRangePicker('of-filter-range', 'of-filter-from', 'of-filter-to', loadOfficeExpenses);
     officeRangePicker('of-income-filter-range', 'of-income-filter-from', 'of-income-filter-to', loadOfficeIncome);
     officeRangePicker('oj-filter-range', 'oj-filter-from', 'oj-filter-to', loadOfficeJobsStats);
+    officeRangePicker('of-invoices-filter-range', 'of-invoices-filter-from', 'of-invoices-filter-to', loadAllInvoices);
 }
 
-// ─── مالی / عملکرد tabs ────────────────────────────────────────────────
+// ─── مالی / عملکرد / فاکتورها tabs ──────────────────────────────────────
 function switchOfficeFinanceTab(tab) {
-    const isFinancial = tab === 'financial';
-    document.getElementById('of-tab-financial').classList.toggle('hidden', !isFinancial);
-    document.getElementById('of-tab-performance').classList.toggle('hidden', isFinancial);
+    document.getElementById('of-tab-financial').classList.toggle('hidden', tab !== 'financial');
+    document.getElementById('of-tab-performance').classList.toggle('hidden', tab !== 'performance');
+    document.getElementById('of-tab-invoices').classList.toggle('hidden', tab !== 'invoices');
     const setActive = (btnId, active) => {
         const el = document.getElementById(btnId);
         el.style.borderBottomColor = active ? 'var(--accent)' : 'transparent';
         el.style.color = active ? 'var(--accent)' : 'var(--text-muted)';
     };
-    setActive('of-tab-btn-financial', isFinancial);
-    setActive('of-tab-btn-performance', !isFinancial);
-    if (!isFinancial) loadOfficeJobsStats();
+    setActive('of-tab-btn-financial', tab === 'financial');
+    setActive('of-tab-btn-performance', tab === 'performance');
+    setActive('of-tab-btn-invoices', tab === 'invoices');
+    if (tab === 'performance') loadOfficeJobsStats();
+    if (tab === 'invoices') loadAllInvoices();
 }
 
 function officeRangePicker(containerId, fromId, toId, onChange) {
@@ -4261,6 +4264,92 @@ async function deleteOfficeJob(jobId) {
         await loadOfficeJobsStats();
     } catch (e) {
         showToast('❌ ' + (e.message || 'حذف ناموفق بود.'));
+    }
+}
+
+// ── فاکتورها tab -- every invoice across every client (DeepT-Core's
+// GET /invoices with no client_id), filterable by date/نوع/وضعیت پرداخت,
+// with a client-name search filtered client-side against the already-
+// fetched page (same convenience as the activity list's own search box).
+let _allInvoicesCache = [];
+
+async function loadAllInvoices() {
+    const tbody = document.getElementById('of-invoices-rows');
+    if (!tbody) return;
+    const from = document.getElementById('of-invoices-filter-from')?.value || '';
+    const to = document.getElementById('of-invoices-filter-to')?.value || '';
+    const invoiceType = document.getElementById('of-invoices-filter-type')?.value || '';
+    const paymentStatus = document.getElementById('of-invoices-filter-payment')?.value || '';
+    const qs = new URLSearchParams();
+    if (from) qs.set('from', from);
+    if (to) qs.set('to', to);
+    if (invoiceType) qs.set('invoice_type', invoiceType);
+    if (paymentStatus) qs.set('payment_status', paymentStatus);
+
+    tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">در حال بارگذاری...</td></tr>`;
+    try {
+        const res = await fetch(`${CORE}/invoices?${qs.toString()}`, { headers: { 'Authorization': `Bearer ${getToken()}` } });
+        if (!res.ok) throw new Error();
+        _allInvoicesCache = await res.json();
+        renderAllInvoicesRows();
+    } catch (e) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">خطا در دریافت فاکتورها.</td></tr>`;
+    }
+}
+
+const ALL_INVOICES_TYPE_LABELS = {
+    invoice:  { text: 'فاکتور',     color: '#4ade80' },
+    proforma: { text: 'پیش‌فاکتور', color: '#fb923c' },
+};
+
+function renderAllInvoicesRows() {
+    const tbody = document.getElementById('of-invoices-rows');
+    if (!tbody) return;
+    const query = (document.getElementById('of-invoices-filter-search')?.value || '').trim().toLowerCase();
+    const rows = query
+        ? _allInvoicesCache.filter(inv => (inv.client_name || '').toLowerCase().includes(query))
+        : _allInvoicesCache;
+
+    if (!rows.length) {
+        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">${query ? '// موردی با این نام یافت نشد' : '// بدون فاکتور ثبت‌شده'}</td></tr>`;
+        return;
+    }
+    tbody.innerHTML = rows.map(inv => {
+        const t = ALL_INVOICES_TYPE_LABELS[inv.invoice_type] || ALL_INVOICES_TYPE_LABELS.invoice;
+        const dateStr = (inv.issue_date || inv.created_at || '').slice(0, 10);
+        // payment_status only ever exists on a real فاکتور -- a پیش‌فاکتور
+        // isn't a bill yet (see invoices.py), so it gets a plain dash
+        // instead of a misleading "unpaid" toggle button.
+        const paymentCell = inv.invoice_type === 'invoice'
+            ? (inv.payment_status === 'paid'
+                ? `<button type="button" onclick="toggleAllInvoicesPaymentStatus('${inv.id}',false)" class="text-[10px] font-bold px-2 py-1 rounded-md" style="background:#4ade8022;color:#4ade80;border:1px solid #4ade8055;" title="علامت‌گذاری به‌عنوان پرداخت‌نشده">✓ پرداخت‌شده</button>`
+                : `<button type="button" onclick="toggleAllInvoicesPaymentStatus('${inv.id}',true)" class="text-[10px] font-bold px-2 py-1 rounded-md" style="background:#f8717122;color:#f87171;border:1px solid #f8717155;" title="علامت‌گذاری به‌عنوان پرداخت‌شده">پرداخت‌نشده</button>`)
+            : '<span style="color:var(--text-muted);">—</span>';
+        return `
+        <tr style="border-bottom:1px solid var(--divider);cursor:pointer;" onclick="openInvoiceView('${inv.id}')">
+            <td class="py-2 px-2 en" style="color:var(--text-muted);">${escapeHtml(dateStr)}</td>
+            <td class="py-2 px-2" style="color:var(--text-main);">
+                <button type="button" onclick="event.stopPropagation();openClientProfile('${inv.client_id}')" class="font-bold" style="color:var(--accent);background:none;border:none;cursor:pointer;padding:0;text-decoration:underline;">${escapeHtml(inv.client_name || '—')}</button>
+            </td>
+            <td class="py-2 px-2"><span class="status-pill" style="color:${t.color};background:${t.color}1f;">${t.text}</span></td>
+            <td class="py-2 px-2 en font-bold" style="color:var(--accent);">${(inv.total_toman || 0).toLocaleString()}</td>
+            <td class="py-2 px-2" onclick="event.stopPropagation();">${paymentCell}</td>
+        </tr>`;
+    }).join('');
+}
+
+async function toggleAllInvoicesPaymentStatus(invoiceId, markPaid) {
+    try {
+        const res = await fetch(`${CORE}/invoices/${invoiceId}/payment-status`, {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${getToken()}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ paid: markPaid })
+        });
+        if (!res.ok) throw new Error();
+        showToast(markPaid ? '✅ فاکتور پرداخت‌شده علامت‌گذاری شد.' : 'وضعیت فاکتور به پرداخت‌نشده تغییر کرد.');
+        await loadAllInvoices();
+    } catch (e) {
+        showToast('❌ تغییر وضعیت پرداخت ناموفق بود.');
     }
 }
 
@@ -5182,6 +5271,13 @@ async function renderClientInvoices(clientId) {
     const profileOpen = isProfilePageOpen();
     const prefix = profileOpen ? 'cp' : 'cd';
     const box = document.getElementById(prefix + '-invoices-list');
+    // Neither client-detail view is open -- e.g. the invoice-view modal was
+    // opened from امور مالی دفتر's own فاکتورها tab, not from a client's
+    // profile -- so there's no list here to refresh. Without this guard,
+    // callers like saveInvoiceEdit() that fire-and-await this after a
+    // successful PATCH would throw on the null box and show a false
+    // "ذخیره ناموفق بود" toast for a save that actually succeeded.
+    if (!box) return;
     const countEl = document.getElementById(prefix + '-invoice-count');
     const token = localStorage.getItem('deept_token');
     box.innerHTML = `<div class="text-xs text-center py-3" style="color:var(--text-muted);">در حال بارگذاری...</div>`;
