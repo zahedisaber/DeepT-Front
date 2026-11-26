@@ -3733,7 +3733,16 @@ async function unlockOfficeFinance() {
         const res = await fetch(`${CORE}/office-finance/expenses/summary`, {
             headers: { 'Authorization': `Bearer ${getToken()}`, 'X-Finance-Pin': pin }
         });
-        if (!res.ok) throw new Error();
+        if (!res.ok) {
+            // _check_finance_pin raises exactly 403 for a genuinely wrong
+            // pin -- anything else (401 stale login, 404/500 from a
+            // not-yet-deployed backend, a network error) is a different
+            // problem entirely, and showing "wrong pin" for it would send
+            // someone chasing the wrong fix. Surface the server's own
+            // detail message instead of guessing.
+            const data = await res.json().catch(() => ({}));
+            throw new Error(data.detail || `خطای سرور (${res.status})`);
+        }
         sessionStorage.setItem(FINANCE_PIN_STORAGE_KEY, pin);
         document.getElementById('of-pin-input').value = '';
         statusEl.classList.add('hidden');
@@ -3741,7 +3750,7 @@ async function unlockOfficeFinance() {
         loadOfficeExpenses();
         loadOfficeIncome();
     } catch (e) {
-        statusEl.textContent = '❌ کد محرمانه نادرست است.';
+        statusEl.textContent = '❌ ' + (e.message || 'کد محرمانه نادرست است.');
         statusEl.classList.remove('hidden');
     } finally {
         btn.disabled = false; btn.textContent = originalLabel;
