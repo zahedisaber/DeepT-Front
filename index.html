@@ -319,6 +319,7 @@
     <select id="oj-type" class="auth-input mb-3">
       <option value="tayidi">تاییدی</option>
       <option value="gheyr_tayidi">غیرتاییدی</option>
+      <option value="motafarreghe">متفرقه</option>
     </select>
 
     <label for="oj-description" class="auth-label">شرح سند (اختیاری)</label>
@@ -506,10 +507,11 @@
 
     <h4 class="text-sm font-black mb-2 flex items-center gap-1.5" style="color:var(--text-main);">📊 سابقه پروژه‌ها و اسناد (<span class="en" id="cd-activity-count">۰</span>)</h4>
     <div class="flex flex-wrap items-center gap-3 mb-2">
-        <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:50%;background:#4ade80;display:inline-block;"></span>ترجمه ماشینی</span>
         <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:50%;background:#38bdf8;display:inline-block;"></span>وارد شده از سنام</span>
         <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:50%;background:#fbbf24;display:inline-block;"></span>ردیف دستی (پیش‌نویس فاکتور)</span>
-                        <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:50%;background:#a78bfa;display:inline-block;"></span>ثبت ترجمه (عملکرد)</span>
+        <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span data-oj-type="tayidi" style="width:8px;height:8px;border-radius:50%;background:#a78bfa;display:inline-block;"></span>تاییدی</span>
+        <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span data-oj-type="gheyr_tayidi" style="width:8px;height:8px;border-radius:50%;background:#2dd4bf;display:inline-block;"></span>غیرتاییدی</span>
+        <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span data-oj-type="motafarreghe" style="width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block;"></span>متفرقه</span>
     </div>
     <p class="text-[11px] mb-2" style="color:var(--text-muted);">تیک هر مورد را بزنید، سپس «ثبت پیش‌نویس فاکتور» را بزنید تا به پیش‌نویس فاکتور پایین اضافه شود و در آنجا قابل ویرایش باشد.</p>
     <div id="cd-activity-bulk-bar" class="hidden flex items-center gap-2 flex-wrap p-2 rounded-lg mb-2" style="background:var(--bg-main);border:1px solid var(--accent);">
@@ -1340,7 +1342,7 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
             <h4 class="text-sm font-black" style="color:var(--text-main);">📋 خلاصه عملکرد</h4>
             <div id="oj-filter-range"></div>
           </div>
-          <div class="grid grid-cols-3 gap-3 text-center">
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
             <div>
               <div class="text-[10px] font-bold mb-1" style="color:var(--text-muted);">کل کارها</div>
               <div id="oj-stat-count" class="text-lg font-black en" style="color:var(--text-main);">—</div>
@@ -1352,6 +1354,10 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
             <div>
               <div class="text-[10px] font-bold mb-1" style="color:var(--text-muted);">غیرتاییدی</div>
               <div id="oj-stat-gheyr-tayidi" class="text-lg font-black en" style="color:var(--text-main);">—</div>
+            </div>
+            <div>
+              <div class="text-[10px] font-bold mb-1" style="color:var(--text-muted);">متفرقه</div>
+              <div id="oj-stat-motafarreghe" class="text-lg font-black en" style="color:var(--text-main);">—</div>
             </div>
           </div>
         </div>
@@ -2209,10 +2215,28 @@ AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAyhbW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAA
                         <button type="button" onclick="openChatForClient()" class="text-[11px] font-black px-3 py-1.5 rounded-lg transition" style="background:var(--accent);color:var(--btn-text-on-accent);">+ پروژه جدید</button>
                     </div>
                     <div class="flex flex-wrap items-center gap-3 mb-2">
-                        <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:50%;background:#4ade80;display:inline-block;"></span>ترجمه ماشینی</span>
                         <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:50%;background:#38bdf8;display:inline-block;"></span>وارد شده از سنام</span>
                         <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:50%;background:#fbbf24;display:inline-block;"></span>ردیف دستی (پیش‌نویس فاکتور)</span>
-                        <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span style="width:8px;height:8px;border-radius:50%;background:#a78bfa;display:inline-block;"></span>ثبت ترجمه (عملکرد)</span>
+                        <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span data-oj-type="tayidi" style="width:8px;height:8px;border-radius:50%;background:#a78bfa;display:inline-block;"></span>تاییدی</span>
+                        <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span data-oj-type="gheyr_tayidi" style="width:8px;height:8px;border-radius:50%;background:#2dd4bf;display:inline-block;"></span>غیرتاییدی</span>
+                        <span class="flex items-center gap-1 text-[10px]" style="color:var(--text-muted);"><span data-oj-type="motafarreghe" style="width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block;"></span>متفرقه</span>
+                        <div class="relative">
+                            <button type="button" onclick="toggleOfficeJobColorPicker()" title="تغییر رنگ عملکرد (تاییدی/غیرتاییدی/متفرقه)" class="text-[10px] font-bold px-1.5 py-0.5 rounded" style="background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-subtle);">🎨</button>
+                            <div id="officeJobColorPickerPopover" class="hidden" style="position:absolute;top:calc(100% + 4px);right:0;z-index:30;width:170px;background:var(--card-surface);border:1px solid var(--border-color);border-radius:.75rem;padding:.75rem;box-shadow:0 8px 24px rgba(0,0,0,.3);">
+                                <div class="space-y-2">
+                                    <label class="flex items-center justify-between text-[11px] font-bold" style="color:var(--text-main);">تاییدی
+                                        <input type="color" id="oj-color-tayidi" value="#a78bfa" oninput="setOfficeJobTypeColor('tayidi', this.value)" style="width:28px;height:22px;padding:0;border:none;background:none;cursor:pointer;">
+                                    </label>
+                                    <label class="flex items-center justify-between text-[11px] font-bold" style="color:var(--text-main);">غیرتاییدی
+                                        <input type="color" id="oj-color-gheyr_tayidi" value="#2dd4bf" oninput="setOfficeJobTypeColor('gheyr_tayidi', this.value)" style="width:28px;height:22px;padding:0;border:none;background:none;cursor:pointer;">
+                                    </label>
+                                    <label class="flex items-center justify-between text-[11px] font-bold" style="color:var(--text-main);">متفرقه
+                                        <input type="color" id="oj-color-motafarreghe" value="#f59e0b" oninput="setOfficeJobTypeColor('motafarreghe', this.value)" style="width:28px;height:22px;padding:0;border:none;background:none;cursor:pointer;">
+                                    </label>
+                                </div>
+                                <button type="button" onclick="resetOfficeJobTypeColors()" class="w-full mt-2.5 pt-2 text-[10px] font-bold" style="border-top:1px solid var(--divider);color:var(--text-muted);background:none;border-left:none;border-right:none;border-bottom:none;cursor:pointer;">بازنشانی به پیش‌فرض</button>
+                            </div>
+                        </div>
                     </div>
                     <p class="text-[11px] mb-2" style="color:var(--text-muted);">تیک هر مورد را بزنید، سپس «ثبت پیش‌نویس فاکتور» را بزنید تا به پیش‌نویس فاکتور اضافه شود و در آنجا قابل ویرایش باشد.</p>
                     <div id="cp-activity-bulk-bar" class="hidden flex items-center gap-2 flex-wrap p-2 rounded-lg mb-2" style="background:var(--bg-main);border:1px solid var(--accent);">
