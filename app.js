@@ -3685,14 +3685,17 @@ function _officeFinanceHeaders(extra = {}) {
     return headers;
 }
 
+// Gates ONLY مالی's own form/summary/list -- عملکرد and فاکتورها show their
+// own data regardless of this lock (see of-content's own comment in
+// index.html for why: neither carries money the PIN is meant to protect).
 function _showOfficeFinanceLockScreen() {
     document.getElementById('of-lock-screen').classList.remove('hidden');
-    document.getElementById('of-content').classList.add('hidden');
+    document.getElementById('of-financial-body').classList.add('hidden');
 }
 
 function _showOfficeFinanceContent() {
     document.getElementById('of-lock-screen').classList.add('hidden');
-    document.getElementById('of-content').classList.remove('hidden');
+    document.getElementById('of-financial-body').classList.remove('hidden');
 }
 
 async function openOfficeFinancePage(pushHistory = true) {
