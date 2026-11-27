@@ -4323,7 +4323,7 @@ function renderAllInvoicesRows() {
         : _allInvoicesCache;
 
     if (!rows.length) {
-        tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-sm" style="color:var(--text-muted);">${query ? '// موردی با این نام یافت نشد' : '// بدون فاکتور ثبت‌شده'}</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-sm" style="color:var(--text-muted);">${query ? '// موردی با این نام یافت نشد' : '// بدون فاکتور ثبت‌شده'}</td></tr>`;
         return;
     }
     tbody.innerHTML = rows.map(inv => {
@@ -4339,6 +4339,7 @@ function renderAllInvoicesRows() {
             : '<span style="color:var(--text-muted);">—</span>';
         return `
         <tr style="border-bottom:1px solid var(--divider);cursor:pointer;" onclick="openInvoiceView('${inv.id}')">
+            <td class="py-2 px-2 en" style="color:var(--text-muted);">${inv.invoice_number ? '#' + inv.invoice_number : '—'}</td>
             <td class="py-2 px-2 en" style="color:var(--text-muted);">${escapeHtml(dateStr)}</td>
             <td class="py-2 px-2" style="color:var(--text-main);">
                 <button type="button" onclick="event.stopPropagation();openClientProfile('${inv.client_id}')" class="font-bold" style="color:var(--accent);background:none;border:none;cursor:pointer;padding:0;text-decoration:underline;">${escapeHtml(inv.client_name || '—')}</button>
@@ -5332,7 +5333,8 @@ async function renderClientInvoices(clientId) {
             <div onclick="openInvoiceView('${inv.id}')" class="p-2.5 rounded-lg text-xs cursor-pointer transition hover:opacity-80" style="background:var(--bg-main);border:1px solid var(--border-subtle);">
                 <div class="flex items-center justify-between gap-2">
                     <span class="flex items-center gap-1.5" style="color:var(--text-main);">
-                        🧾 <span class="status-pill" style="color:${t.color};background:${t.color}1f;">${t.text}</span>
+                        🧾 ${inv.invoice_number ? `<span class="en" style="color:var(--text-muted);">#${inv.invoice_number}</span>` : ''}
+                        <span class="status-pill" style="color:${t.color};background:${t.color}1f;">${t.text}</span>
                         ${SOURCE_LABELS[inv.source] || inv.source}${dateStr ? ' · ' + escapeHtml(dateStr) : ''}${inv.tracking_code ? ' · کد پیگیری ' + escapeHtml(inv.tracking_code) : ''}
                     </span>
                     <span class="flex items-center gap-2">
@@ -7823,6 +7825,10 @@ async function openInvoiceView(invoiceId, autoEdit = false) {
         const issuer = inv.issuer || {};
         document.getElementById('iv-issuer-name').textContent = issuer.office_name || issuer.full_name || 'دفتر ترجمه رسمی';
         document.getElementById('iv-type-badge').textContent = INVOICE_TYPE_LABELS_FA[inv.invoice_type] || 'فاکتور';
+        // invoice_number is per-office sequential (1, 2, 3, ...), assigned
+        // server-side at creation -- a legacy row from before this existed
+        // (pre-migration) shows nothing rather than a misleading "#null".
+        document.getElementById('iv-number').innerHTML = inv.invoice_number ? `شماره فاکتور: <span class="en">#${inv.invoice_number}</span>` : '';
         // issue_date_shamsi is computed server-side (and, for a Sanam-
         // imported invoice, passed through as-is since it's already a
         // Shamsi date from the judiciary's own export) -- see Core's
